@@ -1,0 +1,42 @@
+# Feellink — Instagram Clone Platform
+
+## Tech Stack
+- **Frontend**: Next.js 15 + TailwindCSS + Zustand
+- **Backend**: NestJS + Prisma + PostgreSQL
+- **Auth**: JWT (Access/Refresh Token)
+- **Storage**: MinIO (media upload)
+- **UI Theme**: Light/Dark Mode toggle
+
+## Aktif Özellikler
+✅ Kayıt Ol / Giriş / Logout
+✅ Profil sayfası (biyografi, fotoğraf)
+✅ Takip etme / Takipçi / İstek sistemi (gizli hesaplar dahil)
+✅ Bildirim sistemi (gerçek zamanlı)
+✅ Gönderi oluşturma (fotoğraf + açıklama)
+✅ Profilde gönderi ızgarası
+✅ Gönderi detay modalı (Instagram tarzı)
+✅ Beğeni ❤️ — turuncu renk ve animasyonlu
+✅ Yorum 💬 — anında ekleme ve silme
+✅ Kaydet 🔖 — toggle
+✅ Admin panel (kullanıcı/gönderi yönetimi)
+✅ Dark Mode (localStorage + Tailwind class mode)
+
+## Önemli Notlar
+- Sidebar sade, profil içinden gönderi paylaşımı yapılır.
+- Her özellik dark mode uyumlu.
+- Tüm backend endpoint'leri NestJS üzerinden çalışıyor.
+- Frontend API base: `/api` (axios instance tanımlı).
+- Beğeni rengi: `#ff7b00` (Feellink turuncu)
+- Beğeni animasyonu: `animate-pop` (0.3s ease-in-out)
+
+## Sonraki Planlar
+- Beğenen kullanıcıları listeleme popup'ı
+- Sonsuz kaydırma (infinite scroll)
+- Gerçek zamanlı socket.io etkileşimleri
+
+## Proje Yapısı
+- `frontend/` — Next.js 15 uygulaması
+- `backend/` — NestJS API
+- `backend/prisma/` — Prisma schema ve migrations
+
+

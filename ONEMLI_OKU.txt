@@ -1,0 +1,59 @@
+═══════════════════════════════════════════════════════════════
+  ⚠️ ÖNEMLİ - ERR_CONNECTION_REFUSED ÇÖZÜMÜ
+═══════════════════════════════════════════════════════════════
+
+SORUN: Backend çalışmıyor çünkü Docker Desktop yüklü değil.
+
+═══════════════════════════════════════════════════════════════
+  🎯 TEK YAPMANIZ GEREKEN
+═══════════════════════════════════════════════════════════════
+
+1. Docker Desktop'ı Yükleyin:
+   https://www.docker.com/products/docker-desktop
+
+2. Docker Desktop'ı Başlatın (Applications klasöründen)
+
+3. Terminal'de Şunları Çalıştırın:
+
+   cd /Users/sudeesmer/Desktop/OLACAK
+   docker compose up -d
+   ./BACKEND_BASLAT.sh
+
+═══════════════════════════════════════════════════════════════
+  ✅ HAZIR OLANLAR
+═══════════════════════════════════════════════════════════════
+
+✓ Backend bağımlılıkları yüklü (593 paket)
+✓ .env dosyası hazır
+✓ Tüm kodlar yazıldı
+✓ Frontend hazır
+✓ Script'ler hazır
+
+═══════════════════════════════════════════════════════════════
+  ❌ EKSİK OLAN
+═══════════════════════════════════════════════════════════════
+
+✗ Docker Desktop yüklü değil
+✗ Database servisleri çalışmıyor
+✗ Backend başlatılamıyor
+
+═══════════════════════════════════════════════════════════════
+  📝 DOCKER YÜKLENDİKTEN SONRA
+═══════════════════════════════════════════════════════════════
+
+Otomatik başlatma:
+  ./BASLA.sh
+
+Manuel başlatma:
+  1. docker compose up -d
+  2. cd backend
+  3. npm run prisma migrate dev --name init
+  4. npm run start:dev
+
+═══════════════════════════════════════════════════════════════
+
+DETAYLI BİLGİ: HEMEN_BASLA.md dosyasına bakın.
+
+═══════════════════════════════════════════════════════════════
+
+

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "articles" ADD COLUMN IF NOT EXISTS "views" INTEGER NOT NULL DEFAULT 0;
+

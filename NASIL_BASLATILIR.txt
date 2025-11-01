@@ -1,0 +1,96 @@
+═══════════════════════════════════════════════════════════════
+  INSTAGRAM CLONE - HIZLI BAŞLATMA KILAVUZU
+═══════════════════════════════════════════════════════════════
+
+SORUN: ERR_CONNECTION_REFUSED
+ÇÖZÜM: Docker Desktop yüklü olmalı ve çalışıyor olmalı
+
+═══════════════════════════════════════════════════════════════
+  ADIM 1: Docker Desktop Yükleme
+═══════════════════════════════════════════════════════════════
+
+1. Tarayıcıda açın: https://www.docker.com/products/docker-desktop
+2. "Download for Mac" butonuna tıklayın
+3. İndirilen dosyayı açın ve Docker.app'ı Applications'a sürükleyin
+4. Applications klasöründen Docker Desktop'ı başlatın
+5. Menü çubuğunda Docker ikonu görünene kadar bekleyin (1-2 dakika)
+
+═══════════════════════════════════════════════════════════════
+  ADIM 2: Terminal'de Çalıştırın
+═══════════════════════════════════════════════════════════════
+
+# Terminal'i açın ve şu komutları çalıştırın:
+
+cd /Users/sudeesmer/Desktop/OLACAK
+
+# Docker servislerini başlat
+docker compose up -d
+
+# 10 saniye bekleyin, sonra:
+docker compose ps
+
+# Tüm servisler "Up" olmalı
+
+═══════════════════════════════════════════════════════════════
+  ADIM 3: Backend'i Başlatın
+═══════════════════════════════════════════════════════════════
+
+# Yeni bir terminal açın veya aynı terminalde:
+
+cd /Users/sudeesmer/Desktop/OLACAK/backend
+
+# İlk kez çalıştırıyorsanız:
+pnpm install  # veya npm install
+
+# Database migration (ilk kez):
+pnpm prisma migrate dev --name init
+
+# Backend'i başlat:
+pnpm start:dev  # veya npm run start:dev
+
+# Terminal'de şunu görmelisiniz:
+# 🚀 Application is running on: http://localhost:3001
+
+═══════════════════════════════════════════════════════════════
+  ADIM 4: Frontend'i Başlatın
+═══════════════════════════════════════════════════════════════
+
+# Yeni bir terminal açın:
+
+cd /Users/sudeesmer/Desktop/OLACAK/frontend
+
+pnpm install  # veya npm install
+pnpm dev      # veya npm run dev
+
+# Tarayıcıda otomatik açılacak: http://localhost:3000
+
+═══════════════════════════════════════════════════════════════
+  HIZLI TEST
+═══════════════════════════════════════════════════════════════
+
+Backend başladıktan sonra tarayıcıda:
+- http://localhost:3001/api (Swagger UI)
+
+Frontend başladıktan sonra:
+- http://localhost:3000
+
+═══════════════════════════════════════════════════════════════
+  HAZIR SCRIPT'LER
+═══════════════════════════════════════════════════════════════
+
+# Tüm kurulumu otomatik yapar:
+./BASLA.sh
+
+# Sadece backend'i başlatır:
+./BACKEND_BASLAT.sh
+
+═══════════════════════════════════════════════════════════════
+
+DETAYLI BİLGİ İÇİN:
+- HEMEN_BASLA.md
+- COZUM.md
+- DOCKER_GEREKLI.md
+
+═══════════════════════════════════════════════════════════════
+
+
