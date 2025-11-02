@@ -156,6 +156,17 @@ export class PostsController {
     return this.postsService.deleteComment(commentId, user.id);
   }
 
+  @Post('comments/:commentId/like')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Toggle comment like' })
+  @ApiResponse({ status: 200, description: 'Comment like toggled successfully' })
+  async toggleCommentLike(
+    @Param('commentId') commentId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.postsService.toggleCommentLike(commentId, user.id);
+  }
+
   @Post('comments/:commentId/react')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Toggle comment reaction' })

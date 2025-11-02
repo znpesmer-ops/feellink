@@ -15,9 +15,19 @@ export class AuthController {
     return this.authService.register(registerDto);
   }
 
+  @Post('register-corporate')
+  async registerCorporate(@Body() registerDto: RegisterDto) {
+    return this.authService.register({ ...registerDto, role: 'CORPORATE' });
+  }
+
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  @Post('login-corporate')
+  async corporateLogin(@Body() loginDto: LoginDto) {
+    return this.authService.corporateLogin(loginDto);
   }
 
   @Post('refresh')

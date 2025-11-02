@@ -71,6 +71,26 @@ pnpm install
 pnpm dev
 ```
 
+### 🏛️ Kurumsal Kullanıcı Testi
+
+Platform hem normal hem kurumsal kullanıcıları destekler:
+
+**Normal Kullanıcı:**
+- `/register` → Normal kayıt ol
+- Feed, keşfet, profil, mesajlar kullanabilir
+
+**Kurumsal Kullanıcı:**
+- `/register` → "Kurumsal Kayıt" sekmesinden kayıt ol
+- VEYA mevcut kullanıcıyı kurumsal yap:
+```bash
+cd backend
+npm run make:corporate <username|email>
+```
+- Sidebar'da "Kurumsal" bölümü (Koleksiyonlarım, Etkinlik Yönetimi) görünür
+
+**Giriş:**
+- `/login` → "Kurumsal Giriş" sekmesi → Corporates only
+
 ### 🔍 Sorun Giderme
 
 Eğer `ERR_CONNECTION_REFUSED` hatası alıyorsanız:

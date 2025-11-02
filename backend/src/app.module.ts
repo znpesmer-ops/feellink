@@ -16,6 +16,10 @@ import { ExploreModule } from './explore/explore.module';
 import { AdminModule } from './admin/admin.module';
 import { ChatModule } from './chat/chat.module';
 import { ArticlesModule } from './articles/articles.module';
+import { SidebarModule } from './sidebar/sidebar.module';
+import { CollectionsModule } from './collections/collections.module';
+import { EventsModule } from './events/events.module';
+import { TicketsModule } from './tickets/tickets.module';
 
 @Module({
   imports: [
@@ -43,6 +47,10 @@ import { ArticlesModule } from './articles/articles.module';
     AdminModule,
     ChatModule,
     ArticlesModule,
+    SidebarModule,
+    CollectionsModule,
+    EventsModule,
+    TicketsModule,
   ],
 })
 export class AppModule {}

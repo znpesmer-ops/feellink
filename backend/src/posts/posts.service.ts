@@ -150,6 +150,19 @@ export class PostsService {
                 isVerified: true,
               },
             },
+            _count: {
+              select: {
+                likes: true,
+              },
+            },
+            likes: currentUserId ? {
+              where: {
+                userId: currentUserId,
+              },
+              select: {
+                id: true,
+              },
+            } : false,
             replies: {
               include: {
                 user: {
@@ -161,6 +174,19 @@ export class PostsService {
                     isVerified: true,
                   },
                 },
+                _count: {
+                  select: {
+                    likes: true,
+                  },
+                },
+                likes: currentUserId ? {
+                  where: {
+                    userId: currentUserId,
+                  },
+                  select: {
+                    id: true,
+                  },
+                } : false,
               },
               orderBy: { createdAt: 'asc' },
             },
@@ -217,6 +243,8 @@ export class PostsService {
       parentId: comment.parentId,
       content: comment.content,
       createdAt: comment.createdAt,
+      isLikedByCurrentUser: comment.likes && comment.likes.length > 0,
+      likesCount: comment._count?.likes || 0,
       user: {
         id: comment.user.id,
         username: comment.user.username,
@@ -230,6 +258,8 @@ export class PostsService {
         parentId: reply.parentId,
         content: reply.content,
         createdAt: reply.createdAt,
+        isLikedByCurrentUser: reply.likes && reply.likes.length > 0,
+        likesCount: reply._count?.likes || 0,
         user: {
           id: reply.user.id,
           username: reply.user.username,
@@ -317,6 +347,7 @@ export class PostsService {
           type: 'like',
           fromUserId: userId,
           postId,
+          targetUrl: `/posts/${postId}`,
         });
       } else {
         console.log(`⏭️ Like notification skipped for post owner (preference disabled)`)
@@ -433,9 +464,36 @@ export class PostsService {
           fromUserId: userId,
           postId,
           commentId: comment.id,
+          targetUrl: `/posts/${postId}`,
         });
       } else {
         console.log(`⏭️ Comment notification skipped for post owner (preference disabled)`)
+      }
+    }
+
+    // 🔁 Reply notification - yorum sahibine bildirim gönder
+    if (parentId) {
+      const parentComment = await this.prisma.comment.findUnique({
+        where: { id: parentId },
+        include: { user: true },
+      });
+
+      if (parentComment && parentComment.userId !== userId) {
+        const allowed = await this.notificationsService.isAllowed(parentComment.userId, 'reply')
+        
+        if (allowed) {
+          await this.notificationsService.createNotificationSync({
+            userId: parentComment.userId,
+            type: 'reply',
+            fromUserId: userId,
+            postId,
+            commentId: comment.id,
+            message: `${comment.user.username} yorumuna yanıt verdi: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
+            targetUrl: `/posts/${postId}`,
+          });
+        } else {
+          console.log(`⏭️ Reply notification skipped (preference disabled)`)
+        }
       }
     }
 
@@ -474,6 +532,7 @@ export class PostsService {
           postId,
           commentId: comment.id,
           message: `${comment.user.username} seni bir yorumda etiketledi`,
+          targetUrl: `/posts/${postId}`,
         })
 
         console.log(`🔔 Mention notification sent to ${mentionedUser.username} from ${comment.user.username}`)
@@ -910,6 +969,72 @@ export class PostsService {
   // Alias for consistency with user's example
   async getSaved(userId: string) {
     return this.getSavedPosts(userId);
+  }
+
+  async toggleCommentLike(commentId: string, userId: string) {
+    // Yorumun var olup olmadığını kontrol et
+    const comment = await this.prisma.comment.findUnique({
+      where: { id: commentId },
+      include: {
+        user: {
+          select: { id: true, username: true },
+        },
+      },
+    });
+
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    // Kullanıcı daha önce beğenmiş mi?
+    const existingLike = await this.prisma.commentLike.findUnique({
+      where: {
+        commentId_userId: {
+          commentId,
+          userId,
+        },
+      },
+    });
+
+    if (existingLike) {
+      // Beğenmeyi kaldır
+      await this.prisma.commentLike.delete({
+        where: { id: existingLike.id },
+      });
+    } else {
+      // Beğeniyi ekle
+      await this.prisma.commentLike.create({
+        data: {
+          commentId,
+          userId,
+        },
+      });
+
+      // 🔔 Bildirim oluştur (kendine beğenme hariç)
+      if (comment.userId !== userId && this.notificationsService) {
+        await this.notificationsService.createNotificationSync({
+          userId: comment.userId,
+          type: 'comment_like',
+          message: `${comment.user.username} yorumunu beğendi.`,
+          fromUserId: userId,
+          postId: comment.postId,
+          commentId: commentId,
+          targetUrl: `/posts/${comment.postId}#cmt-${commentId}`,
+        });
+
+        console.log(`🔔 Comment like notification created for comment author: ${comment.userId}`);
+      }
+    }
+
+    // Güncel beğeni sayısını al
+    const likesCount = await this.prisma.commentLike.count({
+      where: { commentId },
+    });
+
+    return {
+      liked: !existingLike,
+      likesCount,
+    };
   }
 }
 

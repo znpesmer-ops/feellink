@@ -10,6 +10,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  USER
+  CORPORATE
+  ADMIN
+}
+
 model User {
   id             String   @id @default(cuid())
   username       String   @unique
@@ -18,6 +24,7 @@ model User {
   fullName       String?
   bio            String?
   avatar         String?
+  role           Role     @default(USER)
   isPrivate      Boolean  @default(false)
   isVerified     Boolean  @default(false)
   isAdmin        Boolean  @default(false)
@@ -33,13 +40,14 @@ model User {
   articles               Article[]
   comments               Comment[]
   likes                  Like[]
-  followers              Follow[]        @relation("Follower")
-  following              Follow[]        @relation("Following")
-  blockedBy              Block[]         @relation("BlockedUser")
-  blockedUsers           Block[]         @relation("BlockerUser")
-  followRequestsReceived FollowRequest[] @relation("RequestedUser")
-  followRequestsSent     FollowRequest[] @relation("RequesterUser")
-  notifications          Notification[]
+  followers              Follow[]             @relation("Follower")
+  following              Follow[]             @relation("Following")
+  blockedBy              Block[]              @relation("BlockedUser")
+  blockedUsers           Block[]              @relation("BlockerUser")
+  followRequestsReceived FollowRequest[]      @relation("RequestedUser")
+  followRequestsSent     FollowRequest[]      @relation("RequesterUser")
+  notificationsReceived  Notification[]       @relation("ReceivedNotifications")
+  notificationsSent      Notification[]       @relation("SentNotifications")
   stories                Story[]
   storyViews             StoryView[]
   refreshTokens          RefreshToken[]
@@ -47,7 +55,15 @@ model User {
   messages               Message[]
   conversations          UserConversation[]
   commentReactions       CommentReaction[]
+  articleComments        ArticleComment[]
+  articleCommentLikes    ArticleCommentLike[]
+  commentLikes           CommentLike[]
   notificationPreference NotificationPreference?
+  collections            Collection[]         @relation("CollectionOwner")
+  events                 Event[]              @relation("EventOwner")
+  eventComments          EventComment[]       @relation("EventCommentAuthor")
+  eventParticipants      EventParticipant[]   @relation("EventParticipantUser")
+  ticketPurchases        TicketPurchase[]     @relation("TicketPurchaseUser")
 
   @@index([username])
   @@index([email])
@@ -129,6 +145,7 @@ model Comment {
   parent    Comment?         @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies   Comment[]        @relation("CommentReplies")
   reactions CommentReaction[]
+  likes     CommentLike[]
 
   @@index([postId])
   @@index([userId])
@@ -214,15 +231,18 @@ model Block {
 model Notification {
   id         String   @id @default(cuid())
   userId     String
-  type       String // 'like', 'comment', 'follow', 'follow_request', 'follow_accept', 'message', 'mention'
+  type       String // 'like', 'comment', 'follow', 'follow_request', 'follow_accept', 'message', 'mention', 'reply', 'comment_like'
   message    String?  // Bildirim metni (örn: "Ahmet gönderini beğendi")
   fromUserId String?
   postId     String?
+  articleId  String?
   commentId  String?
+  targetUrl  String?
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User  @relation("ReceivedNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  fromUser User? @relation("SentNotifications", fields: [fromUserId], references: [id], onDelete: SetNull)
 
   @@index([userId, isRead])
   @@index([createdAt])
@@ -361,23 +381,186 @@ model Message {
 }
 
 model Article {
-  id          String    @id @default(cuid())
+  id          String           @id @default(cuid())
   title       String
   content     String
   coverImage  String?
   excerpt     String?
-  isPublished Boolean   @default(false)
+  isPublished Boolean          @default(false)
   scheduledAt DateTime?
-  views       Int       @default(0)
+  views       Int              @default(0)
   authorId    String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
-  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author   User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments ArticleComment[]
 
   @@index([authorId])
   @@index([createdAt])
   @@index([isPublished])
   @@index([scheduledAt])
   @@map("articles")
+}
+
+model ArticleComment {
+  id        String             @id @default(cuid())
+  articleId String
+  userId    String
+  content   String
+  parentId  String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  article  Article            @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent   ArticleComment?    @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  ArticleComment[]   @relation("CommentReplies")
+  likes    ArticleCommentLike[]
+
+  @@index([articleId])
+  @@index([parentId])
+  @@index([userId])
+  @@map("article_comments")
+}
+
+model ArticleCommentLike {
+  id         String        @id @default(cuid())
+  commentId  String
+  userId     String
+  createdAt  DateTime      @default(now())
+
+  comment ArticleComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@index([userId])
+  @@map("article_comment_likes")
+}
+
+model CommentLike {
+  id         String   @id @default(cuid())
+  commentId  String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@index([userId])
+  @@map("comment_likes")
+}
+
+model Collection {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  coverImage  String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner User @relation("CollectionOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@index([createdAt])
+  @@map("collections")
+}
+
+model Event {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?
+  coverImage      String?
+  date            DateTime
+  participantCount Int      @default(0)
+  ticketUrl       String?
+  ownerId         String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  owner User @relation("EventOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  comments EventComment[]
+  participants EventParticipant[] @relation("EventParticipants")
+  tickets Ticket[]
+
+  @@index([ownerId])
+  @@index([date])
+  @@index([createdAt])
+  @@map("events")
+}
+
+model EventComment {
+  id        String   @id @default(cuid())
+  text      String
+  createdAt DateTime @default(now())
+  eventId   String
+  authorId  String
+
+  event  Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  author User  @relation("EventCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@map("event_comments")
+}
+
+model EventParticipant {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  event Event @relation("EventParticipants", fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation("EventParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("event_participants")
+}
+
+model Ticket {
+  id        String   @id @default(cuid())
+  eventId   String
+  type      String
+  price     Float
+  capacity  Int
+  sold      Int      @default(0)
+  qrCodeUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event     Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  purchases TicketPurchase[]
+
+  @@index([eventId])
+  @@index([createdAt])
+  @@map("tickets")
+}
+
+model TicketPurchase {
+  id        String   @id @default(cuid())
+  ticketId  String
+  userId    String
+  code      String   @unique
+  qrUrl     String?
+  used      Boolean  @default(false)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User   @relation("TicketPurchaseUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([userId])
+  @@index([code])
+  @@index([used])
+  @@index([createdAt])
+  @@map("ticket_purchases")
 }

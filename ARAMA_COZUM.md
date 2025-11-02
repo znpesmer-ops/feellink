@@ -38,3 +38,4 @@ npm run index:users
 - Meilisearch çalışmazsa Prisma fallback devreye giriyor
 
 
+

@@ -21,6 +21,12 @@ export class FollowController {
     return this.followService.rejectFollowRequest(user.id, userId);
   }
 
+  @Post('request/:userId/cancel')
+  async cancelRequest(@Param('userId') userId: string, @CurrentUser() user: any) {
+    // userId is the target (receiver), user.id is the requester (who cancels)
+    return this.followService.cancelFollowRequest(user.id, userId);
+  }
+
   @Post('block/:userId')
   async blockUser(@Param('userId') userId: string, @CurrentUser() user: any) {
     return this.followService.blockUser(user.id, userId);

@@ -133,3 +133,4 @@ pnpm prisma generate
 - MinIO Console: http://localhost:9001 (minioadmin/minioadmin)
 
 
+

@@ -166,5 +166,48 @@ export class ArticlesController {
       return { success: false };
     }
   }
+
+  @Post('/:id/comments')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add comment to article' })
+  async createComment(
+    @Param('id') articleId: string,
+    @CurrentUser() user: any,
+    @Body() body: { content: string },
+  ) {
+    return this.articlesService.createComment(articleId, user.id, body.content);
+  }
+
+  @Delete('/comments/:commentId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete article comment' })
+  async deleteComment(@Param('commentId') commentId: string, @CurrentUser() user: any) {
+    return this.articlesService.deleteComment(commentId, user.id);
+  }
+
+  @Post('/comments/:commentId/reply')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reply to a comment' })
+  async replyComment(
+    @Param('commentId') commentId: string,
+    @CurrentUser() user: any,
+    @Body() body: { content: string },
+  ) {
+    return this.articlesService.createReply(commentId, user.id, body.content);
+  }
+
+  @Post('/comments/:commentId/like')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Toggle like on a comment' })
+  async toggleCommentLike(
+    @Param('commentId') commentId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.articlesService.toggleCommentLike(commentId, user.id);
+  }
 }
 

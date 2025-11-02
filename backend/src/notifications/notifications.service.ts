@@ -10,10 +10,12 @@ interface CreateNotificationDto {
   message?: string;
   fromUserId?: string;
   postId?: string;
+  articleId?: string;
   commentId?: string;
+  targetUrl?: string;
 }
 
-type NotifType = 'mention' | 'follow' | 'follow_request' | 'follow_accept' | 'like' | 'comment';
+type NotifType = 'mention' | 'follow' | 'follow_request' | 'follow_accept' | 'like' | 'comment' | 'reply';
 
 @Injectable()
 export class NotificationsService {
@@ -48,6 +50,12 @@ export class NotificationsService {
           case 'comment':
             message = `gönderine yorum yaptı`;
             break;
+          case 'reply':
+            message = `yorumuna yanıt verdi`;
+            break;
+          case 'comment_like':
+            message = `yorumunu beğendi`;
+            break;
           case 'follow':
             message = `seni takip etmeye başladı`;
             break;
@@ -77,11 +85,13 @@ export class NotificationsService {
         message: message,
         fromUserId: data.fromUserId,
         postId: data.postId,
+        articleId: data.articleId,
         commentId: data.commentId,
+        targetUrl: data.targetUrl,
         isRead: false,
       },
       include: {
-        user: {
+        fromUser: {
           select: {
             id: true,
             username: true,
@@ -93,21 +103,9 @@ export class NotificationsService {
       },
     });
 
-    // Socket üzerinden bildirimi gönder
-    const fromUser = data.fromUserId ? await this.prisma.user.findUnique({
-      where: { id: data.fromUserId },
-      select: {
-        id: true,
-        username: true,
-        fullName: true,
-        avatar: true,
-        isVerified: true,
-      },
-    }) : null;
-
     const notificationData = {
       ...notification,
-      user: fromUser,
+      sender: notification.fromUser || null,
     };
 
     this.notificationsGateway.notifyUser(data.userId, notificationData);
@@ -121,16 +119,8 @@ export class NotificationsService {
       orderBy: { createdAt: 'desc' },
       take: limit,
       skip: offset,
-    });
-
-    // Get user info for fromUserId
-    const fromUserIds = notifications
-      .map(n => n.fromUserId)
-      .filter((id): id is string => !!id);
-    
-    const fromUsers = fromUserIds.length > 0 
-      ? await this.prisma.user.findMany({
-          where: { id: { in: fromUserIds } },
+      include: {
+        fromUser: {
           select: {
             id: true,
             username: true,
@@ -138,21 +128,23 @@ export class NotificationsService {
             avatar: true,
             isVerified: true,
           },
-        })
-      : [];
-
-    const fromUsersMap = new Map(fromUsers.map(u => [u.id, u]));
+        },
+      },
+    });
 
     // Notification'ları frontend için formatla
-    return notifications.map((notification) => ({
-      ...notification,
-      user: fromUsersMap.get(notification.fromUserId || '') || null,
-      payload: {
-        fromUserId: notification.fromUserId,
-        postId: notification.postId,
-        commentId: notification.commentId,
-      },
-    }));
+    return notifications.map((notification) => {
+      const { fromUser, ...rest } = notification;
+      return {
+        ...rest,
+        sender: fromUser || null,
+        payload: {
+          fromUserId: notification.fromUserId,
+          postId: notification.postId,
+          commentId: notification.commentId,
+        },
+      };
+    });
   }
 
   async markAsRead(userId: string, notificationId: string) {

@@ -82,3 +82,4 @@ Backend başladıktan sonra:
 - Frontend: http://localhost:3000
 
 
+

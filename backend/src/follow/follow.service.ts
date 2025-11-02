@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 
 @Injectable()
 export class FollowService {
   constructor(
     private prisma: PrismaService,
     private notificationsService: NotificationsService,
+    private notificationsGateway: NotificationsGateway,
   ) {}
 
   /**
@@ -117,6 +119,7 @@ export class FollowService {
           userId: followingId,
           type: 'follow_request',
           fromUserId: followerId,
+          targetUrl: `/profile/${following.username}`,
         });
       } else {
         console.log(`⏭️ Follow request notification skipped (preference disabled)`)
@@ -146,6 +149,7 @@ export class FollowService {
         userId: followingId,
         type: 'follow',
         fromUserId: followerId,
+        targetUrl: `/profile/${following.username}`,
       });
     } else {
       console.log(`⏭️ Follow notification skipped (preference disabled)`)
@@ -198,6 +202,12 @@ export class FollowService {
     if (!request) {
       throw new NotFoundException('Follow request not found');
     }
+
+    // Get usernames for targetUrl
+    const [requester, requested] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: requesterId }, select: { username: true } }),
+      this.prisma.user.findUnique({ where: { id: requestedId }, select: { username: true } }),
+    ]);
 
     // Check if already following (prevent duplicate)
     const existingFollow = await this.prisma.follow.findUnique({
@@ -258,6 +268,7 @@ export class FollowService {
         userId: requesterId,
         type: 'follow_accept',
         fromUserId: requestedId,
+        targetUrl: `/profile/${requested?.username || requestedId}`,
       });
     } else {
       console.log(`⏭️ Follow accept notification skipped (preference disabled)`)
@@ -299,6 +310,47 @@ export class FollowService {
     });
 
     return { status: 'rejected' };
+  }
+
+  async cancelFollowRequest(requesterId: string, requestedId: string) {
+    const request = await this.prisma.followRequest.findUnique({
+      where: {
+        requesterId_requestedId: {
+          requesterId,
+          requestedId,
+        },
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Follow request not found');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // Delete request
+      await tx.followRequest.delete({
+        where: {
+          id: request.id,
+        },
+      });
+
+      // Delete the follow_request notification
+      await tx.notification.deleteMany({
+        where: {
+          userId: requestedId,
+          type: 'follow_request',
+          fromUserId: requesterId,
+        },
+      });
+    });
+
+    // Emit socket event to notify the receiver that request was cancelled
+    this.notificationsGateway.notifyUser(requestedId, {
+      type: 'follow_request_cancelled',
+      fromUserId: requesterId,
+    });
+
+    return { status: 'cancelled' };
   }
 
   async blockUser(blockerId: string, blockedId: string) {

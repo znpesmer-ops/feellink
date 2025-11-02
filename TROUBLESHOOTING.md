@@ -198,3 +198,4 @@ curl http://localhost:3001/auth/me \
 4. Port'ların açık olduğundan emin ol (firewall/proxy ayarları)
 
 
+

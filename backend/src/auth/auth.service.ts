@@ -17,8 +17,8 @@ export class AuthService {
     private searchService: SearchService,
   ) {}
 
-  async register(registerDto: RegisterDto) {
-    const { email, username, password, fullName } = registerDto;
+  async register(registerDto: RegisterDto & { role?: 'USER' | 'CORPORATE' }) {
+    const { email, username, password, fullName, role } = registerDto;
 
     // Check if user exists
     const existingUser = await this.prisma.user.findFirst({
@@ -34,13 +34,14 @@ export class AuthService {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
+    // Create user - use provided role or default to USER
     const user = await this.prisma.user.create({
       data: {
         email,
         username,
         password: hashedPassword,
         fullName,
+        role: role || 'USER',
       },
       select: {
         id: true,
@@ -49,6 +50,7 @@ export class AuthService {
         fullName: true,
         avatar: true,
         bio: true,
+        role: true,
         isPrivate: true,
         isVerified: true,
         isAdmin: true,
@@ -80,6 +82,7 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [{ username }, { email: username }],
+        role: 'USER', // Only normal users
       },
     });
 
@@ -105,6 +108,39 @@ export class AuthService {
     };
   }
 
+  async corporateLogin(loginDto: LoginDto) {
+    const { username, password } = loginDto;
+
+    // Find corporate user
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ username }, { email: username }],
+        role: 'CORPORATE', // Only corporate users
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Kurumsal hesap bulunamadı veya yetkisiz.');
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Geçersiz kimlik bilgileri.');
+    }
+
+    // Generate tokens
+    const tokens = await this.generateTokens(user.id);
+
+    const { password: _, ...userWithoutPassword } = user;
+
+    return {
+      user: userWithoutPassword,
+      ...tokens,
+    };
+  }
+
   async validateUser(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -115,6 +151,7 @@ export class AuthService {
         fullName: true,
         avatar: true,
         bio: true,
+        role: true,
         isPrivate: true,
         isVerified: true,
         isAdmin: true,
