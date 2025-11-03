@@ -80,5 +80,19 @@ export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection,
       console.log(`📡 Notification read event sent to user ${userId} for notification ${notificationId}`);
     }
   }
+
+  // 🎟️ Bilet güncelleme eventi gönder (analytics için)
+  emitTicketUpdate(eventId: string, ticketData: any) {
+    // Event sahibine bildirim gönder
+    this.server.emit(`ticket_update:${eventId}`, ticketData);
+    console.log(`🎫 Ticket update event emitted for event ${eventId}`);
+  }
+
+  // 🏆 Ziyaretçi güncelleme eventi gönder (analytics için)
+  emitVisitorUpdate(corporateUserId: string, visitorsData: any[]) {
+    // Corporate user'a ziyaretçi listesi güncellemesi gönder
+    this.server.emit(`visitor:update:${corporateUserId}`, visitorsData);
+    console.log(`🏆 Visitor update event emitted for corporate user ${corporateUserId}`);
+  }
 }
 

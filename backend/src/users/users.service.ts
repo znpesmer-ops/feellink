@@ -18,6 +18,7 @@ export class UsersService {
         fullName: true,
         bio: true,
         avatar: true,
+        role: true,
         isPrivate: true,
         isVerified: true,
         createdAt: true,

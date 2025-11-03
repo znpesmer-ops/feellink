@@ -196,4 +196,16 @@ export class PostsController {
   ) {
     return this.postsService.getUserCommentReactions(commentId, user.id);
   }
+
+  @Post('comments/:commentId/pin')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Pin or unpin a comment' })
+  @ApiResponse({ status: 200, description: 'Comment pin status updated successfully' })
+  async toggleCommentPin(
+    @Param('commentId') commentId: string,
+    @CurrentUser() user: any,
+    @Body() body: { pinned: boolean },
+  ) {
+    return this.postsService.toggleCommentPin(commentId, user.id, body.pinned);
+  }
 }

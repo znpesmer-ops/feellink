@@ -33,6 +33,24 @@ export class ExploreService {
           orderBy: { order: 'asc' },
           take: 1, // Only first media for grid view
         },
+        comments: {
+          where: {
+            isPinned: true,
+            parentId: null, // Only top-level pinned comments
+          },
+          take: 1, // Only get the first pinned comment
+          include: {
+            user: {
+              select: {
+                username: true,
+                fullName: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc', // Get the most recent pinned comment
+          },
+        },
         _count: {
           select: {
             likes: true,
@@ -64,9 +82,13 @@ export class ExploreService {
     const likedPostIds = new Set(likes.map(l => l.postId));
 
     return {
-      posts: filteredPosts.map(post => ({
+      posts: filteredPosts.map((post: any) => ({
         ...post,
         isLiked: likedPostIds.has(post.id),
+        pinnedComment: post.comments && post.comments.length > 0 ? {
+          user: post.comments[0].user.username || post.comments[0].user.fullName || 'Kullanıcı',
+          text: post.comments[0].content,
+        } : null,
       })),
       nextCursor,
       hasMore,

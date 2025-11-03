@@ -15,7 +15,7 @@ interface CreateNotificationDto {
   targetUrl?: string;
 }
 
-type NotifType = 'mention' | 'follow' | 'follow_request' | 'follow_accept' | 'like' | 'comment' | 'reply';
+type NotifType = 'mention' | 'follow' | 'follow_request' | 'follow_accept' | 'like' | 'comment' | 'reply' | 'event_comment' | 'event_like' | 'event_ticket_purchased' | 'ticket_confirmation';
 
 @Injectable()
 export class NotificationsService {
@@ -248,6 +248,60 @@ export class NotificationsService {
       default:
         // Diğer tipler (message, vb.) için varsayılan olarak true
         return true;
+    }
+  }
+
+  /**
+   * 🎫 Bilet satın alma bildirimi oluştur
+   * Hem kurumsal hesaba (biri bilet aldı) hem de kullanıcıya (bilet onayı) bildirim gönderir
+   */
+  async createEventTicketNotification(eventId: string, buyerId: string) {
+    try {
+      const event = await this.prisma.event.findUnique({
+        where: { id: eventId },
+        include: { owner: true },
+      });
+
+      if (!event) {
+        console.error('Event not found for notification:', eventId);
+        return;
+      }
+
+      const buyer = await this.prisma.user.findUnique({
+        where: { id: buyerId },
+        select: { username: true, fullName: true },
+      });
+
+      if (!buyer) {
+        console.error('Buyer not found for notification:', buyerId);
+        return;
+      }
+
+      const buyerName = buyer.fullName || buyer.username;
+
+      // 1️⃣ Kurumsal tarafa bildirim: biri bilet aldı
+      if (event.ownerId !== buyerId) {
+        // Sadece kendi biletini almadıysa bildirim gönder
+        await this.createNotificationSync({
+          userId: event.ownerId,
+          type: 'event_ticket_purchased',
+          fromUserId: buyerId,
+          message: `${buyerName} "${event.title}" etkinliğiniz için bir bilet satın aldı.`,
+          targetUrl: `/events/${eventId}`,
+        });
+      }
+
+      // 2️⃣ Kullanıcıya bildirim: bilet onayı
+      await this.createNotificationSync({
+        userId: buyerId,
+        type: 'ticket_confirmation',
+        message: `"${event.title}" etkinliği için biletin oluşturuldu.`,
+        targetUrl: `/my-tickets`,
+      });
+
+      console.log(`✅ Ticket notification created for event ${eventId} and buyer ${buyerId}`);
+    } catch (error) {
+      console.error('❌ Error creating ticket notification:', error);
     }
   }
 }

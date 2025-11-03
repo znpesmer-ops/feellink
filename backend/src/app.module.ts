@@ -20,6 +20,7 @@ import { SidebarModule } from './sidebar/sidebar.module';
 import { CollectionsModule } from './collections/collections.module';
 import { EventsModule } from './events/events.module';
 import { TicketsModule } from './tickets/tickets.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { TicketsModule } from './tickets/tickets.module';
     CollectionsModule,
     EventsModule,
     TicketsModule,
+    AnalyticsModule,
   ],
 })
 export class AppModule {}

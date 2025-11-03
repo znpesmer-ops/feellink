@@ -19,6 +19,14 @@ export class EventsService {
     });
   }
 
+  async findByAuthor(authorId: string) {
+    return this.prisma.event.findMany({
+      where: { ownerId: authorId },
+      include: { tickets: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async createEvent(userId: string, data: { title: string; description?: string; date: string; coverImage?: string; ticketUrl?: string }) {
     // Check if user is corporate
     const user = await this.prisma.user.findUnique({

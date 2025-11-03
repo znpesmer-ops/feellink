@@ -137,6 +137,7 @@ model Comment {
   userId    String
   content   String
   parentId  String? // For nested comments
+  isPinned  Boolean  @default(false) // Sabitlenmiş yorum
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -149,6 +150,7 @@ model Comment {
 
   @@index([postId])
   @@index([userId])
+  @@index([postId, isPinned])
   @@map("comments")
 }
 

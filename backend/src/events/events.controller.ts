@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Put, Delete, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Delete, Param, UseGuards, Req, Query } from '@nestjs/common';
 import { EventsService } from './events.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -16,6 +16,14 @@ export class EventsController {
   @UseGuards(JwtAuthGuard)
   async getMyEvents(@CurrentUser() user: any) {
     return this.eventsService.getMyEvents(user.id);
+  }
+
+  @Get()
+  async getEvents(@Query('authorId') authorId?: string) {
+    if (authorId) {
+      return this.eventsService.findByAuthor(authorId);
+    }
+    return this.eventsService.getAllEvents();
   }
 
   @Get(':id')

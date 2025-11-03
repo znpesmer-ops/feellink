@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { FeedService } from '../feed/feed.service';
 import { SearchService } from '../search/search.service';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -13,6 +15,8 @@ export class PostsService {
   constructor(
     private prisma: PrismaService,
     private notificationsService: NotificationsService,
+    private notificationsGateway: NotificationsGateway,
+    private analyticsService: AnalyticsService,
     private feedService: FeedService,
     private searchService: SearchService,
     @Inject(forwardRef(() => PostsGateway))
@@ -191,7 +195,10 @@ export class PostsService {
               orderBy: { createdAt: 'asc' },
             },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: [
+            { isPinned: 'desc' }, // Sabitlenmiş yorumlar en üstte
+            { createdAt: 'desc' },
+          ],
         },
         _count: {
           select: {
@@ -364,6 +371,21 @@ export class PostsService {
         userId,
       });
       console.log(`❤️ Post liked event broadcasted: ${postId}`);
+    }
+
+    // 🏆 Ziyaretçi güncelleme - Post sahibi corporate ise analytics'i güncelle
+    try {
+      const postOwner = await this.prisma.user.findUnique({
+        where: { id: post.userId },
+        select: { role: true },
+      });
+
+      if (postOwner && postOwner.role === 'CORPORATE') {
+        const topVisitors = await this.analyticsService.getTopVisitors(post.userId);
+        this.notificationsGateway.emitVisitorUpdate(post.userId, topVisitors);
+      }
+    } catch (error) {
+      console.error('Error updating visitor analytics:', error);
     }
 
     return { success: true, liked: true, likeCount: updatedPost._count.likes };
@@ -569,6 +591,21 @@ export class PostsService {
         change: +1,
       });
       console.log(`💬 Comment created event broadcasted: ${comment.id}`);
+    }
+
+    // 🏆 Ziyaretçi güncelleme - Post sahibi corporate ise analytics'i güncelle
+    try {
+      const postOwner = await this.prisma.user.findUnique({
+        where: { id: post.userId },
+        select: { role: true },
+      });
+
+      if (postOwner && postOwner.role === 'CORPORATE') {
+        const topVisitors = await this.analyticsService.getTopVisitors(post.userId);
+        this.notificationsGateway.emitVisitorUpdate(post.userId, topVisitors);
+      }
+    } catch (error) {
+      console.error('Error updating visitor analytics:', error);
     }
 
     return comment;
@@ -1034,6 +1071,62 @@ export class PostsService {
     return {
       liked: !existingLike,
       likesCount,
+    };
+  }
+
+  async toggleCommentPin(commentId: string, userId: string, pinned: boolean) {
+    const comment = await this.prisma.comment.findUnique({
+      where: { id: commentId },
+      include: {
+        post: {
+          select: { userId: true },
+        },
+      },
+    });
+
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    // Sadece gönderi sahibi yorumu sabitleyebilir/unpin edebilir
+    if (comment.post.userId !== userId) {
+      throw new ForbiddenException('Only the post owner can pin/unpin comments');
+    }
+
+    // Önce aynı posttaki diğer pinned yorumları kaldır (sadece bir yorum pinned olabilir)
+    if (pinned) {
+      await this.prisma.comment.updateMany({
+        where: {
+          postId: comment.postId,
+          isPinned: true,
+          id: { not: commentId },
+        },
+        data: {
+          isPinned: false,
+        },
+      });
+    }
+
+    // Yorumun pin durumunu güncelle
+    const updatedComment = await this.prisma.comment.update({
+      where: { id: commentId },
+      data: {
+        isPinned: pinned,
+      },
+      include: {
+        user: {
+          select: {
+            username: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    return {
+      id: updatedComment.id,
+      isPinned: updatedComment.isPinned,
+      user: updatedComment.user,
     };
   }
 }
