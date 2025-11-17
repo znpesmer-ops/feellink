@@ -245,3 +245,15 @@ Tüm adımlar başarılıysa:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+

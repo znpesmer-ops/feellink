@@ -13,6 +13,12 @@ export class CollectionsController {
     return this.collectionsService.getMyCollections(user.id);
   }
 
+  // 🔥 Tüm koleksiyonları getir (public - herkes görebilir)
+  @Get('public')
+  async getAllCollections() {
+    return this.collectionsService.getAllCollections();
+  }
+
   @Post()
   async createCollection(@CurrentUser() user: any, @Body() data: any) {
     return this.collectionsService.createCollection(user.id, data);

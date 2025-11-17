@@ -21,6 +21,9 @@ import { CollectionsModule } from './collections/collections.module';
 import { EventsModule } from './events/events.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { PaymentsModule } from './payments/payments.module';
+import { JobsModule } from './jobs/jobs.module';
+import { LimitsModule } from './limits/limits.module';
 
 @Module({
   imports: [
@@ -53,6 +56,9 @@ import { AnalyticsModule } from './analytics/analytics.module';
     EventsModule,
     TicketsModule,
     AnalyticsModule,
+    PaymentsModule,
+    JobsModule,
+    LimitsModule,
   ],
 })
 export class AppModule {}

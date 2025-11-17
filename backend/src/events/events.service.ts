@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { LimitsService } from '../limits/limits.service';
 
 @Injectable()
 export class EventsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly limitsService: LimitsService,
+  ) {}
 
   async getAllEvents() {
     return this.prisma.event.findMany({
@@ -27,17 +31,12 @@ export class EventsService {
     });
   }
 
-  async createEvent(userId: string, data: { title: string; description?: string; date: string; coverImage?: string; ticketUrl?: string }) {
-    // Check if user is corporate
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-    
-    if (user?.role !== 'CORPORATE') {
-      throw new ForbiddenException('Only corporate users can create events');
-    }
-    
+  async createEvent(
+    userId: string,
+    data: { title: string; description?: string; date: string; coverImage?: string; ticketUrl?: string },
+  ) {
+    await this.limitsService.ensureLimit(userId, 'create_event');
+
     return this.prisma.event.create({
       data: {
         title: data.title,

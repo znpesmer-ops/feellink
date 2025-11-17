@@ -1,7 +1,9 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { UserRoleCode } from '../../roles/roles.types';
+import { IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsUnicodeEmail } from '../../common/validators/is-unicode-email.decorator';
 
 export class RegisterDto {
-  @IsEmail()
+  @IsUnicodeEmail({ message: 'Lütfen geçerli bir e-posta adresi girin.' })
   @IsNotEmpty()
   email: string;
 
@@ -15,9 +17,20 @@ export class RegisterDto {
   @MinLength(6)
   password: string;
 
+  @IsOptional()
   @IsString()
   fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  role?: UserRoleCode;
 }
+
+
+
+
+
+
 
 
 

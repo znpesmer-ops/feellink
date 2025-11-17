@@ -9,6 +9,7 @@ import { CreatePostDto } from './dto/create-post.dto';
 import { PostsGateway } from './posts.gateway';
 import { CommentsGateway } from './comments.gateway';
 import { ConfigService } from '@nestjs/config';
+import { LimitsService } from '../limits/limits.service';
 
 @Injectable()
 export class PostsService {
@@ -24,12 +25,15 @@ export class PostsService {
     @Inject(forwardRef(() => CommentsGateway))
     private commentsGateway: CommentsGateway,
     private configService: ConfigService,
+    private readonly limitsService: LimitsService,
   ) {}
 
   async createPost(userId: string, dto: CreatePostDto) {
     if (!dto.media || dto.media.length === 0) {
       throw new BadRequestException('At least one media file is required');
     }
+
+    await this.limitsService.ensureCanCreateArtwork(userId);
 
     // Extract hashtags from caption
     const hashtags = this.extractHashtags(dto.caption || '');
@@ -305,6 +309,12 @@ export class PostsService {
     // Remove from feed cache
     await this.feedService.removeFromFeeds(postId);
 
+    // 🔔 Real-time yayın - Socket.IO ile silme bildirimi
+    if (this.postsGateway) {
+      this.postsGateway.server.emit('post:deleted', postId);
+      console.log(`🗑️ Post deleted event broadcasted: ${postId}`);
+    }
+
     return { status: 'deleted' };
   }
 
@@ -370,6 +380,11 @@ export class PostsService {
         isLiked: true,
         userId,
       });
+      // Admin panel için özel event
+      this.postsGateway.server.emit('post:like', {
+        postId,
+        likes: updatedPost._count.likes,
+      });
       console.log(`❤️ Post liked event broadcasted: ${postId}`);
     }
 
@@ -377,10 +392,10 @@ export class PostsService {
     try {
       const postOwner = await this.prisma.user.findUnique({
         where: { id: post.userId },
-        select: { role: true },
+        select: { roles: true },
       });
 
-      if (postOwner && postOwner.role === 'CORPORATE') {
+      if (postOwner && Array.isArray(postOwner.roles) && postOwner.roles.includes('corporate')) {
         const topVisitors = await this.analyticsService.getTopVisitors(post.userId);
         this.notificationsGateway.emitVisitorUpdate(post.userId, topVisitors);
       }
@@ -434,6 +449,11 @@ export class PostsService {
         likeCount: updatedPost._count.likes,
         isLiked: false,
         userId,
+      });
+      // Admin panel için özel event
+      this.postsGateway.server.emit('post:like', {
+        postId,
+        likes: updatedPost._count.likes,
       });
       console.log(`💔 Post unliked event broadcasted: ${postId}`);
     }
@@ -593,14 +613,34 @@ export class PostsService {
       console.log(`💬 Comment created event broadcasted: ${comment.id}`);
     }
 
+    // Admin panel için post comment sayısını güncelle
+    if (this.postsGateway) {
+      const updatedPost = await this.prisma.post.findUnique({
+        where: { id: postId },
+        include: {
+          _count: {
+            select: {
+              comments: true,
+            },
+          },
+        },
+      });
+      if (updatedPost) {
+        this.postsGateway.server.emit('post:comment', {
+          postId,
+          comments: updatedPost._count.comments,
+        });
+      }
+    }
+
     // 🏆 Ziyaretçi güncelleme - Post sahibi corporate ise analytics'i güncelle
     try {
       const postOwner = await this.prisma.user.findUnique({
         where: { id: post.userId },
-        select: { role: true },
+        select: { roles: true },
       });
 
-      if (postOwner && postOwner.role === 'CORPORATE') {
+      if (postOwner && Array.isArray(postOwner.roles) && postOwner.roles.includes('corporate')) {
         const topVisitors = await this.analyticsService.getTopVisitors(post.userId);
         this.notificationsGateway.emitVisitorUpdate(post.userId, topVisitors);
       }
@@ -738,6 +778,26 @@ export class PostsService {
         change: -1,
       });
       console.log(`🗑️ Comment deleted event broadcasted: ${commentId}`);
+    }
+
+    // Admin panel için post comment sayısını güncelle
+    if (this.postsGateway) {
+      const updatedPost = await this.prisma.post.findUnique({
+        where: { id: postId },
+        include: {
+          _count: {
+            select: {
+              comments: true,
+            },
+          },
+        },
+      });
+      if (updatedPost) {
+        this.postsGateway.server.emit('post:comment', {
+          postId,
+          comments: updatedPost._count.comments,
+        });
+      }
     }
 
     return { success: true, message: 'Comment deleted successfully' };

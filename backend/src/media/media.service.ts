@@ -5,23 +5,35 @@ import { randomUUID } from 'crypto';
 
 @Injectable()
 export class MediaService {
-  private minioClient: MinIO.Client;
+  private readonly isDisabled: boolean;
+  private minioClient: MinIO.Client | null = null;
   private bucketName: string;
 
   constructor(private configService: ConfigService) {
+    this.isDisabled = this.configService.get('MINIO_DISABLED') === 'true';
+    this.bucketName = this.configService.get('MINIO_BUCKET_NAME') ?? 'feellink-dev';
+
+    if (this.isDisabled) {
+      // Lokal geliştirmede MinIO bağlantısı gerekli değilse servisi mock'la
+      return;
+    }
+
     this.minioClient = new MinIO.Client({
       endPoint: this.configService.get('MINIO_ENDPOINT'),
-      port: parseInt(this.configService.get('MINIO_PORT')),
+      port: parseInt(this.configService.get('MINIO_PORT'), 10),
       useSSL: this.configService.get('MINIO_USE_SSL') === 'true',
       accessKey: this.configService.get('MINIO_ACCESS_KEY'),
       secretKey: this.configService.get('MINIO_SECRET_KEY'),
     });
 
-    this.bucketName = this.configService.get('MINIO_BUCKET_NAME');
-    this.ensureBucket();
+    void this.ensureBucket();
   }
 
   private async ensureBucket() {
+    if (!this.minioClient) {
+      return;
+    }
+
     const exists = await this.minioClient.bucketExists(this.bucketName);
     if (!exists) {
       await this.minioClient.makeBucket(this.bucketName);
@@ -43,6 +55,15 @@ export class MediaService {
 
   async uploadFile(file: Express.Multer.File, folder: string = 'posts'): Promise<{ url: string; fileName: string; fileType: string }> {
     const fileName = `${folder}/${randomUUID()}-${file.originalname}`;
+
+    if (this.isDisabled || !this.minioClient) {
+      const base = this.configService.get('APP_URL') ?? 'http://localhost:3000';
+      return {
+        url: `${base}/static/${fileName}`,
+        fileName: file.originalname,
+        fileType: file.mimetype,
+      };
+    }
 
     await this.minioClient.putObject(
       this.bucketName,
@@ -66,6 +87,10 @@ export class MediaService {
   }
 
   async deleteFile(fileUrl: string): Promise<void> {
+    if (this.isDisabled || !this.minioClient) {
+      return;
+    }
+
     try {
       const urlParts = fileUrl.split('/');
       const fileName = urlParts.slice(urlParts.indexOf(this.bucketName) + 1).join('/');
@@ -76,6 +101,11 @@ export class MediaService {
   }
 
   getPublicUrl(fileName: string): string {
+    if (this.isDisabled || !this.minioClient) {
+      const base = this.configService.get('APP_URL') ?? 'http://localhost:3000';
+      return `${base}/static/${fileName}`;
+    }
+
     const endpoint = this.configService.get('MINIO_ENDPOINT');
     const port = this.configService.get('MINIO_PORT');
     const protocol = this.configService.get('MINIO_USE_SSL') === 'true' ? 'https' : 'http';

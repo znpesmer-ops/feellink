@@ -10,10 +10,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  USER
-  CORPORATE
-  ADMIN
+enum SubscriptionPlan {
+  FREE
+  PRO
+  ORI
+}
+
+enum UserRole {
+  art_lover
+  corporate
+  collector
+  artist
 }
 
 model User {
@@ -24,7 +31,10 @@ model User {
   fullName       String?
   bio            String?
   avatar         String?
-  role           Role     @default(USER)
+  roles          UserRole[]       @default([])
+  extras         String[]         @default([])
+  plan           SubscriptionPlan @default(FREE)
+  badges         String[]         @default([])
   isPrivate      Boolean  @default(false)
   isVerified     Boolean  @default(false)
   isAdmin        Boolean  @default(false)
@@ -64,6 +74,9 @@ model User {
   eventComments          EventComment[]       @relation("EventCommentAuthor")
   eventParticipants      EventParticipant[]   @relation("EventParticipantUser")
   ticketPurchases        TicketPurchase[]     @relation("TicketPurchaseUser")
+  auditLogs              AuditLog[]           @relation("AuditLogActor")
+  jobListings            JobListing[]
+  jobApplications        JobApplication[]      @relation("JobApplications")
 
   @@index([username])
   @@index([email])
@@ -233,13 +246,14 @@ model Block {
 model Notification {
   id         String   @id @default(cuid())
   userId     String
-  type       String // 'like', 'comment', 'follow', 'follow_request', 'follow_accept', 'message', 'mention', 'reply', 'comment_like'
+  type       String // 'like', 'comment', 'follow', 'follow_request', 'follow_accept', 'message', 'mention', 'reply', 'comment_like', 'job_application_received', 'job_application_status_changed'
   message    String?  // Bildirim metni (örn: "Ahmet gönderini beğendi")
   fromUserId String?
   postId     String?
   articleId  String?
   commentId  String?
-  targetUrl  String?
+  targetUrl  String?  // Eski alan (geriye uyumluluk için)
+  targetPath String?  // Yeni alan: bildirime tıklandığında gidilecek Next.js route path
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
 
@@ -441,6 +455,57 @@ model ArticleCommentLike {
   @@map("article_comment_likes")
 }
 
+model JobListing {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  company     String?
+  location    String?
+  salary      String?
+  tags        String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdById String
+  applications JobApplication[]
+
+  @@index([createdAt])
+  @@index([createdById])
+  @@map("job_listings")
+}
+
+enum ApplicationStatus {
+  PENDING
+  REVIEWED
+  ACCEPTED
+  REJECTED
+}
+
+model JobApplication {
+  id           String            @id @default(cuid())
+  jobListingId String
+  jobListing   JobListing         @relation(fields: [jobListingId], references: [id], onDelete: Cascade)
+
+  applicantId  String
+  applicant    User               @relation("JobApplications", fields: [applicantId], references: [id], onDelete: Cascade)
+
+  coverLetter  String?
+  portfolioUrl String?
+  cvUrl        String?
+
+  status       ApplicationStatus  @default(PENDING)
+
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@unique([jobListingId, applicantId])
+  @@index([jobListingId])
+  @@index([applicantId])
+  @@index([status])
+  @@map("job_applications")
+}
+
 model CommentLike {
   id         String   @id @default(cuid())
   commentId  String
@@ -565,4 +630,33 @@ model TicketPurchase {
   @@index([used])
   @@index([createdAt])
   @@map("ticket_purchases")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId  String
+  action   String   // 'user.ban', 'post.delete', 'role.update', etc.
+  target   String?  // 'user:abc123', 'post:xyz789', etc.
+  meta     Json?    // Additional context data
+  ip       String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  actor User @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([target])
+  @@map("audit_logs")
+}
+
+model FeatureFlag {
+  key       String   @id
+  enabled   Boolean  @default(false)
+  note      String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@map("feature_flags")
 }

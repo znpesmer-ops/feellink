@@ -101,3 +101,15 @@ Docker yüklendikten sonra:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+

@@ -10,13 +10,15 @@ export class AdminGuard implements CanActivate {
       throw new ForbiddenException('User not authenticated');
     }
 
-    if (!user.isAdmin) {
+    if (user.isAdmin !== true) {
       throw new ForbiddenException('Only admins can access this endpoint');
     }
 
     return true;
   }
 }
+
+
 
 
 

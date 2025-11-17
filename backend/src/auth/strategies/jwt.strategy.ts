@@ -27,7 +27,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         fullName: true,
         avatar: true,
         bio: true,
-        role: true,
+        roles: true,
+        plan: true,
+        badges: true,
         isPrivate: true,
         isVerified: true,
         isAdmin: true,
@@ -38,7 +40,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException();
     }
 
-    return user;
+    return {
+      ...user,
+      badges: Array.isArray(user.badges) ? user.badges : [],
+    };
   }
 }
 

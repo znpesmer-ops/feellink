@@ -10,6 +10,7 @@ import { AnalyticsModule } from '../analytics/analytics.module';
 import { CommentsGateway } from './comments.gateway';
 import { PostsGateway } from './posts.gateway';
 import { ConfigModule } from '@nestjs/config';
+import { LimitsModule } from '../limits/limits.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ConfigModule } from '@nestjs/config';
     SearchModule,
     AnalyticsModule,
     ConfigModule,
+    LimitsModule,
   ],
   controllers: [PostsController],
   providers: [PostsService, CommentsGateway, PostsGateway],

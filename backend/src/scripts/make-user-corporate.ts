@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import * as dotenv from 'dotenv';
+import { getBadgesFromSelection } from '../users/users.service';
+import { SubscriptionPlanCode, UserRoleCode } from '../roles/roles.types';
 
 dotenv.config();
 
@@ -30,7 +32,10 @@ async function makeUserCorporate() {
         id: true,
         username: true,
         email: true,
-        role: true,
+        roles: true,
+        extras: true,
+        plan: true,
+        badges: true,
       },
     });
 
@@ -40,22 +45,31 @@ async function makeUserCorporate() {
       process.exit(1);
     }
 
-    if (user.role === 'CORPORATE') {
+    const currentRoles = Array.from(new Set([...(user.roles || [])])) as string[];
+
+    if (currentRoles.includes('corporate')) {
       console.log(`✅ ${user.username} zaten kurumsal kullanıcı!`);
       console.log(`📧 Email: ${user.email}`);
-      console.log(`🏛️  Role: ${user.role}`);
+      console.log(`🏛️ Roller: ${currentRoles.join(', ')}`);
       process.exit(0);
     }
 
-    // Update user to corporate
+    const nextRoles = Array.from(new Set([...currentRoles, 'corporate'])) as UserRoleCode[];
+    const extras = Array.isArray(user.extras) ? (user.extras as string[]) : [];
+    const plan = (user.plan as SubscriptionPlanCode) ?? 'FREE';
+    const nextBadges = getBadgesFromSelection(nextRoles, plan, extras);
+
     await prisma.user.update({
       where: { id: user.id },
-      data: { role: 'CORPORATE' },
+      data: {
+        roles: nextRoles,
+        badges: nextBadges,
+      },
     });
 
     console.log(`✅ ${user.username} kullanıcısı kurumsal yapıldı!`);
     console.log(`📧 Email: ${user.email}`);
-    console.log(`🏛️  Role: CORPORATE`);
+    console.log(`🏛️ Roller: ${nextRoles.join(', ')}`);
     console.log(`🎉 Artık kurumsal giriş yapabilir: http://localhost:3000/login → "Kurumsal Giriş"`);
   } catch (error) {
     console.error('❌ Hata:', error);

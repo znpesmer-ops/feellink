@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { SetRoleDto } from './dto/role.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
@@ -17,7 +18,7 @@ export class AuthController {
 
   @Post('register-corporate')
   async registerCorporate(@Body() registerDto: RegisterDto) {
-    return this.authService.register({ ...registerDto, role: 'CORPORATE' });
+    return this.authService.register({ ...registerDto, role: 'corporate' });
   }
 
   @Post('login')
@@ -28,6 +29,16 @@ export class AuthController {
   @Post('login-corporate')
   async corporateLogin(@Body() loginDto: LoginDto) {
     return this.authService.corporateLogin(loginDto);
+  }
+
+  @Post('login-unified')
+  async loginUnified(@Body() loginDto: LoginDto) {
+    return this.authService.loginUnified(loginDto);
+  }
+
+  @Post('role')
+  async setRole(@Body() setRoleDto: SetRoleDto) {
+    return this.authService.setUserRole(setRoleDto.userId, setRoleDto.role);
   }
 
   @Post('refresh')
@@ -49,7 +60,7 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async getCurrentUser(@CurrentUser() user: any) {
-    return user;
+    return this.authService.getUserProfile(user.id);
   }
 }
 
