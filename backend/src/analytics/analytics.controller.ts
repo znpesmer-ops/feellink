@@ -65,5 +65,33 @@ export class AnalyticsController {
     }
     return this.analyticsService.getEventStats(user.id);
   }
+
+  @Get('color-palette')
+  async getColorPalette(@CurrentUser() user: any) {
+    const capabilities = computeCapabilities(
+      (user.roles as string[]) ?? [],
+      (user.plan as SubscriptionPlanCode) ?? 'FREE',
+      (user.badges as string[]) ?? [],
+    );
+
+    if (!capabilities.permissions.canAccessAnalytics) {
+      throw new ForbiddenException('Analizlere erişim için uygun role sahip değilsiniz.');
+    }
+    return this.analyticsService.getColorPalette(user.id);
+  }
+
+  @Get('color-match/top5')
+  async getTopColorMatches(@CurrentUser() user: any) {
+    const capabilities = computeCapabilities(
+      (user.roles as string[]) ?? [],
+      (user.plan as SubscriptionPlanCode) ?? 'FREE',
+      (user.badges as string[]) ?? [],
+    );
+
+    if (!capabilities.permissions.canAccessAnalytics) {
+      throw new ForbiddenException('Analizlere erişim için uygun role sahip değilsiniz.');
+    }
+    return this.analyticsService.getTopColorMatches(user.id);
+  }
 }
 

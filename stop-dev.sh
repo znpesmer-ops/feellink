@@ -36,3 +36,14 @@ lsof -ti:3002 | xargs kill -9 2>/dev/null
 
 echo -e "${GREEN}✅ Tüm servisler durduruldu${NC}"
 
+
+
+
+
+
+
+
+
+
+
+

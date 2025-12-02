@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { ensureRoleAssignment, computeCapabilities, getRoleOverview, getSidebarVisibility } from '../roles/roles.utils';
 import { CapabilitySummary, SubscriptionPlanCode, RoleOverview, UserRoleCode } from '../roles/roles.types';
 import { getDashboardSnapshot } from '../dashboard/dashboard.features';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 type BadgeRoleCode = 'sanatsever' | 'kurumsal' | 'koleksiyoner' | 'sanatci';
 type BadgeExtraCode = 'koleksiyoner-extra' | 'sanatci-extra';
@@ -79,12 +80,13 @@ export class UsersService {
   ) {}
 
   async getProfile(username: string, currentUserId?: string) {
-    // 🔥 KRİTİK: Username null/undefined/geçersiz kontrolü
-    if (!username || username === 'undefined' || username === 'null' || username === '[object Object]') {
-      throw new NotFoundException('Geçersiz kullanıcı adı.');
-    }
+    try {
+      // 🔥 KRİTİK: Username null/undefined/geçersiz kontrolü
+      if (!username || username === 'undefined' || username === 'null' || username === '[object Object]') {
+        throw new NotFoundException('Geçersiz kullanıcı adı.');
+      }
 
-    const user = await this.prisma.user.findUnique({
+      const user = await this.prisma.user.findUnique({
       where: { username },
       select: {
         id: true,
@@ -207,12 +209,74 @@ export class UsersService {
 
     const sidebar = getSidebarVisibility(capabilities);
 
+    // Transform avatar URL for mobile compatibility
+    const transformAvatarUrl = (avatar: string | null): string | null => {
+      if (!avatar) return null;
+      if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+        const baseUrl = this.configService.get('BASE_URL');
+        if (baseUrl && (avatar.includes('localhost') || avatar.includes('127.0.0.1'))) {
+          try {
+            const urlObj = new URL(avatar);
+            return `${baseUrl}${urlObj.pathname}${urlObj.search}`;
+          } catch {
+            return avatar;
+          }
+        }
+        return avatar;
+      }
+      const baseUrl = this.configService.get('BASE_URL');
+      if (baseUrl) {
+        const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
+        return `${baseUrl}${cleanPath}`;
+      }
+      const backendPort = this.configService.get('PORT') || '3002';
+      const endpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
+      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1' 
+        ? '192.168.1.38' 
+        : endpoint;
+      const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
+      return `http://${resolvedEndpoint}:${backendPort}${cleanPath}`;
+    };
+
+    // Transform post media URLs
+    const transformedPosts = posts.map((post: any) => ({
+      ...post,
+      media: post.media?.map((m: any) => {
+        if (!m.url) return m;
+        if (m.url.startsWith('http://') || m.url.startsWith('https://')) {
+          const baseUrl = this.configService.get('BASE_URL');
+          if (baseUrl && (m.url.includes('localhost') || m.url.includes('127.0.0.1'))) {
+            try {
+              const urlObj = new URL(m.url);
+              return { ...m, url: `${baseUrl}${urlObj.pathname}${urlObj.search}` };
+            } catch {
+              return m;
+            }
+          }
+          return m;
+        }
+        const baseUrl = this.configService.get('BASE_URL');
+        if (baseUrl) {
+          const cleanPath = m.url.startsWith('/') ? m.url : `/${m.url}`;
+          return { ...m, url: `${baseUrl}${cleanPath}` };
+        }
+        const backendPort = this.configService.get('PORT') || '3002';
+        const endpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
+        const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1' 
+          ? '192.168.1.38' 
+          : endpoint;
+        const cleanPath = m.url.startsWith('/') ? m.url : `/${m.url}`;
+        return { ...m, url: `http://${resolvedEndpoint}:${backendPort}${cleanPath}` };
+      }) || [],
+    }));
+
     return {
       ...user,
+      avatar: transformAvatarUrl(user.avatar),
       isFollowing,
       hasRequested,
       isOwnProfile,
-      posts,
+      posts: transformedPosts,
       canViewPosts,
       followerCount,
       followingCount,
@@ -224,15 +288,25 @@ export class UsersService {
       capabilities,
       sidebar,
     };
+    } catch (error) {
+      // HttpException ise olduğu gibi fırlat
+      if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+        throw error;
+      }
+      // Prisma veya diğer hatalar için
+      console.error('getProfile error:', error);
+      throw new NotFoundException('Profil yüklenirken bir hata oluştu. Lütfen tekrar deneyin.');
+    }
   }
 
   async getSelf(userId: string) {
-    // 🔥 KRİTİK: userId null/undefined kontrolü
-    if (!userId) {
-      throw new NotFoundException('Kullanıcı kimliği geçersiz.');
-    }
+    try {
+      // 🔥 KRİTİK: userId null/undefined kontrolü
+      if (!userId) {
+        throw new NotFoundException('Kullanıcı kimliği geçersiz.');
+      }
 
-    const user = await this.prisma.user.findUnique({
+      const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -241,6 +315,7 @@ export class UsersService {
         fullName: true,
         avatar: true,
         bio: true,
+        website: true,
         roles: true,
         extras: true,
         plan: true,
@@ -265,13 +340,43 @@ export class UsersService {
     const dashboard = getDashboardSnapshot(normalizedRoles[0], plan);
     const sidebar = getSidebarVisibility(capabilities);
 
+    // Transform avatar URL for mobile compatibility
+    const transformAvatarUrl = (avatar: string | null): string | null => {
+      if (!avatar) return null;
+      if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+        const baseUrl = this.configService.get('BASE_URL');
+        if (baseUrl && (avatar.includes('localhost') || avatar.includes('127.0.0.1'))) {
+          try {
+            const urlObj = new URL(avatar);
+            return `${baseUrl}${urlObj.pathname}${urlObj.search}`;
+          } catch {
+            return avatar;
+          }
+        }
+        return avatar;
+      }
+      const baseUrl = this.configService.get('BASE_URL');
+      if (baseUrl) {
+        const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
+        return `${baseUrl}${cleanPath}`;
+      }
+      const backendPort = this.configService.get('PORT') || '3002';
+      const endpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
+      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1' 
+        ? '192.168.1.38' 
+        : endpoint;
+      const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
+      return `http://${resolvedEndpoint}:${backendPort}${cleanPath}`;
+    };
+
     return {
       id: user.id,
       username: user.username,
       email: user.email,
       fullName: user.fullName,
-      avatar: user.avatar,
+      avatar: transformAvatarUrl(user.avatar),
       bio: user.bio,
+      website: user.website,
       roles: normalizedRoles,
       extras: (user.extras as string[]) ?? [],
       plan,
@@ -281,15 +386,84 @@ export class UsersService {
       sidebar,
       dashboard,
     };
+    } catch (error) {
+      // HttpException ise olduğu gibi fırlat
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      // Prisma veya diğer hatalar için
+      console.error('getSelf error:', error);
+      throw new NotFoundException('Kullanıcı bilgileri yüklenirken bir hata oluştu. Lütfen tekrar giriş yapın.');
+    }
   }
 
   async updateProfile(
     userId: string,
-    data: { fullName?: string; bio?: string; avatar?: string; isPrivate?: boolean }
-  ) {
+    data: UpdateUserDto
+  ): Promise<any> {
+    // Get current user data
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        username: true,
+        fullName: true,
+        usernameLastChangedAt: true,
+        nameLastChangedAt: true,
+      },
+    });
+
+    if (!currentUser) {
+      throw new NotFoundException('Kullanıcı bulunamadı.');
+    }
+
+    const updateData: any = { ...data };
+
+    // Convert empty website string to null
+    if (updateData.website === '' || updateData.website === undefined) {
+      updateData.website = null;
+    }
+
+    // Check 14-day rule for username
+    if (data.username && data.username !== currentUser.username) {
+      if (currentUser.usernameLastChangedAt) {
+        const diffDays = (Date.now() - currentUser.usernameLastChangedAt.getTime()) / (1000 * 60 * 60 * 24);
+        if (diffDays < 14) {
+          const remainingDays = Math.ceil(14 - diffDays);
+          throw new BadRequestException(
+            `Kullanıcı adını yalnızca 14 günde bir değiştirebilirsiniz. Kalan süre: ${remainingDays} gün`
+          );
+        }
+      }
+      updateData.usernameLastChangedAt = new Date();
+    }
+
+    // Check 14-day rule for fullName
+    if (data.fullName && data.fullName !== currentUser.fullName) {
+      if (currentUser.nameLastChangedAt) {
+        const diffDays = (Date.now() - currentUser.nameLastChangedAt.getTime()) / (1000 * 60 * 60 * 24);
+        if (diffDays < 14) {
+          const remainingDays = Math.ceil(14 - diffDays);
+          throw new BadRequestException(
+            `Ad Soyad'ı yalnızca 14 günde bir değiştirebilirsiniz. Kalan süre: ${remainingDays} gün`
+          );
+        }
+      }
+      updateData.nameLastChangedAt = new Date();
+    }
+
+    // Check username uniqueness if changing
+    if (data.username && data.username !== currentUser.username) {
+      const existingUser = await this.prisma.user.findUnique({
+        where: { username: data.username },
+      });
+      if (existingUser && existingUser.id !== userId) {
+        throw new BadRequestException('Bu kullanıcı adı zaten kullanılıyor.');
+      }
+    }
+
     return this.prisma.user.update({
       where: { id: userId },
-      data,
+      data: updateData,
       select: {
         id: true,
         username: true,
@@ -299,6 +473,7 @@ export class UsersService {
         avatar: true,
         isPrivate: true,
         isVerified: true,
+        website: true,
       },
     });
   }
@@ -329,22 +504,36 @@ export class UsersService {
     // Avatar URL'lerini dönüştür (MinIO veya CDN)
     const getAvatarUrl = (avatar: string | null): string | null => {
       if (!avatar) return null;
-      if (avatar.startsWith('http')) return avatar;
       
-      // MinIO URL oluştur
-      const minioEndpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
-      const minioPort = this.configService.get('MINIO_PORT') || '9000';
-      const minioUseSSL = this.configService.get('MINIO_USE_SSL') === 'true';
-      const minioBucket = this.configService.get('MINIO_BUCKET_NAME') || 'instagram-uploads';
-      const protocol = minioUseSSL ? 'https' : 'http';
-      
-      // CDN_BASE_URL varsa onu kullan, yoksa MinIO URL'i oluştur
-      const CDN_BASE = this.configService.get('CDN_BASE_URL');
-      if (CDN_BASE) {
-        return `${CDN_BASE}${avatar.startsWith('/') ? avatar : `/${avatar}`}`;
+      // If it's already a full URL with localhost, replace with BASE_URL
+      if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+        const baseUrl = this.configService.get('BASE_URL');
+        if (baseUrl && (avatar.includes('localhost') || avatar.includes('127.0.0.1'))) {
+          try {
+            const urlObj = new URL(avatar);
+            return `${baseUrl}${urlObj.pathname}${urlObj.search}`;
+          } catch {
+            return avatar;
+          }
+        }
+        return avatar;
       }
       
-      return `${protocol}://${minioEndpoint}:${minioPort}/${minioBucket}/${avatar}`;
+      // Relative path - MUST use BASE_URL with port (3001, not MinIO 9000)
+      const baseUrl = this.configService.get('BASE_URL');
+      if (baseUrl) {
+        const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
+        return `${baseUrl}${cleanPath}`;
+      }
+      
+      // Fallback: Use backend port (3001) NOT MinIO port (9000)
+      const backendPort = this.configService.get('PORT') || '3002';
+      const endpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
+      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1' 
+        ? '192.168.1.38' 
+        : endpoint;
+      const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
+      return `http://${resolvedEndpoint}:${backendPort}${cleanPath}`;
     };
 
     return users.map((u) => ({

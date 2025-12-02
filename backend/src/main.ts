@@ -3,6 +3,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { json, raw, urlencoded } from 'express';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import * as net from 'net';
 
 async function findAvailablePort(startPort: number, maxAttempts = 10): Promise<number> {
@@ -44,6 +45,7 @@ async function bootstrap() {
 
   // Enable CORS
   const isDevelopment = process.env.NODE_ENV !== 'production';
+  const localIP = '192.168.1.38'; // 🔥 Mobil erişim için local IP
   const allowedOrigins = isDevelopment
     ? [
         'http://localhost:3000',
@@ -52,6 +54,11 @@ async function bootstrap() {
         'http://127.0.0.1:3000',
         'http://127.0.0.1:3001',
         'http://127.0.0.1:3002',
+        `http://${localIP}:3000`, // 🔥 Mobil frontend erişimi
+        `http://${localIP}:3001`, // 🔥 Alternatif port
+        `http://${localIP}:3002`, // 🔥 Backend port
+        `http://${localIP}`, // 🔥 Bazı cihazlar port eklemeden bağlanır
+        'https://composer-variation-result-father.trycloudflare.com', // 🔥 Cloudflare Frontend Tunnel
       ]
     : [process.env.FRONTEND_URL || 'http://localhost:3000'];
 
@@ -60,11 +67,33 @@ async function bootstrap() {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
       
-      if (isDevelopment || allowedOrigins.includes(origin)) {
-        callback(null, true);
+      // Development'ta local IP pattern'lerini de kabul et
+      if (isDevelopment) {
+        // Localhost ve 127.0.0.1
+        if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+          return callback(null, true);
+        }
+        // Cloudflare tunnel domain'leri
+        if (origin.includes('.trycloudflare.com')) {
+          return callback(null, true);
+        }
+        // Local IP pattern (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+        const localIPPattern = /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+)(:\d+)?$/;
+        if (localIPPattern.test(origin)) {
+          return callback(null, true);
+        }
+        // Explicitly allowed origins
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
       } else {
-        callback(new Error('Not allowed by CORS'));
+        // Production: only allow configured origins
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
       }
+      
+      callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -81,6 +110,9 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
+  // Global exception filter - TÜM HATALARI LOGLA
+  app.useGlobalFilters(new AllExceptionsFilter());
+
   // Global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
@@ -93,8 +125,10 @@ async function bootstrap() {
   const basePort = parseInt(process.env.PORT || '3002', 10);
   const port = await findAvailablePort(basePort);
 
-  await app.listen(port);
+  // 🔥 Mobil erişim için 0.0.0.0'da dinle (tüm network interface'lerde)
+  await app.listen(port, '0.0.0.0');
   logger.log(`🚀 Feellink backend running on http://localhost:${port}`);
+  logger.log(`🌐 Network access: http://${localIP}:${port}`);
   logger.log(`📚 Swagger documentation: http://localhost:${port}/api`);
 }
 bootstrap();

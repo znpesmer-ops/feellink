@@ -7,3 +7,14 @@ ADD COLUMN IF NOT EXISTS "extras" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
 
 
 
+
+
+
+
+
+
+
+
+
+
+

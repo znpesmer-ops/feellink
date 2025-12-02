@@ -1,12 +1,15 @@
-import { Injectable, UnauthorizedException, ConflictException, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { SearchService } from '../search/search.service';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import * as bcrypt from 'bcrypt';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import {
   ensureRoleAssignment,
   computeCapabilities,
@@ -17,6 +20,7 @@ import {
 import { SubscriptionPlanCode, UserRoleCode } from '../roles/roles.types';
 import { getDashboardSnapshot } from '../dashboard/dashboard.features';
 import { getBadgesFromSelection } from '../users/users.service';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -25,6 +29,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private searchService: SearchService,
+    private mailService: MailService,
   ) {}
 
   private readonly logger = new Logger(AuthService.name);
@@ -80,57 +85,64 @@ export class AuthService {
   async register(registerDto: RegisterDto) {
     const { email, username, password, fullName, role } = registerDto;
 
-    // Check if user exists
-    const existingUser = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ email }, { username }],
-      },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('Email or username already exists');
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user - roles are empty until user configures dashboard
-    const initialRoles = role && isValidRole(role) ? [role] : [];
-
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        username,
-        password: hashedPassword,
-        fullName,
-        roles: initialRoles,
-        plan: 'FREE',
-        badges: [],
-      },
-      select: {
-        ...this.authSelect,
-      },
-    });
-
-    // Generate tokens
-    const tokens = await this.generateTokens(user.id);
-
-    // Index user in Meilisearch for fast search
     try {
-      await this.searchService.indexUser(user);
-    } catch (error) {
-      console.error('Error indexing new user:', error);
-      // Continue even if indexing fails
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Create user - roles are empty until user configures dashboard
+      const initialRoles = role && isValidRole(role) ? [role] : [];
+
+      const user = await this.prisma.user.create({
+        data: {
+          email,
+          username, // Already lowercase from Transform decorator
+          password: hashedPassword,
+          fullName,
+          roles: initialRoles,
+          plan: 'FREE',
+          badges: [],
+        },
+        select: {
+          ...this.authSelect,
+        },
+      });
+
+      // Generate tokens
+      const tokens = await this.generateTokens(user.id);
+
+      // Index user in Meilisearch for fast search
+      try {
+        await this.searchService.indexUser(user);
+      } catch (error) {
+        console.error('Error indexing new user:', error);
+        // Continue even if indexing fails
+      }
+
+      const payload = this.hydrateAuthUser(user);
+      const needsRoleSelection = (user.roles?.length ?? 0) === 0;
+
+      return {
+        ...payload,
+        ...tokens,
+        needsRoleSelection,
+      };
+    } catch (err) {
+      // Prisma unique constraint hatası (email veya username çakışması)
+      if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
+        const target = (err.meta?.target as string[]) || [];
+        if (target.includes('email')) {
+          throw new ConflictException('Bu e-posta adresi zaten kullanımda');
+        }
+        if (target.includes('username')) {
+          throw new ConflictException('Bu kullanıcı adı zaten kullanımda');
+        }
+        throw new ConflictException('Bu bilgilerle kayıtlı bir kullanıcı zaten var');
+      }
+
+      // Validation dışındaki diğer hatalar
+      this.logger.error('Registration error:', err);
+      throw new BadRequestException('Kayıt işlemi sırasında bir hata oluştu');
     }
-
-    const payload = this.hydrateAuthUser(user);
-    const needsRoleSelection = (user.roles?.length ?? 0) === 0;
-
-    return {
-      ...payload,
-      ...tokens,
-      needsRoleSelection,
-    };
   }
 
   async login(loginDto: LoginDto) {
@@ -493,6 +505,105 @@ export class AuthService {
     }
 
     return this.hydrateAuthUser(updated);
+  }
+
+  private createPasswordResetToken() {
+    const resetToken = randomBytes(32).toString('hex');
+    const hashedToken = createHash('sha256').update(resetToken).digest('hex');
+    return { resetToken, hashedToken };
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const { email } = dto;
+
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    // Kullanıcı yoksa bile "başarılı" dön -> güvenlik
+    if (!user) {
+      return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı gönderildi.' };
+    }
+
+    const { resetToken, hashedToken } = this.createPasswordResetToken();
+    const expires = new Date();
+    expires.setHours(expires.getHours() + 1); // 1 saat geçerli
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: expires,
+      },
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+    // Gerçek mail gönderimi
+    let mailSent = false;
+    try {
+      await this.mailService.sendPasswordResetMail(email, resetUrl);
+      this.logger.log(`✅ Password reset email sent successfully to ${email}`);
+      mailSent = true;
+    } catch (error) {
+      this.logger.error(`Failed to send password reset email to ${email}:`, error);
+      
+      // Development ortamında console'a link yazdır
+      if (process.env.NODE_ENV !== 'production') {
+        this.logger.warn(`\n🔗 DEVELOPMENT MODE - Password reset link for ${email}:`);
+        this.logger.warn(`   ${resetUrl}\n`);
+        this.logger.warn('⚠️  Mail gönderimi başarısız oldu. SMTP ayarlarını kontrol edin.');
+        this.logger.warn('   Yukarıdaki linki kopyalayıp tarayıcıda açabilirsiniz.\n');
+      }
+      
+      // Mail gönderimi başarısız olsa bile kullanıcıya başarılı mesajı dön (güvenlik)
+    }
+
+    return {
+      message:
+        'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',
+      // Development ortamında mail gönderimi başarısız olduğunda frontend'e bilgi ver
+      ...(process.env.NODE_ENV !== 'production' && !mailSent
+        ? {
+            developmentMode: true,
+            resetUrl: resetUrl,
+          }
+        : {}),
+    };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const { token, password } = dto;
+
+    const hashedToken = createHash('sha256').update(token).digest('hex');
+    const now = new Date();
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: {
+          gt: now,
+        },
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Geçersiz veya süresi dolmuş şifre sıfırlama bağlantısı.');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+      },
+    });
+
+    return { message: 'Şifreniz başarıyla güncellendi. Şimdi giriş yapabilirsiniz.' };
   }
 }
 

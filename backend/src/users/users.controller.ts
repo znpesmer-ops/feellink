@@ -3,6 +3,7 @@ import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UpdateRoleSelectionDto } from './dto/update-role-selection.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('users')
 export class UsersController {
@@ -38,7 +39,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   async updateProfile(
     @CurrentUser() user: any,
-    @Body() data: { fullName?: string; bio?: string; avatar?: string; isPrivate?: boolean }
+    @Body() data: UpdateUserDto
   ) {
     return this.usersService.updateProfile(user.id, data);
   }

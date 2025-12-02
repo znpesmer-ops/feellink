@@ -1,11 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsOptional, IsString, IsIn } from 'class-validator';
 
 export class CreatePostDto {
   @ApiProperty({ required: false, description: 'Post caption with hashtags' })
   @IsString()
   @IsOptional()
   caption?: string;
+
+  @ApiProperty({ required: false, description: 'Artwork title (eser adı)' })
+  @IsString()
+  @IsOptional()
+  title?: string;
 
   @ApiProperty({ 
     type: [Object],
@@ -21,7 +26,33 @@ export class CreatePostDto {
   @IsString()
   @IsOptional()
   location?: string;
+
+  @ApiProperty({ 
+    required: false, 
+    description: 'Post type: post or artwork',
+    enum: ['post', 'artwork'],
+    default: 'post'
+  })
+  @IsString()
+  @IsOptional()
+  @IsIn(['post', 'artwork'])
+  type?: string;
+
+  // 🎨 Frontend'den gelen renkler
+  @ApiProperty({ 
+    required: false, 
+    description: 'Color palette extracted from image (hex color codes)',
+    type: [String],
+    example: ['#ffaa00', '#223344', '#556677']
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  colorPalette?: string[];
 }
+
+
+
 
 
 

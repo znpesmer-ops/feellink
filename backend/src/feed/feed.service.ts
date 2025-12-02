@@ -1,16 +1,88 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
 @Injectable()
 export class FeedService {
   private redis: Redis;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {
     this.redis = new Redis({
       host: process.env.REDIS_HOST || 'localhost',
       port: parseInt(process.env.REDIS_PORT || '6379'),
     });
+  }
+
+  // Helper: Transform media URLs for mobile compatibility
+  private transformMediaUrl(url: string): string {
+    if (!url) return url;
+    
+    // If it's already a full URL with localhost, replace with BASE_URL
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      const baseUrl = this.configService.get('BASE_URL');
+      if (baseUrl && (url.includes('localhost') || url.includes('127.0.0.1'))) {
+        try {
+          const urlObj = new URL(url);
+          return `${baseUrl}${urlObj.pathname}${urlObj.search}`;
+        } catch {
+          return url;
+        }
+      }
+      return url;
+    }
+    
+    // Relative path - MUST use BASE_URL with port (3001, not MinIO 9000)
+    const baseUrl = this.configService.get('BASE_URL');
+    if (!baseUrl) {
+      const backendPort = this.configService.get('PORT') || '3002';
+      const endpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
+      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1' 
+        ? '192.168.1.38' 
+        : endpoint;
+      const cleanPath = url.startsWith('/') ? url : `/${url}`;
+      return `http://${resolvedEndpoint}:${backendPort}${cleanPath}`;
+    }
+    
+    const cleanPath = url.startsWith('/') ? url : `/${url}`;
+    return `${baseUrl}${cleanPath}`;
+  }
+
+  // Helper: Transform avatar URLs
+  private transformAvatarUrl(avatar: string | null): string | null {
+    if (!avatar) return null;
+    
+    // If it's already a full URL with localhost, replace with BASE_URL
+    if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+      const baseUrl = this.configService.get('BASE_URL');
+      if (baseUrl && (avatar.includes('localhost') || avatar.includes('127.0.0.1'))) {
+        try {
+          const urlObj = new URL(avatar);
+          return `${baseUrl}${urlObj.pathname}${urlObj.search}`;
+        } catch {
+          return avatar;
+        }
+      }
+      return avatar;
+    }
+    
+    // Relative path - MUST use BASE_URL with port (3001, not MinIO 9000)
+    const baseUrl = this.configService.get('BASE_URL');
+    if (!baseUrl) {
+      const backendPort = this.configService.get('PORT') || '3002';
+      const endpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
+      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1' 
+        ? '192.168.1.38' 
+        : endpoint;
+      const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
+      return `http://${resolvedEndpoint}:${backendPort}${cleanPath}`;
+    }
+    
+    const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
+    return `${baseUrl}${cleanPath}`;
   }
 
   async getFeed(userId: string, limit: number = 20, cursor?: string) {
@@ -106,6 +178,14 @@ export class FeedService {
       posts: posts.map(post => ({
         ...post,
         isLiked: likedPostIds.has(post.id),
+        media: post.media?.map((m: any) => ({
+          ...m,
+          url: this.transformMediaUrl(m.url),
+        })) || [],
+        user: {
+          ...post.user,
+          avatar: this.transformAvatarUrl(post.user.avatar),
+        },
       })),
       nextCursor,
       hasMore,
@@ -202,6 +282,14 @@ export class FeedService {
     return posts.map(post => ({
       ...post,
       isLiked: likedPostIds.has(post.id),
+      media: post.media?.map((m: any) => ({
+        ...m,
+        url: this.transformMediaUrl(m.url),
+      })) || [],
+      user: {
+        ...post.user,
+        avatar: this.transformAvatarUrl(post.user.avatar),
+      },
     }));
   }
 }

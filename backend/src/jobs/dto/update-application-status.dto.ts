@@ -12,3 +12,14 @@ export class UpdateApplicationStatusDto {
   status: ApplicationStatus;
 }
 
+
+
+
+
+
+
+
+
+
+
+

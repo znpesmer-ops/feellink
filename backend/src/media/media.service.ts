@@ -57,7 +57,10 @@ export class MediaService {
     const fileName = `${folder}/${randomUUID()}-${file.originalname}`;
 
     if (this.isDisabled || !this.minioClient) {
-      const base = this.configService.get('APP_URL') ?? 'http://localhost:3000';
+      // BASE_URL varsa onu kullan, yoksa backend port (3002) kullan
+      const base = this.configService.get('BASE_URL') || 
+                   this.configService.get('APP_URL') || 
+                   `http://192.168.1.38:${this.configService.get('PORT') || '3002'}`;
       return {
         url: `${base}/static/${fileName}`,
         fileName: file.originalname,
@@ -75,12 +78,30 @@ export class MediaService {
       },
     );
 
-    const endpoint = this.configService.get('MINIO_ENDPOINT');
-    const port = this.configService.get('MINIO_PORT');
-    const protocol = this.configService.get('MINIO_USE_SSL') === 'true' ? 'https' : 'http';
+    // BASE_URL varsa onu kullan (mobil uyumluluk için)
+    const baseUrl = this.configService.get('BASE_URL');
+    if (baseUrl) {
+      // BASE_URL formatı: http://192.168.1.38:3002
+      // MinIO dosya yolu: /bucket-name/file-path
+      return {
+        url: `${baseUrl}/${this.bucketName}/${fileName}`,
+        fileName: file.originalname,
+        fileType: file.mimetype,
+      };
+    }
+
+    // Fallback: Backend port (3002) kullan, MinIO port (9000) değil
+    const backendPort = this.configService.get('PORT') || '3002';
+    const endpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
+    const protocol = 'http';
+    
+    // localhost yerine IP kullan (mobil uyumluluk için)
+    const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1' 
+      ? '192.168.1.38' 
+      : endpoint;
     
     return {
-      url: `${protocol}://${endpoint}:${port}/${this.bucketName}/${fileName}`,
+      url: `${protocol}://${resolvedEndpoint}:${backendPort}/${this.bucketName}/${fileName}`,
       fileName: file.originalname,
       fileType: file.mimetype,
     };
@@ -102,14 +123,80 @@ export class MediaService {
 
   getPublicUrl(fileName: string): string {
     if (this.isDisabled || !this.minioClient) {
-      const base = this.configService.get('APP_URL') ?? 'http://localhost:3000';
+      // BASE_URL varsa onu kullan, yoksa backend port (3002) kullan
+      const base = this.configService.get('BASE_URL') || 
+                   this.configService.get('APP_URL') || 
+                   `http://192.168.1.38:${this.configService.get('PORT') || '3002'}`;
       return `${base}/static/${fileName}`;
     }
 
-    const endpoint = this.configService.get('MINIO_ENDPOINT');
-    const port = this.configService.get('MINIO_PORT');
-    const protocol = this.configService.get('MINIO_USE_SSL') === 'true' ? 'https' : 'http';
-    return `${protocol}://${endpoint}:${port}/${this.bucketName}/${fileName}`;
+    // BASE_URL varsa onu kullan (mobil uyumluluk için)
+    const baseUrl = this.configService.get('BASE_URL');
+    if (baseUrl) {
+      return `${baseUrl}/${this.bucketName}/${fileName}`;
+    }
+
+    // Fallback: Backend port (3002) kullan, MinIO port (9000) değil
+    const backendPort = this.configService.get('PORT') || '3002';
+    const endpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
+    const protocol = 'http';
+    
+    // localhost yerine IP kullan (mobil uyumluluk için)
+    const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1' 
+      ? '192.168.1.38' 
+      : endpoint;
+    
+    return `${protocol}://${resolvedEndpoint}:${backendPort}/${this.bucketName}/${fileName}`;
+  }
+
+  /**
+   * MinIO'dan dosyayı getir (public erişim için)
+   * @param filePath - Bucket içindeki dosya yolu (örn: posts/image.jpg)
+   * @returns Stream veya null
+   */
+  async getFile(filePath: string): Promise<NodeJS.ReadableStream | null> {
+    if (this.isDisabled || !this.minioClient) {
+      return null;
+    }
+
+    try {
+      // Bucket name'i path'ten çıkar (eğer varsa)
+      let actualPath = filePath;
+      if (filePath.startsWith(`${this.bucketName}/`)) {
+        actualPath = filePath.replace(`${this.bucketName}/`, '');
+      }
+
+      const stream = await this.minioClient.getObject(this.bucketName, actualPath);
+      return stream;
+    } catch (error) {
+      console.error('Error getting file from MinIO:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Dosyanın metadata'sını getir (Content-Type için)
+   * @param filePath - Bucket içindeki dosya yolu
+   * @returns Metadata veya null
+   */
+  async getFileMetadata(filePath: string): Promise<MinIO.BucketItemStat | null> {
+    if (this.isDisabled || !this.minioClient) {
+      return null;
+    }
+
+    try {
+      // Bucket name'i path'ten çıkar (eğer varsa)
+      let actualPath = filePath;
+      if (filePath.startsWith(`${this.bucketName}/`)) {
+        actualPath = filePath.replace(`${this.bucketName}/`, '');
+      }
+
+      const stat = await this.minioClient.statObject(this.bucketName, actualPath);
+      return stat;
+    } catch (error) {
+      console.error('Error getting file metadata from MinIO:', error);
+      return null;
+    }
   }
 }
 

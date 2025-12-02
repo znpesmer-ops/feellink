@@ -211,4 +211,10 @@ export class AdminController {
       timestamp: new Date().toISOString(),
     };
   }
+
+  // 🎨 Renk analizi yeniden hesaplama endpoint'i
+  @Post('recalculate-colors')
+  async recalculateColors() {
+    return this.adminService.recalculateColors();
+  }
 }

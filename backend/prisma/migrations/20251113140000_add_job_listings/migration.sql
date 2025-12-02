@@ -29,3 +29,14 @@ ADD CONSTRAINT "job_listings_createdById_fkey" FOREIGN KEY ("createdById") REFER
 
 
 
+
+
+
+
+
+
+
+
+
+
+

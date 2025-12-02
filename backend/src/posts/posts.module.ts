@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { PostsController } from './posts.controller';
 import { PostsService } from './posts.service';
+import { ColorAnalysisService } from './color-analysis.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { MediaModule } from '../media/media.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -24,8 +25,8 @@ import { LimitsModule } from '../limits/limits.module';
     LimitsModule,
   ],
   controllers: [PostsController],
-  providers: [PostsService, CommentsGateway, PostsGateway],
-  exports: [PostsService, MediaModule, CommentsGateway, PostsGateway],
+  providers: [PostsService, ColorAnalysisService, CommentsGateway, PostsGateway],
+  exports: [PostsService, ColorAnalysisService, MediaModule, CommentsGateway, PostsGateway],
 })
 export class PostsModule {}
 

@@ -15,3 +15,14 @@ export class CreateJobApplicationDto {
   cvUrl?: string;
 }
 
+
+
+
+
+
+
+
+
+
+
+

@@ -1,20 +1,25 @@
 import { UserRoleCode } from '../../roles/roles.types';
-import { IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MinLength, Matches } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { IsUnicodeEmail } from '../../common/validators/is-unicode-email.decorator';
 
 export class RegisterDto {
   @IsUnicodeEmail({ message: 'Lütfen geçerli bir e-posta adresi girin.' })
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'E-posta adresi gereklidir' })
   email: string;
 
   @IsString()
-  @IsNotEmpty()
-  @MinLength(3)
+  @IsNotEmpty({ message: 'Kullanıcı adı gereklidir' })
+  @MinLength(3, { message: 'Kullanıcı adı en az 3 karakter olmalıdır' })
+  @Transform(({ value }) => value?.trim().toLowerCase())
   username: string;
 
   @IsString()
-  @IsNotEmpty()
-  @MinLength(6)
+  @IsNotEmpty({ message: 'Şifre gereklidir' })
+  @MinLength(8, { message: 'Şifre en az 8 karakter olmalıdır' })
+  @Matches(/^(?=.*[A-Za-z])(?=.*\d).+$/, {
+    message: 'Şifre en az bir harf ve bir rakam içermelidir',
+  })
   password: string;
 
   @IsOptional()

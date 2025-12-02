@@ -15,7 +15,7 @@ interface CreateNotificationDto {
   targetUrl?: string;
 }
 
-type NotifType = 'mention' | 'follow' | 'follow_request' | 'follow_accept' | 'like' | 'comment' | 'reply' | 'event_comment' | 'event_like' | 'event_ticket_purchased' | 'ticket_confirmation';
+type NotifType = 'mention' | 'follow' | 'follow_request' | 'follow_accept' | 'like' | 'comment' | 'reply' | 'event_join' | 'event_comment' | 'event_like' | 'event_ticket_purchased' | 'ticket_confirmation';
 
 @Injectable()
 export class NotificationsService {
@@ -70,6 +70,12 @@ export class NotificationsService {
             break;
           case 'mention':
             message = `seni bir yorumda etiketledi`;
+            break;
+          case 'event_join':
+            message = `etkinliğinize katıldı`;
+            break;
+          case 'event_comment':
+            message = `etkinliğinize yorum yaptı`;
             break;
           default:
             message = `yeni bir etkinlik gerçekleştirdi`;

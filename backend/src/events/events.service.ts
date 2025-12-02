@@ -1,12 +1,16 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LimitsService } from '../limits/limits.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { CreateEventDto } from './dto/create-event.dto';
 
 @Injectable()
 export class EventsService {
   constructor(
     private prisma: PrismaService,
     private readonly limitsService: LimitsService,
+    @Inject(forwardRef(() => NotificationsService))
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getAllEvents() {
@@ -33,23 +37,26 @@ export class EventsService {
 
   async createEvent(
     userId: string,
-    data: { title: string; description?: string; date: string; coverImage?: string; ticketUrl?: string },
+    dto: CreateEventDto,
   ) {
     await this.limitsService.ensureLimit(userId, 'create_event');
 
     return this.prisma.event.create({
       data: {
-        title: data.title,
-        description: data.description,
-        date: new Date(data.date),
-        coverImage: data.coverImage,
-        ticketUrl: data.ticketUrl,
+        title: dto.title,
+        description: dto.description,
+        date: new Date(dto.date),
+        coverImage: dto.coverImage,
+        ticketUrl: dto.ticketUrl,
+        price: dto.isFree ? 0 : (dto.price || 0),
+        isFree: dto.isFree ?? true,
+        location: dto.location,
         ownerId: userId,
       },
     });
   }
 
-  async updateEvent(userId: string, id: string, data: { title?: string; description?: string; date?: string; coverImage?: string }) {
+  async updateEvent(userId: string, id: string, data: { title?: string; description?: string; date?: string; coverImage?: string; price?: number; isFree?: boolean; location?: string }) {
     // Check if event exists and belongs to user
     const event = await this.prisma.event.findUnique({
       where: { id },
@@ -70,6 +77,9 @@ export class EventsService {
         description: data.description,
         date: data.date ? new Date(data.date) : undefined,
         coverImage: data.coverImage,
+        price: data.isFree !== undefined ? (data.isFree ? 0 : (data.price || 0)) : undefined,
+        isFree: data.isFree,
+        location: data.location,
       },
     });
   }
@@ -117,6 +127,22 @@ export class EventsService {
       throw new ForbiddenException('Already joined this event');
     }
 
+    // Get event with owner info
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      include: { owner: true },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+
+    // Get user info for notification
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true, fullName: true, avatar: true },
+    });
+
     // Create participant record and increment count
     await this.prisma.eventParticipant.create({
       data: {
@@ -125,12 +151,24 @@ export class EventsService {
       },
     });
 
-    const event = await this.prisma.event.update({
+    const updatedEvent = await this.prisma.event.update({
       where: { id: eventId },
       data: { participantCount: { increment: 1 } },
     });
 
-    return event;
+    // Send notification to event owner (only if not joining own event)
+    if (event.ownerId !== userId && user) {
+      const userName = user.fullName || user.username;
+      await this.notificationsService.createNotificationSync({
+        userId: event.ownerId,
+        type: 'event_join',
+        fromUserId: userId,
+        message: `${userName} "${event.title}" etkinliğinize katıldı.`,
+        targetUrl: `/events/${eventId}`,
+      });
+    }
+
+    return updatedEvent;
   }
 
   async getEventComments(id: string) {
@@ -142,7 +180,24 @@ export class EventsService {
   }
 
   async createEventComment(userId: string, eventId: string, data: { text: string }) {
-    return this.prisma.eventComment.create({
+    // Get event with owner info
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      include: { owner: true },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+
+    // Get user info for notification
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true, fullName: true, avatar: true },
+    });
+
+    // Create comment
+    const comment = await this.prisma.eventComment.create({
       data: {
         text: data.text,
         eventId,
@@ -150,6 +205,21 @@ export class EventsService {
       },
       include: { author: true },
     });
+
+    // Send notification to event owner (only if not commenting on own event)
+    if (event.ownerId !== userId && user) {
+      const userName = user.fullName || user.username;
+      await this.notificationsService.createNotificationSync({
+        userId: event.ownerId,
+        type: 'event_comment',
+        fromUserId: userId,
+        commentId: comment.id,
+        message: `${userName} "${event.title}" etkinliğinize yorum yaptı.`,
+        targetUrl: `/events/${eventId}`,
+      });
+    }
+
+    return comment;
   }
 
   async getParticipants(eventId: string) {

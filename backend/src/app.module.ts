@@ -24,6 +24,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { PaymentsModule } from './payments/payments.module';
 import { JobsModule } from './jobs/jobs.module';
 import { LimitsModule } from './limits/limits.module';
+import { HighlightsModule } from './highlights/highlights.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { LimitsModule } from './limits/limits.module';
     PaymentsModule,
     JobsModule,
     LimitsModule,
+    HighlightsModule,
   ],
 })
 export class AppModule {}

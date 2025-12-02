@@ -1,10 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { Prisma, UserRole } from '@prisma/client';
 import { getPrismaInstance } from '../prisma/prisma.service';
+import { ColorAnalysisService } from '../posts/color-analysis.service';
 
 @Injectable()
 export class AdminService {
   private prisma = getPrismaInstance();
+
+  constructor(
+    @Inject(forwardRef(() => ColorAnalysisService))
+    private colorAnalysisService: ColorAnalysisService,
+  ) {}
 
   async getSummary() {
     const now = new Date();
@@ -609,6 +615,95 @@ export class AdminService {
       engagementTrend,
       growthTrend,
     };
+  }
+
+  // 🎨 Tüm gönderiler için renk analizi yeniden hesaplama
+  async recalculateColors() {
+    try {
+      // Tüm gönderileri medya bilgileriyle birlikte al
+      const posts = await this.prisma.post.findMany({
+        where: {
+          media: {
+            some: {
+              type: 'image', // Sadece görseller için renk analizi
+            },
+          },
+        },
+        include: {
+          media: {
+            where: {
+              type: 'image',
+            },
+            orderBy: {
+              order: 'asc',
+            },
+            take: 1, // Her post için ilk görsel
+          },
+        },
+      });
+
+      let processed = 0;
+      let failed = 0;
+      const results = [];
+
+      for (const post of posts) {
+        if (post.media.length === 0) {
+          continue;
+        }
+
+        const firstImage = post.media[0];
+        if (!firstImage || !firstImage.url) {
+          continue;
+        }
+
+        try {
+          // Renk analizi yap
+          const colors = await this.colorAnalysisService.extractColors(firstImage.url);
+
+          if (colors.length > 0) {
+            // Post'u güncelle
+            await this.prisma.post.update({
+              where: { id: post.id },
+              data: {
+                colorPalette: colors,
+              },
+            });
+
+            processed++;
+            results.push({
+              postId: post.id,
+              status: 'success',
+              colors: colors.length,
+            });
+          } else {
+            // Renk bulunamadı
+            failed++;
+            results.push({
+              postId: post.id,
+              status: 'no_colors',
+            });
+          }
+        } catch (error) {
+          failed++;
+          results.push({
+            postId: post.id,
+            status: 'error',
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+        }
+      }
+
+      return {
+        message: '✅ Renk analizi yeniden hesaplama tamamlandı.',
+        totalPosts: posts.length,
+        processed,
+        failed,
+        results: results.slice(0, 10), // İlk 10 sonucu göster
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      throw new Error(`Renk analizi yeniden hesaplama hatası: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 }
 

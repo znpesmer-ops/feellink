@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Query, UseInterceptors, UploadedFiles } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, Query, UseInterceptors, UploadedFiles, BadRequestException, Res } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PostsService } from './posts.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -26,31 +27,65 @@ export class PostsController {
   async createPost(
     @CurrentUser() user: any,
     @UploadedFiles() files: Express.Multer.File[],
-    @Body() body: { caption?: string; location?: string },
+    @Body() body: { caption?: string; title?: string; location?: string; type?: string; colorPalette?: string | string[] },
   ) {
-    if (!files || files.length === 0) {
-      throw new Error('At least one file is required');
+    try {
+      if (!files || files.length === 0) {
+        throw new BadRequestException('En az bir dosya gereklidir');
+      }
+
+      if (!user?.id) {
+        throw new BadRequestException('Kullanıcı kimliği bulunamadı');
+      }
+
+      // Upload files to MinIO
+      const mediaUploads = await Promise.all(
+        files.map(async (file, index) => {
+          try {
+            const uploadResult = await this.mediaService.uploadFile(file, 'posts');
+            return {
+              url: typeof uploadResult === 'string' ? uploadResult : uploadResult.url,
+              type: file.mimetype.startsWith('video/') ? 'video' : 'image',
+              order: index,
+            };
+          } catch (uploadError) {
+            throw new BadRequestException(`Dosya yükleme hatası: ${uploadError instanceof Error ? uploadError.message : 'Bilinmeyen hata'}`);
+          }
+        }),
+      );
+
+      // Parse colorPalette if it's a string (from FormData)
+      let colorPalette: string[] | undefined;
+      if (body.colorPalette) {
+        if (typeof body.colorPalette === 'string') {
+          try {
+            colorPalette = JSON.parse(body.colorPalette);
+          } catch {
+            colorPalette = [body.colorPalette];
+          }
+        } else if (Array.isArray(body.colorPalette)) {
+          colorPalette = body.colorPalette;
+        }
+      }
+
+      const dto: CreatePostDto = {
+        caption: body.caption,
+        title: body.title, // 🎨 Eser adı (artwork için)
+        location: body.location,
+        type: body.type || 'post', // Default to 'post' if not provided
+        media: mediaUploads,
+        colorPalette, // 🎨 Frontend'den gelen renk paleti
+      };
+
+      return await this.postsService.createPost(user.id, dto);
+    } catch (error) {
+      // HttpException ise olduğu gibi fırlat
+      if (error instanceof BadRequestException || error instanceof Error && 'status' in error) {
+        throw error;
+      }
+      // Diğer hatalar için Internal Server Error
+      throw new BadRequestException(error instanceof Error ? error.message : 'Gönderi oluşturulurken bir hata oluştu');
     }
-
-    // Upload files to MinIO
-    const mediaUploads = await Promise.all(
-      files.map(async (file, index) => {
-        const uploadResult = await this.mediaService.uploadFile(file, 'posts');
-        return {
-          url: typeof uploadResult === 'string' ? uploadResult : uploadResult.url,
-          type: file.mimetype.startsWith('video/') ? 'video' : 'image',
-          order: index,
-        };
-      }),
-    );
-
-    const dto: CreatePostDto = {
-      caption: body.caption,
-      location: body.location,
-      media: mediaUploads,
-    };
-
-    return this.postsService.createPost(user.id, dto);
   }
 
   @Post()
@@ -61,6 +96,36 @@ export class PostsController {
     return this.postsService.createPost(user.id, dto);
   }
 
+  // ⚠️ ÖZEL ROUTE'LAR GENEL ROUTE'LARDAN ÖNCE OLMALI
+  // QR Label endpoint'i - :id route'undan ÖNCE tanımlanmalı
+  @Get(':id/qr-label')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Generate QR code label PDF for artwork' })
+  @ApiResponse({ status: 200, description: 'QR label PDF generated successfully' })
+  async getQrLabel(@Param('id') id: string, @Res() res: Response) {
+    const pdf = await this.postsService.generateQrLabelPdf(id);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="Eser_Etiketi_${id}.pdf"`,
+    });
+
+    return res.send(pdf);
+  }
+
+  // QR PDF endpoint'i - :id route'undan ÖNCE tanımlanmalı
+  @Get(':id/qr-pdf')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Generate QR code PDF label for artwork' })
+  @ApiResponse({ status: 200, description: 'QR PDF generated successfully' })
+  async generateArtworkQrPdf(
+    @Param('id') postId: string,
+    @Res() res: Response,
+  ) {
+    return this.postsService.generateArtworkQrPdf(postId, res);
+  }
+
+  // GENEL ROUTE EN SONDA OLMALI
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get post by ID' })
@@ -118,6 +183,14 @@ export class PostsController {
   @ApiResponse({ status: 200, description: 'User posts retrieved successfully' })
   async getUserPosts(@Param('userId') userId: string, @CurrentUser() user: any) {
     return this.postsService.getUserPosts(userId, user.id);
+  }
+
+  @Get('comments/user/:userId')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get all comments by user' })
+  @ApiResponse({ status: 200, description: 'User comments retrieved successfully' })
+  async getUserComments(@Param('userId') userId: string) {
+    return this.postsService.getUserComments(userId);
   }
 
   @Post(':id/save')
@@ -207,5 +280,41 @@ export class PostsController {
     @Body() body: { pinned: boolean },
   ) {
     return this.postsService.toggleCommentPin(commentId, user.id, body.pinned);
+  }
+
+  @Get('color-matches/:userId')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get color matches for user artworks' })
+  @ApiResponse({ status: 200, description: 'Color matches retrieved successfully' })
+  async getColorMatches(@Param('userId') userId: string) {
+    return this.postsService.getColorMatches(userId);
+  }
+
+  @Get('color-palette/:userId')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get user color palette from artworks' })
+  @ApiResponse({ status: 200, description: 'Color palette retrieved successfully' })
+  async getUserColorPalette(@Param('userId') userId: string) {
+    const palette = await this.postsService.getUserColorPalette(userId);
+    return { palette };
+  }
+
+  @Get('ticket/:artworkId/:userId')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Generate Premium Bilet PDF for artwork' })
+  @ApiResponse({ status: 200, description: 'Premium Bilet PDF generated successfully' })
+  async generateArtworkTicket(
+    @Param('artworkId') artworkId: string,
+    @Param('userId') userId: string,
+    @Res() res: Response,
+  ) {
+    const pdf = await this.postsService.generateArtworkTicket(artworkId, userId);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="Feellink_Bilet_${artworkId}.pdf"`,
+    });
+
+    return res.send(pdf);
   }
 }

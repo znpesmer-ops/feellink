@@ -1,0 +1,4 @@
+-- Add price and isFree fields to Event table
+ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "price" DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "isFree" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "events" ADD COLUMN IF NOT EXISTS "location" TEXT;

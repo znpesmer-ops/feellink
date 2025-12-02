@@ -211,12 +211,13 @@ export class TicketsService {
     }
 
     // PDF oluştur - Ortalanmış profesyonel tasarım
-    // ✅ Tek sayfa garantisi için bufferPages: false ve içeriği optimize et
+    // ✅ Tek sayfa garantisi için optimize edilmiş ayarlar
     const doc = new PDFDocument({ 
-      size: 'A4', 
-      margin: 50,
+      size: 'A4', // 210mm x 297mm
+      margin: 40, // Daha kompakt margin (50'den 40'a)
       layout: 'portrait',
       bufferPages: false, // ✅ Fazladan sayfa oluşturmayı engelle
+      autoFirstPage: true,
       info: {
         Title: `Feellink Bilet - ${ticket.ticket.event.title}`,
         Author: 'Feellink',
@@ -232,36 +233,37 @@ export class TicketsService {
     );
     doc.pipe(res);
 
-    // 🎨 Renk Paleti
+    // 🎨 Renk Paleti - PDF için optimize edilmiş koyu renkler
     const orange = '#ff7b00';
-    const dark = '#1a1a1a';
-    const gray = '#555555';
+    const dark = '#111827'; // Neredeyse siyah - PDF için ideal (#1F2937 yerine daha koyu)
+    const gray = '#374151'; // Koyu gri - alt metinler için (#1F2937 yerine)
+    const grayLight = '#6B7280'; // Açık metinler için
     const white = '#FFFFFF';
 
-    // 🟠 Üst Başlık Banner (Turuncu zemin) - Optimize edilmiş boyut
+    // 🟠 Üst Başlık Banner (Turuncu zemin) - Tek sayfa için optimize
     doc
-      .rect(0, 0, doc.page.width, 80) // Daha kompakt (100'den 80'e)
+      .rect(0, 0, doc.page.width, 70) // Daha kompakt (80'den 70'e)
       .fill(orange);
     
     doc
       .fillColor(white)
       .font('Helvetica-Bold')
-      .fontSize(24) // Daha kompakt (28'den 24'e)
-      .text('Feellink', doc.page.width / 2, 30, { align: 'center' });
+      .fontSize(22) // Daha kompakt (24'ten 22'ye)
+      .text('Feellink', doc.page.width / 2, 25, { align: 'center' });
     
     doc
-      .fontSize(11) // Daha kompakt (12'den 11'e)
+      .fontSize(10) // Daha kompakt (11'den 10'a)
       .font('Helvetica')
       .fillColor(white)
-      .opacity(0.95)
-      .text('Digital Art & Events Platform', doc.page.width / 2, 55, { align: 'center' });
+      .opacity(1) // Opacity tam kapasite - daha okunabilir
+      .text('Digital Art & Events Platform', doc.page.width / 2, 48, { align: 'center' });
 
     // 🧾 Bilgi Kutusu (Ortalanmış, kart tasarımı)
     // ✅ Tek sayfa garantisi için boyutları optimize et
-    const cardWidth = 480;
+    const cardWidth = 500;
     const cardLeft = (doc.page.width - cardWidth) / 2;
-    const startY = 120; // Daha yakın (140'tan 120'ye)
-    const cardHeight = 280; // Daha kompakt (300'den 280'e)
+    const startY = 100; // Daha yakın (120'den 100'e)
+    const cardHeight = 260; // Daha kompakt (280'den 260'a)
     
     // Kart arka planı
     doc
@@ -273,105 +275,122 @@ export class TicketsService {
     // İçerik başlığı
     doc
       .font('Helvetica-Bold')
-      .fontSize(18)
+      .fontSize(17) // Daha kompakt
       .fillColor(dark)
-      .text('Etkinlik Bileti', cardLeft + cardWidth / 2, startY + 25, { align: 'center' });
+      .opacity(1) // Opacity tam
+      .text('Etkinlik Bileti', cardLeft + cardWidth / 2, startY + 20, { align: 'center' });
     
     // Bilet kodu (sağ üst)
     doc
       .fontSize(10)
       .font('Helvetica-Bold')
       .fillColor(orange)
-      .text(`Kod: ${ticket.code}`, cardLeft + cardWidth - 25, startY + 25, { align: 'right' });
+      .opacity(1)
+      .text(`Kod: ${ticket.code}`, cardLeft + cardWidth - 25, startY + 20, { align: 'right' });
     
     // Bilgiler
-    const infoLeft = cardLeft + 40;
-    let infoY = startY + 60;
+    const infoLeft = cardLeft + 35;
+    let infoY = startY + 55;
     
     doc
       .font('Helvetica')
-      .fontSize(13)
-      .fillColor(dark);
+      .fontSize(12) // Daha kompakt (13'ten 12'ye)
+      .fillColor(dark)
+      .opacity(1); // Opacity tam
     
     // Etkinlik başlığı
     doc
       .font('Helvetica-Bold')
-      .fontSize(16)
+      .fontSize(15) // Daha kompakt (16'dan 15'e)
+      .fillColor(dark)
+      .opacity(1)
       .text(ticket.ticket.event.title, infoLeft, infoY, {
-        width: cardWidth - 80,
+        width: cardWidth - 70,
         ellipsis: true
       });
     
-    infoY += 35;
+    infoY += 28; // Daha kompakt (35'ten 28'e)
     
     // Ayırıcı çizgi
     doc
-      .moveTo(infoLeft, infoY - 10)
-      .lineTo(cardLeft + cardWidth - 40, infoY - 10)
+      .moveTo(infoLeft, infoY - 8)
+      .lineTo(cardLeft + cardWidth - 35, infoY - 8)
       .lineWidth(0.5)
       .stroke(gray)
-      .opacity(0.3);
+      .opacity(0.4); // Biraz daha görünür
     
-    infoY += 20;
-    doc.font('Helvetica').fontSize(12);
+    infoY += 18; // Daha kompakt (20'den 18'e)
+    doc.font('Helvetica').fontSize(11); // Daha kompakt (12'den 11'e)
     
     // Tarih
-    doc.text(`Tarih: ${new Date(ticket.ticket.event.date).toLocaleDateString('tr-TR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })}`, infoLeft, infoY);
+    doc
+      .fillColor(dark)
+      .opacity(1)
+      .text(`Tarih: ${new Date(ticket.ticket.event.date).toLocaleDateString('tr-TR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })}`, infoLeft, infoY);
     
-    infoY += 28;
+    infoY += 22; // Daha kompakt (28'den 22'ye)
     
     // Yer (varsa)
     if ((ticket.ticket.event as any).location) {
-      doc.text(`Yer: ${(ticket.ticket.event as any).location}`, infoLeft, infoY);
-      infoY += 28;
+      doc
+        .fillColor(dark)
+        .opacity(1)
+        .text(`Yer: ${(ticket.ticket.event as any).location}`, infoLeft, infoY);
+      infoY += 22; // Daha kompakt (28'den 22'ye)
     }
     
     // Açıklama (kısaltılmış - tek sayfa garantisi için daha kısa)
     if (ticket.ticket.event.description) {
-      const desc = ticket.ticket.event.description.length > 80 
-        ? ticket.ticket.event.description.substring(0, 80) + '...'
+      const desc = ticket.ticket.event.description.length > 70 
+        ? ticket.ticket.event.description.substring(0, 70) + '...'
         : ticket.ticket.event.description;
       doc
-        .fontSize(11)
+        .fontSize(10) // Daha kompakt (11'den 10'a)
         .fillColor(gray)
+        .opacity(1) // Opacity tam - daha okunabilir
         .text(desc, infoLeft, infoY, {
-          width: cardWidth - 80,
-          lineGap: 2, // Daha kompakt (3'ten 2'ye)
+          width: cardWidth - 70,
+          lineGap: 1, // Daha kompakt (2'den 1'e)
         });
-      infoY += 35; // Daha kompakt (40'tan 35'e)
+      infoY += 28; // Daha kompakt (35'ten 28'e)
     } else {
-      infoY += 15; // Daha kompakt (20'den 15'e)
+      infoY += 12; // Daha kompakt (15'ten 12'ye)
     }
     
     // Katılımcı
     doc
-      .fontSize(12)
+      .fontSize(11) // Daha kompakt (12'den 11'e)
       .fillColor(dark)
+      .opacity(1)
       .text(`Katılımcı: ${ticket.user.fullName || ticket.user.username}`, infoLeft, infoY);
-    infoY += 25;
+    infoY += 20; // Daha kompakt (25'ten 20'ye)
     
     // E-posta
-    doc.text(`E-posta: ${ticket.user.email}`, infoLeft, infoY, {
-      width: cardWidth - 80,
-      ellipsis: true
-    });
-    infoY += 25;
+    doc
+      .fillColor(dark)
+      .opacity(1)
+      .text(`E-posta: ${ticket.user.email}`, infoLeft, infoY, {
+        width: cardWidth - 70,
+        ellipsis: true
+      });
+    infoY += 20; // Daha kompakt (25'ten 20'ye)
     
     // Durum
     const statusText = ticket.used ? 'Durum: Kullanıldı' : 'Durum: Aktif';
-    const statusColor = ticket.used ? '#ef4444' : '#10b981';
+    const statusColor = ticket.used ? '#dc2626' : '#059669'; // Daha koyu renkler
     doc
       .fillColor(statusColor)
       .font('Helvetica-Bold')
+      .opacity(1)
       .text(statusText, infoLeft, infoY);
 
-    // 🧡 QR Kod (Ortalanmış, kartın altında)
+    // 🧡 QR Kod (Ortalanmış, kartın altında) - Tek sayfa garantisi
     if (ticket.qrUrl) {
       try {
         const tmpDir = '/tmp';
@@ -383,40 +402,51 @@ export class TicketsService {
         const base64Data = ticket.qrUrl.replace(/^data:image\/png;base64,/, '');
         fs.writeFileSync(qrPath, base64Data, 'base64');
         
-            // ✅ Tek sayfa garantisi için QR kod pozisyonunu optimize et
-        const qrSize = 120; // Daha küçük (130'dan 120'ye)
+        // ✅ Tek sayfa garantisi için QR kod pozisyonunu dinamik hesapla
+        const qrSize = 100; // Daha küçük (110'dan 100'e) - tek sayfa için
         const qrX = doc.page.width / 2 - qrSize / 2;
-        const qrY = startY + cardHeight + 25; // Daha yakın (30'dan 25'e)
+        // Kartın bitişinden sonra minimal boşluk, footer'dan önce yer kalacak şekilde
+        const qrY = startY + cardHeight + 15; // Daha yakın (20'den 15'e)
+        
+        // Tek sayfa kontrolü - QR + footer toplam yüksekliği kontrol et
+        const qrTotalHeight = qrSize + 15 + 10; // QR + text + spacing
+        const footerHeight = 50;
+        const totalNeededHeight = qrY + qrTotalHeight + footerHeight;
+        
+        // Eğer sayfa boyutunu aşarsa, QR'ı daha yukarı kaydır
+        const maxAllowedY = doc.page.height - footerHeight - qrTotalHeight - 10;
+        const finalQrY = Math.min(qrY, maxAllowedY);
         
         // ✅ QR çerçevesi - Kontrastı arttırılmış turuncu çerçeve
-        const borderWidth = 3; // Kalın çerçeve
-        const borderPadding = 8; // Padding
+        const borderWidth = 2.5;
+        const borderPadding = 5; // Daha kompakt (6'dan 5'e)
         
-        // Dış turuncu çerçeve (daha belirgin kontrast için)
+        // Dış turuncu çerçeve
         doc
           .roundedRect(
             qrX - borderPadding, 
-            qrY - borderPadding, 
+            finalQrY - borderPadding, 
             qrSize + (borderPadding * 2), 
             qrSize + (borderPadding * 2), 
-            10
+            8
           )
           .lineWidth(borderWidth)
           .stroke(orange)
-          .fill('#FFFFFF'); // Beyaz arka plan (daha iyi kontrast)
+          .fill('#FFFFFF');
         
         // İç beyaz arka plan (QR kod için)
         doc
-          .roundedRect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 4, 6)
+          .roundedRect(qrX - 1, finalQrY - 1, qrSize + 2, qrSize + 2, 5)
           .fill('#FFFFFF');
         
-        doc.image(qrPath, qrX, qrY, { width: qrSize, height: qrSize });
+        doc.image(qrPath, qrX, finalQrY, { width: qrSize, height: qrSize });
         
         doc
-          .fontSize(10) // Daha kompakt (11'den 10'a)
+          .fontSize(10)
           .font('Helvetica-Bold')
-          .fillColor(dark)
-          .text('QR Kod', doc.page.width / 2, qrY + qrSize + 15, { align: 'center' }); // Daha yakın (20'den 15'e)
+          .fillColor(dark) // Koyu renk - okunabilir
+          .opacity(1) // Opacity tam
+          .text('QR Kod', doc.page.width / 2, finalQrY + qrSize + 10, { align: 'center' }); // Daha yakın (12'den 10'a)
         
         fs.unlinkSync(qrPath);
       } catch (error) {
@@ -425,47 +455,48 @@ export class TicketsService {
     }
 
     // 💬 Alt Bilgi (Ortalanmış) - Tek sayfa garantisi için optimize
-    const footerY = doc.page.height - 60; // Daha yakın (70'den 60'a)
+    const footerY = doc.page.height - 45; // Daha yakın (50'den 45'e)
     
     // Ayırıcı çizgi
     doc
-      .moveTo(60, footerY - 5)
-      .lineTo(doc.page.width - 60, footerY - 5)
+      .moveTo(50, footerY - 5)
+      .lineTo(doc.page.width - 50, footerY - 5)
       .lineWidth(0.5)
       .stroke(gray)
-      .opacity(0.3);
+      .opacity(0.4);
     
-    // ✅ Türkçe karakter desteği için UTF-8 encoding
+    // ✅ Türkçe karakter desteği için UTF-8 encoding - Koyu renkler
     doc
       .fontSize(9)
       .font('Helvetica')
-      .fillColor(gray)
+      .fillColor(gray) // Koyu gri (#374151) - okunabilir
+      .opacity(1) // Opacity tam
       .text(
         'Bu bilet Feellink tarafından dijital olarak oluşturulmuştur.',
         doc.page.width / 2,
         footerY,
-        { align: 'center', width: doc.page.width - 120 }
+        { align: 'center', width: doc.page.width - 100 }
       );
     
     doc
       .fontSize(8)
-      .fillColor(gray)
-      .opacity(0.6)
+      .fillColor(gray) // Koyu gri (#374151)
+      .opacity(1) // Opacity tam
       .text(
         'QR kodu girişte okutunuz.',
         doc.page.width / 2,
-        footerY + 15,
+        footerY + 10, // Daha yakın (12'den 10'a)
         { align: 'center' }
       );
     
     doc
       .fontSize(7)
-      .fillColor(gray)
-      .opacity(0.5)
+      .fillColor(grayLight) // Açık gri (#6B7280) ama yine de okunabilir
+      .opacity(1)
       .text(
         'Feellink - Sanatı, Teknolojiyle Buluştur',
         doc.page.width / 2,
-        doc.page.height - 20,
+        doc.page.height - 15, // Daha yakın (18'den 15'e)
         { align: 'center' }
       );
 

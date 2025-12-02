@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Put, Delete, Param, UseGuards, Req, Query 
 import { EventsService } from './events.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CreateEventDto } from './dto/create-event.dto';
 
 @Controller('events')
 export class EventsController {
@@ -33,8 +34,8 @@ export class EventsController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  async createEvent(@CurrentUser() user: any, @Body() data: any) {
-    return this.eventsService.createEvent(user.id, data);
+  async createEvent(@CurrentUser() user: any, @Body() dto: CreateEventDto) {
+    return this.eventsService.createEvent(user.id, dto);
   }
 
   @Post(':id/join')

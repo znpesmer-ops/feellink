@@ -42,6 +42,11 @@ model User {
   followingCount Int      @default(0)
   isOnline       Boolean  @default(false)
   lastSeen       DateTime?
+  passwordResetToken   String?   @db.VarChar(255)
+  passwordResetExpires DateTime?
+  usernameLastChangedAt DateTime?
+  nameLastChangedAt     DateTime?
+  website               String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -77,6 +82,7 @@ model User {
   auditLogs              AuditLog[]           @relation("AuditLogActor")
   jobListings            JobListing[]
   jobApplications        JobApplication[]      @relation("JobApplications")
+  highlights             Highlight[]
 
   @@index([username])
   @@index([email])
@@ -84,12 +90,17 @@ model User {
 }
 
 model Post {
-  id        String   @id @default(cuid())
-  userId    String
-  caption   String?
-  location  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  userId       String
+  caption      String?
+  title        String?  // 🎨 Eser adı (artwork için)
+  location     String?
+  type         String   @default("post") // "post" | "artwork"
+  code         String?  // Artwork için otomatik üretilen kod (PA24-00001 gibi)
+  colors       String[] @default([]) // Artwork için otomatik çıkarılan renkler (HEX formatında) - DEPRECATED
+  colorPalette String[] @default([]) // 🎨 Basit renk paleti: hex string listesi (frontend'den gelir)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
   user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -98,6 +109,8 @@ model Post {
   likes    Like[]
   hashtags PostHashtag[]
   savedBy  SavedPost[]
+  highlightCover Highlight[] @relation("HighlightCoverPost")
+  highlightItems HighlightItem[]
 
   @@index([userId])
   @@index([createdAt])
@@ -545,6 +558,9 @@ model Event {
   date            DateTime
   participantCount Int      @default(0)
   ticketUrl       String?
+  price           Float    @default(0)
+  isFree          Boolean  @default(true)
+  location        String?
   ownerId         String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -659,4 +675,34 @@ model FeatureFlag {
   updatedBy String?
 
   @@map("feature_flags")
+}
+
+model Highlight {
+  id          String   @id @default(cuid())
+  title       String
+  coverPostId String?
+  coverPost   Post?    @relation("HighlightCoverPost", fields: [coverPostId], references: [id], onDelete: SetNull)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       HighlightItem[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("highlights")
+}
+
+model HighlightItem {
+  id          String   @id @default(cuid())
+  highlightId String
+  highlight   Highlight @relation(fields: [highlightId], references: [id], onDelete: Cascade)
+  postId      String
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  sortOrder   Int      @default(0)
+
+  @@unique([highlightId, postId])
+  @@index([highlightId])
+  @@index([postId])
+  @@map("highlight_items")
 }

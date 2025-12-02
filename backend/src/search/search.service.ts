@@ -12,7 +12,7 @@ export class SearchService implements OnModuleInit {
   private isDisabled = false;
   private readonly defaultAvatar =
     'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=320&q=80';
-  private readonly FORCE_FALLBACK = true;
+  private readonly FORCE_FALLBACK = true; // Local (Prisma) arama aktif
 
   constructor(
     private configService: ConfigService,

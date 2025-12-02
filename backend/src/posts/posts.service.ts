@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
@@ -10,6 +11,14 @@ import { PostsGateway } from './posts.gateway';
 import { CommentsGateway } from './comments.gateway';
 import { ConfigService } from '@nestjs/config';
 import { LimitsService } from '../limits/limits.service';
+import { generateUniqueArtworkCode } from './artwork.utils';
+import { generateQrDataUrl } from '../tickets/ticket.utils';
+import { ColorAnalysisService } from './color-analysis.service';
+import * as PDFDocument from 'pdfkit';
+import * as QRCode from 'qrcode';
+import * as fs from 'fs';
+import * as path from 'path';
+import { PDFDocument as PDFLibDocument } from 'pdf-lib';
 
 @Injectable()
 export class PostsService {
@@ -26,24 +35,113 @@ export class PostsService {
     private commentsGateway: CommentsGateway,
     private configService: ConfigService,
     private readonly limitsService: LimitsService,
+    private colorAnalysisService: ColorAnalysisService,
   ) {}
+
+  // Helper: Transform media URLs for mobile compatibility
+  private transformMediaUrl(url: string): string {
+    if (!url) return url;
+    
+    // If it's already a full URL with localhost, replace with BASE_URL
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      const baseUrl = this.configService.get('BASE_URL');
+      if (baseUrl && (url.includes('localhost') || url.includes('127.0.0.1'))) {
+        try {
+          const urlObj = new URL(url);
+          return `${baseUrl}${urlObj.pathname}${urlObj.search}`;
+        } catch {
+          return url;
+        }
+      }
+      return url;
+    }
+    
+    // Relative path (e.g., /uploads/image.png) - MUST use BASE_URL with port (3002)
+    const baseUrl = this.configService.get('BASE_URL');
+    if (!baseUrl) {
+      // Fallback: Use backend port (3002) NOT MinIO port (9000)
+      const backendPort = this.configService.get('PORT') || '3002';
+      const endpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
+      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1' 
+        ? '192.168.1.38' 
+        : endpoint;
+      const cleanPath = url.startsWith('/') ? url : `/${url}`;
+      return `http://${resolvedEndpoint}:${backendPort}${cleanPath}`;
+    }
+    
+    // BASE_URL format: http://192.168.1.38:3002 (port included)
+    const cleanPath = url.startsWith('/') ? url : `/${url}`;
+    return `${baseUrl}${cleanPath}`;
+  }
+
+  // Helper: Transform avatar URLs
+  private transformAvatarUrl(avatar: string | null): string | null {
+    if (!avatar) return null;
+    
+    // If it's already a full URL with localhost, replace with BASE_URL
+    if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+      const baseUrl = this.configService.get('BASE_URL');
+      if (baseUrl && (avatar.includes('localhost') || avatar.includes('127.0.0.1'))) {
+        try {
+          const urlObj = new URL(avatar);
+          return `${baseUrl}${urlObj.pathname}${urlObj.search}`;
+        } catch {
+          return avatar;
+        }
+      }
+      return avatar;
+    }
+    
+    // Relative path - MUST use BASE_URL with port (3001, not MinIO 9000)
+    const baseUrl = this.configService.get('BASE_URL');
+    if (!baseUrl) {
+      const backendPort = this.configService.get('PORT') || '3002';
+      const endpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
+      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1' 
+        ? '192.168.1.38' 
+        : endpoint;
+      const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
+      return `http://${resolvedEndpoint}:${backendPort}${cleanPath}`;
+    }
+    
+    const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
+    return `${baseUrl}${cleanPath}`;
+  }
 
   async createPost(userId: string, dto: CreatePostDto) {
     if (!dto.media || dto.media.length === 0) {
       throw new BadRequestException('At least one media file is required');
     }
 
-    await this.limitsService.ensureCanCreateArtwork(userId);
+    // 🎨 Sanatsever Free gönderi oluşturabilir ama yalnızca "artwork" tipindeki paylaşımlar yasaktır
+    // Eğer post.type === "artwork" ise engelle, diğer her şeyi (post, photo, video) serbest bırak
+    const postType = dto.type || 'post'; // Default to 'post' if not provided
+    
+    if (postType === 'artwork') {
+      // Sadece artwork oluştururken rol kontrolü yap
+      await this.limitsService.ensureCanCreateArtwork(userId);
+    }
 
     // Extract hashtags from caption
     const hashtags = this.extractHashtags(dto.caption || '');
+
+    // Eğer artwork ise, otomatik kod üret
+    let artworkCode: string | undefined;
+    
+    if (postType === 'artwork') {
+      artworkCode = await generateUniqueArtworkCode(this.prisma);
+    }
 
     // Create post
     const post = await this.prisma.post.create({
       data: {
         userId,
         caption: dto.caption,
+        title: dto.title, // 🎨 Eser adı (artwork için)
         location: dto.location,
+        type: postType, // postType değişkenini kullan (artwork kontrolü yapıldı)
+        code: artworkCode, // Artwork için otomatik kod
+        colorPalette: dto.colorPalette ?? [], // 🎨 Frontend'den gelen renk paleti (hex string listesi)
         media: {
           create: dto.media.map(m => ({
             url: m.url,
@@ -146,6 +244,7 @@ export class PostsService {
         },
         comments: {
           where: {
+            postId: postId, // ✅ Açıkça postId ile filtrele (tüm yorumlar görünür)
             parentId: null, // Sadece ana yorumlar
           },
           include: {
@@ -281,8 +380,22 @@ export class PostsService {
       })),
     }));
 
+    // Transform media URLs
+    const transformedMedia = post.media?.map((m: any) => ({
+      ...m,
+      url: this.transformMediaUrl(m.url),
+    })) || [];
+
+    // Transform user avatar
+    const transformedUser = {
+      ...post.user,
+      avatar: this.transformAvatarUrl(post.user.avatar),
+    };
+
     return {
       ...post,
+      media: transformedMedia,
+      user: transformedUser,
       comments: formattedComments,
       isLiked,
       isSaved,
@@ -651,6 +764,49 @@ export class PostsService {
     return comment;
   }
 
+  async getUserComments(userId: string) {
+    // Kullanıcının tüm yorumlarını getir (ana yorumlar ve yanıtlar dahil)
+    const comments = await this.prisma.comment.findMany({
+      where: {
+        userId: userId, // ✅ Kullanıcının yaptığı tüm yorumlar
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true,
+            isVerified: true,
+          },
+        },
+        post: {
+          select: {
+            id: true,
+            caption: true,
+            media: {
+              orderBy: { order: 'asc' },
+              take: 1,
+              select: {
+                url: true,
+                type: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            likes: true,
+            replies: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' }, // En yeni yorumlar önce
+    });
+
+    return comments;
+  }
+
   async getComments(postId: string, parentId?: string) {
     // Eğer parentId varsa sadece o parent'ın yanıtlarını getir
     if (parentId) {
@@ -677,7 +833,7 @@ export class PostsService {
     // Ana yorumları ve yanıtlarını getir
     const comments = await this.prisma.comment.findMany({
       where: {
-        postId,
+        postId: postId, // ✅ Açıkça postId ile filtrele (tüm yorumlar görünür)
         parentId: null, // Sadece ana yorumlar
       },
       include: {
@@ -950,13 +1106,36 @@ export class PostsService {
 
       const likedPostIds = new Set(likes.map(l => l.postId));
 
-      return posts.map(post => ({
-        ...post,
-        isLiked: likedPostIds.has(post.id),
-      }));
+      // Transform media URLs and return posts with type field
+      return posts.map(post => {
+        const transformedMedia = post.media?.map((m: any) => ({
+          ...m,
+          url: this.transformMediaUrl(m.url),
+        })) || [];
+
+        return {
+          ...post,
+          type: post.type || 'post', // Ensure type field exists, default to 'post'
+          media: transformedMedia,
+          isLiked: likedPostIds.has(post.id),
+        };
+      });
     }
 
-    return posts.map(post => ({ ...post, isLiked: false }));
+    // Transform media URLs and return posts with type field
+    return posts.map(post => {
+      const transformedMedia = post.media?.map((m: any) => ({
+        ...m,
+        url: this.transformMediaUrl(m.url),
+      })) || [];
+
+      return {
+        ...post,
+        type: post.type || 'post', // Ensure type field exists, default to 'post'
+        media: transformedMedia,
+        isLiked: false,
+      };
+    });
   }
 
   private extractHashtags(text: string): string[] {
@@ -1188,6 +1367,972 @@ export class PostsService {
       isPinned: updatedComment.isPinned,
       user: updatedComment.user,
     };
+  }
+
+  /**
+   * Eser için QR kodlu PDF etiket oluşturma
+   */
+  async generateArtworkQrPdf(postId: string, res: Response) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: {
+        id: true,
+        caption: true,
+        type: true,
+        code: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+          },
+        },
+        media: {
+          orderBy: { order: 'asc' },
+          take: 1,
+          select: {
+            url: true,
+            type: true,
+          },
+        },
+      },
+    });
+
+    if (!post) {
+      throw new NotFoundException('Eser bulunamadı');
+    }
+
+    if (post.type !== 'artwork') {
+      throw new BadRequestException('Bu gönderi bir eser değil');
+    }
+
+    // Eğer kod yoksa, şimdi oluştur
+    let artworkCode = post.code;
+    if (!artworkCode) {
+      artworkCode = await generateUniqueArtworkCode(this.prisma);
+      await this.prisma.post.update({
+        where: { id: postId },
+        data: { code: artworkCode },
+      });
+    }
+
+    // Frontend URL'ini al
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    
+    // QR kod URL'i - Eser detay sayfasına yönlendir
+    const artworkUrl = `${frontendUrl}/posts/${postId}`;
+    const qrDataUrl = await generateQrDataUrl(artworkUrl);
+
+    // PDF oluştur - Küçük etiket formatı (210mm x 120mm)
+    const doc = new PDFDocument({
+      size: [210, 120], // mm cinsinden küçük etiket
+      margin: 10,
+      layout: 'landscape',
+      bufferPages: false,
+      info: {
+        Title: `Feellink Eser Etiketi - ${post.title || post.caption || artworkCode}`,
+        Author: 'Feellink',
+        Subject: 'Eser QR Etiketi',
+      },
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="Feellink_Eser_Etiketi_${artworkCode}.pdf"`,
+    );
+    doc.pipe(res);
+
+    // Renk paleti
+    const orange = '#ff7b00';
+    const dark = '#111827';
+    const gray = '#374151';
+    const bgColor = '#f4f0e8';
+
+    // Arka plan rengi
+    doc.rect(0, 0, doc.page.width, doc.page.height).fill(bgColor);
+
+    // Üst kısım - Sol taraf: Eser bilgileri
+    const leftMargin = 15;
+    let currentY = 20;
+
+    // Eser adı (caption veya kod)
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(18)
+      .fillColor(dark)
+      .text(post.title || post.caption || artworkCode, leftMargin, currentY, {
+        width: 180,
+        ellipsis: true,
+      });
+
+    currentY += 25;
+
+    // Sanatçı adı
+    doc
+      .font('Helvetica')
+      .fontSize(14)
+      .fillColor(dark)
+      .text(post.user.fullName || post.user.username, leftMargin, currentY);
+
+    currentY += 20;
+
+    // Eser kodu
+    doc
+      .font('Helvetica')
+      .fontSize(11)
+      .fillColor(gray)
+      .text(artworkCode, leftMargin, currentY);
+
+    // Üst kısım - Sağ taraf: Turuncu şerit
+    doc
+      .rect(doc.page.width - 20, 0, 20, doc.page.height)
+      .fill(orange);
+
+    // Orta blok - Sol: QR Kod
+    const qrSize = 80;
+    const qrX = leftMargin;
+    const qrY = currentY + 15;
+
+    // QR çerçevesi
+    doc
+      .roundedRect(qrX - 3, qrY - 3, qrSize + 6, qrSize + 6, 5)
+      .lineWidth(2)
+      .stroke(orange)
+      .fill('#FFFFFF');
+
+    // QR kod resmi
+    try {
+      const tmpDir = '/tmp';
+      if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+      }
+
+      const qrPath = path.join(tmpDir, `${postId}-qr.png`);
+      const base64Data = qrDataUrl.replace(/^data:image\/png;base64,/, '');
+      fs.writeFileSync(qrPath, base64Data, 'base64');
+
+      doc.image(qrPath, qrX, qrY, { width: qrSize, height: qrSize });
+
+      fs.unlinkSync(qrPath);
+    } catch (error) {
+      console.error('QR kod yüklenemedi:', error);
+    }
+
+    // Orta blok - Sağ: Slogan
+    const sloganX = qrX + qrSize + 20;
+    const sloganY = qrY + 15;
+
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(16)
+      .fillColor(dark)
+      .text('Feellink ile', sloganX, sloganY, { width: 80 });
+
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(16)
+      .fillColor(orange)
+      .text('sanat daha anlamlı!', sloganX, sloganY + 20, { width: 80 });
+
+    // Alt blok - Bilgilendirme kutusu
+    const infoBoxY = qrY + qrSize + 10;
+    const infoBoxWidth = doc.page.width - leftMargin * 2 - 25;
+
+    doc
+      .roundedRect(leftMargin, infoBoxY, infoBoxWidth, 35, 4)
+      .lineWidth(1.5)
+      .stroke(orange)
+      .fill('#FFFFFF');
+
+    doc
+      .font('Helvetica')
+      .fontSize(9)
+      .fillColor(dark)
+      .text(
+        'Bu eser hakkında ne düşünüyorsun? Duygularını, fikirlerini bizimle paylaş! QR kodu tarat, yorumunu bırak ve diğer sanatseverlerin görüşlerini keşfet.',
+        leftMargin + 5,
+        infoBoxY + 5,
+        {
+          width: infoBoxWidth - 10,
+          align: 'left',
+          lineGap: 2,
+        },
+      );
+
+    doc.end();
+  }
+
+  /**
+   * Kullanıcının eserlerinden renk eşleşmelerini bulur
+   * @param userId - Analiz edilecek kullanıcı ID'si
+   * @returns Renk eşleşmesi olan diğer kullanıcılar ve skorları
+   */
+  async getColorMatches(userId: string) {
+    // Kullanıcının tüm artwork'lerini al
+    const userArtworks = await this.prisma.post.findMany({
+      where: {
+        userId,
+        type: 'artwork',
+        colors: {
+          isEmpty: false, // Renk analizi yapılmış olanlar
+        },
+      },
+      select: {
+        colors: true,
+      },
+    });
+
+    // Kullanıcının tüm renklerini topla
+    const userColors = [
+      ...new Set(userArtworks.flatMap((artwork) => artwork.colors || [])),
+    ];
+
+    if (userColors.length === 0) {
+      return [];
+    }
+
+    // Tüm kullanıcıları ve artwork'lerini al
+    const allUsers = await this.prisma.user.findMany({
+      where: {
+        id: {
+          not: userId, // Kendisini hariç tut
+        },
+      },
+      include: {
+        posts: {
+          where: {
+            type: 'artwork',
+            colors: {
+              isEmpty: false,
+            },
+          },
+          select: {
+            colors: true,
+          },
+        },
+      },
+    });
+
+    const matches = [];
+
+    for (const otherUser of allUsers) {
+      // Diğer kullanıcının renklerini topla
+      const otherColors = [
+        ...new Set(otherUser.posts.flatMap((artwork) => artwork.colors || [])),
+      ];
+
+      if (otherColors.length === 0) {
+        continue;
+      }
+
+      // Ortak renkleri bul
+      const ortakRenkler = otherColors.filter((color) =>
+        userColors.includes(color),
+      );
+
+      if (ortakRenkler.length > 0) {
+        // Renk benzerliği skoru hesapla
+        let similarityScore = 0;
+        let totalSimilarity = 0;
+
+        for (const userColor of userColors) {
+          let maxSimilarity = 0;
+          for (const otherColor of otherColors) {
+            const similarity =
+              this.colorAnalysisService.calculateColorSimilarity(
+                userColor,
+                otherColor,
+              );
+            maxSimilarity = Math.max(maxSimilarity, similarity);
+          }
+          totalSimilarity += maxSimilarity;
+        }
+
+        const avgSimilarity = totalSimilarity / userColors.length;
+
+        // Skor hesaplama: ortak renk sayısı + benzerlik oranı
+        const matchScore =
+          ortakRenkler.length * 20 + // Her ortak renk 20 puan
+          avgSimilarity * 0.6; // Benzerlik %60 ağırlıkta
+
+        matches.push({
+          user: {
+            id: otherUser.id,
+            username: otherUser.username,
+            fullName: otherUser.fullName,
+            avatar: otherUser.avatar,
+            isVerified: otherUser.isVerified,
+          },
+          ortakRenkSayisi: ortakRenkler.length,
+          ortakRenkler: ortakRenkler.slice(0, 5), // En fazla 5 renk göster
+          matchScore: Math.round(matchScore),
+          similarityPercentage: Math.round(avgSimilarity),
+        });
+      }
+    }
+
+    // Skora göre sırala (yüksekten düşüğe)
+    return matches
+      .sort((a, b) => b.matchScore - a.matchScore)
+      .slice(0, 10); // En iyi 10 eşleşme
+  }
+
+  /**
+   * Kullanıcının renk paletini döndürür (tüm artwork'lerinden)
+   * @param userId - Kullanıcı ID'si
+   * @returns Kullanıcının renk paleti (en sık kullanılanlar)
+   */
+  async getUserColorPalette(userId: string): Promise<string[]> {
+    const userArtworks = await this.prisma.post.findMany({
+      where: {
+        userId,
+        type: 'artwork',
+        colors: {
+          isEmpty: false,
+        },
+      },
+      select: {
+        colors: true,
+      },
+    });
+
+    // Tüm renkleri topla
+    const allColors = userArtworks.flatMap((artwork) => artwork.colors || []);
+
+    // Renk sıklığını hesapla
+    const colorFrequency: Record<string, number> = {};
+    for (const color of allColors) {
+      colorFrequency[color] = (colorFrequency[color] || 0) + 1;
+    }
+
+    // En sık kullanılan renkleri sırala
+    const sortedColors = Object.entries(colorFrequency)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([color]) => color);
+
+    return sortedColors;
+  }
+
+  /**
+   * 🎨 QR Etiket PDF üretimi - PNG şablon tabanlı profesyonel sistem
+   * PNG şablonu üzerine dinamik içerik (QR, eser adı, sanatçı, kod) ekler
+   * Tek sayfa PDF, A4 üzerinde ortalanmış
+   */
+  async generateQrLabelPdf(postId: string): Promise<Buffer> {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    if (!post) {
+      throw new NotFoundException('Eser bulunamadı');
+    }
+
+    if (post.type !== 'artwork') {
+      throw new BadRequestException('Bu gönderi bir eser değil');
+    }
+
+    // Eser kodu oluştur veya mevcut kodu kullan
+    let artworkCode = post.code;
+    if (!artworkCode) {
+      artworkCode = await generateUniqueArtworkCode(this.prisma);
+      await this.prisma.post.update({
+        where: { id: postId },
+        data: { code: artworkCode },
+      });
+    }
+
+    // Frontend URL'ini al
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    
+    // QR kod URL'i - Eser detay sayfasına yönlendir
+    const artworkUrl = `${frontendUrl}/posts/${postId}`;
+    
+    // === CANVAS LAZY IMPORT (Webpack hatası için) ===
+    const { createCanvas, loadImage, registerFont } = require('canvas');
+
+    // === PNG ŞABLONUNU YÜKLE ===
+    // process.cwd() backend klasörünü verir (dist'ten bağımsız)
+    const templatePath = path.join(process.cwd(), 'assets', 'templates', 'artwork-label.png');
+    
+    let width: number;
+    let height: number;
+    let useTemplate = false;
+
+    // Template varsa kullan, yoksa basit bir canvas oluştur
+    if (fs.existsSync(templatePath)) {
+      const template = await loadImage(templatePath);
+      width = template.width;
+      height = template.height;
+      useTemplate = true;
+    } else {
+      // Template yoksa kartvizit boyutunda eser etiketi tasarımı (A4'e uygun, küçültülmüş)
+      console.warn(`Template bulunamadı: ${templatePath}. Kartvizit boyutunda etiket oluşturuluyor.`);
+      
+      // Scale faktörü: Tüm boyutları %65'e küçült (0.65) - HD çözünürlük korunuyor
+      const scale = 0.65;
+      
+      width = Math.round(750 * scale); // 488px
+      // Yükseklik dinamik olarak hesaplanacak
+      height = Math.round(480 * scale); // ~288px (geçici, sonra güncellenecek)
+      useTemplate = false;
+    }
+
+    // === HD ÇÖZÜNÜRLÜK İÇİN SCALE FAKTÖRÜ (2x retina/high DPI) ===
+    const dpiScale = 2; // 2x çözünürlük (HD/Retina kalitesi)
+    const canvasWidth = width * dpiScale;
+    const canvasHeight = height * dpiScale;
+
+    // === CANVAS OLUŞTUR (HD çözünürlükte, yükseklik içerik çizildikten sonra güncellenecek) ===
+    const canvas = createCanvas(canvasWidth, canvasHeight);
+    const ctx = canvas.getContext('2d');
+    
+    // HD çözünürlük için scale uygula (tüm çizimler 2x'de yapılacak)
+    ctx.scale(dpiScale, dpiScale);
+
+    // Beyaz arka plan
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+
+    // Template varsa arka plana çiz, yoksa HTML template tasarımını oluştur
+    if (useTemplate) {
+      const template = await loadImage(templatePath);
+      ctx.drawImage(template, 0, 0, width, height);
+    }
+
+    // === FONT KAYDI ===
+    try {
+      const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
+      const interRegular = path.join(fontsDir, 'Inter-Regular.ttf');
+      const interBold = path.join(fontsDir, 'Inter-Bold.ttf');
+
+      if (fs.existsSync(interRegular)) {
+        registerFont(interRegular, { family: 'Inter' });
+      }
+      if (fs.existsSync(interBold)) {
+        registerFont(interBold, { family: 'InterBold' });
+      }
+    } catch (error) {
+      console.warn('Font kayıt hatası (sistem fontları kullanılacak):', error);
+    }
+
+    // Font kontrolü için path
+    const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
+    const hasInterBold = fs.existsSync(path.join(fontsDir, 'Inter-Bold.ttf'));
+    const hasInterRegular = fs.existsSync(path.join(fontsDir, 'Inter-Regular.ttf'));
+
+    // Padding ve içerik alanı
+    let padding: number;
+    let contentWidth: number;
+    let contentStartY: number;
+    
+    // QR kod değişkenleri (hem template hem bilet kartı için kullanılacak)
+    let qrX: number;
+    let qrY: number;
+    let qrSize: number;
+    
+    // Scale faktörü (template olmayan durum için) - HD çözünürlük korunuyor
+    const scale = useTemplate ? 1 : 0.65;
+    
+    if (useTemplate) {
+      padding = 0;
+      contentWidth = width;
+      contentStartY = 0;
+    } else {
+      // Kartvizit boyutunda etiket için padding (küçültülmüş)
+      padding = Math.round(40 * scale); // 24px
+      contentWidth = width - (padding * 2); // 450 - 48 = 402px
+      contentStartY = padding;
+    }
+
+    // === METİNLER (HTML template tasarımı) ===
+    ctx.fillStyle = '#000000';
+    ctx.textBaseline = 'top';
+
+    // 🎨 Eser adı: title > caption > artworkCode (öncelik sırası)
+    const artworkName = post.title || post.caption || artworkCode;
+    const artistName = post.user.fullName || post.user.username || '';
+
+    if (useTemplate) {
+      // Template varsa eski koordinatlar
+      const nameFontSize = width * 0.035;
+      ctx.font = `${nameFontSize}px ${hasInterBold ? 'InterBold' : 'Arial-Bold'}`;
+      ctx.fillText(artworkName, width * (140 / 2000), height * (120 / 850));
+
+      const artistFontSize = width * 0.03;
+      ctx.font = `${artistFontSize}px ${hasInterRegular ? 'Inter' : 'Arial'}`;
+      ctx.fillText(artistName, width * (140 / 2000), height * (180 / 850));
+
+      const codeFontSize = width * 0.026;
+      ctx.font = `${codeFontSize}px ${hasInterRegular ? 'Inter' : 'Arial'}`;
+      ctx.fillText(`Kod: ${artworkCode}`, width * (140 / 2000), height * (220 / 850));
+    } else {
+      // Kartvizit boyutunda eser etiketi tasarımı (tüm boyutlar scale faktörü ile küçültülmüş)
+      // scale değişkeni yukarıda tanımlı (0.6)
+      let currentY = contentStartY;
+
+      // === ESER ADI (Büyük, küçültülmüş) ===
+      const eserAdiFontSize = Math.round(42 * scale); // 25px
+      ctx.font = `600 ${eserAdiFontSize}px ${hasInterBold ? 'InterBold' : 'Times New Roman'}`;
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'left';
+      const eserText = artworkName.length > 50 ? artworkName.substring(0, 50) + '...' : artworkName;
+      ctx.fillText(eserText, padding, currentY, contentWidth);
+      currentY += Math.round(60 * scale); // 36px
+
+      // === GRADIENT ÇİZGİ (Pembe-Turuncu-Mavi, küçültülmüş) ===
+      const gradientBarHeight = Math.round(6 * scale); // 4px
+      const gradient = ctx.createLinearGradient(padding, currentY, padding + contentWidth, currentY);
+      gradient.addColorStop(0, '#ff4c7f'); // Pembe
+      gradient.addColorStop(0.5, '#ffa500'); // Turuncu
+      gradient.addColorStop(1, '#007bff'); // Mavi
+      ctx.fillStyle = gradient;
+      ctx.fillRect(padding, currentY, contentWidth, gradientBarHeight);
+      currentY += gradientBarHeight + Math.round(15 * scale); // 9px boşluk
+
+      // === ESER SAHİBİ (küçültülmüş) ===
+      const sanatciFontSize = Math.round(34 * scale); // 20px
+      ctx.font = `${sanatciFontSize}px ${hasInterRegular ? 'Inter' : 'Times New Roman'}`;
+      ctx.fillStyle = '#000000';
+      const sanatciText = artistName.length > 50 ? artistName.substring(0, 50) + '...' : artistName;
+      ctx.fillText(sanatciText, padding, currentY);
+      currentY += Math.round(40 * scale); // 24px boşluk
+
+      // === ESER KODU (küçük, Gri, küçültülmüş) ===
+      const kodFontSize = Math.round(16 * scale); // 10px
+      ctx.font = `${kodFontSize}px ${hasInterRegular ? 'Inter' : 'Arial'}`;
+      ctx.fillStyle = '#888888'; // Gri renk
+      ctx.fillText(artworkCode, padding, currentY);
+      currentY += Math.round(60 * scale); // 36px boşluk
+
+      // === QR KOD KUTUSU (siyah çerçeve, yuvarlak kenarlı, küçültülmüş) ===
+      const qrBoxSize = Math.round(200 * scale); // 120px
+      const gap = Math.round(60 * scale); // 36px boşluk
+      qrX = padding; // QR kod solda
+      qrY = currentY;
+      qrSize = qrBoxSize;
+
+      // QR kod çerçevesi (küçültülmüş border, siyah, yuvarlak kenarlı)
+      const borderRadius = Math.round(15 * scale); // 9px yuvarlak köşe
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = Math.round(3 * scale); // 2px border
+      ctx.fillStyle = '#ffffff';
+      
+      // Yuvarlak kenarlı kare çizimi (rounded rectangle - manuel path)
+      ctx.beginPath();
+      const x = qrX;
+      const y = qrY;
+      const w = qrSize;
+      const h = qrSize;
+      const r = borderRadius;
+      
+      // Rounded rectangle path
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // === SAĞ TARAF: YAZILAR (QR kodun sağında, QR kodun tam ortasına hizalanmış, küçültülmüş) ===
+      const textX = qrX + qrSize + gap; // Yazılar QR kodun sağında
+
+      // QR kodun tam ortası (dikey)
+      const qrCenterY = qrY + qrSize / 2;
+
+      // Font boyutları ve satır yükseklikleri (küçültülmüş)
+      const firstFontSize = Math.round(32 * scale); // 19px
+      const secondFontSize = Math.round(28 * scale); // 17px
+      const lineSpacing = Math.round(10 * scale); // 6px satırlar arası boşluk
+      
+      // Yaklaşık satır yükseklikleri (font size'a göre)
+      const firstLineHeight = firstFontSize * 1.2; // ~23px
+      const secondLineHeight = secondFontSize * 1.2; // ~20px
+      const totalTextHeight = firstLineHeight + lineSpacing + secondLineHeight;
+
+      // Yazıları QR kodun ortasına göre ortalama ve biraz yukarı al
+      // QR kodun ortasından toplam yüksekliğin yarısını çıkarıp ilk satırın yarısını ekle
+      const upOffset = Math.round(20 * scale); // 12px yukarı kaydırıyoruz
+      let firstTextY = qrCenterY - (totalTextHeight / 2) + (firstLineHeight / 2) - upOffset;
+
+      // === FEELINK BAŞLIĞI (küçültülmüş) - Sude Esmer ile aynı font ailesi ===
+      ctx.font = `${firstFontSize}px ${hasInterRegular ? 'Inter' : 'Times New Roman'}`;
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText('Feellink ile sanat daha anlamlı!', textX, firstTextY);
+
+      // === İKİNCİ BAŞLIK (küçültülmüş) - Sude Esmer ile aynı font ailesi ===
+      let secondTextY = firstTextY + firstLineHeight + lineSpacing;
+      ctx.font = `${secondFontSize}px ${hasInterRegular ? 'Inter' : 'Times New Roman'}`;
+      ctx.fillStyle = '#000000';
+      ctx.fillText('Sen de duygularını paylaş!', textX, secondTextY);
+
+      // Canvas yüksekliğini QR kodun bitiş noktasına göre hesapla (alt boşluğu azalt)
+      const qrBottom = qrY + qrSize; // QR kodun alt kenarı
+      const bottomMargin = padding; // Alt margin (padding kadar, çerçeve için)
+      const calculatedHeight = qrBottom + bottomMargin;
+      
+      // Height'i güncelle (PDF oluşturma için)
+      height = calculatedHeight;
+    }
+
+    // === QR KOD OLUŞTUR VE YERLEŞTİR (HD çözünürlük için daha yüksek çözünürlükte) ===
+    const hdDpiScale = useTemplate ? 1 : 2; // HD çözünürlük için 2x
+    const qrResolution = useTemplate ? 400 : 800; // HD için 2x çözünürlük
+    const qrBuffer = await QRCode.toBuffer(artworkUrl, {
+      margin: 1,
+      width: qrResolution,
+      type: 'png',
+    });
+    const qrImg = await loadImage(qrBuffer);
+
+    if (useTemplate) {
+      // Template koordinatları (dinamik hesaplama)
+      qrX = width * (140 / 2000);
+      qrY = height * (280 / 850);
+      qrSize = width * (460 / 2000);
+      
+      // QR kod çerçevesi (turuncu)
+      ctx.strokeStyle = '#ff7b00';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(qrX - 5, qrY - 5, qrSize + 10, qrSize + 10);
+      ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+    } else {
+      // Kartvizit boyutunda etiket tasarımı: QR kod sol yuvarlak kenarlı kutusunun içine (padding ile, küçültülmüş)
+      // scale değişkeni yukarıda tanımlı (0.6)
+      const qrPadding = Math.round(10 * scale); // 6px QR kod padding
+      const qrDisplaySize = qrSize - (qrPadding * 2); // QR kod görüntü boyutu
+      const qrFinalX = qrX + qrPadding;
+      const qrFinalY = qrY + qrPadding;
+      const qrBorderRadius = Math.round(12 * scale); // 7px QR kodun yuvarlak köşe yarıçapı (çerçeveden biraz küçük)
+      
+      // QR kodunu yuvarlak kenarlı alana clip et
+      ctx.save();
+      ctx.beginPath();
+      
+      // Rounded rectangle path for clipping
+      const clipX = qrFinalX;
+      const clipY = qrFinalY;
+      const clipW = qrDisplaySize;
+      const clipH = qrDisplaySize;
+      const clipR = qrBorderRadius;
+      
+      ctx.moveTo(clipX + clipR, clipY);
+      ctx.lineTo(clipX + clipW - clipR, clipY);
+      ctx.quadraticCurveTo(clipX + clipW, clipY, clipX + clipW, clipY + clipR);
+      ctx.lineTo(clipX + clipW, clipY + clipH - clipR);
+      ctx.quadraticCurveTo(clipX + clipW, clipY + clipH, clipX + clipW - clipR, clipY + clipH);
+      ctx.lineTo(clipX + clipR, clipY + clipH);
+      ctx.quadraticCurveTo(clipX, clipY + clipH, clipX, clipY + clipH - clipR);
+      ctx.lineTo(clipX, clipY + clipR);
+      ctx.quadraticCurveTo(clipX, clipY, clipX + clipR, clipY);
+      ctx.closePath();
+      ctx.clip();
+      
+      // QR kodunu çiz
+      ctx.drawImage(qrImg, qrFinalX, qrFinalY, qrDisplaySize, qrDisplaySize);
+      
+      // Clip'i kaldır
+      ctx.restore();
+    }
+
+    // === TÜM ETİKETİN ÇEVRESİNE ÇERÇEVE (Kartvizit görünümü) ===
+    // QR kod çerçevesine benzer, tüm etiketi kaplayan siyah çerçeve (küçültülmüş)
+    if (!useTemplate) {
+      // scale değişkeni yukarıda tanımlı (0.6)
+      const borderWidth = Math.round(3 * scale); // 2px QR kod çerçevesi ile aynı kalınlık (küçültülmüş)
+      const borderRadius = Math.round(15 * scale); // 9px QR kod çerçevesi ile aynı yuvarlak köşe (küçültülmüş)
+      const borderMargin = 0; // Çerçeve canvas kenarından başlasın
+      
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = borderWidth;
+      ctx.beginPath();
+      
+      // Tüm canvas'ın etrafına yuvarlak köşeli çerçeve
+      // Çerçeve, hesaplanan height'e göre çizilecek (QR kodun bitiş noktasına göre)
+      const borderX = borderMargin;
+      const borderY = borderMargin;
+      const borderW = width - (borderMargin * 2);
+      const borderH = height - (borderMargin * 2); // Hesaplanan yüksekliği kullan
+      const borderR = borderRadius;
+      
+      ctx.moveTo(borderX + borderR, borderY);
+      ctx.lineTo(borderX + borderW - borderR, borderY);
+      ctx.quadraticCurveTo(borderX + borderW, borderY, borderX + borderW, borderY + borderR);
+      ctx.lineTo(borderX + borderW, borderY + borderH - borderR);
+      ctx.quadraticCurveTo(borderX + borderW, borderY + borderH, borderX + borderW - borderR, borderY + borderH);
+      ctx.lineTo(borderX + borderR, borderY + borderH);
+      ctx.quadraticCurveTo(borderX, borderY + borderH, borderX, borderY + borderH - borderR);
+      ctx.lineTo(borderX, borderY + borderR);
+      ctx.quadraticCurveTo(borderX, borderY, borderX + borderR, borderY);
+      ctx.closePath();
+      ctx.stroke();
+      
+      // Canvas yüksekliği başlangıçta 480px olarak ayarlandı
+      // QR kodun bitiş noktası (qrY + qrSize + padding) yaklaşık 466px civarında
+      // Bu yüzden canvas yüksekliği zaten uygun, crop etmeye gerek yok
+    }
+
+    // === CANVAS'I PNG'YE ÇEVİR (HD çözünürlük korunuyor) ===
+    // Canvas yüksekliği artık QR kodun bitiş noktasına göre ayarlanmış
+    const pngBuffer = canvas.toBuffer('image/png');
+
+    // === PDF OLUŞTUR (PDF-lib ile) ===
+    const pdfDoc = await PDFLibDocument.create();
+    
+    // A4 sayfa boyutları (mm cinsinden)
+    const a4Width = 210; // mm
+    const a4Height = 297; // mm
+    
+    // PNG boyutlarını mm'ye çevir
+    // HD canvas (2x çözünürlük) kullanıldığı için, görsel boyutu width x height (orijinal boyut)
+    // Ama çözünürlüğü 2x daha yüksek (144 DPI yerine 72 DPI x 2 = 144 DPI)
+    const mmPerInch = 25.4;
+    const dpi = useTemplate ? 72 : 144; // HD canvas için 144 DPI
+    const mmPerPx = mmPerInch / dpi;
+    
+    // PDF'ye embed ederken orijinal boyutları kullan (canvas 2x çözünürlükte ama görsel boyutu aynı)
+    const labelWidthMm = width * mmPerPx;
+    const labelHeightMm = height * mmPerPx;
+    
+    // A4'e sığdır (pdfScale - scale değişkeni ile çakışmaması için farklı isim)
+    let pdfScale = 1;
+    if (labelWidthMm > a4Width || labelHeightMm > a4Height) {
+      const scaleX = (a4Width - 20) / labelWidthMm; // 10mm margin each side
+      const scaleY = (a4Height - 20) / labelHeightMm; // 10mm margin top/bottom
+      pdfScale = Math.min(scaleX, scaleY, 1);
+    }
+    
+    const finalWidthMm = labelWidthMm * pdfScale;
+    const finalHeightMm = labelHeightMm * pdfScale;
+    
+    // A4 sayfası oluştur
+    const page = pdfDoc.addPage([a4Width, a4Height]);
+    
+    // PNG'yi PDF'e ekle (ortalanmış)
+    const xOffset = (a4Width - finalWidthMm) / 2;
+    const yOffset = (a4Height - finalHeightMm) / 2;
+    
+    const pngImage = await pdfDoc.embedPng(pngBuffer);
+    page.drawImage(pngImage, {
+      x: xOffset,
+      y: a4Height - yOffset - finalHeightMm, // PDF koordinat sistemi alttan başlar
+      width: finalWidthMm,
+      height: finalHeightMm,
+    });
+
+    // PDF'i kaydet
+    const pdfBytes = await pdfDoc.save();
+    return Buffer.from(pdfBytes);
+  }
+
+  /**
+   * 🎟️ Premium Bilet PDF üretimi - PNG şablon tabanlı profesyonel bilet sistemi
+   * Bilet boyutu: 1400x700px, tek sayfa PDF, A4 üzerinde ortalanmış
+   */
+  async generateArtworkTicket(postId: string, userId: string): Promise<Buffer> {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    if (!post) {
+      throw new NotFoundException('Eser bulunamadı');
+    }
+
+    if (post.type !== 'artwork') {
+      throw new BadRequestException('Bu gönderi bir eser değil');
+    }
+
+    // Kullanıcı kontrolü
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Kullanıcı bulunamadı');
+    }
+
+    // Eser kodu oluştur veya mevcut kodu kullan
+    let artworkCode = post.code;
+    if (!artworkCode) {
+      artworkCode = await generateUniqueArtworkCode(this.prisma);
+      await this.prisma.post.update({
+        where: { id: postId },
+        data: { code: artworkCode },
+      });
+    }
+
+    // Frontend URL'ini al
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const artworkUrl = `${frontendUrl}/posts/${postId}`;
+
+    // === CANVAS LAZY IMPORT (Webpack hatası için) ===
+    const { createCanvas, loadImage, registerFont } = require('canvas');
+
+    // === PNG ŞABLONUNU YÜKLE ===
+    const templatePath = path.join(process.cwd(), 'assets', 'templates', 'bilet_template.png');
+    
+    if (!fs.existsSync(templatePath)) {
+      throw new NotFoundException(
+        `Bilet şablonu bulunamadı: ${templatePath}. Lütfen backend/assets/templates/bilet_template.png dosyasını ekleyin.`
+      );
+    }
+
+    const template = await loadImage(templatePath);
+    const width = template.width;
+    const height = template.height;
+
+    // === CANVAS OLUŞTUR ===
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+
+    // PNG şablonunu arka plana çiz
+    ctx.drawImage(template, 0, 0, width, height);
+
+    // === FONT KAYDI ===
+    try {
+      const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
+      const interRegular = path.join(fontsDir, 'Inter-Regular.ttf');
+      const interBold = path.join(fontsDir, 'Inter-Bold.ttf');
+
+      if (fs.existsSync(interRegular)) {
+        registerFont(interRegular, { family: 'Inter' });
+      }
+      if (fs.existsSync(interBold)) {
+        registerFont(interBold, { family: 'InterBold' });
+      }
+    } catch (error) {
+      console.warn('Font kayıt hatası (sistem fontları kullanılacak):', error);
+    }
+
+    // === METİNLER ===
+    ctx.fillStyle = '#000000';
+    ctx.textBaseline = 'top';
+
+    // Font kontrolü için path
+    const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
+    const hasInterBold = fs.existsSync(path.join(fontsDir, 'Inter-Bold.ttf'));
+    const hasInterRegular = fs.existsSync(path.join(fontsDir, 'Inter-Regular.ttf'));
+
+    // Eser Adı (Bold, 48px) - Referans: X=120, Y=180
+    // 🎨 Eser adı: title > caption > artworkCode (öncelik sırası)
+    const artworkName = post.title || post.caption || artworkCode;
+    const nameFontSize = width * (48 / 1400); // Dinamik: 48/1400
+    ctx.font = `${nameFontSize}px ${hasInterBold ? 'InterBold' : 'Arial-Bold'}`;
+    ctx.fillText(artworkName, width * (120 / 1400), height * (180 / 700));
+
+    // Sanatçı Adı (Regular, 36px) - Referans: X=120, Y=240
+    const artistName = post.user.fullName || post.user.username || '';
+    const artistFontSize = width * (36 / 1400);
+    ctx.font = `${artistFontSize}px ${hasInterRegular ? 'Inter' : 'Arial'}`;
+    ctx.fillText(artistName, width * (120 / 1400), height * (240 / 700));
+
+    // Eser Kodu (Regular, 28px, gri) - Referans: X=120, Y=290
+    const codeFontSize = width * (28 / 1400);
+    ctx.font = `${codeFontSize}px ${hasInterRegular ? 'Inter' : 'Arial'}`;
+    ctx.fillStyle = '#555555';
+    ctx.fillText(`Kod: ${artworkCode}`, width * (120 / 1400), height * (290 / 700));
+
+    // === QR KOD OLUŞTUR VE YERLEŞTİR ===
+    const qrBuffer = await QRCode.toBuffer(artworkUrl, {
+      margin: 1,
+      width: 400,
+      type: 'png',
+    });
+    const qrImg = await loadImage(qrBuffer);
+
+    // QR koordinatları - Referans: X=120, Y=320, Size=280
+    const qrX = width * (120 / 1400);
+    const qrY = height * (320 / 700);
+    const qrSize = width * (280 / 1400);
+
+    ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+
+    // === CANVAS'I PNG'YE ÇEVİR ===
+    const pngBuffer = canvas.toBuffer('image/png');
+
+    // === PDF OLUŞTUR (PDF-lib ile) ===
+    const pdfDoc = await PDFLibDocument.create();
+    
+    // A4 sayfa boyutları (mm cinsinden)
+    const a4Width = 210; // mm
+    const a4Height = 297; // mm
+    
+    // PNG boyutlarını mm'ye çevir (72 DPI varsayımı)
+    const mmPerInch = 25.4;
+    const dpi = 72;
+    const mmPerPx = mmPerInch / dpi;
+    
+    const labelWidthMm = width * mmPerPx;
+    const labelHeightMm = height * mmPerPx;
+    
+    // A4'e sığdır (scale if needed)
+    let scale = 1;
+    if (labelWidthMm > a4Width || labelHeightMm > a4Height) {
+      const scaleX = (a4Width - 20) / labelWidthMm; // 10mm margin each side
+      const scaleY = (a4Height - 20) / labelHeightMm; // 10mm margin top/bottom
+      scale = Math.min(scaleX, scaleY, 1);
+    }
+    
+    const finalWidthMm = labelWidthMm * scale;
+    const finalHeightMm = labelHeightMm * scale;
+    
+    // A4 sayfası oluştur
+    const page = pdfDoc.addPage([a4Width, a4Height]);
+    
+    // PNG'yi PDF'e ekle (ortalanmış)
+    const xOffset = (a4Width - finalWidthMm) / 2;
+    const yOffset = (a4Height - finalHeightMm) / 2;
+    
+    const pngImage = await pdfDoc.embedPng(pngBuffer);
+    page.drawImage(pngImage, {
+      x: xOffset,
+      y: a4Height - yOffset - finalHeightMm, // PDF koordinat sistemi alttan başlar
+      width: finalWidthMm,
+      height: finalHeightMm,
+    });
+
+    // PDF'i kaydet
+    const pdfBytes = await pdfDoc.save();
+    return Buffer.from(pdfBytes);
+  }
+
+  /**
+   * Helper: PDF stream'i Buffer'a çevir
+   */
+  private streamToBuffer(doc: any): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const buffers: Buffer[] = [];
+      doc.on('data', (chunk: Buffer) => buffers.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
+    });
   }
 }
 

@@ -113,3 +113,14 @@ Docker yüklendikten sonra:
 
 
 
+
+
+
+
+
+
+
+
+
+
+

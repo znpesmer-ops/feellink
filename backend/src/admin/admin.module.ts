@@ -6,6 +6,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { PostsModule } from '../posts/posts.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     JwtModule,
     ConfigModule,
     ScheduleModule.forRoot(),
+    PostsModule, // ColorAnalysisService için
   ],
   controllers: [AdminController],
   providers: [AdminService, AdminGateway],

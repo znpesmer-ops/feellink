@@ -1,9 +1,84 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class ExploreService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {}
+
+  // Helper: Transform media URLs for mobile compatibility
+  private transformMediaUrl(url: string): string {
+    if (!url) return url;
+    
+    // If it's already a full URL with localhost, replace with BASE_URL
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      const baseUrl = this.configService.get('BASE_URL');
+      if (baseUrl && (url.includes('localhost') || url.includes('127.0.0.1'))) {
+        try {
+          const urlObj = new URL(url);
+          // BASE_URL format: http://192.168.1.38:3001
+          return `${baseUrl}${urlObj.pathname}${urlObj.search}`;
+        } catch {
+          return url;
+        }
+      }
+      return url;
+    }
+    
+    // Relative path (e.g., /uploads/image.png) - MUST use BASE_URL with port
+    const baseUrl = this.configService.get('BASE_URL');
+    if (!baseUrl) {
+      // Fallback: Use backend port (3001) not MinIO port (9000)
+      const backendPort = this.configService.get('PORT') || '3002';
+      const endpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
+      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1' 
+        ? '192.168.1.38' 
+        : endpoint;
+      const cleanPath = url.startsWith('/') ? url : `/${url}`;
+      return `http://${resolvedEndpoint}:${backendPort}${cleanPath}`;
+    }
+    
+    // BASE_URL format: http://192.168.1.38:3001 (port included)
+    const cleanPath = url.startsWith('/') ? url : `/${url}`;
+    return `${baseUrl}${cleanPath}`;
+  }
+
+  // Helper: Transform avatar URLs
+  private transformAvatarUrl(avatar: string | null): string | null {
+    if (!avatar) return null;
+    
+    // If it's already a full URL with localhost, replace with BASE_URL
+    if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+      const baseUrl = this.configService.get('BASE_URL');
+      if (baseUrl && (avatar.includes('localhost') || avatar.includes('127.0.0.1'))) {
+        try {
+          const urlObj = new URL(avatar);
+          return `${baseUrl}${urlObj.pathname}${urlObj.search}`;
+        } catch {
+          return avatar;
+        }
+      }
+      return avatar;
+    }
+    
+    // Relative path - MUST use BASE_URL with port
+    const baseUrl = this.configService.get('BASE_URL');
+    if (!baseUrl) {
+      const backendPort = this.configService.get('PORT') || '3002';
+      const endpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
+      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1' 
+        ? '192.168.1.38' 
+        : endpoint;
+      const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
+      return `http://${resolvedEndpoint}:${backendPort}${cleanPath}`;
+    }
+    
+    const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
+    return `${baseUrl}${cleanPath}`;
+  }
 
   async getExplorePosts(userId: string, limit: number = 20, cursor?: string) {
     // Get posts that user hasn't posted
@@ -85,6 +160,14 @@ export class ExploreService {
       posts: filteredPosts.map((post: any) => ({
         ...post,
         isLiked: likedPostIds.has(post.id),
+        media: post.media?.map((m: any) => ({
+          ...m,
+          url: this.transformMediaUrl(m.url),
+        })) || [],
+        user: {
+          ...post.user,
+          avatar: this.transformAvatarUrl(post.user.avatar),
+        },
         pinnedComment: post.comments && post.comments.length > 0 ? {
           user: post.comments[0].user.username || post.comments[0].user.fullName || 'Kullanıcı',
           text: post.comments[0].content,
@@ -190,6 +273,14 @@ export class ExploreService {
       posts: filteredPosts.map(post => ({
         ...post,
         isLiked: likedPostIds.has(post.id),
+        media: post.media?.map((m: any) => ({
+          ...m,
+          url: this.transformMediaUrl(m.url),
+        })) || [],
+        user: {
+          ...post.user,
+          avatar: this.transformAvatarUrl(post.user.avatar),
+        },
       })),
       nextCursor,
       hasMore,
