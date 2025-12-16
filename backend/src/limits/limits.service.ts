@@ -161,7 +161,11 @@ export class LimitsService {
 
     if (action === 'create_event' && role === 'art_lover' && plan === 'FREE') {
       const eventCount = await this.prisma.event.count({
-        where: { ownerId: userId, createdAt: { gte: sixMonthsAgo } },
+        where: { 
+          ownerId: userId, 
+          createdAt: { gte: sixMonthsAgo },
+          isDeleted: false,
+        },
       });
 
       if (eventCount >= (roleLimits.events_per_6_months || 0)) {

@@ -312,5 +312,246 @@ export class MailService {
       throw error;
     }
   }
+
+  async sendApplicationApprovedMail(params: {
+    to: string;
+    name: string;
+    listingTitle: string;
+    companyName?: string;
+    contactEmail?: string;
+  }) {
+    if (!this.transporter) {
+      this.logger.warn('Mail transporter not configured. Skipping email send.');
+      return;
+    }
+
+    const mailFromName = process.env.MAIL_FROM_NAME || 'feellink';
+    const mailFrom = process.env.MAIL_FROM || 'info@feellink.io';
+    const from = `"${mailFromName}" <${mailFrom}>`;
+
+    const subject = 'Feellink | Başvurunuz Hakkında';
+
+    const antiTrimToken = `UNIQUE_${Math.random()}_${Date.now()}`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="tr">
+      <body style="margin:0;padding:0;background:#f5f7fa;">
+      <span style="opacity:0; font-size:0; line-height:0;">${antiTrimToken}</span>
+      
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f5f7fa;padding:40px 0;">
+        <tr>
+          <td align="center">
+            
+            <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px;padding:24px 40px;border:1px solid #e8e8e8;box-shadow:0 4px 12px rgba(0,0,0,0.12);">
+              
+              <!-- Logo -->
+              <tr>
+                <td align="center" style="padding:12px 0 8px 0;">
+                  <img
+                    src="${this.logoUrl}"
+                    width="100"
+                    alt="feellink"
+                    style="display:block"
+                  />
+                </td>
+              </tr>
+
+              <!-- Gradient Çizgi -->
+              <tr>
+                <td style="padding:0;">
+                  <div style="height:6px;width:100%;border-radius:4px;background:linear-gradient(90deg,#F28C28,#2A72FF);"></div>
+                </td>
+              </tr>
+
+              <!-- Başlık -->
+              <tr>
+                <td align="center" style="padding-top:28px;">
+                  <h1 style="margin:0;font-size:22px;color:#222;font-weight:700;font-family:Arial,Helvetica,sans-serif;">
+                    Başvurunuz Hakkında
+                  </h1>
+                </td>
+              </tr>
+
+              <!-- Açıklama -->
+              <tr>
+                <td style="padding-top:18px;">
+                  <p style="margin:0;font-size:15px;color:#444;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
+                    Merhaba ${params.name || ''},
+                    <br><br>
+                    <strong>${params.listingTitle}</strong> ilanına yaptığınız başvuru olumlu değerlendirilmiştir.
+                    <br><br>
+                    İlan sahibi sizinle Feellink üzerinden mesajlaşma yoluyla iletişime geçebilir.
+                    <br>
+                    Dilerseniz siz de <strong>Mesajlar</strong> bölümünden görüşmeyi başlatabilirsiniz.
+                  </p>
+                </td>
+              </tr>
+
+              ${params.companyName ? `
+              <!-- Şirket Bilgisi -->
+              <tr>
+                <td style="padding-top:20px;">
+                  <div style="background:#f8f9fa;border-radius:8px;padding:16px;border-left:4px solid #F28C28;">
+                    <p style="margin:0;font-size:14px;color:#666;font-family:Arial,Helvetica,sans-serif;">
+                      <strong style="color:#222;">Şirket:</strong> ${params.companyName}
+                    </p>
+                  </div>
+                </td>
+              </tr>
+              ` : ''}
+
+              <!-- Footer -->
+              <tr>
+                <td style="padding-top:24px;">
+                  <hr style="border:none;border-top:1px solid #eaeaea;">
+                </td>
+              </tr>
+
+              <tr>
+                <td align="center" style="padding-top:12px;">
+                  <p style="margin:0;font-size:12px;color:#999;font-family:Arial,Helvetica,sans-serif;line-height:1.5;">
+                    <strong>Feellink</strong> – Sanat daha anlamlı.
+                    <br>
+                    Görüşmek üzere!
+                  </p>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      </body>
+      </html>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from,
+        to: params.to,
+        subject,
+        html,
+      });
+      this.logger.log(`Application approved email sent to ${params.to} for listing: ${params.listingTitle}`);
+    } catch (error) {
+      this.logger.error(`Failed to send application approved email to ${params.to}:`, error);
+      throw error;
+    }
+  }
+
+  async sendApplicationRejectedMail(params: {
+    to: string;
+    name: string;
+    listingTitle: string;
+  }) {
+    if (!this.transporter) {
+      this.logger.warn('Mail transporter not configured. Skipping email send.');
+      return;
+    }
+
+    const mailFromName = process.env.MAIL_FROM_NAME || 'feellink';
+    const mailFrom = process.env.MAIL_FROM || 'info@feellink.io';
+    const from = `"${mailFromName}" <${mailFrom}>`;
+
+    const subject = 'Feellink | Başvurunuz Hakkında';
+
+    const antiTrimToken = `UNIQUE_${Math.random()}_${Date.now()}`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="tr">
+      <body style="margin:0;padding:0;background:#f5f7fa;">
+      <span style="opacity:0; font-size:0; line-height:0;">${antiTrimToken}</span>
+      
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f5f7fa;padding:40px 0;">
+        <tr>
+          <td align="center">
+            
+            <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px;padding:24px 40px;border:1px solid #e8e8e8;box-shadow:0 4px 12px rgba(0,0,0,0.12);">
+              
+              <!-- Logo -->
+              <tr>
+                <td align="center" style="padding:12px 0 8px 0;">
+                  <img
+                    src="${this.logoUrl}"
+                    width="100"
+                    alt="feellink"
+                    style="display:block"
+                  />
+                </td>
+              </tr>
+
+              <!-- Gradient Çizgi -->
+              <tr>
+                <td style="padding:0;">
+                  <div style="height:6px;width:100%;border-radius:4px;background:linear-gradient(90deg,#F28C28,#2A72FF);"></div>
+                </td>
+              </tr>
+
+              <!-- Başlık -->
+              <tr>
+                <td align="center" style="padding-top:28px;">
+                  <h1 style="margin:0;font-size:22px;color:#222;font-weight:700;font-family:Arial,Helvetica,sans-serif;">
+                    Başvurunuz Hakkında
+                  </h1>
+                </td>
+              </tr>
+
+              <!-- Açıklama -->
+              <tr>
+                <td style="padding-top:18px;">
+                  <p style="margin:0;font-size:15px;color:#444;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
+                    Merhaba ${params.name || ''},
+                    <br><br>
+                    <strong>${params.listingTitle}</strong> ilanına gösterdiğiniz ilgi için teşekkür ederiz.
+                    <br><br>
+                    Başvurunuz değerlendirilmiş olup, bu pozisyon için sürece farklı adaylarla devam edilmektedir.
+                    <br>
+                    İlerleyen dönemlerde uygun fırsatlarda tekrar iletişime geçmekten memnuniyet duyarız.
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="padding-top:24px;">
+                  <hr style="border:none;border-top:1px solid #eaeaea;">
+                </td>
+              </tr>
+
+              <tr>
+                <td align="center" style="padding-top:12px;">
+                  <p style="margin:0;font-size:12px;color:#999;font-family:Arial,Helvetica,sans-serif;line-height:1.5;">
+                    <strong>Feellink</strong> – Sanat daha anlamlı.
+                    <br>
+                    Görüşmek üzere!
+                  </p>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      </body>
+      </html>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from,
+        to: params.to,
+        subject,
+        html,
+      });
+      this.logger.log(`Application rejected email sent to ${params.to} for listing: ${params.listingTitle}`);
+    } catch (error) {
+      this.logger.error(`Failed to send application rejected email to ${params.to}:`, error);
+      throw error;
+    }
+  }
 }
 

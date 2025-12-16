@@ -67,23 +67,60 @@ export class SidebarService {
       },
     });
 
-    // Ayın Yazarları - en çok takipçisi olanlar
-    const topWriters = await this.prisma.user.findMany({
+    // ✅ Ayın Yazarları - Son 30 gün içinde en çok gönderi paylaşan kullanıcılar
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+
+    // Son 30 gün içinde gönderi paylaşan kullanıcıları grupla ve say
+    const postsByUser = await this.prisma.post.groupBy({
+      by: ['userId'],
       where: {
-        isPrivate: false, // Sadece public hesaplar
+        createdAt: {
+          gte: since,
+        },
+        type: 'post', // Sadece normal gönderiler (eserler değil)
+      },
+      _count: {
+        id: true,
       },
       orderBy: {
-        followerCount: 'desc',
+        _count: {
+          id: 'desc',
+        },
       },
-      take: 2,
-      select: {
-        id: true,
-        username: true,
-        fullName: true,
-        avatar: true,
-        bio: true,
-      },
+      take: 2, // En çok paylaşan 2 kullanıcı
     });
+
+    // Top 2 kullanıcı ID'lerini al
+    const topWriterIds = postsByUser.map((p) => p.userId);
+
+    // Bu kullanıcıların detaylarını çek
+    const topWritersMap = new Map();
+    if (topWriterIds.length > 0) {
+      const writers = await this.prisma.user.findMany({
+        where: {
+          id: { in: topWriterIds },
+          isPrivate: false, // Sadece public hesaplar
+        },
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+          avatar: true,
+          bio: true,
+        },
+      });
+      
+      // Map'e ekle (hızlı lookup için)
+      writers.forEach((writer) => {
+        topWritersMap.set(writer.id, writer);
+      });
+    }
+
+    // Sıralamayı düzelt (postsByUser sırasına göre - en çok paylaşan ilk sırada)
+    const sortedWriters = topWriterIds
+      .map((userId) => topWritersMap.get(userId))
+      .filter((w) => w !== undefined);
 
     // Ayın Müzeleri - sabit veri
     const museums = [
@@ -113,21 +150,54 @@ export class SidebarService {
       },
     ];
 
-    // Fallback: Eğer yeterli yazar yoksa sabit verileri kullan
-    const authors = topWriters.length >= 2 
-      ? topWriters.map((writer, index) => ({
+    // Son yazılarını al (her yazar için)
+    const authorsWithLastPost = await Promise.all(
+      sortedWriters.map(async (writer) => {
+        // Bu yazarın son yazısını (article) bul
+        const lastArticle = await this.prisma.article.findFirst({
+          where: {
+            authorId: writer.id,
+            isPublished: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          select: {
+            id: true,
+            title: true,
+            excerpt: true,
+          },
+        });
+
+        return {
           id: writer.id,
           slug: writer.username,
           name: writer.fullName || writer.username,
           avatar: resolveImageUrl(writer.avatar, DEFAULT_AUTHOR_AVATAR),
-          preview: index === 0 ? 'Duyguların izi her eserde saklıdır.' : 'Bellek, malzeme ve zamanın sessiz diyaloğu.',
+          preview: writer.bio 
+            ? (writer.bio.length > 60 ? writer.bio.substring(0, 60) + '...' : writer.bio)
+            : (sortedWriters.indexOf(writer) === 0 
+                ? 'Duyguların izi her eserde saklıdır.' 
+                : 'Bellek, malzeme ve zamanın sessiz diyaloğu.'),
           bio: writer.bio || 'Sanat ve yaratıcılık üzerine yazılar.',
-          lastPost: {
-            title: 'Son Yazı',
-            preview: 'Son yazılarını keşfet...',
-            link: `/writer/${writer.username}`,
-          },
-        }))
+          lastPost: lastArticle
+            ? {
+                title: lastArticle.title,
+                preview: lastArticle.excerpt || 'Son yazılarını keşfet...',
+                link: `/articles/${lastArticle.id}`,
+              }
+            : {
+                title: 'Son Yazı',
+                preview: 'Son yazılarını keşfet...',
+                link: `/profile/${writer.username}`,
+              },
+        };
+      })
+    );
+
+    // Fallback: Eğer yeterli yazar yoksa sabit verileri kullan
+    const authors = authorsWithLastPost.length >= 2 
+      ? authorsWithLastPost
       : [
           {
             id: 'zeynep',

@@ -24,45 +24,46 @@ enum UserRole {
 }
 
 model User {
-  id             String   @id @default(cuid())
-  username       String   @unique
-  email          String   @unique
-  password       String
-  fullName       String?
-  bio            String?
-  avatar         String?
-  roles          UserRole[]       @default([])
-  extras         String[]         @default([])
-  plan           SubscriptionPlan @default(FREE)
-  badges         String[]         @default([])
-  isPrivate      Boolean  @default(false)
-  isVerified     Boolean  @default(false)
-  isAdmin        Boolean  @default(false)
-  followerCount  Int      @default(0)
-  followingCount Int      @default(0)
-  isOnline       Boolean  @default(false)
-  lastSeen       DateTime?
-  passwordResetToken   String?   @db.VarChar(255)
-  passwordResetExpires DateTime?
+  id                    String           @id @default(cuid())
+  username              String           @unique
+  email                 String           @unique
+  password              String
+  fullName              String?
+  bio                   String?
+  avatar                String?
+  roles                 UserRole[]       @default([])
+  extras                String[]         @default([])
+  plan                  SubscriptionPlan @default(FREE)
+  badges                String[]         @default([])
+  isPrivate             Boolean          @default(false)
+  isVerified            Boolean          @default(false)
+  isAdmin               Boolean          @default(false)
+  superAdmin            Boolean          @default(false) // 🔥 GOD-MODE
+  followerCount         Int              @default(0)
+  followingCount        Int              @default(0)
+  isOnline              Boolean          @default(false)
+  lastSeen              DateTime?
+  passwordResetToken    String?          @db.VarChar(255)
+  passwordResetExpires  DateTime?
   usernameLastChangedAt DateTime?
   nameLastChangedAt     DateTime?
   website               String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
 
   // Relations
   posts                  Post[]
   articles               Article[]
   comments               Comment[]
   likes                  Like[]
-  followers              Follow[]             @relation("Follower")
-  following              Follow[]             @relation("Following")
-  blockedBy              Block[]              @relation("BlockedUser")
-  blockedUsers           Block[]              @relation("BlockerUser")
-  followRequestsReceived FollowRequest[]      @relation("RequestedUser")
-  followRequestsSent     FollowRequest[]      @relation("RequesterUser")
-  notificationsReceived  Notification[]       @relation("ReceivedNotifications")
-  notificationsSent      Notification[]       @relation("SentNotifications")
+  followers              Follow[]                @relation("Follower")
+  following              Follow[]                @relation("Following")
+  blockedBy              Block[]                 @relation("BlockedUser")
+  blockedUsers           Block[]                 @relation("BlockerUser")
+  followRequestsReceived FollowRequest[]         @relation("RequestedUser")
+  followRequestsSent     FollowRequest[]         @relation("RequesterUser")
+  notificationsReceived  Notification[]          @relation("ReceivedNotifications")
+  notificationsSent      Notification[]          @relation("SentNotifications")
   stories                Story[]
   storyViews             StoryView[]
   refreshTokens          RefreshToken[]
@@ -74,15 +75,16 @@ model User {
   articleCommentLikes    ArticleCommentLike[]
   commentLikes           CommentLike[]
   notificationPreference NotificationPreference?
-  collections            Collection[]         @relation("CollectionOwner")
-  events                 Event[]              @relation("EventOwner")
-  eventComments          EventComment[]       @relation("EventCommentAuthor")
-  eventParticipants      EventParticipant[]   @relation("EventParticipantUser")
-  ticketPurchases        TicketPurchase[]     @relation("TicketPurchaseUser")
-  auditLogs              AuditLog[]           @relation("AuditLogActor")
+  collections            Collection[]            @relation("CollectionOwner")
+  events                 Event[]                 @relation("EventOwner")
+  eventComments          EventComment[]          @relation("EventCommentAuthor")
+  eventParticipants      EventParticipant[]      @relation("EventParticipantUser")
+  ticketPurchases        TicketPurchase[]        @relation("TicketPurchaseUser")
+  auditLogs              AuditLog[]              @relation("AuditLogActor")
   jobListings            JobListing[]
-  jobApplications        JobApplication[]      @relation("JobApplications")
+  jobApplications        JobApplication[]        @relation("JobApplications")
   highlights             Highlight[]
+  collectionItems        CollectionItem[]        @relation("CollectionItemAddedBy")
 
   @@index([username])
   @@index([email])
@@ -93,24 +95,25 @@ model Post {
   id           String   @id @default(cuid())
   userId       String
   caption      String?
-  title        String?  // 🎨 Eser adı (artwork için)
+  title        String? // 🎨 Eser adı (artwork için)
   location     String?
   type         String   @default("post") // "post" | "artwork"
-  code         String?  // Artwork için otomatik üretilen kod (PA24-00001 gibi)
+  code         String? // Artwork için otomatik üretilen kod (PA24-00001 gibi)
   colors       String[] @default([]) // Artwork için otomatik çıkarılan renkler (HEX formatında) - DEPRECATED
   colorPalette String[] @default([]) // 🎨 Basit renk paleti: hex string listesi (frontend'den gelir)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   // Relations
-  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  media    PostMedia[]
-  comments Comment[]
-  likes    Like[]
-  hashtags PostHashtag[]
-  savedBy  SavedPost[]
-  highlightCover Highlight[] @relation("HighlightCoverPost")
-  highlightItems HighlightItem[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media           PostMedia[]
+  comments        Comment[]
+  likes           Like[]
+  hashtags        PostHashtag[]
+  savedBy         SavedPost[]
+  highlightCover  Highlight[]      @relation("HighlightCoverPost")
+  highlightItems  HighlightItem[]
+  collectionItems CollectionItem[]
 
   @@index([userId])
   @@index([createdAt])
@@ -167,10 +170,10 @@ model Comment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  post      Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent    Comment?         @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies   Comment[]        @relation("CommentReplies")
+  post      Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    Comment?          @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[]         @relation("CommentReplies")
   reactions CommentReaction[]
   likes     CommentLike[]
 
@@ -259,18 +262,18 @@ model Block {
 model Notification {
   id         String   @id @default(cuid())
   userId     String
-  type       String // 'like', 'comment', 'follow', 'follow_request', 'follow_accept', 'message', 'mention', 'reply', 'comment_like', 'job_application_received', 'job_application_status_changed'
-  message    String?  // Bildirim metni (örn: "Ahmet gönderini beğendi")
+  type       String // 'like', 'comment', 'follow', 'follow_request', 'follow_accept', 'message', 'mention', 'reply', 'comment_like', 'job_application_received', 'job_application_status_changed', 'collection_added'
+  message    String? // Bildirim metni (örn: "Ahmet gönderini beğendi")
   fromUserId String?
   postId     String?
   articleId  String?
   commentId  String?
-  targetUrl  String?  // Eski alan (geriye uyumluluk için)
-  targetPath String?  // Yeni alan: bildirime tıklandığında gidilecek Next.js route path
+  targetUrl  String? // Eski alan (geriye uyumluluk için)
+  targetPath String? // Yeni alan: bildirime tıklandığında gidilecek Next.js route path
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
 
-  user    User  @relation("ReceivedNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  user     User  @relation("ReceivedNotifications", fields: [userId], references: [id], onDelete: Cascade)
   fromUser User? @relation("SentNotifications", fields: [fromUserId], references: [id], onDelete: SetNull)
 
   @@index([userId, isRead])
@@ -362,11 +365,11 @@ model SavedPost {
 }
 
 model Conversation {
-  id            String             @id @default(cuid())
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  participants  UserConversation[]
-  messages      Message[]
+  id           String             @id @default(cuid())
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  participants UserConversation[]
+  messages     Message[]
 
   @@index([createdAt])
   @@map("conversations")
@@ -410,17 +413,17 @@ model Message {
 }
 
 model Article {
-  id          String           @id @default(cuid())
+  id          String    @id @default(cuid())
   title       String
   content     String
   coverImage  String?
   excerpt     String?
-  isPublished Boolean          @default(false)
+  isPublished Boolean   @default(false)
   scheduledAt DateTime?
-  views       Int              @default(0)
+  views       Int       @default(0)
   authorId    String
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   author   User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
   comments ArticleComment[]
@@ -433,19 +436,19 @@ model Article {
 }
 
 model ArticleComment {
-  id        String             @id @default(cuid())
+  id        String   @id @default(cuid())
   articleId String
   userId    String
   content   String
   parentId  String?
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  article  Article            @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent   ArticleComment?    @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies  ArticleComment[]   @relation("CommentReplies")
-  likes    ArticleCommentLike[]
+  article Article              @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  ArticleComment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies ArticleComment[]     @relation("CommentReplies")
+  likes   ArticleCommentLike[]
 
   @@index([articleId])
   @@index([parentId])
@@ -454,10 +457,10 @@ model ArticleComment {
 }
 
 model ArticleCommentLike {
-  id         String        @id @default(cuid())
-  commentId  String
-  userId     String
-  createdAt  DateTime      @default(now())
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
 
   comment ArticleComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
   user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -479,8 +482,8 @@ model JobListing {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  createdById String
+  createdBy    User             @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdById  String
   applications JobApplication[]
 
   @@index([createdAt])
@@ -496,21 +499,32 @@ enum ApplicationStatus {
 }
 
 model JobApplication {
-  id           String            @id @default(cuid())
+  id           String     @id @default(cuid())
   jobListingId String
-  jobListing   JobListing         @relation(fields: [jobListingId], references: [id], onDelete: Cascade)
+  jobListing   JobListing @relation(fields: [jobListingId], references: [id], onDelete: Cascade)
 
-  applicantId  String
-  applicant    User               @relation("JobApplications", fields: [applicantId], references: [id], onDelete: Cascade)
+  applicantId String
+  applicant   User   @relation("JobApplications", fields: [applicantId], references: [id], onDelete: Cascade)
 
-  coverLetter  String?
-  portfolioUrl String?
-  cvUrl        String?
+  coverLetter      String?
+  portfolioUrl     String?
+  portfolioFileUrl String? // Yüklenen portfolyo dosyası URL'i
+  cvUrl            String?
 
-  status       ApplicationStatus  @default(PENDING)
+  status ApplicationStatus @default(PENDING)
 
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  expiresAt      DateTime? // 30 günlük yanıt süresi (başvuru tarihinden itibaren)
+  reminderSentAt DateTime? // Son hatırlatma bildirimi gönderilme tarihi
+
+  // Admin özellikleri (sadece ilan sahibi görür)
+  adminNote String? // Admin için özel notlar (aday görmez)
+  tags      String[] @default([]) // Etiketler: ["öncelikli", "portfolyo-güçlü", vb.]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  activities ApplicationActivity[]
 
   @@unique([jobListingId, applicantId])
   @@index([jobListingId])
@@ -519,11 +533,26 @@ model JobApplication {
   @@map("job_applications")
 }
 
+model ApplicationActivity {
+  id            String         @id @default(cuid())
+  applicationId String
+  application   JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  action  String // "APPROVED" | "REJECTED" | "REVIEWED" | "NOTE_ADDED" | "TAG_ADDED" | "TAG_REMOVED" | "MAIL_SENT"
+  details String? // Ek bilgiler (örn: eklenen etiket, not içeriği özeti)
+
+  createdAt DateTime @default(now())
+
+  @@index([applicationId])
+  @@index([createdAt])
+  @@map("application_activities")
+}
+
 model CommentLike {
-  id         String   @id @default(cuid())
-  commentId  String
-  userId     String
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
 
   comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -540,39 +569,62 @@ model Collection {
   description String?
   coverImage  String?
   ownerId     String
+  isPublic    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  owner User @relation("CollectionOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  owner User             @relation("CollectionOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  items CollectionItem[]
 
   @@index([ownerId])
   @@index([createdAt])
   @@map("collections")
 }
 
-model Event {
-  id              String   @id @default(cuid())
-  title           String
-  description     String?
-  coverImage      String?
-  date            DateTime
-  participantCount Int      @default(0)
-  ticketUrl       String?
-  price           Float    @default(0)
-  isFree          Boolean  @default(true)
-  location        String?
-  ownerId         String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+model CollectionItem {
+  id           String   @id @default(cuid())
+  collectionId String
+  postId       String // Post modeli artwork'leri de içeriyor (type="artwork")
+  addedById    String
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
 
-  owner User @relation("EventOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  comments EventComment[]
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  post       Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  addedBy    User       @relation("CollectionItemAddedBy", fields: [addedById], references: [id])
+
+  @@unique([collectionId, postId])
+  @@index([collectionId, order])
+  @@index([postId])
+  @@map("collection_items")
+}
+
+model Event {
+  id               String    @id @default(cuid())
+  title            String
+  description      String?
+  coverImage       String?
+  date             DateTime
+  participantCount Int       @default(0)
+  ticketUrl        String?
+  price            Float     @default(0)
+  isFree           Boolean   @default(true)
+  location         String?
+  ownerId          String
+  isDeleted        Boolean   @default(false)
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  owner        User               @relation("EventOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  comments     EventComment[]
   participants EventParticipant[] @relation("EventParticipants")
-  tickets Ticket[]
+  tickets      Ticket[]
 
   @@index([ownerId])
   @@index([date])
   @@index([createdAt])
+  @@index([isDeleted])
   @@map("events")
 }
 
@@ -592,11 +644,19 @@ model EventComment {
   @@map("event_comments")
 }
 
+enum EventParticipantStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model EventParticipant {
-  id        String   @id @default(cuid())
-  eventId   String
-  userId    String
-  createdAt DateTime @default(now())
+  id             String                 @id @default(cuid())
+  eventId        String
+  userId         String
+  status         EventParticipantStatus @default(PENDING)
+  reminderSentAt DateTime?
+  createdAt      DateTime               @default(now())
 
   event Event @relation("EventParticipants", fields: [eventId], references: [id], onDelete: Cascade)
   user  User  @relation("EventParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
@@ -604,7 +664,9 @@ model EventParticipant {
   @@unique([eventId, userId])
   @@index([eventId])
   @@index([userId])
+  @@index([status])
   @@index([createdAt])
+  @@index([reminderSentAt])
   @@map("event_participants")
 }
 
@@ -619,7 +681,7 @@ model Ticket {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  event     Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event     Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
   purchases TicketPurchase[]
 
   @@index([eventId])
@@ -628,14 +690,14 @@ model Ticket {
 }
 
 model TicketPurchase {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   ticketId  String
   userId    String
-  code      String   @unique
+  code      String    @unique
   qrUrl     String?
-  used      Boolean  @default(false)
+  used      Boolean   @default(false)
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   user   User   @relation("TicketPurchaseUser", fields: [userId], references: [id], onDelete: Cascade)
@@ -650,11 +712,11 @@ model TicketPurchase {
 
 model AuditLog {
   id        String   @id @default(cuid())
-  actorId  String
-  action   String   // 'user.ban', 'post.delete', 'role.update', etc.
-  target   String?  // 'user:abc123', 'post:xyz789', etc.
-  meta     Json?    // Additional context data
-  ip       String?
+  actorId   String
+  action    String // 'user.ban', 'post.delete', 'role.update', etc.
+  target    String? // 'user:abc123', 'post:xyz789', etc.
+  meta      Json? // Additional context data
+  ip        String?
   userAgent String?
   createdAt DateTime @default(now())
 
@@ -678,15 +740,15 @@ model FeatureFlag {
 }
 
 model Highlight {
-  id          String   @id @default(cuid())
+  id          String          @id @default(cuid())
   title       String
   coverPostId String?
-  coverPost   Post?    @relation("HighlightCoverPost", fields: [coverPostId], references: [id], onDelete: SetNull)
+  coverPost   Post?           @relation("HighlightCoverPost", fields: [coverPostId], references: [id], onDelete: SetNull)
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   items       HighlightItem[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   @@index([userId])
   @@index([createdAt])
@@ -694,12 +756,12 @@ model Highlight {
 }
 
 model HighlightItem {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   highlightId String
   highlight   Highlight @relation(fields: [highlightId], references: [id], onDelete: Cascade)
   postId      String
-  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  sortOrder   Int      @default(0)
+  post        Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  sortOrder   Int       @default(0)
 
   @@unique([highlightId, postId])
   @@index([highlightId])

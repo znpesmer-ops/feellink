@@ -30,19 +30,51 @@ export class AllExceptionsFilter implements ExceptionFilter {
         : 'Internal server error';
 
     // 🔥 KRİTİK: Tüm hataları detaylı logla
+    let validationDetails = '';
+    if (exception instanceof HttpException && status === 400) {
+      const response = exception.getResponse();
+      if (typeof response === 'object' && response !== null) {
+        const resp = response as any;
+        if (Array.isArray(resp.message)) {
+          validationDetails = `\nValidation Errors: ${JSON.stringify(resp.message, null, 2)}`;
+        } else if (resp.message) {
+          validationDetails = `\nError Message: ${resp.message}`;
+        }
+      }
+    }
+
     this.logger.error(
-      `❌ ${request.method} ${request.url} - Status: ${status}`,
+      `❌ ${request.method} ${request.url} - Status: ${status}${validationDetails}`,
       exception instanceof Error ? exception.stack : JSON.stringify(exception),
     );
 
     // Error details for development
+    let errorMessage = typeof message === 'string' ? message : (message as any)?.message || 'Internal server error';
+    let validationErrors: any = null;
+
+    // ValidationPipe hatalarını detaylı göster
+    if (exception instanceof HttpException && status === 400) {
+      const response = exception.getResponse();
+      if (typeof response === 'object' && response !== null) {
+        const resp = response as any;
+        if (Array.isArray(resp.message)) {
+          // ValidationPipe array döndürüyor
+          validationErrors = resp.message;
+          errorMessage = `Validation failed: ${resp.message.join(', ')}`;
+        } else if (resp.message) {
+          errorMessage = resp.message;
+        }
+      }
+    }
+
     const errorResponse = {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
       method: request.method,
-      message: typeof message === 'string' ? message : (message as any)?.message || 'Internal server error',
-      ...(typeof message === 'object' && message !== null ? message : {}),
+      message: errorMessage,
+      ...(validationErrors ? { errors: validationErrors } : {}),
+      ...(typeof message === 'object' && message !== null && !Array.isArray((message as any)?.message) ? message : {}),
     };
 
     // Development'ta stack trace de ekle

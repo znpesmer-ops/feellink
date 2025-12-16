@@ -44,6 +44,16 @@ export class HighlightsController {
     return this.highlightsService.addPosts(id, dto.postIds, user.id);
   }
 
+  @Delete(':id/remove-posts')
+  @UseGuards(JwtAuthGuard)
+  async removePostsFromHighlight(
+    @Param('id') id: string,
+    @Body() dto: AddPostsToHighlightDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.highlightsService.removePosts(id, dto.postIds, user.id);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   async deleteHighlight(

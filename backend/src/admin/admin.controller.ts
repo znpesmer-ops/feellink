@@ -55,6 +55,11 @@ export class AdminController {
     return this.adminService.updateUser(userId, data, user.id);
   }
 
+  @Delete('users/:id')
+  async deleteUser(@Param('id') userId: string, @CurrentUser() user: any) {
+    return this.adminService.deleteUser(userId, user.id);
+  }
+
   // Posts management
   @Get('posts')
   async getPosts(@Query('page') page?: string, @Query('limit') limit?: string) {
@@ -67,6 +72,27 @@ export class AdminController {
   @Delete('posts/:id')
   async deletePost(@Param('id') postId: string, @CurrentUser() user: any) {
     return this.adminService.deletePost(postId, user.id);
+  }
+
+  // ✅ Artworks (Eserler) management
+  @Get('artworks')
+  async getArtworks(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('userId') userId?: string,
+  ) {
+    return this.adminService.getArtworks(
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 20,
+      search,
+      userId,
+    );
+  }
+
+  @Delete('artworks/:id')
+  async deleteArtwork(@Param('id') artworkId: string, @CurrentUser() user: any) {
+    return this.adminService.deleteArtwork(artworkId, user.id);
   }
 
   // Comments management

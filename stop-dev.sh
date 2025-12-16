@@ -47,3 +47,18 @@ echo -e "${GREEN}✅ Tüm servisler durduruldu${NC}"
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,4 +1,5 @@
-import { Controller, Post, Body, Get, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, Res, Req, UnauthorizedException, Logger } from '@nestjs/common';
+import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -11,31 +12,96 @@ import { CurrentUser } from './decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+  
   constructor(private authService: AuthService) {}
 
   @Post('register')
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(@Body() registerDto: RegisterDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    // Debug: Gelen raw request body'yi logla
+    this.logger.log(`Register RAW request body: ${JSON.stringify(req.body, null, 2)}`);
+    this.logger.log(`Register DTO (after validation): ${JSON.stringify(registerDto, null, 2)}`);
+    
+    const result = await this.authService.register(registerDto);
+    
+    // Set refreshToken as HTTP-only cookie if registration includes auto-login
+    if (result.refreshToken) {
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: false, // LOCAL DEVELOPMENT - set to true in production with HTTPS
+        sameSite: 'lax', // Works with mobile browsers
+        path: '/',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+    }
+    
+    return result;
   }
 
   @Post('register-corporate')
-  async registerCorporate(@Body() registerDto: RegisterDto) {
-    return this.authService.register({ ...registerDto, role: 'corporate' });
+  async registerCorporate(@Body() registerDto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.register({ ...registerDto, role: 'corporate' });
+    
+    // Set refreshToken as HTTP-only cookie if registration includes auto-login
+    if (result.refreshToken) {
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: false, // LOCAL DEVELOPMENT - set to true in production with HTTPS
+        sameSite: 'lax', // Works with mobile browsers
+        path: '/',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+    }
+    
+    return result;
   }
 
   @Post('login')
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.login(loginDto);
+    
+    // Set refreshToken as HTTP-only cookie for mobile compatibility
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: false, // LOCAL DEVELOPMENT - set to true in production with HTTPS
+      sameSite: 'lax', // Works with mobile browsers
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
+    
+    return result;
   }
 
   @Post('login-corporate')
-  async corporateLogin(@Body() loginDto: LoginDto) {
-    return this.authService.corporateLogin(loginDto);
+  async corporateLogin(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.corporateLogin(loginDto);
+    
+    // Set refreshToken as HTTP-only cookie for mobile compatibility
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: false, // LOCAL DEVELOPMENT - set to true in production with HTTPS
+      sameSite: 'lax', // Works with mobile browsers
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
+    
+    return result;
   }
 
   @Post('login-unified')
-  async loginUnified(@Body() loginDto: LoginDto) {
-    return this.authService.loginUnified(loginDto);
+  async loginUnified(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.loginUnified(loginDto);
+    
+    // Set refreshToken as HTTP-only cookie for mobile compatibility
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: false, // LOCAL DEVELOPMENT - set to true in production with HTTPS
+      sameSite: 'lax', // Works with mobile browsers
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
+    
+    return result;
   }
 
   @Post('role')
@@ -44,13 +110,46 @@ export class AuthController {
   }
 
   @Post('refresh')
-  async refresh(@Body() refreshDto: RefreshDto) {
-    return this.authService.refreshTokens(refreshDto.refreshToken);
+  async refresh(@Body() refreshDto: RefreshDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    // Try to get refreshToken from cookie first, then from body
+    const refreshToken = req.cookies?.refreshToken || refreshDto.refreshToken;
+    
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token not found');
+    }
+    
+    const result = await this.authService.refreshTokens(refreshToken);
+    
+    // Set new refreshToken as HTTP-only cookie
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: false, // LOCAL DEVELOPMENT - set to true in production with HTTPS
+      sameSite: 'lax', // Works with mobile browsers
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
+    
+    return result;
   }
 
   @Post('logout')
-  async logout(@Body() refreshDto: RefreshDto) {
-    return this.authService.logout(refreshDto.refreshToken);
+  async logout(@Body() refreshDto: RefreshDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    // Try to get refreshToken from cookie first, then from body
+    const refreshToken = req.cookies?.refreshToken || refreshDto.refreshToken;
+    
+    if (refreshToken) {
+      await this.authService.logout(refreshToken);
+    }
+    
+    // Clear refreshToken cookie
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/',
+    });
+    
+    return { message: 'Logged out successfully' };
   }
 
   @Post('logout-all')

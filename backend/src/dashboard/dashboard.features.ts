@@ -102,7 +102,8 @@ const normalizeRole = (role: string | null | undefined): keyof typeof DASHBOARD_
 
 export const getDashboardSnapshot = (role: string | null | undefined, plan: string | null | undefined) => {
   const roleKey = normalizeRole(role);
-  const planKey = normalizePlan(plan);
+  // Plan kontrolü kaldırıldı - artık her zaman 'pro' özelliklerini göster
+  const planKey: DashboardPlanKey = 'pro';
   const definition = DASHBOARD_FEATURES[roleKey];
 
   return {

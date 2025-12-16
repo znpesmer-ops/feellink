@@ -1,4 +1,4 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Prisma, UserRole } from '@prisma/client';
 import { getPrismaInstance } from '../prisma/prisma.service';
 import { ColorAnalysisService } from '../posts/color-analysis.service';
@@ -199,19 +199,62 @@ export class AdminService {
     });
 
     // Audit log
-    await this.createAuditLog({
-      actorId,
-      action: 'user.update',
-      target: `user:${userId}`,
-      meta: {
-        changes: {
-          ...rest,
-          ...(normalizedRoles ? { roles: normalizedRoles } : {}),
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'user.update',
+        target: `user:${userId}`,
+        meta: {
+          changes: data,
         },
       },
     });
 
     return user;
+  }
+
+  async deleteUser(userId: string, actorId: string) {
+    // Check if user exists
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true, email: true, superAdmin: true },
+    });
+
+    if (!user) {
+      throw new Error('Kullanıcı bulunamadı');
+    }
+
+    // Prevent deleting superAdmin (GOD-MODE protection)
+    if (user.superAdmin) {
+      throw new Error('SuperAdmin kullanıcılar silinemez');
+    }
+
+    // Prevent self-deletion
+    if (user.id === actorId) {
+      throw new Error('Kendi hesabınızı silemezsiniz');
+    }
+
+    // Delete user (Prisma cascade will handle related records)
+    await this.prisma.user.delete({
+      where: { id: userId },
+    });
+
+    // Audit log
+    await this.prisma.auditLog.create({
+      data: {
+        actorId,
+        action: 'user.delete',
+        target: `user:${userId}`,
+        meta: {
+          deletedUser: {
+            username: user.username,
+            email: user.email,
+          },
+        },
+      },
+    });
+
+    return { message: 'Kullanıcı başarıyla silindi', deletedUserId: userId };
   }
 
   async getPosts(page = 1, limit = 20) {
@@ -220,6 +263,9 @@ export class AdminService {
       this.prisma.post.findMany({
         skip,
         take: limit,
+        where: {
+          type: 'post', // Sadece normal gönderiler
+        },
         orderBy: { createdAt: 'desc' },
         include: {
           user: {
@@ -227,6 +273,16 @@ export class AdminService {
               id: true,
               username: true,
               avatar: true,
+            },
+          },
+          media: {
+            orderBy: { order: 'asc' },
+            select: {
+              id: true,
+              type: true,
+              url: true,
+              thumbnailUrl: true,
+              order: true,
             },
           },
           _count: {
@@ -237,10 +293,103 @@ export class AdminService {
           },
         },
       }),
-      this.prisma.post.count(),
+      this.prisma.post.count({
+        where: {
+          type: 'post',
+        },
+      }),
     ]);
 
     return { posts, total, page, limit };
+  }
+
+  // ✅ Eserler (Artworks) yönetimi
+  async getArtworks(page = 1, limit = 20, search?: string, userId?: string) {
+    const skip = (page - 1) * limit;
+    
+    const where: any = {
+      type: 'artwork', // Sadece eserler
+    };
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { caption: { contains: search, mode: 'insensitive' } },
+        { code: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (userId) {
+      where.userId = userId;
+    }
+
+    const [artworks, total] = await Promise.all([
+      this.prisma.post.findMany({
+        skip,
+        take: limit,
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              avatar: true,
+              fullName: true,
+            },
+          },
+          media: {
+            orderBy: { order: 'asc' },
+            select: {
+              id: true,
+              type: true,
+              url: true,
+              thumbnailUrl: true,
+              order: true,
+            },
+          },
+          _count: {
+            select: {
+              likes: true,
+              comments: true,
+            },
+          },
+        },
+      }),
+      this.prisma.post.count({ where }),
+    ]);
+
+    return { artworks, total, page, limit };
+  }
+
+  async deleteArtwork(artworkId: string, actorId: string) {
+    const artwork = await this.prisma.post.findUnique({
+      where: { id: artworkId },
+      select: { id: true, type: true, title: true },
+    });
+
+    if (!artwork) {
+      throw new NotFoundException('Eser bulunamadı');
+    }
+
+    if (artwork.type !== 'artwork') {
+      throw new BadRequestException('Bu bir eser değil');
+    }
+
+    await this.prisma.post.delete({
+      where: { id: artworkId },
+    });
+
+    await this.createAuditLog({
+      actorId,
+      action: 'artwork.delete',
+      target: `artwork:${artworkId}`,
+      meta: {
+        artworkTitle: artwork.title,
+      },
+    });
+
+    return { message: 'Eser başarıyla silindi', deletedArtworkId: artworkId };
   }
 
   async deletePost(postId: string, actorId: string) {

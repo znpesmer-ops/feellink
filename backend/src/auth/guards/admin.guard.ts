@@ -1,4 +1,5 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { isAdmin } from '../permissions.util';
 
 @Injectable()
 export class AdminGuard implements CanActivate {
@@ -10,7 +11,7 @@ export class AdminGuard implements CanActivate {
       throw new ForbiddenException('User not authenticated');
     }
 
-    if (user.isAdmin !== true) {
+    if (!isAdmin(user)) {
       throw new ForbiddenException('Only admins can access this endpoint');
     }
 

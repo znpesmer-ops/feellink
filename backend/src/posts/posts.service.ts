@@ -1355,17 +1355,69 @@ export class PostsService {
       include: {
         user: {
           select: {
+            id: true,
             username: true,
             fullName: true,
+            avatar: true,
+            roles: true,
+            plan: true,
+          },
+        },
+        post: {
+          select: {
+            id: true,
+          },
+        },
+        _count: {
+          select: {
+            likes: true,
+            replies: true,
           },
         },
       },
     });
 
+    // ✅ Yorum sabitlendiğinde bildirim gönder (sadece pin edildiğinde)
+    if (pinned && updatedComment.userId !== userId) {
+      // Yorumu yazan kişiye bildirim gönder (gönderi sahibi kendi yorumunu sabitlemişse bildirim gönderme)
+      const allowed = await this.notificationsService.isAllowed(updatedComment.userId, 'comment_pinned');
+      if (allowed) {
+        await this.notificationsService.createNotificationSync({
+          userId: updatedComment.userId,
+          type: 'comment_pinned',
+          fromUserId: userId, // Gönderi sahibi
+          postId: updatedComment.postId,
+          commentId: updatedComment.id,
+          targetUrl: `/posts/${updatedComment.postId}`,
+        });
+      }
+    }
+
+    // Socket.IO ile real-time güncelleme gönder
+    if (this.commentsGateway) {
+      const room = `post:${updatedComment.postId}`;
+      this.commentsGateway.server.to(room).emit('commentPinned', {
+        id: updatedComment.id,
+        postId: updatedComment.postId,
+        isPinned: updatedComment.isPinned,
+      });
+      // Global event de gönder
+      this.commentsGateway.server.emit('commentPinned', {
+        id: updatedComment.id,
+        postId: updatedComment.postId,
+        isPinned: updatedComment.isPinned,
+      });
+    }
+
+    // Tüm comment bilgilerini döndür (frontend'in ihtiyacı olan tüm alanlar)
     return {
       id: updatedComment.id,
+      content: updatedComment.content,
       isPinned: updatedComment.isPinned,
+      createdAt: updatedComment.createdAt,
       user: updatedComment.user,
+      likesCount: updatedComment._count.likes,
+      repliesCount: updatedComment._count.replies,
     };
   }
 
@@ -1430,7 +1482,7 @@ export class PostsService {
       layout: 'landscape',
       bufferPages: false,
       info: {
-        Title: `Feellink Eser Etiketi - ${post.title || post.caption || artworkCode}`,
+        Title: `Feellink Eser Etiketi - ${post.caption || artworkCode}`,
         Author: 'Feellink',
         Subject: 'Eser QR Etiketi',
       },
@@ -1461,7 +1513,7 @@ export class PostsService {
       .font('Helvetica-Bold')
       .fontSize(18)
       .fillColor(dark)
-      .text(post.title || post.caption || artworkCode, leftMargin, currentY, {
+      .text(post.caption || artworkCode, leftMargin, currentY, {
         width: 180,
         ellipsis: true,
       });

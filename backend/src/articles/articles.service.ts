@@ -55,8 +55,33 @@ export class ArticlesService {
 
   async findDrafts(userId: string) {
     return this.prisma.article.findMany({
-      where: { authorId: userId, isPublished: false },
+      where: { 
+        authorId: userId, 
+        isPublished: false,
+        scheduledAt: null, // Taslaklar: scheduledAt olmayanlar
+      },
       orderBy: { updatedAt: 'desc' },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+  }
+
+  async findScheduled(userId: string) {
+    return this.prisma.article.findMany({
+      where: { 
+        authorId: userId, 
+        isPublished: false,
+        scheduledAt: { not: null }, // Zamanlanmış: scheduledAt olanlar
+      },
+      orderBy: { scheduledAt: 'asc' }, // En yakın tarihli önce
       include: {
         author: {
           select: {

@@ -139,8 +139,9 @@ const aggregatePlanLimits = (
   let eventCooldown: number | null = null;
 
   roles.forEach((role) => {
+    // Plan kontrolü kaldırıldı - artık her zaman PRO plan limitlerini kullan
     const rolePlanLimits =
-      ROLE_LIMITS[role]?.plans?.[plan] ?? ROLE_LIMITS[role]?.plans?.FREE ?? {};
+      ROLE_LIMITS[role]?.plans?.['PRO'] ?? ROLE_LIMITS[role]?.plans?.['ORI'] ?? ROLE_LIMITS[role]?.plans?.FREE ?? {};
 
     if (rolePlanLimits.eventLimitMonthly !== undefined) {
       const limit = rolePlanLimits.eventLimitMonthly;
@@ -185,7 +186,8 @@ export const computeBadgeState = (
 ): BadgeState & { premium: boolean } => {
   const base: BadgeState = parseBadgeState(badges);
 
-  const proActive = plan === PRO_BADGE_PLAN || base.pro;
+  // Plan kontrolü kaldırıldı - artık her zaman pro aktif
+  const proActive = true; // Her zaman true
   const corporateActive = roles.includes('corporate') && base.corporate_verified;
   const premium = roles.length === ROLE_ORDER.length;
 
@@ -222,17 +224,16 @@ export const computeCapabilities = (
 export const getSidebarVisibility = (capabilities: CapabilitySummary): SidebarVisibility => {
   const roles = capabilities.roles ?? [];
   const permissions = capabilities.permissions;
-  const plan = capabilities.plan;
+  // Plan kontrolü kaldırıldı - artık herkes tüm özelliklere erişebilir
   const isSoloArtLover = roles.length === 1 && roles[0] === 'art_lover';
-  const isPremiumPlan = plan !== 'FREE';
 
-  const showAnalytics = permissions.canAccessAnalytics && (!isSoloArtLover || isPremiumPlan);
+  // Plan kontrolü kaldırıldı - artık her zaman true
+  const showAnalytics = permissions.canAccessAnalytics;
   const showEvents =
     permissions.canAccessMyEvents ||
-    permissions.canCreateEvents ||
-    (isSoloArtLover && isPremiumPlan);
+    permissions.canCreateEvents;
   const showCollections = permissions.canAccessCollections || permissions.canManageCollections;
-  const showListings = permissions.canCreateListings || !isSoloArtLover || isPremiumPlan;
+  const showListings = permissions.canCreateListings || !isSoloArtLover;
 
   return {
     showFeed: true,

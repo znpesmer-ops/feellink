@@ -13,9 +13,11 @@ interface CreateNotificationDto {
   articleId?: string;
   commentId?: string;
   targetUrl?: string;
+  targetPath?: string;
+  meta?: Record<string, any>;
 }
 
-type NotifType = 'mention' | 'follow' | 'follow_request' | 'follow_accept' | 'like' | 'comment' | 'reply' | 'event_join' | 'event_comment' | 'event_like' | 'event_ticket_purchased' | 'ticket_confirmation';
+type NotifType = 'mention' | 'follow' | 'follow_request' | 'follow_accept' | 'like' | 'comment' | 'reply' | 'comment_pinned' | 'event_join' | 'event_comment' | 'event_like' | 'event_ticket_purchased' | 'ticket_confirmation';
 
 @Injectable()
 export class NotificationsService {
@@ -53,6 +55,9 @@ export class NotificationsService {
           case 'reply':
             message = `yorumuna yanıt verdi`;
             break;
+          case 'comment_pinned':
+            message = `yorumun sabitlendi`;
+            break;
           case 'comment_like':
             message = `yorumunu beğendi`;
             break;
@@ -77,6 +82,10 @@ export class NotificationsService {
           case 'event_comment':
             message = `etkinliğinize yorum yaptı`;
             break;
+          case 'collection_added':
+            // Mesaj zaten data.message'da geliyor, burada override etme
+            message = data.message || `koleksiyonuna eklendi`;
+            break;
           default:
             message = `yeni bir etkinlik gerçekleştirdi`;
         }
@@ -94,6 +103,7 @@ export class NotificationsService {
         articleId: data.articleId,
         commentId: data.commentId,
         targetUrl: data.targetUrl,
+        targetPath: data.targetPath,
         isRead: false,
       },
       include: {
@@ -138,8 +148,11 @@ export class NotificationsService {
       },
     });
 
+    // Okunmamış bildirim sayısını al
+    const unreadCount = await this.getUnreadCount(userId);
+
     // Notification'ları frontend için formatla
-    return notifications.map((notification) => {
+    const formattedNotifications = notifications.map((notification) => {
       const { fromUser, ...rest } = notification;
       return {
         ...rest,
@@ -151,6 +164,11 @@ export class NotificationsService {
         },
       };
     });
+
+    return {
+      notifications: formattedNotifications,
+      unreadCount,
+    };
   }
 
   async markAsRead(userId: string, notificationId: string) {
@@ -189,7 +207,7 @@ export class NotificationsService {
   }
 
   async markAllAsRead(userId: string) {
-    return this.prisma.notification.updateMany({
+    await this.prisma.notification.updateMany({
       where: {
         userId,
         isRead: false,
@@ -198,6 +216,13 @@ export class NotificationsService {
         isRead: true,
       },
     });
+
+    // Güncel okunmamış sayısını döndür (artık 0 olmalı)
+    const unreadCount = await this.getUnreadCount(userId);
+    return {
+      success: true,
+      unreadCount,
+    };
   }
 
   async getUnreadCount(userId: string) {

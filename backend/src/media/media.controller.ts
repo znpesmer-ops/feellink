@@ -59,8 +59,15 @@ export class MediaController {
       throw new Error('File is required');
     }
 
-    // Klasör belirleme: resimler için 'posts', dosyalar için 'files'
-    const folder = type === 'file' ? 'files' : 'posts';
+    // Klasör belirleme: resimler için 'posts', dosyalar için 'files', portfolyo için 'portfolios', CV için 'cvs'
+    let folder = 'posts';
+    if (type === 'file') {
+      folder = 'files';
+    } else if (type === 'portfolio') {
+      folder = 'portfolios';
+    } else if (type === 'cv') {
+      folder = 'cvs';
+    }
     const result = await this.mediaService.uploadFile(file, folder);
     
     return {

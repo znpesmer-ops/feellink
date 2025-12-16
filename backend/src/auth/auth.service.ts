@@ -52,11 +52,16 @@ export class AuthService {
   } as const;
 
   private hydrateAuthUser(user: any) {
+    // Null check: user null ise hata fırlat
+    if (!user) {
+      throw new UnauthorizedException('User data not found');
+    }
+
     // Null-safe plan handling: plan null/undefined ise 'FREE' kullan
-    const plan: SubscriptionPlanCode = (user?.plan as SubscriptionPlanCode) ?? 'FREE';
-    const roles = normalizeRoles(user?.roles as string[]);
-    const badgeIds = Array.isArray(user?.badges) ? (user.badges as string[]) : [];
-    const isAdmin = user?.isAdmin === true || user?.superAdmin === true;
+    const plan: SubscriptionPlanCode = (user.plan as SubscriptionPlanCode) ?? 'FREE';
+    const roles = normalizeRoles(user.roles as string[]);
+    const badgeIds = Array.isArray(user.badges) ? (user.badges as string[]) : [];
+    const isAdmin = user.isAdmin === true || user.superAdmin === true;
     
     // 🔥 Admin kullanıcılar için tüm özellikleri açık yap (SaaS mantığı)
     let capabilities = computeCapabilities(roles, plan, badgeIds);
@@ -101,21 +106,21 @@ export class AuthService {
 
     return {
       user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        fullName: user.fullName,
-        avatar: user.avatar,
-        bio: user.bio,
+        id: user.id ?? '',
+        username: user.username ?? '',
+        email: user.email ?? '',
+        fullName: user.fullName ?? null,
+        avatar: user.avatar ?? null,
+        bio: user.bio ?? null,
         roles: capabilities.roles,
         extras: (user.extras as string[]) ?? [],
         plan: capabilities.plan,
         badges: badgeIds,
-        isPrivate: user.isPrivate,
-        isVerified: user.isVerified,
-        isAdmin: user.isAdmin,
-        superAdmin: user.superAdmin, // 🔥 GOD-MODE
-        createdAt: user.createdAt,
+        isPrivate: user.isPrivate ?? false,
+        isVerified: user.isVerified ?? false,
+        isAdmin: user.isAdmin ?? false,
+        superAdmin: user.superAdmin ?? false, // 🔥 GOD-MODE
+        createdAt: user.createdAt ?? new Date(),
       },
       capabilities,
       dashboard,
@@ -378,6 +383,10 @@ export class AuthService {
         ...this.authSelect,
       },
     });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
 
     return this.hydrateAuthUser(user);
   }

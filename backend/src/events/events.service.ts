@@ -15,21 +15,31 @@ export class EventsService {
 
   async getAllEvents() {
     return this.prisma.event.findMany({
-      include: { tickets: true, owner: true },
+      where: { isDeleted: false },
+      include: { 
+        tickets: true, 
+        owner: true,
+        participants: {
+          select: {
+            userId: true,
+            status: true,
+          },
+        },
+      },
       orderBy: { date: 'asc' },
     });
   }
 
   async getMyEvents(userId: string) {
     return this.prisma.event.findMany({
-      where: { ownerId: userId },
+      where: { ownerId: userId, isDeleted: false },
       orderBy: { date: 'desc' },
     });
   }
 
   async findByAuthor(authorId: string) {
     return this.prisma.event.findMany({
-      where: { ownerId: authorId },
+      where: { ownerId: authorId, isDeleted: false },
       include: { tickets: true },
       orderBy: { createdAt: 'desc' },
     });
@@ -98,18 +108,37 @@ export class EventsService {
       throw new ForbiddenException('You do not have permission to delete this event');
     }
 
-    await this.prisma.event.delete({
+    // Soft delete: mark as deleted instead of hard delete
+    await this.prisma.event.update({
       where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
     });
 
     return { success: true };
   }
 
   async getEvent(id: string) {
-    return this.prisma.event.findUnique({
+    const event = await this.prisma.event.findUnique({
       where: { id },
-      include: { owner: true },
+      include: { 
+        owner: true,
+        participants: {
+          select: {
+            userId: true,
+            status: true,
+          },
+        },
+      },
     });
+
+    if (!event || event.isDeleted) {
+      throw new NotFoundException('Event not found');
+    }
+
+    return event;
   }
 
   async joinEvent(userId: string, eventId: string) {
@@ -143,32 +172,31 @@ export class EventsService {
       select: { username: true, fullName: true, avatar: true },
     });
 
-    // Create participant record and increment count
+    // Create participant record with PENDING status (do not increment count yet)
     await this.prisma.eventParticipant.create({
       data: {
         eventId,
         userId,
+        status: 'PENDING',
       },
     });
 
-    const updatedEvent = await this.prisma.event.update({
-      where: { id: eventId },
-      data: { participantCount: { increment: 1 } },
-    });
-
-    // Send notification to event owner (only if not joining own event)
+    // Send notification to event owner about new request (only if not joining own event)
     if (event.ownerId !== userId && user) {
       const userName = user.fullName || user.username;
       await this.notificationsService.createNotificationSync({
         userId: event.ownerId,
-        type: 'event_join',
+        type: 'event_request',
         fromUserId: userId,
-        message: `${userName} "${event.title}" etkinliğinize katıldı.`,
+        message: `${userName} "${event.title}" etkinliğinize katılım talebi gönderdi.`,
         targetUrl: `/events/${eventId}`,
       });
     }
 
-    return updatedEvent;
+    // Return event without incrementing count (count will increment when approved)
+    return this.prisma.event.findUnique({
+      where: { id: eventId },
+    });
   }
 
   async getEventComments(id: string) {
@@ -235,6 +263,140 @@ export class EventsService {
       fullName: p.user.fullName,
       avatar: p.user.avatar,
     }));
+  }
+
+  async getPendingRequests(eventId: string, ownerId: string) {
+    // Check if user is the owner
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: { ownerId: true },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+
+    if (event.ownerId !== ownerId) {
+      throw new ForbiddenException('You do not have permission to view requests for this event');
+    }
+
+    // Get PENDING requests
+    const requests = await this.prisma.eventParticipant.findMany({
+      where: { 
+        eventId,
+        status: 'PENDING',
+      },
+      include: { 
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return requests.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      status: r.status,
+      createdAt: r.createdAt,
+      user: {
+        id: r.user.id,
+        username: r.user.username,
+        fullName: r.user.fullName,
+        avatar: r.user.avatar,
+      },
+    }));
+  }
+
+  async updateRequestStatus(
+    eventId: string,
+    requestUserId: string,
+    ownerId: string,
+    status: 'APPROVED' | 'REJECTED',
+  ) {
+    // Check if user is the owner
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: { ownerId: true },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+
+    if (event.ownerId !== ownerId) {
+      throw new ForbiddenException('You do not have permission to update requests for this event');
+    }
+
+    // Find the request
+    const request = await this.prisma.eventParticipant.findUnique({
+      where: {
+        eventId_userId: {
+          eventId,
+          userId: requestUserId,
+        },
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Request not found');
+    }
+
+    if (request.status !== 'PENDING') {
+      throw new ForbiddenException('Request status cannot be changed');
+    }
+
+    // Update request status
+    const updated = await this.prisma.eventParticipant.update({
+      where: {
+        eventId_userId: {
+          eventId,
+          userId: requestUserId,
+        },
+      },
+      data: { status },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+
+    // If approved, increment participant count
+    if (status === 'APPROVED') {
+      await this.prisma.event.update({
+        where: { id: eventId },
+        data: { participantCount: { increment: 1 } },
+      });
+
+      // Send notification to requester
+      const eventData = await this.prisma.event.findUnique({
+        where: { id: eventId },
+        select: { title: true },
+      });
+
+      if (eventData) {
+        await this.notificationsService.createNotificationSync({
+          userId: requestUserId,
+          type: 'event_request_approved',
+          fromUserId: ownerId,
+          message: `"${eventData.title}" etkinliğine yaptığınız talep onaylandı.`,
+          targetUrl: `/events/${eventId}`,
+        });
+      }
+    }
+
+    return updated;
   }
 }
 

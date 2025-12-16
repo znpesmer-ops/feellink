@@ -79,6 +79,14 @@ export class ArticlesController {
     return this.articlesService.findDrafts(user.id);
   }
 
+  @Get('/scheduled')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get my scheduled articles' })
+  async getScheduled(@CurrentUser() user: any) {
+    return this.articlesService.findScheduled(user.id);
+  }
+
   @Get('/published')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

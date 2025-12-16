@@ -5,12 +5,26 @@ export enum ApplicationStatus {
   REVIEWED = 'REVIEWED',
   ACCEPTED = 'ACCEPTED',
   REJECTED = 'REJECTED',
+  INTERVIEW = 'INTERVIEW', // Görüşmeye davet
 }
 
 export class UpdateApplicationStatusDto {
   @IsEnum(ApplicationStatus)
   status: ApplicationStatus;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

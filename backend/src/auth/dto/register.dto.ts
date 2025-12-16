@@ -24,6 +24,13 @@ export class RegisterDto {
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => {
+    // Boş string'i undefined'a çevir
+    if (typeof value === 'string' && value.trim() === '') {
+      return undefined;
+    }
+    return value;
+  })
   fullName?: string;
 
   @IsOptional()

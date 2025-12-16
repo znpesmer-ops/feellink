@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
+import { IsOptional, IsString, IsUrl, MaxLength, ValidateIf } from 'class-validator';
 
 export class CreateJobApplicationDto {
   @IsOptional()
@@ -12,8 +12,27 @@ export class CreateJobApplicationDto {
 
   @IsOptional()
   @IsUrl()
+  portfolioFileUrl?: string; // Yüklenen portfolyo dosyası URL'i
+
+  @IsOptional()
+  @IsString()
   cvUrl?: string;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

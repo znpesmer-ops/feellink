@@ -1,7 +1,8 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe, Logger, HttpException } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { json, raw, urlencoded } from 'express';
+import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import * as net from 'net';
@@ -36,6 +37,9 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = new Logger('Bootstrap');
 
+  // Cookie parser for refreshToken cookies
+  app.use(cookieParser());
+
   // Stripe webhook needs raw body
   app.use('/payments/webhook', raw({ type: 'application/json' }));
 
@@ -45,7 +49,7 @@ async function bootstrap() {
 
   // Enable CORS
   const isDevelopment = process.env.NODE_ENV !== 'production';
-  const localIP = '192.168.1.38'; // 🔥 Mobil erişim için local IP
+  const localIP = '192.168.1.59'; // 🔥 Mobil erişim için local IP
   const allowedOrigins = isDevelopment
     ? [
         'http://localhost:3000',
@@ -117,8 +121,34 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: true,
+      forbidNonWhitelisted: false, // Geçici olarak false - debug için
       transform: true,
+      enableDebugMessages: true, // Detaylı hata mesajları için
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+      exceptionFactory: (errors) => {
+        // Detaylı validation hata mesajları
+        const messages = errors.map((error) => {
+          const constraints = error.constraints || {};
+          return Object.values(constraints).join(', ');
+        });
+        const logger = new Logger('ValidationPipe');
+        logger.error(`Validation failed: ${JSON.stringify(messages, null, 2)}`);
+        logger.error(`Validation errors detail: ${JSON.stringify(errors.map(e => ({
+          property: e.property,
+          value: e.value,
+          constraints: e.constraints
+        })), null, 2)}`);
+        return new HttpException(
+          {
+            statusCode: 400,
+            message: messages,
+            error: 'Bad Request',
+          },
+          400,
+        );
+      },
     }),
   );
 

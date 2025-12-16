@@ -40,8 +40,12 @@ export class TicketMailerService {
         </div>
       `;
 
+      // Mail gönderen adresi: MAIL_FROM_NAME ve MAIL_FROM kullan (mail.service.ts ile tutarlı)
+      const mailFromName = process.env.MAIL_FROM_NAME || 'feellink';
+      const mailFrom = process.env.MAIL_FROM || 'info@feellink.io';
+      
       await this.transporter.sendMail({
-        from: `"Feellink" <${process.env.SMTP_FROM || 'noreply@feellink.com'}>`,
+        from: `"${mailFromName}" <${mailFrom}>`,
         to,
         subject: `🎟️ ${data.eventTitle} - Biletiniz`,
         html,

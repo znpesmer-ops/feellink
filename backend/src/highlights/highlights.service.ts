@@ -9,18 +9,14 @@ export class HighlightsService {
   async getByUsername(username: string) {
     const user = await this.prisma.user.findUnique({
       where: { username },
-      select: { id: true, plan: true },
+      select: { id: true },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    // Sadece PRO planındaki kullanıcılar için highlights göster
-    // Artist Pro kontrolü için plan === 'PRO' kontrolü yapıyoruz
-    if (user.plan !== 'PRO') {
-      return [];
-    }
+    // Plan kontrolü kaldırıldı - artık herkes highlights görebilir
 
     const highlights = await this.prisma.highlight.findMany({
       where: { userId: user.id },
@@ -70,21 +66,26 @@ export class HighlightsService {
   }
 
   async create(dto: CreateHighlightDto, userId: string) {
-    // Kullanıcının PRO planında olduğunu kontrol et
+    // Plan kontrolü kaldırıldı - artık herkes highlight oluşturabilir
+    // Kullanıcının var olduğunu kontrol et
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { plan: true },
+      select: { id: true },
     });
 
-    if (!user || user.plan !== 'PRO') {
-      throw new ForbiddenException('Bu özellik sadece Pro plan kullanıcıları için geçerlidir.');
+    if (!user) {
+      throw new ForbiddenException('Kullanıcı bulunamadı.');
     }
 
-    // Post'ların kullanıcıya ait olduğunu kontrol et (tip kontrolü yok - tüm gönderiler eklenebilir)
+    // ÖNE ÇIKAN TEMALAR: Sadece kullanıcının KENDİ post'larını eklemesine izin ver
+    // ❌ Başkalarının eserleri YOK
+    // ❌ Genel arama YOK
+    // ❌ Koleksiyon mantığı YOK
+    // ✅ Sadece kullanıcının kendi yüklediği post'lar
     const posts = await this.prisma.post.findMany({
       where: {
         id: { in: dto.postIds },
-        userId,
+        userId, // Sadece kullanıcının kendi post'ları
       },
       select: { id: true },
     });
@@ -200,11 +201,15 @@ export class HighlightsService {
       throw new ForbiddenException('Bu temaya eser ekleme yetkiniz yok.');
     }
 
-    // Post'ların kullanıcıya ait olduğunu kontrol et
+    // ÖNE ÇIKAN TEMALAR: Sadece kullanıcının KENDİ post'larını eklemesine izin ver
+    // ❌ Başkalarının eserleri YOK
+    // ❌ Genel arama YOK
+    // ❌ Koleksiyon mantığı YOK
+    // ✅ Sadece kullanıcının kendi yüklediği post'lar
     const posts = await this.prisma.post.findMany({
       where: {
         id: { in: postIds },
-        userId,
+        userId, // Sadece kullanıcının kendi post'ları
       },
       select: { id: true },
     });
@@ -246,6 +251,97 @@ export class HighlightsService {
         sortOrder: currentItemCount + index,
       })),
     });
+
+    return this.prisma.highlight.findUnique({
+      where: { id: highlightId },
+      include: {
+        coverPost: {
+          include: {
+            media: {
+              orderBy: { order: 'asc' },
+              take: 1,
+            },
+          },
+        },
+        items: {
+          include: {
+            post: {
+              include: {
+                media: {
+                  orderBy: { order: 'asc' },
+                  take: 1,
+                },
+              },
+            },
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    });
+  }
+
+  async removePosts(highlightId: string, postIds: string[], userId: string) {
+    // Highlight'ın kullanıcıya ait olduğunu kontrol et
+    const highlight = await this.prisma.highlight.findUnique({
+      where: { id: highlightId },
+      select: { userId: true },
+    });
+
+    if (!highlight) {
+      throw new NotFoundException('Highlight not found');
+    }
+
+    if (highlight.userId !== userId) {
+      throw new ForbiddenException('Bu temadan eser kaldırma yetkiniz yok.');
+    }
+
+    if (postIds.length === 0) {
+      throw new BadRequestException('En az bir eser seçmelisiniz.');
+    }
+
+    // Mevcut item'ları kontrol et
+    const existingItems = await this.prisma.highlightItem.findMany({
+      where: {
+        highlightId,
+        postId: { in: postIds },
+      },
+      select: { id: true, postId: true },
+    });
+
+    if (existingItems.length === 0) {
+      throw new BadRequestException('Seçilen eserler temada bulunamadı.');
+    }
+
+    // Item'ları sil
+    const itemIdsToDelete = existingItems.map((item) => item.id);
+    await this.prisma.highlightItem.deleteMany({
+      where: {
+        id: { in: itemIdsToDelete },
+      },
+    });
+
+    // Eğer silinen eserlerden biri coverPost ise, coverPost'u güncelle
+    const deletedPostIds = existingItems.map((item) => item.postId);
+    const highlightWithCover = await this.prisma.highlight.findUnique({
+      where: { id: highlightId },
+      select: { coverPostId: true },
+    });
+
+    if (highlightWithCover?.coverPostId && deletedPostIds.includes(highlightWithCover.coverPostId)) {
+      // Cover post silindi, yeni bir cover seç
+      const remainingItems = await this.prisma.highlightItem.findFirst({
+        where: { highlightId },
+        orderBy: { sortOrder: 'asc' },
+        select: { postId: true },
+      });
+
+      await this.prisma.highlight.update({
+        where: { id: highlightId },
+        data: {
+          coverPostId: remainingItems?.postId || null,
+        },
+      });
+    }
 
     return this.prisma.highlight.findUnique({
       where: { id: highlightId },

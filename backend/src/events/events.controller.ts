@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Put, Delete, Param, UseGuards, Req, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Delete, Patch, Param, UseGuards, Req, Query } from '@nestjs/common';
 import { EventsService } from './events.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -70,6 +70,23 @@ export class EventsController {
   @UseGuards(JwtAuthGuard)
   async deleteEvent(@CurrentUser() user: any, @Param('id') id: string) {
     return this.eventsService.deleteEvent(user.id, id);
+  }
+
+  @Get(':id/requests')
+  @UseGuards(JwtAuthGuard)
+  async getPendingRequests(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.eventsService.getPendingRequests(id, user.id);
+  }
+
+  @Patch(':id/requests/:userId')
+  @UseGuards(JwtAuthGuard)
+  async updateRequestStatus(
+    @CurrentUser() user: any,
+    @Param('id') eventId: string,
+    @Param('userId') requestUserId: string,
+    @Body() body: { status: 'APPROVED' | 'REJECTED' },
+  ) {
+    return this.eventsService.updateRequestStatus(eventId, requestUserId, user.id, body.status);
   }
 }
 

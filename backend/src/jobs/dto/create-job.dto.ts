@@ -41,3 +41,18 @@ export class CreateJobDto {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -14,11 +14,14 @@ export class NotificationsController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    return this.notificationsService.getNotifications(
+    const result = await this.notificationsService.getNotifications(
       user.id,
       limit ? parseInt(limit) : 20,
       offset ? parseInt(offset) : 0,
     );
+    // Geriye uyumluluk için: eğer sadece notifications array'i döndürülüyorsa
+    // Eski frontend kodları için notifications array'ini direkt döndür
+    return result;
   }
 
   @Get('unread-count')
@@ -37,6 +40,14 @@ export class NotificationsController {
     return this.notificationsService.markAllAsRead(user.id);
   }
 }
+
+
+
+
+
+
+
+
 
 
 
