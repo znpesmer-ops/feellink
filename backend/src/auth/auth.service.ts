@@ -47,14 +47,54 @@ export class AuthService {
     isPrivate: true,
     isVerified: true,
     isAdmin: true,
+    superAdmin: true, // 🔥 GOD-MODE
     createdAt: true,
   } as const;
 
   private hydrateAuthUser(user: any) {
-    const plan = (user.plan as SubscriptionPlanCode) ?? 'FREE';
-    const roles = normalizeRoles(user.roles as string[]);
-    const badgeIds = Array.isArray(user.badges) ? (user.badges as string[]) : [];
-    const capabilities = computeCapabilities(roles, plan, badgeIds);
+    // Null-safe plan handling: plan null/undefined ise 'FREE' kullan
+    const plan: SubscriptionPlanCode = (user?.plan as SubscriptionPlanCode) ?? 'FREE';
+    const roles = normalizeRoles(user?.roles as string[]);
+    const badgeIds = Array.isArray(user?.badges) ? (user.badges as string[]) : [];
+    const isAdmin = user?.isAdmin === true || user?.superAdmin === true;
+    
+    // 🔥 Admin kullanıcılar için tüm özellikleri açık yap (SaaS mantığı)
+    let capabilities = computeCapabilities(roles, plan, badgeIds);
+    
+    if (isAdmin) {
+      // Admin için tüm özellikleri açık yap
+      capabilities = {
+        ...capabilities,
+        permissions: {
+          canCreateEvents: true,
+          canAccessMyEvents: true,
+          canAccessCollections: true,
+          canManageCollections: true,
+          canAccessAnalytics: true,
+          canCreateListings: true,
+          canCreateArtworks: true,
+        },
+        sidebar: {
+          home: true,
+          explore: true,
+          messages: true,
+          profile: true,
+          createEvent: true,
+          myEvents: true,
+          collections: true,
+          manageCollections: true,
+          analytics: true,
+          listings: true,
+          badges: true,
+        },
+        limits: {
+          eventLimitMonthly: null, // Sınırsız
+          artworkLimitMonthly: null, // Sınırsız
+          eventCooldownMonths: null, // Sınırsız
+        },
+      };
+    }
+    
     const primaryRole = roles.length > 0 ? roles[0] : 'art_lover';
     const dashboard = getDashboardSnapshot(primaryRole, plan);
     const sidebar = getSidebarVisibility(capabilities);
@@ -74,6 +114,7 @@ export class AuthService {
         isPrivate: user.isPrivate,
         isVerified: user.isVerified,
         isAdmin: user.isAdmin,
+        superAdmin: user.superAdmin, // 🔥 GOD-MODE
         createdAt: user.createdAt,
       },
       capabilities,

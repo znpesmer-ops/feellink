@@ -33,6 +33,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         isPrivate: true,
         isVerified: true,
         isAdmin: true,
+        superAdmin: true, // 🔥 GOD-MODE
       },
     });
 
@@ -42,6 +43,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     return {
       ...user,
+      plan: user.plan ?? 'FREE', // Null-safe: plan null ise 'FREE' kullan
       badges: Array.isArray(user.badges) ? user.badges : [],
     };
   }

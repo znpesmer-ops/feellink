@@ -45,15 +45,17 @@ export function getBadgesFromSelection(
   const extrasForBadges = mapExtrasForBadges(extras);
   const badges: string[] = [];
 
-  if (badgeRoles.includes('sanatsever') && plan === 'PRO') {
+  // Plan kontrolü kaldırıldı - artık sadece rol bazlı badge'ler
+  // Tüm roller için badge'ler otomatik olarak ekleniyor
+  if (badgeRoles.includes('sanatsever')) {
     badges.push('sanatsever-pro');
   }
 
-  if (badgeRoles.includes('kurumsal') && plan === 'PRO') {
+  if (badgeRoles.includes('kurumsal')) {
     badges.push('kurumsal-pro');
   }
 
-  if (badgeRoles.includes('koleksiyoner') && plan === 'ORI') {
+  if (badgeRoles.includes('koleksiyoner')) {
     badges.push('koleksiyoner-ori');
   }
 
@@ -61,7 +63,7 @@ export function getBadgesFromSelection(
     badges.push('koleksiyoner-extra');
   }
 
-  if (badgeRoles.includes('sanatci') && plan === 'PRO') {
+  if (badgeRoles.includes('sanatci')) {
     badges.push('sanatci-pro');
   }
 
@@ -205,7 +207,8 @@ export class UsersService {
     ]);
 
     const badgeIds = Array.isArray(user.badges) ? (user.badges as string[]) : [];
-    const capabilities = computeCapabilities(user.roles as string[], user.plan as SubscriptionPlanCode, badgeIds);
+    const plan: SubscriptionPlanCode = (user.plan as SubscriptionPlanCode) ?? 'FREE';
+    const capabilities = computeCapabilities(user.roles as string[], plan, badgeIds);
 
     const sidebar = getSidebarVisibility(capabilities);
 
@@ -656,9 +659,11 @@ export class UsersService {
       },
     });
 
+    // nextPlan zaten null-safe olarak tanımlı, updatedUser.plan ile aynı olmalı
+    const userPlan: SubscriptionPlanCode = (updatedUser.plan as SubscriptionPlanCode) ?? nextPlan;
     const capabilities = computeCapabilities(
       updatedUser.roles as string[],
-      updatedUser.plan as SubscriptionPlanCode,
+      userPlan,
       (updatedUser.badges as string[]) ?? [],
     );
     const sidebar = getSidebarVisibility(capabilities);
@@ -685,9 +690,10 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    const plan: SubscriptionPlanCode = (user.plan as SubscriptionPlanCode) ?? 'FREE';
     return computeCapabilities(
       (user.roles as string[]) ?? [],
-      user.plan as SubscriptionPlanCode,
+      plan,
       (user.badges as string[]) ?? [],
     );
   }
@@ -736,9 +742,11 @@ export class UsersService {
       },
     });
 
+    // updatedUser.plan zaten parametre olarak gelen plan ile set edildi, null olamaz
+    const userPlan: SubscriptionPlanCode = (updatedUser.plan as SubscriptionPlanCode) ?? plan;
     const capabilities = computeCapabilities(
       updatedUser.roles as string[],
-      updatedUser.plan as SubscriptionPlanCode,
+      userPlan,
       (updatedUser.badges as string[]) ?? [],
     );
     const sidebar = getSidebarVisibility(capabilities);
