@@ -33,6 +33,12 @@ export class JobsController {
     return this.jobsService.getAll();
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  async getJob(@Param('id') jobId: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.jobsService.getById(jobId, user.id);
+  }
+
   // ⚠️ ÖNEMLİ: Route sıralaması kritik!
   // 1. 'me' route'ları (en spesifik)
   // 2. 'applications' route'ları (spesifik)
@@ -120,6 +126,17 @@ export class JobsController {
     @CurrentUser() user: CurrentUserPayload,
   ) {
     return this.jobsService.checkUserApplication(jobListingId, user.id);
+  }
+
+  // ✅ İlan güncelleme endpoint'i
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
+  async updateJob(
+    @Param('id') jobId: string,
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() dto: CreateJobDto,
+  ) {
+    return this.jobsService.update(jobId, user.id, dto);
   }
 
   // 🔥 İlan silme endpoint'i

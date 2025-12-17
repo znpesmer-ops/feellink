@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Patch, Body, Param, UseGuards, Query, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Put, Patch, Post, Delete, Body, Param, UseGuards, Query, NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -91,6 +91,33 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   async getRoleOverview() {
     return this.usersService.getRolesOverview();
+  }
+
+  @Post(':userId/block')
+  @UseGuards(JwtAuthGuard)
+  async blockUser(@Param('userId') userId: string, @CurrentUser() user: any) {
+    if (!user?.id) {
+      throw new NotFoundException('Kullanıcı kimliği bulunamadı.');
+    }
+    return this.usersService.blockUser(user.id, userId);
+  }
+
+  @Delete(':userId/block')
+  @UseGuards(JwtAuthGuard)
+  async unblockUser(@Param('userId') userId: string, @CurrentUser() user: any) {
+    if (!user?.id) {
+      throw new NotFoundException('Kullanıcı kimliği bulunamadı.');
+    }
+    return this.usersService.unblockUser(user.id, userId);
+  }
+
+  @Get('me/blocked')
+  @UseGuards(JwtAuthGuard)
+  async getBlockedUsers(@CurrentUser() user: any) {
+    if (!user?.id) {
+      throw new NotFoundException('Kullanıcı kimliği bulunamadı.');
+    }
+    return this.usersService.getBlockedUsers(user.id);
   }
 }
 

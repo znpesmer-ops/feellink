@@ -50,6 +50,9 @@ async function bootstrap() {
   // Enable CORS
   const isDevelopment = process.env.NODE_ENV !== 'production';
   const localIP = '192.168.1.59'; // 🔥 Mobil erişim için local IP
+  const mainIP = '192.168.1.6'; // 🔥 Ana network IP (WiFi/Ethernet)
+  const vpnIP = '192.168.175.1'; // 🔥 VPN erişim için IP
+  const vmIP = '192.168.56.1'; // 🔥 VM/Network erişim için IP
   const allowedOrigins = isDevelopment
     ? [
         'http://localhost:3000',
@@ -62,6 +65,18 @@ async function bootstrap() {
         `http://${localIP}:3001`, // 🔥 Alternatif port
         `http://${localIP}:3002`, // 🔥 Backend port
         `http://${localIP}`, // 🔥 Bazı cihazlar port eklemeden bağlanır
+        `http://${mainIP}:3000`, // 🔥 Ana network frontend erişimi
+        `http://${mainIP}:3001`, // 🔥 Ana network alternatif port
+        `http://${mainIP}:3002`, // 🔥 Ana network backend port
+        `http://${mainIP}`, // 🔥 Ana network bazı cihazlar port eklemeden bağlanır
+        `http://${vpnIP}:3000`, // 🔥 VPN frontend erişimi
+        `http://${vpnIP}:3001`, // 🔥 VPN alternatif port
+        `http://${vpnIP}:3002`, // 🔥 VPN backend port
+        `http://${vpnIP}`, // 🔥 VPN bazı cihazlar port eklemeden bağlanır
+        `http://${vmIP}:3000`, // 🔥 VM/Network frontend erişimi
+        `http://${vmIP}:3001`, // 🔥 VM/Network alternatif port
+        `http://${vmIP}:3002`, // 🔥 VM/Network backend port
+        `http://${vmIP}`, // 🔥 VM/Network bazı cihazlar port eklemeden bağlanır
         'https://composer-variation-result-father.trycloudflare.com', // 🔥 Cloudflare Frontend Tunnel
       ]
     : [process.env.FRONTEND_URL || 'http://localhost:3000'];

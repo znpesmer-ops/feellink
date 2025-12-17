@@ -251,12 +251,17 @@ export class NotificationsService {
   }
 
   async updatePrefs(userId: string, data: Partial<Record<NotifType, boolean>>) {
-    // Önce preference'ı oluştur (yoksa)
-    await this.getPrefs(userId);
-    
-    return this.prisma.notificationPreference.update({
+    // Upsert: yoksa oluştur, varsa güncelle
+    return this.prisma.notificationPreference.upsert({
       where: { userId },
-      data,
+      create: {
+        userId,
+        mention: data.mention ?? true,
+        follow: data.follow ?? true,
+        like: data.like ?? true,
+        comment: data.comment ?? true,
+      },
+      update: data,
     });
   }
 

@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Body, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { NotificationsService } from './notifications.service';
@@ -13,7 +13,7 @@ export class NotificationPreferencesController {
     return this.notificationsService.getPrefs(user.id);
   }
 
-  @Put()
+  @Patch()
   async updatePrefs(
     @CurrentUser() user: any,
     @Body() body: { mention?: boolean; follow?: boolean; like?: boolean; comment?: boolean },

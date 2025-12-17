@@ -57,14 +57,17 @@ export class MailService {
     const mailFrom = process.env.MAIL_FROM || 'info@feellink.io';
     const from = `"${mailFromName}" <${mailFrom}>`;
 
-    // Anti-trim token: Gmail'in "3 nokta" gizleme algoritmasını engeller
-    const antiTrimToken = `UNIQUE_${Math.random()}_${Date.now()}`;
+    // ✅ TEMİZ SUBJECT: Token asla subject'te olmamalı
+    const subject = 'Feellink | Şifre Sıfırlama Bağlantınız';
 
+    // ✅ TEMİZ TEXT VERSİYONU (HTML render edilemezse)
+    const text = `Şifrenizi sıfırlamak için aşağıdaki bağlantıyı kullanabilirsiniz:\n\n${resetUrl}\n\nBu bağlantı 15 dakika geçerlidir. Eğer bu işlemi siz başlatmadıysanız, bu e-postayı güvenle yok sayabilirsiniz.\n\n© Feellink – Sanat Daha Anlamlı`;
+
+    // ✅ TEMİZ HTML: antiTrimToken kaldırıldı, sadece görsel içerik
     const html = `
       <!DOCTYPE html>
       <html lang="tr">
       <body style="margin:0;padding:0;background:#f5f7fa;">
-      <span style="opacity:0; font-size:0; line-height:0;">${antiTrimToken}</span>
       
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f5f7fa;padding:40px 0;">
         <tr>
@@ -95,7 +98,7 @@ export class MailService {
               <tr>
                 <td align="center" style="padding-top:28px;">
                   <h1 style="margin:0;font-size:22px;color:#222;font-weight:700;font-family:Arial,Helvetica,sans-serif;">
-                    Feellink Şifre Sıfırlama
+                    Şifre Sıfırlama Talebi
                   </h1>
                 </td>
               </tr>
@@ -106,13 +109,13 @@ export class MailService {
                   <p style="margin:0;font-size:15px;color:#444;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
                     Merhaba,
                     <br><br>
-                    Feellink hesabınız için bir şifre sıfırlama isteği aldık.
+                    Feellink hesabınız için bir şifre sıfırlama talebi aldık.
                     Yeni şifrenizi belirlemek için aşağıdaki turuncu butona tıklayın.
                   </p>
                 </td>
               </tr>
 
-              <!-- BUTON (Artık Gmail tarafından GİZLENMEZ) -->
+              <!-- BUTON -->
               <tr>
                 <td align="center" style="padding:30px 0 10px 0;">
                   <a href="${resetUrl}" style="
@@ -135,7 +138,7 @@ export class MailService {
               <tr>
                 <td style="padding-top:20px;">
                   <p style="margin:0;font-size:13px;color:#777;line-height:1.5;font-family:Arial,Helvetica,sans-serif;">
-                    Eğer bu isteği siz yapmadıysanız, bu e-postayı yok sayabilirsiniz.
+                    Bu bağlantı 15 dakika geçerlidir. Eğer bu işlemi siz başlatmadıysanız, bu e-postayı güvenle yok sayabilirsiniz.
                   </p>
                 </td>
               </tr>
@@ -170,7 +173,8 @@ export class MailService {
       await this.transporter.sendMail({
         from,
         to,
-        subject: 'Feellink Şifre Sıfırlama Bağlantısı',
+        subject,
+        text, // ✅ Text versiyonu eklendi
         html,
       });
       this.logger.log(`Password reset email sent to ${to}`);
@@ -331,13 +335,12 @@ export class MailService {
 
     const subject = 'Feellink | Başvurunuz Hakkında';
 
-    const antiTrimToken = `UNIQUE_${Math.random()}_${Date.now()}`;
+    // ✅ antiTrimToken kaldırıldı - kullanıcıya görünmemeli
 
     const html = `
       <!DOCTYPE html>
       <html lang="tr">
       <body style="margin:0;padding:0;background:#f5f7fa;">
-      <span style="opacity:0; font-size:0; line-height:0;">${antiTrimToken}</span>
       
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f5f7fa;padding:40px 0;">
         <tr>
@@ -457,13 +460,12 @@ export class MailService {
 
     const subject = 'Feellink | Başvurunuz Hakkında';
 
-    const antiTrimToken = `UNIQUE_${Math.random()}_${Date.now()}`;
+    // ✅ antiTrimToken kaldırıldı - kullanıcıya görünmemeli
 
     const html = `
       <!DOCTYPE html>
       <html lang="tr">
       <body style="margin:0;padding:0;background:#f5f7fa;">
-      <span style="opacity:0; font-size:0; line-height:0;">${antiTrimToken}</span>
       
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f5f7fa;padding:40px 0;">
         <tr>

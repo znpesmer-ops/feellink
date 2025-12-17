@@ -216,6 +216,17 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         data: { updatedAt: new Date() },
       });
 
+      // ✅ Yeni mesaj geldiğinde silinmiş sohbetleri geri getir
+      await this.prisma.userConversation.updateMany({
+        where: {
+          conversationId: data.conversationId,
+          isDeleted: true,
+        },
+        data: {
+          isDeleted: false,
+        },
+      });
+
       // Mesajı aynı konuşmadaki tüm kullanıcılara gönder
       this.server.to(`conversation_${data.conversationId}`).emit('receive_message', message);
 

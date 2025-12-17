@@ -19,6 +19,7 @@ import * as QRCode from 'qrcode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { PDFDocument as PDFLibDocument } from 'pdf-lib';
+import * as sharp from 'sharp';
 
 @Injectable()
 export class PostsService {
@@ -400,6 +401,55 @@ export class PostsService {
       isLiked,
       isSaved,
     };
+  }
+
+  async updatePost(postId: string, userId: string, data: { caption?: string; title?: string }) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    if (post.userId !== userId) {
+      throw new ForbiddenException('Cannot update this post');
+    }
+
+    const updatedPost = await this.prisma.post.update({
+      where: { id: postId },
+      data: {
+        ...(data.caption !== undefined && { caption: data.caption }),
+        ...(data.title !== undefined && { title: data.title }),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true,
+          },
+        },
+        media: {
+          orderBy: { order: 'asc' },
+        },
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+          },
+        },
+      },
+    });
+
+    // 🔔 Real-time yayın - Socket.IO ile güncelleme bildirimi
+    if (this.postsGateway) {
+      this.postsGateway.server.emit('post:updated', { postId, post: updatedPost });
+      console.log(`✏️ Post updated event broadcasted: ${postId}`);
+    }
+
+    return updatedPost;
   }
 
   async deletePost(postId: string, userId: string) {
@@ -1115,6 +1165,9 @@ export class PostsService {
 
         return {
           ...post,
+          id: post.id,
+          title: post.title || null, // Eser adı - eksik olmamalı
+          caption: post.caption || null, // Açıklama
           type: post.type || 'post', // Ensure type field exists, default to 'post'
           media: transformedMedia,
           isLiked: likedPostIds.has(post.id),
@@ -1131,6 +1184,9 @@ export class PostsService {
 
       return {
         ...post,
+        id: post.id,
+        title: post.title || null, // Eser adı - eksik olmamalı
+        caption: post.caption || null, // Açıklama
         type: post.type || 'post', // Ensure type field exists, default to 'post'
         media: transformedMedia,
         isLiked: false,
@@ -1896,6 +1952,9 @@ export class PostsService {
     // Scale faktörü (template olmayan durum için) - HD çözünürlük korunuyor
     const scale = useTemplate ? 1 : 0.65;
     
+    // Logo hizalaması için textX (template kullanılmadığında tanımlanacak)
+    let textX: number | undefined;
+    
     if (useTemplate) {
       padding = 0;
       contentWidth = width;
@@ -1932,6 +1991,7 @@ export class PostsService {
       // Kartvizit boyutunda eser etiketi tasarımı (tüm boyutlar scale faktörü ile küçültülmüş)
       // scale değişkeni yukarıda tanımlı (0.6)
       let currentY = contentStartY;
+      let textX: number; // Logo hizalaması için gerekli
 
       // === ESER ADI (Büyük, küçültülmüş) ===
       const eserAdiFontSize = Math.round(42 * scale); // 25px
@@ -2002,11 +2062,8 @@ export class PostsService {
       ctx.fill();
       ctx.stroke();
 
-      // === SAĞ TARAF: YAZILAR (QR kodun sağında, QR kodun tam ortasına hizalanmış, küçültülmüş) ===
-      const textX = qrX + qrSize + gap; // Yazılar QR kodun sağında
-
-      // QR kodun tam ortası (dikey)
-      const qrCenterY = qrY + qrSize / 2;
+      // === SAĞ TARAF: YAZILAR (QR kodun sağında, QR kodun başlangıcı ile aynı yatay hizada, küçültülmüş) ===
+      textX = qrX + qrSize + gap; // Yazılar QR kodun sağında
 
       // Font boyutları ve satır yükseklikleri (küçültülmüş)
       const firstFontSize = Math.round(32 * scale); // 19px
@@ -2016,12 +2073,9 @@ export class PostsService {
       // Yaklaşık satır yükseklikleri (font size'a göre)
       const firstLineHeight = firstFontSize * 1.2; // ~23px
       const secondLineHeight = secondFontSize * 1.2; // ~20px
-      const totalTextHeight = firstLineHeight + lineSpacing + secondLineHeight;
 
-      // Yazıları QR kodun ortasına göre ortalama ve biraz yukarı al
-      // QR kodun ortasından toplam yüksekliğin yarısını çıkarıp ilk satırın yarısını ekle
-      const upOffset = Math.round(20 * scale); // 12px yukarı kaydırıyoruz
-      let firstTextY = qrCenterY - (totalTextHeight / 2) + (firstLineHeight / 2) - upOffset;
+      // Yazıları QR kodun başlangıç Y pozisyonu ile aynı yatay hizada başlat
+      let firstTextY = qrY;
 
       // === FEELINK BAŞLIĞI (küçültülmüş) - Sude Esmer ile aynı font ailesi ===
       ctx.font = `${firstFontSize}px ${hasInterRegular ? 'Inter' : 'Times New Roman'}`;
@@ -2066,6 +2120,63 @@ export class PostsService {
       ctx.lineWidth = 3;
       ctx.strokeRect(qrX - 5, qrY - 5, qrSize + 10, qrSize + 10);
       ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+      
+      // === FEELINK LOGOSU (Template için - Sağ alt köşe, "Paylaş" yazısıyla aynı görsel ağırlık, nefes alacak şekilde) ===
+      // SVG kullanıldığında letter-spacing ile harf aralığı açılabilir (PNG'de mümkün değil)
+      try {
+        const logoSvgPath = path.join(process.cwd(), 'assets', 'logo.svg');
+        const logoPngPath = path.join(process.cwd(), 'assets', 'logo.png');
+        
+        let logoImg: any = null;
+        
+        // Önce SVG'yi dene (letter-spacing için ideal)
+        if (fs.existsSync(logoSvgPath)) {
+          // SVG'yi PNG'ye çevir (canvas SVG'yi doğrudan desteklemez)
+          const svgBuffer = fs.readFileSync(logoSvgPath);
+          const pngBuffer = await sharp(svgBuffer)
+            .resize(200, 200, { // Yüksek çözünürlük için büyük boyut
+              fit: 'contain',
+              background: { r: 255, g: 255, b: 255, alpha: 0 } // Şeffaf arka plan
+            })
+            .png()
+            .toBuffer();
+          logoImg = await loadImage(pngBuffer);
+        } else if (fs.existsSync(logoPngPath)) {
+          // PNG fallback
+          logoImg = await loadImage(logoPngPath);
+        }
+        
+        if (logoImg) {
+          
+          // Logo boyutu (56px - harflerin daha rahat algılanması için, template'e göre orantılı)
+          const logoSize = width * (56 / 2000); // Template'e göre orantılı, 56px hedef
+          const logoMargin = width * (28 / 2000); // 28px boşluk (kart kenarından, dengeli konum için)
+          
+          // Logo scaleX ile genişletildiğinde gerçek genişliği
+          const scaleXValue = 2.5;
+          const logoActualWidth = logoSize * scaleXValue;
+          
+          // Sağ alt köşe pozisyonu (eski yer, scaleX genişliği hesaba katılarak)
+          const logoX = width - logoActualWidth - logoMargin;
+          const logoY = height - logoSize - logoMargin;
+          
+          // Logo merkez noktası (scaleX için referans)
+          const logoCenterX = logoX + logoActualWidth / 2;
+          const logoCenterY = logoY + logoSize / 2;
+          
+          // Logo opacity (premium hissi)
+          ctx.globalAlpha = 0.9;
+          ctx.save(); // Canvas state'i kaydet
+          ctx.translate(logoCenterX, logoCenterY); // Logo merkezine git
+          ctx.scale(2.5, 1); // Sadece X ekseninde scale (yatay genişletme)
+          ctx.drawImage(logoImg, -logoSize / 2, -logoSize / 2, logoSize, logoSize); // Merkez noktasından çiz
+          ctx.restore(); // Canvas state'i geri yükle
+          ctx.globalAlpha = 1.0; // Opacity'yi geri al
+        }
+      } catch (error) {
+        console.warn('Logo yüklenemedi (opsiyonel):', error);
+        // Logo yoksa devam et, hata verme
+      }
     } else {
       // Kartvizit boyutunda etiket tasarımı: QR kod sol yuvarlak kenarlı kutusunun içine (padding ile, küçültülmüş)
       // scale değişkeni yukarıda tanımlı (0.6)
@@ -2140,6 +2251,63 @@ export class PostsService {
       // Canvas yüksekliği başlangıçta 480px olarak ayarlandı
       // QR kodun bitiş noktası (qrY + qrSize + padding) yaklaşık 466px civarında
       // Bu yüzden canvas yüksekliği zaten uygun, crop etmeye gerek yok
+    }
+
+    // === FEELINK LOGOSU (Sağ alt köşe, "Paylaş" yazısıyla aynı görsel ağırlık, nefes alacak şekilde) ===
+    // SVG kullanıldığında letter-spacing ile harf aralığı açılabilir (PNG'de mümkün değil)
+    try {
+      const logoSvgPath = path.join(process.cwd(), 'assets', 'logo.svg');
+      const logoPngPath = path.join(process.cwd(), 'assets', 'logo.png');
+      
+      let logoImg: any = null;
+      
+      // Önce SVG'yi dene (letter-spacing için ideal)
+      if (fs.existsSync(logoSvgPath)) {
+        // SVG'yi PNG'ye çevir (canvas SVG'yi doğrudan desteklemez)
+        const svgBuffer = fs.readFileSync(logoSvgPath);
+        const pngBuffer = await sharp(svgBuffer)
+          .resize(200, 200, { // Yüksek çözünürlük için büyük boyut
+            fit: 'contain',
+            background: { r: 255, g: 255, b: 255, alpha: 0 } // Şeffaf arka plan
+          })
+          .png()
+          .toBuffer();
+        logoImg = await loadImage(pngBuffer);
+      } else if (fs.existsSync(logoPngPath)) {
+        // PNG fallback
+        logoImg = await loadImage(logoPngPath);
+      }
+      
+      if (logoImg) {
+        
+        // Logo boyutu (56px - harflerin daha rahat algılanması için, scale faktörü ile)
+        const logoSize = Math.round(56 * scale); // 56px hedef (scale 0.65 ile ~36px gerçek boyut)
+        const logoMargin = Math.round(28 * scale); // 28px boşluk (kart kenarından, dengeli konum için)
+        
+        // Logo scaleX ile genişletildiğinde gerçek genişliği
+        const scaleXValue = 2.5;
+        const logoActualWidth = logoSize * scaleXValue;
+        
+        // Sağ alt köşe pozisyonu (eski yer, scaleX genişliği hesaba katılarak)
+        const logoX = width - logoActualWidth - logoMargin;
+        const logoY = height - logoSize - logoMargin;
+        
+        // Logo merkez noktası (scaleX için referans)
+        const logoCenterX = logoX + logoActualWidth / 2;
+        const logoCenterY = logoY + logoSize / 2;
+        
+        // Logo opacity (premium hissi)
+        ctx.globalAlpha = 0.9;
+        ctx.save(); // Canvas state'i kaydet
+        ctx.translate(logoCenterX, logoCenterY); // Logo merkezine git
+        ctx.scale(2.5, 1); // Sadece X ekseninde scale (yatay genişletme)
+        ctx.drawImage(logoImg, -logoSize / 2, -logoSize / 2, logoSize, logoSize); // Merkez noktasından çiz
+        ctx.restore(); // Canvas state'i geri yükle
+        ctx.globalAlpha = 1.0; // Opacity'yi geri al
+      }
+    } catch (error) {
+      console.warn('Logo yüklenemedi (opsiyonel):', error);
+      // Logo yoksa devam et, hata verme
     }
 
     // === CANVAS'I PNG'YE ÇEVİR (HD çözünürlük korunuyor) ===

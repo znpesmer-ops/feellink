@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Query, UseInterceptors, UploadedFiles, BadRequestException, Res } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Patch, Body, Param, UseGuards, Query, UseInterceptors, UploadedFiles, BadRequestException, Res } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -132,6 +132,18 @@ export class PostsController {
   @ApiResponse({ status: 200, description: 'Post retrieved successfully' })
   async getPost(@Param() params: PostIdDto, @CurrentUser() user: any) {
     return this.postsService.getPost(params.id, user.id);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Update a post' })
+  @ApiResponse({ status: 200, description: 'Post updated successfully' })
+  async updatePost(
+    @Param() params: PostIdDto,
+    @CurrentUser() user: any,
+    @Body() body: { caption?: string; title?: string },
+  ) {
+    return this.postsService.updatePost(params.id, user.id, { caption: body.caption, title: body.title });
   }
 
   @Delete(':id')

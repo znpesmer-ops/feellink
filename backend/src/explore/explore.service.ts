@@ -110,10 +110,9 @@ export class ExploreService {
         },
         comments: {
           where: {
-            isPinned: true,
-            parentId: null, // Only top-level pinned comments
+            parentId: null, // Only top-level comments
           },
-          take: 1, // Only get the first pinned comment
+          take: 6, // Get pinned comment + 5 recent comments for rotation
           include: {
             user: {
               select: {
@@ -122,9 +121,10 @@ export class ExploreService {
               },
             },
           },
-          orderBy: {
-            createdAt: 'desc', // Get the most recent pinned comment
-          },
+          orderBy: [
+            { isPinned: 'desc' }, // Pinned comments first
+            { createdAt: 'desc' }, // Then most recent
+          ],
         },
         _count: {
           select: {
@@ -168,10 +168,24 @@ export class ExploreService {
           ...post.user,
           avatar: this.transformAvatarUrl(post.user.avatar),
         },
-        pinnedComment: post.comments && post.comments.length > 0 ? {
+        pinnedComment: post.comments && post.comments.length > 0 && post.comments[0].isPinned ? {
           user: post.comments[0].user.username || post.comments[0].user.fullName || 'Kullanıcı',
           text: post.comments[0].content,
         } : null,
+        recentComments: post.comments
+          ? post.comments
+              .filter((c: any) => !c.isPinned) // Exclude pinned comments
+              .slice(0, 5) // Max 5 comments for rotation
+              .map((c: any) => ({
+                id: c.id,
+                content: c.content,
+                isPinned: c.isPinned,
+                createdAt: c.createdAt,
+                user: {
+                  username: c.user.username || c.user.fullName || 'Kullanıcı',
+                },
+              }))
+          : [],
       })),
       nextCursor,
       hasMore,

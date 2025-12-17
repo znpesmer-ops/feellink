@@ -58,7 +58,9 @@ export class HighlightsService {
       items: highlight.items.map((item) => ({
         ...item,
         post: {
-          ...item.post,
+          id: item.post.id,
+          title: item.post.title || null,
+          caption: item.post.caption || null,
           imageUrl: item.post.media[0]?.url || null,
         },
       })),

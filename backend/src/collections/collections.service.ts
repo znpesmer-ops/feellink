@@ -370,12 +370,9 @@ export class CollectionsService {
     const searchQuery = query.trim().toLowerCase();
     const hasSearchQuery = searchQuery.length >= 2;
 
-    // Eserler (artwork type postlar)
+    // Eserler (artwork type postlar) - Artık filtreleme yapmıyoruz, tüm eserleri gösteriyoruz
     const artworkWhere: any = {
       type: 'artwork',
-      id: {
-        notIn: existingPostIds.length > 0 ? existingPostIds : undefined,
-      },
     };
 
     if (hasSearchQuery) {
@@ -424,9 +421,6 @@ export class CollectionsService {
         posts: {
           some: {
             type: 'artwork',
-            id: {
-              notIn: existingPostIds.length > 0 ? existingPostIds : undefined,
-            },
           },
         },
       };
@@ -448,18 +442,24 @@ export class CollectionsService {
     const nextCursor = artworks.length === take && artworks.length > 0 ? artworks[artworks.length - 1].id : undefined;
 
     return {
-      artworks: artworks.map((artwork) => ({
-        id: artwork.id,
-        title: artwork.title || artwork.caption || 'İsimsiz Eser',
-        caption: artwork.caption,
-        coverUrl: artwork.media?.[0]?.url || null,
-        owner: {
-          id: artwork.user.id,
-          username: artwork.user.username,
-          fullName: artwork.user.fullName,
-          avatar: artwork.user.avatar,
-        },
-      })),
+      artworks: artworks.map((artwork) => {
+        // Güvenli başlık çıkarma - önce title, sonra caption, boşsa null (frontend'de fallback yapılacak)
+        const titleValue = artwork.title?.trim() || artwork.caption?.trim() || null
+        
+        return {
+          id: artwork.id,
+          title: titleValue, // Backend'de fallback yapmıyoruz, frontend'de yapılacak
+          caption: artwork.caption,
+          coverUrl: artwork.media?.[0]?.url || null,
+          isAlreadyInCollection: existingPostIds.includes(artwork.id),
+          owner: {
+            id: artwork.user.id,
+            username: artwork.user.username,
+            fullName: artwork.user.fullName,
+            avatar: artwork.user.avatar,
+          },
+        }
+      }),
       users: users.map((user) => ({
         id: user.id,
         username: user.username,

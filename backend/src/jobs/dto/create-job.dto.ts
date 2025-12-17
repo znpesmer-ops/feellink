@@ -1,4 +1,4 @@
-import { IsArray, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsOptional, IsString } from 'class-validator';
 
 export class CreateJobDto {
   @IsString()
@@ -23,6 +23,22 @@ export class CreateJobDto {
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  saveAsDraft?: boolean;
+
+  @IsOptional()
+  @IsString()
+  deadline?: string;
+
+  @IsOptional()
+  @IsString()
+  maxApplications?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  autoCloseOnDeadline?: boolean;
 }
 
 

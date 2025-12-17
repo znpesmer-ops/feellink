@@ -15,6 +15,7 @@ export class ChatService {
         participants: {
           some: {
             userId,
+            isDeleted: false, // ✅ Sadece silinmemiş sohbetleri göster
           },
         },
       },
@@ -173,39 +174,51 @@ export class ChatService {
       throw new Error('At least 2 participants required');
     }
 
-    // Aynı katılımcılarla bir konuşma var mı kontrol et (birebir için)
-    if (allParticipants.length === 2) {
-      const existing = await this.prisma.conversation.findFirst({
-        where: {
-          AND: [
-            {
-              participants: {
-                some: {
-                  userId: allParticipants[0],
-                },
-              },
-            },
-            {
-              participants: {
-                some: {
-                  userId: allParticipants[1],
-                },
-              },
-            },
-          ],
+    // ✅ GÜVENLİ DUPLICATE KONTROLÜ: Aynı katılımcılarla bir konuşma var mı kontrol et
+    // Önce bu kullanıcının tüm conversation'larını al
+    const userConversations = await this.prisma.conversation.findMany({
+      where: {
+        participants: {
+          some: {
+            userId: userId,
+          },
         },
-        include: {
-          participants: true,
-        },
-      });
+      },
+      include: {
+        participants: true,
+      },
+    });
 
-      // Eğer tam olarak aynı 2 kişi varsa mevcut konuşmayı dön
-      if (existing && existing.participants.length === 2) {
-        const participantUserIds = existing.participants.map((p) => p.userId).sort();
-        const searchUserIds = allParticipants.sort();
-        if (participantUserIds[0] === searchUserIds[0] && participantUserIds[1] === searchUserIds[1]) {
-          return existing;
-        }
+    // Aynı participant setine sahip conversation'ı bul
+    const sortedSearchIds = allParticipants.sort();
+    for (const conv of userConversations) {
+      const convParticipantIds = conv.participants.map((p) => p.userId).sort();
+      
+      // Participant sayısı ve ID'leri aynı mı kontrol et
+      if (
+        convParticipantIds.length === sortedSearchIds.length &&
+        convParticipantIds.every((id, index) => id === sortedSearchIds[index])
+      ) {
+        // Mevcut conversation'ı tam format ile dön
+        return this.prisma.conversation.findUnique({
+          where: { id: conv.id },
+          include: {
+            participants: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    avatar: true,
+                    fullName: true,
+                    isOnline: true,
+                    lastSeen: true,
+                  },
+                },
+              },
+            },
+          },
+        });
       }
     }
 
@@ -285,9 +298,15 @@ export class ChatService {
       throw new ForbiddenException('Access denied');
     }
 
-    // Konuşmayı sil (cascade ile mesajlar da silinir)
-    await this.prisma.conversation.delete({
-      where: { id: conversationId },
+    // ✅ SOFT DELETE: Kullanıcıya özel sohbet silme (gerçek silme değil)
+    await this.prisma.userConversation.updateMany({
+      where: {
+        conversationId,
+        userId,
+      },
+      data: {
+        isDeleted: true,
+      },
     });
 
     return { success: true };

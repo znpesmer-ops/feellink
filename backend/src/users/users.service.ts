@@ -88,8 +88,14 @@ export class UsersService {
         throw new NotFoundException('Geçersiz kullanıcı adı.');
       }
 
-      const user = await this.prisma.user.findUnique({
-      where: { username },
+      // Hem username hem id ile arama yap (Instagram mantığı)
+      const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { username },
+          { id: username }
+        ]
+      },
       select: {
         id: true,
         username: true,
@@ -482,6 +488,31 @@ export class UsersService {
   }
 
   async searchUsers(query: string, currentUserId: string) {
+    // ✅ Engellenen kullanıcıları bul
+    const blockedUserIds = await this.prisma.block.findMany({
+      where: {
+        OR: [
+          { blockerId: currentUserId },
+          { blockedId: currentUserId },
+        ],
+      },
+      select: {
+        blockerId: true,
+        blockedId: true,
+      },
+    });
+
+    // Engellenen kullanıcı ID'lerini topla
+    const excludedUserIds = new Set<string>();
+    blockedUserIds.forEach((block) => {
+      if (block.blockerId === currentUserId) {
+        excludedUserIds.add(block.blockedId);
+      } else {
+        excludedUserIds.add(block.blockerId);
+      }
+    });
+    excludedUserIds.add(currentUserId);
+
     const users = await this.prisma.user.findMany({
       where: {
         AND: [
@@ -491,7 +522,7 @@ export class UsersService {
               { fullName: { contains: query, mode: 'insensitive' } },
             ],
           },
-          { id: { not: currentUserId } },
+          { id: { notIn: Array.from(excludedUserIds) } },
         ],
       },
       select: {
@@ -761,6 +792,145 @@ export class UsersService {
 
   getRolesOverview(): RoleOverview {
     return getRoleOverview();
+  }
+
+  async blockUser(blockerId: string, blockedId: string) {
+    if (blockerId === blockedId) {
+      throw new BadRequestException('Kendinizi engelleyemezsiniz.');
+    }
+
+    const blockedUser = await this.prisma.user.findUnique({
+      where: { id: blockedId },
+    });
+
+    if (!blockedUser) {
+      throw new NotFoundException('Kullanıcı bulunamadı.');
+    }
+
+    // Zaten engellenmiş mi kontrol et
+    const existingBlock = await this.prisma.block.findUnique({
+      where: {
+        blockerId_blockedId: {
+          blockerId,
+          blockedId,
+        },
+      },
+    });
+
+    if (existingBlock) {
+      throw new BadRequestException('Bu kullanıcı zaten engellenmiş.');
+    }
+
+    // ✅ Engelleme kaydı oluştur
+    await this.prisma.block.create({
+      data: {
+        blockerId,
+        blockedId,
+      },
+    });
+
+    // ✅ Instagram mantığı: Engelleme sırasında tüm takip ilişkilerini sil
+    // 1. blockerId → blockedId takip ilişkisini sil (engelleyen, engelleneni takip ediyorsa)
+    await this.prisma.follow.deleteMany({
+      where: {
+        followerId: blockerId,
+        followingId: blockedId,
+      },
+    });
+
+    // 2. blockedId → blockerId takip ilişkisini sil (engellenen, engelleyeni takip ediyorsa)
+    await this.prisma.follow.deleteMany({
+      where: {
+        followerId: blockedId,
+        followingId: blockerId,
+      },
+    });
+
+    // ✅ Takip isteklerini de sil (eğer varsa)
+    await this.prisma.followRequest.deleteMany({
+      where: {
+        OR: [
+          { requesterId: blockerId, requestedId: blockedId },
+          { requesterId: blockedId, requestedId: blockerId },
+        ],
+      },
+    });
+
+    // ✅ Follower/Following sayılarını güncelle
+    const [blockerFollowingCount, blockedFollowerCount] = await Promise.all([
+      this.prisma.follow.count({
+        where: { followerId: blockerId },
+      }),
+      this.prisma.follow.count({
+        where: { followingId: blockedId },
+      }),
+    ]);
+
+    await Promise.all([
+      this.prisma.user.update({
+        where: { id: blockerId },
+        data: { followingCount: blockerFollowingCount },
+      }),
+      this.prisma.user.update({
+        where: { id: blockedId },
+        data: { followerCount: blockedFollowerCount },
+      }),
+    ]);
+
+    return { message: 'Kullanıcı başarıyla engellendi.' };
+  }
+
+  async unblockUser(blockerId: string, blockedId: string) {
+    const block = await this.prisma.block.findUnique({
+      where: {
+        blockerId_blockedId: {
+          blockerId,
+          blockedId,
+        },
+      },
+    });
+
+    if (!block) {
+      throw new NotFoundException('Bu kullanıcı engellenmemiş.');
+    }
+
+    await this.prisma.block.delete({
+      where: {
+        blockerId_blockedId: {
+          blockerId,
+          blockedId,
+        },
+      },
+    });
+
+    return { message: 'Engel başarıyla kaldırıldı.' };
+  }
+
+  async getBlockedUsers(blockerId: string) {
+    const blocks = await this.prisma.block.findMany({
+      where: { blockerId },
+      include: {
+        blocked: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true,
+            isVerified: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return blocks.map((block) => ({
+      id: block.blocked.id,
+      username: block.blocked.username,
+      fullName: block.blocked.fullName,
+      avatar: block.blocked.avatar,
+      isVerified: block.blocked.isVerified,
+      blockedAt: block.createdAt,
+    }));
   }
 }
 

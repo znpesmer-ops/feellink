@@ -19,6 +19,16 @@ export class JobsService {
 
   async create(userId: string, dto: CreateJobDto) {
     await this.limitsService.ensureLimit(userId, 'create_job');
+    
+    // ✅ Yayınlama ayarları validasyonu (sadece yayınlama için, taslak için değil)
+    if (!dto.saveAsDraft) {
+      if (!dto.deadline && !dto.maxApplications && !dto.autoCloseOnDeadline) {
+        throw new BadRequestException(
+          'Yayınlanan ilanlar için yayınlanma ayarları zorunludur. Lütfen Son Başvuru Tarihi, Maks. Başvuru Sayısı veya Otomatik Kapatma seçeneklerinden en az birini doldurun.',
+        );
+      }
+    }
+    
     const tags =
       Array.isArray(dto.tags)
         ? dto.tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
@@ -33,6 +43,46 @@ export class JobsService {
         salary: dto.salary,
         tags,
         createdById: userId,
+      },
+    });
+  }
+
+  async update(jobId: string, userId: string, dto: CreateJobDto) {
+    // İlan sahibi kontrolü
+    const job = await this.prisma.jobListing.findUnique({
+      where: { id: jobId },
+    });
+
+    if (!job) {
+      throw new NotFoundException('İlan bulunamadı');
+    }
+
+    if (job.createdById !== userId) {
+      throw new ForbiddenException('Bu ilanı düzenleme yetkiniz yok');
+    }
+
+    // ✅ Edit modunda da yayınlama ayarları zorunlu (ilan zaten yayında)
+    if (!dto.deadline && !dto.maxApplications && !dto.autoCloseOnDeadline) {
+      throw new BadRequestException(
+        'Yayınlanan ilanlar için yayınlanma ayarları zorunludur. Lütfen Son Başvuru Tarihi, Maks. Başvuru Sayısı veya Otomatik Kapatma seçeneklerinden en az birini doldurun.',
+      );
+    }
+
+    const tags =
+      Array.isArray(dto.tags)
+        ? dto.tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
+        : [];
+
+    return this.prisma.jobListing.update({
+      where: { id: jobId },
+      data: {
+        title: dto.title,
+        description: dto.description,
+        company: dto.company,
+        location: dto.location,
+        salary: dto.salary,
+        tags,
+        updatedAt: new Date(),
       },
     });
   }
@@ -79,6 +129,33 @@ export class JobsService {
         },
       },
     });
+  }
+
+  async getById(jobId: string, userId: string) {
+    const job = await this.prisma.jobListing.findUnique({
+      where: { id: jobId },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+
+    if (!job) {
+      throw new NotFoundException('İlan bulunamadı');
+    }
+
+    // Sadece ilan sahibi düzenleyebilir
+    if (job.createdById !== userId) {
+      throw new ForbiddenException('Bu ilanı görüntüleme yetkiniz yok');
+    }
+
+    return job;
   }
 
   async applyToJob(jobListingId: string, userId: string, dto: CreateJobApplicationDto) {
