@@ -66,6 +66,14 @@ export class FollowController {
     return this.followService.getFollowing(userId, user.id);
   }
 
+  // Remove follower endpoint (Instagram-style: remove someone who follows you)
+  @Delete('remove-follower/:userId')
+  async removeFollower(@Param('userId') userId: string, @CurrentUser() user: any) {
+    // userId = the follower to be removed
+    // user.id = the profile owner (who removes the follower)
+    return this.followService.removeFollower(user.id, userId);
+  }
+
   // Genel route'ları en sona koy (spesifik olanlardan sonra)
   @Post(':userId')
   async followUser(@Param('userId') userId: string, @CurrentUser() user: any) {

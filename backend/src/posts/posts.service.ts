@@ -354,6 +354,9 @@ export class PostsService {
       parentId: comment.parentId,
       content: comment.content,
       createdAt: comment.createdAt,
+      updatedAt: comment.updatedAt,
+      userId: comment.userId,
+      isPinned: comment.isPinned,
       isLikedByCurrentUser: comment.likes && comment.likes.length > 0,
       likesCount: comment._count?.likes || 0,
       user: {
@@ -369,6 +372,8 @@ export class PostsService {
         parentId: reply.parentId,
         content: reply.content,
         createdAt: reply.createdAt,
+        updatedAt: reply.updatedAt,
+        userId: reply.userId,
         isLikedByCurrentUser: reply.likes && reply.likes.length > 0,
         likesCount: reply._count?.likes || 0,
         user: {
@@ -954,16 +959,85 @@ export class PostsService {
     }));
   }
 
-  async deleteComment(commentId: string, userId: string) {
+  async updateComment(commentId: string, userId: string, content: string) {
     const comment = await this.prisma.comment.findUnique({
       where: { id: commentId },
+      include: {
+        post: {
+          select: { userId: true },
+        },
+      },
     });
 
     if (!comment) {
       throw new NotFoundException('Comment not found');
     }
 
+    // Sadece yorum sahibi düzenleyebilir
     if (comment.userId !== userId) {
+      throw new ForbiddenException('You do not have permission to edit this comment');
+    }
+
+    const updatedComment = await this.prisma.comment.update({
+      where: { id: commentId },
+      data: { content },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true,
+            isVerified: true,
+          },
+        },
+        _count: {
+          select: {
+            likes: true,
+            replies: true,
+          },
+        },
+      },
+    });
+
+    // 🔔 Real-time yayın
+    if (this.commentsGateway) {
+      const room = `post_${comment.postId}`;
+      this.commentsGateway.server.to(room).emit('commentUpdated', {
+        id: updatedComment.id,
+        postId: comment.postId,
+        content: updatedComment.content,
+        updatedAt: updatedComment.updatedAt,
+      });
+    }
+
+    return {
+      id: updatedComment.id,
+      content: updatedComment.content,
+      updatedAt: updatedComment.updatedAt,
+      createdAt: updatedComment.createdAt,
+      user: updatedComment.user,
+      likesCount: updatedComment._count.likes,
+      repliesCount: updatedComment._count.replies,
+    };
+  }
+
+  async deleteComment(commentId: string, userId: string) {
+    const comment = await this.prisma.comment.findUnique({
+      where: { id: commentId },
+      include: {
+        post: {
+          select: { userId: true },
+        },
+      },
+    });
+
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    // Yorum sahibi VEYA gönderi sahibi silebilir
+    if (comment.userId !== userId && comment.post.userId !== userId) {
       throw new ForbiddenException('You do not have permission to delete this comment');
     }
 
@@ -1295,6 +1369,119 @@ export class PostsService {
       ...savedPost.post,
       isLiked: likedPostIds.has(savedPost.postId),
       savedAt: savedPost.createdAt,
+    }));
+  }
+
+  // Artwork save/unsave methods
+  async saveArtwork(postId: string, userId: string) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      throw new NotFoundException('Artwork not found');
+    }
+
+    if (post.type !== 'artwork') {
+      throw new BadRequestException('This post is not an artwork');
+    }
+
+    // Check if already saved
+    const existing = await this.prisma.savedArtwork.findUnique({
+      where: {
+        userId_postId: {
+          userId,
+          postId,
+        },
+      },
+    });
+
+    if (existing) {
+      return { success: true, message: 'Artwork already saved' };
+    }
+
+    const saved =     await this.prisma.savedArtwork.create({
+      data: {
+        userId,
+        postId,
+      },
+    });
+
+    console.log('✅ Artwork saved to database:', { id: saved.userId, postId: saved.postId })
+
+    return { success: true, message: 'Artwork saved successfully', saved: true };
+  }
+
+  async unsaveArtwork(postId: string, userId: string) {
+    try {
+      const deleted = await this.prisma.savedArtwork.delete({
+        where: {
+          userId_postId: {
+            userId,
+            postId,
+          },
+        },
+      });
+      console.log('✅ Artwork unsaved from database:', { userId: deleted.userId, postId: deleted.postId })
+    } catch (error) {
+      console.warn('⚠️ Artwork unsave error (may not exist):', error)
+      // Ignore if not found
+    }
+
+    return { success: true, message: 'Artwork unsaved successfully', saved: false };
+  }
+
+  async getSavedArtworks(userId: string) {
+    const savedArtworks = await this.prisma.savedArtwork.findMany({
+      where: { userId },
+      include: {
+        post: {
+          where: {
+            type: 'artwork',
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                avatar: true,
+                isVerified: true,
+              },
+            },
+            media: {
+              orderBy: { order: 'asc' },
+            },
+            _count: {
+              select: {
+                likes: true,
+                comments: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Filter out null posts (in case artwork was deleted)
+    const validArtworks = savedArtworks.filter(sa => sa.post !== null);
+
+    // Check if liked
+    const postIds = validArtworks.map(sa => sa.postId);
+    const likes = await this.prisma.like.findMany({
+      where: {
+        postId: { in: postIds },
+        userId,
+      },
+    });
+
+    const likedPostIds = new Set(likes.map(l => l.postId));
+
+    return validArtworks.map(savedArtwork => ({
+      ...savedArtwork.post,
+      isLiked: likedPostIds.has(savedArtwork.postId),
+      savedAt: savedArtwork.createdAt,
     }));
   }
 

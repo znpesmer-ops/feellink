@@ -330,6 +330,7 @@ export class UsersService {
         plan: true,
         badges: true,
         createdAt: true,
+        usernameLastChangedAt: true,
       },
     });
 
@@ -391,6 +392,7 @@ export class UsersService {
       plan,
       badges: badgeIds,
       createdAt: user.createdAt,
+      usernameLastChangedAt: user.usernameLastChangedAt,
       capabilities,
       sidebar,
       dashboard,
@@ -931,6 +933,190 @@ export class UsersService {
       isVerified: block.blocked.isVerified,
       blockedAt: block.createdAt,
     }));
+  }
+
+  async deleteAccount(userId: string) {
+    // 🔥 KRİTİK: Kullanıcının var olduğunu kontrol et
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Kullanıcı bulunamadı.');
+    }
+
+    // 🔥 KRİTİK: Transaction ile tüm ilişkili verileri sil
+    // Prisma schema'da çoğu ilişki onDelete: Cascade ile tanımlı,
+    // ancak bazı manuel silmeler gerekebilir
+    await this.prisma.$transaction(async (tx) => {
+      // User'ı sil - CASCADE ile ilişkili tüm veriler otomatik silinir
+      await tx.user.delete({
+        where: { id: userId },
+      });
+    });
+
+    return { message: 'Hesap başarıyla silindi.' };
+  }
+
+  async getSavedArtworks(userId: string) {
+    const savedArtworks = await this.prisma.savedArtwork.findMany({
+      where: { userId },
+      include: {
+        post: {
+          where: {
+            type: 'artwork',
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                avatar: true,
+                isVerified: true,
+              },
+            },
+            media: {
+              orderBy: { order: 'asc' },
+            },
+            _count: {
+              select: {
+                likes: true,
+                comments: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Filter out null posts (in case artwork was deleted)
+    const validArtworks = savedArtworks.filter(sa => sa.post !== null);
+
+    // Check if liked
+    const postIds = validArtworks.map(sa => sa.postId);
+    const likes = await this.prisma.like.findMany({
+      where: {
+        postId: { in: postIds },
+        userId,
+      },
+    });
+
+    const likedPostIds = new Set(likes.map(l => l.postId));
+
+    return validArtworks.map(savedArtwork => ({
+      ...savedArtwork.post,
+      isLiked: likedPostIds.has(savedArtwork.postId),
+      savedAt: savedArtwork.createdAt,
+    }));
+  }
+
+  async getSaved(userId: string) {
+    // Fetch both saved posts and saved artworks
+    const [savedPosts, savedArtworks] = await Promise.all([
+      this.prisma.savedPost.findMany({
+        where: { userId },
+        include: {
+          post: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  fullName: true,
+                  avatar: true,
+                  isVerified: true,
+                },
+              },
+              media: {
+                orderBy: { order: 'asc' },
+              },
+              _count: {
+                select: {
+                  likes: true,
+                  comments: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.savedArtwork.findMany({
+        where: { userId },
+        include: {
+          post: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  fullName: true,
+                  avatar: true,
+                  isVerified: true,
+                },
+              },
+              media: {
+                orderBy: { order: 'asc' },
+              },
+              _count: {
+                select: {
+                  likes: true,
+                  comments: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    // Filter out null posts (in case post/artwork was deleted)
+    const validPosts = savedPosts.filter(sp => sp.post !== null);
+    // Filter artworks: only include posts with type === 'artwork'
+    const validArtworks = savedArtworks.filter(sa => sa.post !== null && sa.post.type === 'artwork');
+
+    // Get all post IDs for like check
+    const allPostIds = [
+      ...validPosts.map(sp => sp.postId),
+      ...validArtworks.map(sa => sa.postId),
+    ];
+
+    // Check if liked
+    const likes = await this.prisma.like.findMany({
+      where: {
+        postId: { in: allPostIds },
+        userId,
+      },
+    });
+
+    const likedPostIds = new Set(likes.map(l => l.postId));
+
+    // Combine and format both types
+    const savedItems = [
+      ...validPosts.map(savedPost => ({
+        type: 'post' as const,
+        ...savedPost.post,
+        isLiked: likedPostIds.has(savedPost.postId),
+        savedAt: savedPost.createdAt,
+      })),
+      ...validArtworks.map(savedArtwork => ({
+        type: 'artwork' as const,
+        ...savedArtwork.post,
+        isLiked: likedPostIds.has(savedArtwork.postId),
+        savedAt: savedArtwork.createdAt,
+      })),
+    ];
+
+    // Sort by savedAt (most recent first)
+    return savedItems.sort((a, b) => {
+      const aDate = new Date(a.savedAt).getTime();
+      const bDate = new Date(b.savedAt).getTime();
+      return bDate - aDate;
+    });
   }
 }
 

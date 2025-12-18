@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminService } from './admin.service';
+import { ReportsService } from '../reports/reports.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -22,6 +23,7 @@ export class AdminController {
   constructor(
     private prisma: PrismaService,
     private adminService: AdminService,
+    private reportsService: ReportsService,
   ) {}
 
   // Summary endpoint
@@ -242,5 +244,32 @@ export class AdminController {
   @Post('recalculate-colors')
   async recalculateColors() {
     return this.adminService.recalculateColors();
+  }
+
+  // Reports management
+  @Get('reports')
+  async getReports(
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.reportsService.getReports(
+      status,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 20,
+    );
+  }
+
+  @Get('reports/:id')
+  async getReportById(@Param('id') reportId: string) {
+    return this.reportsService.getReportById(reportId);
+  }
+
+  @Patch('reports/:id')
+  async updateReportStatus(
+    @Param('id') reportId: string,
+    @Body() body: { status: string },
+  ) {
+    return this.reportsService.updateReportStatus(reportId, body.status);
   }
 }

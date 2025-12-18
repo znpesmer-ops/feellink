@@ -516,6 +516,54 @@ export class FollowService {
 
     return following.map(f => f.following);
   }
+
+  /**
+   * Remove a follower (Instagram-style: remove someone who follows you)
+   * This removes the follow relationship where targetUserId follows currentUserId
+   * @param currentUserId - The profile owner (who removes the follower)
+   * @param targetUserId - The follower to be removed
+   */
+  async removeFollower(currentUserId: string, targetUserId: string) {
+    if (currentUserId === targetUserId) {
+      throw new BadRequestException('Cannot remove yourself as a follower');
+    }
+
+    // Check if the follow relationship exists
+    // followerId = targetUserId (who follows)
+    // followingId = currentUserId (who is being followed)
+    const existingFollow = await this.prisma.follow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: targetUserId,
+          followingId: currentUserId,
+        },
+      },
+    });
+
+    if (!existingFollow) {
+      // Already not following, return success silently
+      return { status: 'removed' };
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.follow.delete({
+        where: {
+          followerId_followingId: {
+            followerId: targetUserId,
+            followingId: currentUserId,
+          },
+        },
+      });
+    });
+
+    // Update follower counts
+    // targetUserId's followingCount decreases
+    // currentUserId's followerCount decreases
+    await this.decrementFollowCounts(targetUserId, currentUserId);
+
+    // No notification is sent (silent removal, Instagram-style)
+    return { status: 'removed' };
+  }
 }
 
 

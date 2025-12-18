@@ -229,6 +229,35 @@ export class PostsController {
     return this.postsService.getSavedPosts(user.id);
   }
 
+  @Post(':id/save-artwork')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Save an artwork' })
+  @ApiResponse({ status: 200, description: 'Artwork saved successfully' })
+  async saveArtwork(@Param() params: PostIdDto, @CurrentUser() user: any) {
+    return this.postsService.saveArtwork(params.id, user.id);
+  }
+
+  @Delete(':id/save-artwork')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Unsave an artwork' })
+  @ApiResponse({ status: 200, description: 'Artwork unsaved successfully' })
+  async unsaveArtwork(@Param() params: PostIdDto, @CurrentUser() user: any) {
+    return this.postsService.unsaveArtwork(params.id, user.id);
+  }
+
+  @Patch(':id/comments/:commentId')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Update a comment' })
+  @ApiResponse({ status: 200, description: 'Comment updated successfully' })
+  async updateComment(
+    @Param('id') postId: string,
+    @Param('commentId') commentId: string,
+    @Body() dto: CreateCommentDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.postsService.updateComment(commentId, user.id, dto.content);
+  }
+
   @Delete(':id/comments/:commentId')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Delete a comment' })

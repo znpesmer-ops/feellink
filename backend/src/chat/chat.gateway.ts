@@ -11,6 +11,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { BlocksService } from '../blocks/blocks.service';
 
 @WebSocketGateway({
   namespace: '/chat',
@@ -47,6 +48,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   constructor(
     private jwtService: JwtService,
     private prisma: PrismaService,
+    private blocksService: BlocksService,
   ) {}
 
   afterInit(server: Server) {
@@ -186,6 +188,15 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       const hasAccess = conversation.participants.some((p) => p.userId === userId);
       if (!hasAccess) {
         return { error: 'Access denied' };
+      }
+
+      // Block kontrolü: Karşı tarafı engellemiş mi veya engellenmiş mi kontrol et
+      const otherParticipant = conversation.participants.find((p) => p.userId !== userId);
+      if (otherParticipant) {
+        const isBlocked = await this.blocksService.isBlocked(userId, otherParticipant.userId);
+        if (isBlocked) {
+          return { error: 'Cannot send message. User is blocked.' };
+        }
       }
 
       // Mesajı veritabanına kaydet

@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   Req,
   HttpException,
@@ -216,6 +217,13 @@ export class ArticlesController {
     @CurrentUser() user: any,
   ) {
     return this.articlesService.toggleCommentLike(commentId, user.id);
+  }
+
+  @Get('/top-liked-authors')
+  @ApiOperation({ summary: 'Get top liked authors (by article views)' })
+  async getTopLikedAuthors(@Query('limit') limit?: string) {
+    const n = Math.min(Math.max(Number(limit ?? 4), 1), 6);
+    return this.articlesService.getTopLikedAuthors(n);
   }
 }
 

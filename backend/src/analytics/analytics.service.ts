@@ -8,10 +8,24 @@ export class AnalyticsService {
   /**
    * Get visit statistics for a corporate user
    * Based on interactions (likes, comments, event participations) on their content
+   * @param dateRange - 'today' | '7d' | '30d' (default: '30d')
    */
-  async getVisitStats(userId: string) {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  async getVisitStats(userId: string, dateRange: 'today' | '7d' | '30d' = '30d') {
+    const now = new Date();
+    let startDate = new Date();
+    
+    switch (dateRange) {
+      case 'today':
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case '7d':
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case '30d':
+      default:
+        startDate.setDate(startDate.getDate() - 30);
+        break;
+    }
 
     // Get all posts by this corporate user
     const userPosts = await this.prisma.post.findMany({
@@ -25,7 +39,7 @@ export class AnalyticsService {
     const likes = await this.prisma.like.findMany({
       where: {
         postId: { in: postIds },
-        createdAt: { gte: thirtyDaysAgo },
+        createdAt: { gte: startDate },
       },
       select: { createdAt: true },
     });
@@ -33,7 +47,7 @@ export class AnalyticsService {
     const comments = await this.prisma.comment.findMany({
       where: {
         postId: { in: postIds },
-        createdAt: { gte: thirtyDaysAgo },
+        createdAt: { gte: startDate },
       },
       select: { createdAt: true },
     });
@@ -49,7 +63,7 @@ export class AnalyticsService {
     const eventParticipations = await this.prisma.eventParticipant.findMany({
       where: {
         eventId: { in: eventIds },
-        createdAt: { gte: thirtyDaysAgo },
+        createdAt: { gte: startDate },
       },
       select: { createdAt: true },
     });
@@ -68,9 +82,35 @@ export class AnalyticsService {
       dateMap.set(dateStr, (dateMap.get(dateStr) || 0) + 1);
     });
 
-    // Generate last 30 days
+    // Generate date range based on selection
     const result = [];
-    for (let i = 29; i >= 0; i--) {
+    let daysToGenerate = 30;
+    
+    if (dateRange === 'today') {
+      // Today only - hourly breakdown
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      for (let h = 0; h < 24; h++) {
+        const hourDate = new Date(today);
+        hourDate.setHours(h);
+        const hourStr = `${hourDate.toISOString().split('T')[0]}T${String(h).padStart(2, '0')}:00:00`;
+        result.push({
+          date: hourStr,
+          count: Array.from(dateMap.entries())
+            .filter(([d]) => {
+              const dDate = new Date(d);
+              return dDate.getHours() === h && dDate.toISOString().split('T')[0] === today.toISOString().split('T')[0];
+            })
+            .reduce((sum, [, count]) => sum + count, 0),
+        });
+      }
+      return result;
+    } else if (dateRange === '7d') {
+      daysToGenerate = 7;
+    }
+
+    // Generate days
+    for (let i = daysToGenerate - 1; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
@@ -668,6 +708,392 @@ export class AnalyticsService {
       console.error('Error in calculateColorSimilarity:', error);
       return { similarity: 0, commonColors: [] };
     }
+  }
+
+  /**
+   * Get top performing content (posts and articles)
+   * Returns most viewed, most commented, and most saved content
+   */
+  async getTopPerformingContent(userId: string, dateRange: 'today' | '7d' | '30d' = '30d') {
+    const now = new Date();
+    let startDate = new Date();
+    
+    switch (dateRange) {
+      case 'today':
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case '7d':
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case '30d':
+      default:
+        startDate.setDate(startDate.getDate() - 30);
+        break;
+    }
+
+    // Get user's posts
+    const posts = await this.prisma.post.findMany({
+      where: {
+        userId,
+        createdAt: { gte: startDate },
+      },
+      include: {
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+            savedBy: true,
+          },
+        },
+        media: {
+          take: 1,
+          select: { url: true },
+        },
+      },
+    });
+
+    // Get savedByArtworks count for each post separately
+    const postIds = posts.map((p) => p.id);
+    const savedArtworksMap = new Map<string, number>();
+    
+    // Count saved artworks for each post
+    for (const postId of postIds) {
+      const count = await this.prisma.savedArtwork.count({
+        where: { postId },
+      });
+      savedArtworksMap.set(postId, count);
+    }
+
+    // Get user's articles
+    const articles = await this.prisma.article.findMany({
+      where: {
+        authorId: userId,
+        isPublished: true,
+        createdAt: { gte: startDate },
+      },
+      include: {
+        _count: {
+          select: {
+            comments: true,
+          },
+        },
+      },
+    });
+
+    // Combine and rank
+    const allContent = [
+      ...posts.map((post) => ({
+        id: post.id,
+        type: 'post' as const,
+        title: post.caption || post.title || 'Gönderi',
+        thumbnail: post.media[0]?.url || null,
+        likes: post._count.likes,
+        comments: post._count.comments,
+        saves: post._count.savedBy + (savedArtworksMap.get(post.id) || 0),
+        createdAt: post.createdAt,
+      })),
+      ...articles.map((article) => ({
+        id: article.id,
+        type: 'article' as const,
+        title: article.title,
+        thumbnail: article.coverImage || null,
+        likes: 0, // Articles don't have likes in current schema
+        comments: article._count.comments,
+        saves: 0, // Articles don't have saves in current schema
+        createdAt: article.createdAt,
+      })),
+    ];
+
+    // Find top performers
+    const mostViewed = allContent
+      .sort((a, b) => (b.likes + b.comments) - (a.likes + a.comments))
+      .slice(0, 1)[0] || null;
+
+    const mostCommented = allContent
+      .sort((a, b) => b.comments - a.comments)
+      .slice(0, 1)[0] || null;
+
+    const mostSaved = allContent
+      .sort((a, b) => b.saves - a.saves)
+      .slice(0, 1)[0] || null;
+
+    return {
+      mostViewed,
+      mostCommented,
+      mostSaved,
+    };
+  }
+
+  /**
+   * Get save analytics (total saves, save rate, most saved content)
+   */
+  async getSaveAnalytics(userId: string, dateRange: 'today' | '7d' | '30d' = '30d') {
+    const now = new Date();
+    let startDate = new Date();
+    
+    switch (dateRange) {
+      case 'today':
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case '7d':
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case '30d':
+      default:
+        startDate.setDate(startDate.getDate() - 30);
+        break;
+    }
+
+    // Get user's posts created in date range
+    const posts = await this.prisma.post.findMany({
+      where: {
+        userId,
+        createdAt: { gte: startDate },
+      },
+      include: {
+        _count: {
+          select: {
+            savedBy: true,
+            likes: true,
+          },
+        },
+        media: {
+          take: 1,
+          select: { url: true },
+        },
+      },
+    });
+
+    // Get savedByArtworks count separately
+    const postIds = posts.map((p) => p.id);
+    const savedArtworksMap = new Map<string, number>();
+    
+    // Count saved artworks for each post
+    for (const postId of postIds) {
+      const count = await this.prisma.savedArtwork.count({
+        where: { postId },
+      });
+      savedArtworksMap.set(postId, count);
+    }
+
+    // Calculate totals
+    const totalSaves = posts.reduce(
+      (sum, post) => sum + post._count.savedBy + (savedArtworksMap.get(post.id) || 0),
+      0,
+    );
+    const totalLikes = posts.reduce((sum, post) => sum + post._count.likes, 0);
+    const saveRate = totalLikes > 0 ? (totalSaves / totalLikes) * 100 : 0;
+
+    // Most saved content
+    const mostSaved = posts
+      .map((post) => ({
+        id: post.id,
+        type: 'post' as const,
+        title: post.caption || post.title || 'Gönderi',
+        thumbnail: post.media[0]?.url || null,
+        saves: post._count.savedBy + (savedArtworksMap.get(post.id) || 0),
+      }))
+      .sort((a, b) => b.saves - a.saves)
+      .slice(0, 1)[0] || null;
+
+    return {
+      totalSaves,
+      saveRate: Math.round(saveRate * 10) / 10, // Round to 1 decimal
+      mostSaved,
+    };
+  }
+
+  /**
+   * Get source distribution (where users found the content)
+   * Note: This is a simplified version - in a real system you'd track referrer URLs
+   * For now, we'll use a placeholder that can be enhanced later
+   */
+  async getSourceDistribution(userId: string, dateRange: 'today' | '7d' | '30d' = '30d') {
+    // Placeholder implementation - can be enhanced with actual tracking
+    // For now, return a balanced distribution as example
+    return {
+      explore: 42,
+      profile: 33,
+      home: 25,
+    };
+  }
+
+  /**
+   * Get comparison with previous period
+   * Returns percentage change for key metrics
+   */
+  async getPeriodComparison(userId: string, dateRange: 'today' | '7d' | '30d' = '30d') {
+    const now = new Date();
+    let currentStart = new Date();
+    let previousStart = new Date();
+    let previousEnd = new Date();
+    
+    switch (dateRange) {
+      case 'today':
+        currentStart.setHours(0, 0, 0, 0);
+        previousStart.setDate(previousStart.getDate() - 1);
+        previousStart.setHours(0, 0, 0, 0);
+        previousEnd.setDate(previousEnd.getDate() - 1);
+        previousEnd.setHours(23, 59, 59, 999);
+        break;
+      case '7d':
+        currentStart.setDate(currentStart.getDate() - 7);
+        previousStart.setDate(previousStart.getDate() - 14);
+        previousEnd.setDate(previousEnd.getDate() - 7);
+        break;
+      case '30d':
+      default:
+        currentStart.setDate(currentStart.getDate() - 30);
+        previousStart.setDate(previousStart.getDate() - 60);
+        previousEnd.setDate(previousEnd.getDate() - 30);
+        break;
+    }
+
+    // Get current period stats
+    const currentPosts = await this.prisma.post.findMany({
+      where: {
+        userId,
+        createdAt: { gte: currentStart },
+      },
+      include: {
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+            savedBy: true,
+          },
+        },
+      },
+    });
+
+    // Get savedByArtworks count for current period
+    const currentPostIds = currentPosts.map((p) => p.id);
+    const currentSavedArtworksMap = new Map<string, number>();
+    
+    // Count saved artworks for each post in current period
+    for (const postId of currentPostIds) {
+      const count = await this.prisma.savedArtwork.count({
+        where: { postId },
+      });
+      currentSavedArtworksMap.set(postId, count);
+    }
+
+    const currentLikes = currentPosts.reduce((sum, p) => sum + p._count.likes, 0);
+    const currentComments = currentPosts.reduce((sum, p) => sum + p._count.comments, 0);
+    const currentSaves = currentPosts.reduce(
+      (sum, p) => sum + p._count.savedBy + (currentSavedArtworksMap.get(p.id) || 0),
+      0,
+    );
+
+    // Get previous period stats
+    const previousPosts = await this.prisma.post.findMany({
+      where: {
+        userId,
+        createdAt: {
+          gte: previousStart,
+          lte: previousEnd,
+        },
+      },
+      include: {
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+            savedBy: true,
+          },
+        },
+      },
+    });
+
+    // Get savedByArtworks count for previous period
+    const previousPostIds = previousPosts.map((p) => p.id);
+    const previousSavedArtworksMap = new Map<string, number>();
+    
+    // Count saved artworks for each post in previous period
+    for (const postId of previousPostIds) {
+      const count = await this.prisma.savedArtwork.count({
+        where: { postId },
+      });
+      previousSavedArtworksMap.set(postId, count);
+    }
+
+    const previousLikes = previousPosts.reduce((sum, p) => sum + p._count.likes, 0);
+    const previousComments = previousPosts.reduce((sum, p) => sum + p._count.comments, 0);
+    const previousSaves = previousPosts.reduce(
+      (sum, p) => sum + p._count.savedBy + (previousSavedArtworksMap.get(p.id) || 0),
+      0,
+    );
+
+    // Calculate percentage changes
+    const calculateChange = (current: number, previous: number) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    return {
+      likes: {
+        current: currentLikes,
+        previous: previousLikes,
+        change: calculateChange(currentLikes, previousLikes),
+      },
+      comments: {
+        current: currentComments,
+        previous: previousComments,
+        change: calculateChange(currentComments, previousComments),
+      },
+      saves: {
+        current: currentSaves,
+        previous: previousSaves,
+        change: calculateChange(currentSaves, previousSaves),
+      },
+    };
+  }
+
+  /**
+   * Get passive warning for content with low engagement
+   * Returns content that hasn't received interactions in the last 14 days
+   */
+  async getLowEngagementWarning(userId: string) {
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+    // Get posts older than 14 days
+    const oldPosts = await this.prisma.post.findMany({
+      where: {
+        userId,
+        createdAt: { lt: fourteenDaysAgo },
+      },
+      include: {
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+          },
+        },
+        likes: {
+          where: {
+            createdAt: { gte: fourteenDaysAgo },
+          },
+          take: 1,
+        },
+        comments: {
+          where: {
+            createdAt: { gte: fourteenDaysAgo },
+          },
+          take: 1,
+        },
+      },
+    });
+
+    // Filter posts with no recent engagement
+    const lowEngagement = oldPosts.filter(
+      (post) => post.likes.length === 0 && post.comments.length === 0,
+    );
+
+    return {
+      count: lowEngagement.length,
+      hasWarning: lowEngagement.length > 0,
+    };
   }
 }
 

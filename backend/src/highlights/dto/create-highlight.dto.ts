@@ -5,9 +5,9 @@ export class CreateHighlightDto {
   @IsNotEmpty()
   title: string;
 
-  @IsOptional()
   @IsString()
-  coverPostId?: string;
+  @IsNotEmpty()
+  coverPostId: string; // 🔥 KRİTİK: Artık zorunlu (Instagram mantığı)
 
   @IsArray()
   @IsString({ each: true })

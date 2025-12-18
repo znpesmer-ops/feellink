@@ -119,5 +119,34 @@ export class UsersController {
     }
     return this.usersService.getBlockedUsers(user.id);
   }
+
+  @Delete('account')
+  @UseGuards(JwtAuthGuard)
+  async deleteAccount(@CurrentUser() user: any) {
+    if (!user?.id) {
+      throw new NotFoundException('Kullanıcı kimliği bulunamadı.');
+    }
+    return this.usersService.deleteAccount(user.id);
+  }
+
+  @Get(':id/saved-artworks')
+  @UseGuards(JwtAuthGuard)
+  async getSavedArtworks(@Param('id') userId: string, @CurrentUser() user: any) {
+    // Only allow users to see their own saved artworks
+    if (userId !== user.id) {
+      throw new NotFoundException('Kullanıcı bulunamadı.');
+    }
+    return this.usersService.getSavedArtworks(userId);
+  }
+
+  @Get(':id/saved')
+  @UseGuards(JwtAuthGuard)
+  async getSaved(@Param('id') userId: string, @CurrentUser() user: any) {
+    // Only allow users to see their own saved items
+    if (userId !== user.id) {
+      throw new NotFoundException('Kullanıcı bulunamadı.');
+    }
+    return this.usersService.getSaved(userId);
+  }
 }
 

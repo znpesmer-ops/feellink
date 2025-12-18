@@ -671,5 +671,74 @@ export class ArticlesService {
     };
   }
 
+  /**
+   * En Çok Beğenilen Yazarlar - En çok görüntülenen (views) yazıların yazarları
+   * Aynı yazar birden fazla yazıda olsa bile tek satır
+   */
+  async getTopLikedAuthors(limit: number = 4) {
+    // 1) Published yazıları views'a göre sırala
+    // authorId zaten required field olduğu için null olamaz, filtrelemeye gerek yok
+    const articles = await this.prisma.article.findMany({
+      where: {
+        isPublished: true,
+      },
+      select: {
+        id: true,
+        views: true,
+        authorId: true,
+        author: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true,
+          },
+        },
+      },
+      orderBy: {
+        views: 'desc',
+      },
+      take: 100, // İlk 100 yazıyı al, sonra yazarları tekilleştir
+    });
+
+    // 2) Aynı yazarı tekilleştir (ilk görünen yazıya göre)
+    const uniqueAuthors = new Map<string, {
+      id: string;
+      username: string;
+      fullName: string | null;
+      avatar: string | null;
+      totalViews: number;
+    }>();
+
+    for (const article of articles) {
+      if (article.authorId && !uniqueAuthors.has(article.authorId)) {
+        uniqueAuthors.set(article.authorId, {
+          id: article.author.id,
+          username: article.author.username,
+          fullName: article.author.fullName,
+          avatar: article.author.avatar,
+          totalViews: article.views,
+        });
+      } else if (article.authorId && uniqueAuthors.has(article.authorId)) {
+        // Toplam views'ı güncelle
+        const existing = uniqueAuthors.get(article.authorId)!;
+        existing.totalViews += article.views;
+      }
+      if (uniqueAuthors.size === limit) break;
+    }
+
+    // 3) Toplam views'a göre tekrar sırala
+    const sortedAuthors = Array.from(uniqueAuthors.values())
+      .sort((a, b) => b.totalViews - a.totalViews)
+      .slice(0, limit);
+
+    return sortedAuthors.map((author) => ({
+      id: author.id,
+      username: author.username,
+      name: author.fullName || author.username,
+      avatar: author.avatar,
+    }));
+  }
+
 }
 

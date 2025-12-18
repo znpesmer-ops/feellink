@@ -555,5 +555,406 @@ export class MailService {
       throw error;
     }
   }
+
+  async sendReportResolvedEmail(params: {
+    to: string;
+    userName: string;
+    reportedUser: string;
+  }) {
+    if (!this.transporter) {
+      this.logger.warn('Mail transporter not configured. Skipping email send.');
+      return;
+    }
+
+    const mailFromName = process.env.MAIL_FROM_NAME || 'feellink';
+    const mailFrom = process.env.MAIL_FROM || 'info@feellink.io';
+    const from = `"${mailFromName}" <${mailFrom}>`;
+
+    const subject = 'Feellink | Bildiriminiz İncelendi';
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="tr">
+      <body style="margin:0;padding:0;background:#f5f7fa;">
+      
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f5f7fa;padding:40px 0;">
+        <tr>
+          <td align="center">
+            
+            <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px;padding:24px 40px;border:1px solid #e8e8e8;box-shadow:0 4px 12px rgba(0,0,0,0.12);">
+              
+              <!-- Logo -->
+              <tr>
+                <td align="center" style="padding:12px 0 8px 0;">
+                  <img
+                    src="${this.logoUrl}"
+                    width="100"
+                    alt="feellink"
+                    style="display:block"
+                  />
+                </td>
+              </tr>
+
+              <!-- Gradient Çizgi -->
+              <tr>
+                <td style="padding:0;">
+                  <div style="height:6px;width:100%;border-radius:4px;background:linear-gradient(90deg,#F28C28,#2A72FF);"></div>
+                </td>
+              </tr>
+
+              <!-- Başlık -->
+              <tr>
+                <td align="center" style="padding-top:28px;">
+                  <h1 style="margin:0;font-size:22px;color:#222;font-weight:700;font-family:Arial,Helvetica,sans-serif;">
+                    Bildiriminiz İncelendi
+                  </h1>
+                </td>
+              </tr>
+
+              <!-- Açıklama -->
+              <tr>
+                <td style="padding-top:18px;">
+                  <p style="margin:0;font-size:15px;color:#444;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
+                    Merhaba ${params.userName || ''},
+                    <br><br>
+                    Feellink topluluğunun güvenliğini sağlamak adına ilettiğiniz bildirimi inceledik.
+                    <br><br>
+                    Yapılan değerlendirme sonucunda gerekli incelemeler tamamlanmış ve durum çözüme kavuşturulmuştur.
+                    <br><br>
+                    Gizlilik politikamız gereği, alınan aksiyonun detayları hakkında bilgi paylaşamıyoruz.
+                    Ancak bildiriminizin sistemimizde dikkate alındığını ve gerekli işlemlerin yapıldığını bilmenizi isteriz.
+                    <br><br>
+                    Feellink'i daha güvenli ve sağlıklı bir ortam haline getirmemize katkı sağladığınız için teşekkür ederiz.
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="padding-top:24px;">
+                  <hr style="border:none;border-top:1px solid #eaeaea;">
+                </td>
+              </tr>
+
+              <tr>
+                <td align="center" style="padding-top:12px;">
+                  <p style="margin:0;font-size:12px;color:#999;font-family:Arial,Helvetica,sans-serif;line-height:1.5;">
+                    <strong>Feellink</strong> – Sanat daha anlamlı.
+                    <br>
+                    Saygılarımızla,<br>
+                    Feellink Destek Ekibi
+                    <br><br>
+                    Bu e-posta otomatik olarak gönderilmiştir, lütfen yanıtlamayınız.
+                  </p>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      </body>
+      </html>
+    `;
+
+    const text = `Merhaba ${params.userName || ''},
+
+Feellink topluluğunun güvenliğini sağlamak adına ilettiğiniz bildirimi inceledik.
+
+Yapılan değerlendirme sonucunda gerekli incelemeler tamamlanmış ve durum çözüme kavuşturulmuştur.
+
+Gizlilik politikamız gereği, alınan aksiyonun detayları hakkında bilgi paylaşamıyoruz. Ancak bildiriminizin sistemimizde dikkate alındığını ve gerekli işlemlerin yapıldığını bilmenizi isteriz.
+
+Feellink'i daha güvenli ve sağlıklı bir ortam haline getirmemize katkı sağladığınız için teşekkür ederiz.
+
+Saygılarımızla,
+Feellink Destek Ekibi`;
+
+    try {
+      await this.transporter.sendMail({
+        from,
+        to: params.to,
+        subject,
+        text,
+        html,
+      });
+      this.logger.log(`Report resolved email sent to ${params.to} for user: ${params.userName}`);
+    } catch (error) {
+      // Mail gönderilemezse sadece logla, admin işlemini engelleme
+      this.logger.warn(`Failed to send report resolved email to ${params.to}:`, error);
+      // Hata fırlatmıyoruz - admin işlemi devam etmeli
+    }
+  }
+
+  async sendEmailChangeConfirmation(params: {
+    to: string;
+    userName: string;
+    confirmUrl: string;
+  }) {
+    if (!this.transporter) {
+      this.logger.warn('Mail transporter not configured. Skipping email send.');
+      return;
+    }
+
+    const mailFromName = process.env.MAIL_FROM_NAME || 'feellink';
+    const mailFrom = process.env.MAIL_FROM || 'info@feellink.io';
+    const from = `"${mailFromName}" <${mailFrom}>`;
+
+    const subject = 'Feellink | E-posta Adresini Onayla';
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="tr">
+      <body style="margin:0;padding:0;background:#f5f7fa;">
+      
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f5f7fa;padding:40px 0;">
+        <tr>
+          <td align="center">
+            
+            <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px;padding:24px 40px;border:1px solid #e8e8e8;box-shadow:0 4px 12px rgba(0,0,0,0.12);">
+              
+              <!-- Logo -->
+              <tr>
+                <td align="center" style="padding:12px 0 8px 0;">
+                  <img
+                    src="${this.logoUrl}"
+                    width="100"
+                    alt="feellink"
+                    style="display:block"
+                  />
+                </td>
+              </tr>
+
+              <!-- Gradient Çizgi -->
+              <tr>
+                <td style="padding:0;">
+                  <div style="height:6px;width:100%;border-radius:4px;background:linear-gradient(90deg,#F28C28,#2A72FF);"></div>
+                </td>
+              </tr>
+
+              <!-- Başlık -->
+              <tr>
+                <td align="center" style="padding-top:28px;">
+                  <h1 style="margin:0;font-size:22px;color:#222;font-weight:700;font-family:Arial,Helvetica,sans-serif;">
+                    E-posta Adresini Onayla
+                  </h1>
+                </td>
+              </tr>
+
+              <!-- Açıklama -->
+              <tr>
+                <td style="padding-top:18px;">
+                  <p style="margin:0;font-size:15px;color:#444;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
+                    Merhaba ${params.userName || ''},
+                    <br><br>
+                    E-posta adresini değiştirmek için aşağıdaki bağlantıya tıklayın.
+                    <br><br>
+                    Bu bağlantı 24 saat geçerlidir.
+                  </p>
+                </td>
+              </tr>
+
+              <!-- BUTON -->
+              <tr>
+                <td align="center" style="padding:30px 0 10px 0;">
+                  <a href="${params.confirmUrl}" style="
+                    background:#F28C28;
+                    color:#ffffff;
+                    padding:14px 34px;
+                    border-radius:30px;
+                    font-size:16px;
+                    font-weight:600;
+                    text-decoration:none;
+                    font-family:Arial,Helvetica,sans-serif;
+                    display:inline-block;
+                  ">
+                    E-posta Adresini Onayla
+                  </a>
+                </td>
+              </tr>
+
+              <!-- Not -->
+              <tr>
+                <td style="padding-top:20px;">
+                  <p style="margin:0;font-size:13px;color:#777;line-height:1.5;font-family:Arial,Helvetica,sans-serif;">
+                    Eğer bu işlemi siz başlatmadıysanız, bu e-postayı güvenle yok sayabilirsiniz.
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="padding-top:24px;">
+                  <hr style="border:none;border-top:1px solid #eaeaea;">
+                </td>
+              </tr>
+
+              <tr>
+                <td align="center" style="padding-top:12px;">
+                  <p style="margin:0;font-size:12px;color:#999;font-family:Arial,Helvetica,sans-serif;line-height:1.5;">
+                    <strong>Feellink</strong> – Sanat daha anlamlı.
+                    <br>
+                    Bu e-posta otomatik olarak gönderilmiştir, lütfen yanıtlamayınız.
+                  </p>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      </body>
+      </html>
+    `;
+
+    const text = `Merhaba ${params.userName || ''},
+
+E-posta adresini değiştirmek için aşağıdaki bağlantıya tıklayın:
+
+${params.confirmUrl}
+
+Bu bağlantı 24 saat geçerlidir.
+
+Eğer bu işlemi siz başlatmadıysanız, bu e-postayı güvenle yok sayabilirsiniz.
+
+Feellink – Sanat daha anlamlı.`;
+
+    try {
+      await this.transporter.sendMail({
+        from,
+        to: params.to,
+        subject,
+        text,
+        html,
+      });
+      this.logger.log(`Email change confirmation sent to ${params.to}`);
+    } catch (error) {
+      this.logger.error(`Failed to send email change confirmation to ${params.to}:`, error);
+      throw error;
+    }
+  }
+
+  async sendEmailChangeNotification(params: {
+    to: string;
+    userName: string;
+    newEmail: string;
+  }) {
+    if (!this.transporter) {
+      this.logger.warn('Mail transporter not configured. Skipping email send.');
+      return;
+    }
+
+    const mailFromName = process.env.MAIL_FROM_NAME || 'feellink';
+    const mailFrom = process.env.MAIL_FROM || 'info@feellink.io';
+    const from = `"${mailFromName}" <${mailFrom}>`;
+
+    const subject = 'Feellink | Hesap Güvenliği Bildirimi';
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="tr">
+      <body style="margin:0;padding:0;background:#f5f7fa;">
+      
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f5f7fa;padding:40px 0;">
+        <tr>
+          <td align="center">
+            
+            <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px;padding:24px 40px;border:1px solid #e8e8e8;box-shadow:0 4px 12px rgba(0,0,0,0.12);">
+              
+              <!-- Logo -->
+              <tr>
+                <td align="center" style="padding:12px 0 8px 0;">
+                  <img
+                    src="${this.logoUrl}"
+                    width="100"
+                    alt="feellink"
+                    style="display:block"
+                  />
+                </td>
+              </tr>
+
+              <!-- Gradient Çizgi -->
+              <tr>
+                <td style="padding:0;">
+                  <div style="height:6px;width:100%;border-radius:4px;background:linear-gradient(90deg,#F28C28,#2A72FF);"></div>
+                </td>
+              </tr>
+
+              <!-- Başlık -->
+              <tr>
+                <td align="center" style="padding-top:28px;">
+                  <h1 style="margin:0;font-size:22px;color:#222;font-weight:700;font-family:Arial,Helvetica,sans-serif;">
+                    Hesap Güvenliği Bildirimi
+                  </h1>
+                </td>
+              </tr>
+
+              <!-- Açıklama -->
+              <tr>
+                <td style="padding-top:18px;">
+                  <p style="margin:0;font-size:15px;color:#444;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
+                    Merhaba ${params.userName || ''},
+                    <br><br>
+                    Hesabınızda e-posta değişikliği talep edilmiştir.
+                    <br><br>
+                    Yeni e-posta adresi: <strong>${params.newEmail}</strong>
+                    <br><br>
+                    Bu işlem size ait değilse lütfen bizimle iletişime geçin.
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="padding-top:24px;">
+                  <hr style="border:none;border-top:1px solid #eaeaea;">
+                </td>
+              </tr>
+
+              <tr>
+                <td align="center" style="padding-top:12px;">
+                  <p style="margin:0;font-size:12px;color:#999;font-family:Arial,Helvetica,sans-serif;line-height:1.5;">
+                    <strong>Feellink</strong> – Sanat daha anlamlı.
+                    <br>
+                    Bu e-posta otomatik olarak gönderilmiştir, lütfen yanıtlamayınız.
+                  </p>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      </body>
+      </html>
+    `;
+
+    const text = `Merhaba ${params.userName || ''},
+
+Hesabınızda e-posta değişikliği talep edilmiştir.
+
+Yeni e-posta adresi: ${params.newEmail}
+
+Bu işlem size ait değilse lütfen bizimle iletişime geçin.
+
+Feellink – Sanat daha anlamlı.`;
+
+    try {
+      await this.transporter.sendMail({
+        from,
+        to: params.to,
+        subject,
+        text,
+        html,
+      });
+      this.logger.log(`Email change notification sent to ${params.to}`);
+    } catch (error) {
+      this.logger.error(`Failed to send email change notification to ${params.to}:`, error);
+      // Hata durumunda sessizce devam et
+    }
+  }
 }
 

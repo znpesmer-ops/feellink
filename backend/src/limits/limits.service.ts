@@ -41,6 +41,28 @@ export class LimitsService {
   }
 
   async ensureCanCreateEvent(userId: string): Promise<CapabilitySummary> {
+    // 🔥 KRİTİK: Admin kontrolü - Admin her şeyi yapabilmeli
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        roles: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const roles = Array.isArray(user.roles) ? (user.roles as string[]) : [];
+    const isAdmin = roles.includes('ADMIN') || roles.some((r: string) => r.toUpperCase() === 'ADMIN');
+
+    // Admin ise direkt izin ver
+    if (isAdmin) {
+      const { capabilities } = await this.loadUserCapabilities(userId);
+      return capabilities;
+    }
+
     const { capabilities } = await this.loadUserCapabilities(userId);
     const { permissions, limits } = capabilities;
 
@@ -97,6 +119,28 @@ export class LimitsService {
   }
 
   async ensureCanCreateArtwork(userId: string): Promise<CapabilitySummary> {
+    // 🔥 KRİTİK: Admin kontrolü - Admin her şeyi yapabilmeli
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        roles: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const roles = Array.isArray(user.roles) ? (user.roles as string[]) : [];
+    const isAdmin = roles.includes('ADMIN') || roles.some((r: string) => r.toUpperCase() === 'ADMIN');
+
+    // Admin ise direkt izin ver
+    if (isAdmin) {
+      const { capabilities } = await this.loadUserCapabilities(userId);
+      return capabilities;
+    }
+
     const { capabilities } = await this.loadUserCapabilities(userId);
     const { permissions, limits } = capabilities;
 

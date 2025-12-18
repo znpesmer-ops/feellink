@@ -26,6 +26,9 @@ import { JobsModule } from './jobs/jobs.module';
 import { LimitsModule } from './limits/limits.module';
 import { HighlightsModule } from './highlights/highlights.module';
 import { HealthModule } from './health/health.module';
+import { BlocksModule } from './blocks/blocks.module';
+import { ReportsModule } from './reports/reports.module';
+import { EmailChangeModule } from './email-change/email-change.module';
 
 @Module({
   imports: [
@@ -63,6 +66,9 @@ import { HealthModule } from './health/health.module';
     LimitsModule,
     HighlightsModule,
     HealthModule,
+    BlocksModule,
+    ReportsModule,
+    EmailChangeModule,
   ],
 })
 export class AppModule {}

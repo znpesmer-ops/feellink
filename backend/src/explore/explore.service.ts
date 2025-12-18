@@ -81,15 +81,29 @@ export class ExploreService {
   }
 
   async getExplorePosts(userId: string, limit: number = 20, cursor?: string) {
-    // Get posts that user hasn't posted
-    // Order by likes and comments (popularity)
+    // Get posts from users that the current user does NOT follow
+    // This creates the "discovery" feed - new content from users you haven't followed yet
     const where = cursor
       ? {
           id: { lt: cursor },
-          userId: { not: userId },
+          userId: { not: userId }, // Exclude own posts
+          user: {
+            followers: {
+              none: {
+                followerId: userId, // Exclude posts from users you follow
+              },
+            },
+          },
         }
       : {
-          userId: { not: userId },
+          userId: { not: userId }, // Exclude own posts
+          user: {
+            followers: {
+              none: {
+                followerId: userId, // Exclude posts from users you follow
+              },
+            },
+          },
         };
 
     const posts = await this.prisma.post.findMany({
