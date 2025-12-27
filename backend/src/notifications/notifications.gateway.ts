@@ -2,31 +2,9 @@ import { WebSocketGateway, WebSocketServer, OnGatewayInit, OnGatewayConnection, 
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { getWebSocketCorsConfig } from '../common/utils/websocket-cors.util';
 
-@WebSocketGateway({
-  cors: {
-    origin: (origin, callback) => {
-      const isDevelopment = process.env.NODE_ENV !== 'production';
-      const allowedOrigins = isDevelopment
-        ? [
-            'http://localhost:3000',
-            'http://localhost:3001',
-            'http://localhost:3002',
-            'http://127.0.0.1:3000',
-            'http://127.0.0.1:3001',
-            'http://127.0.0.1:3002',
-          ]
-        : [process.env.FRONTEND_URL || 'http://localhost:3000'];
-      
-      if (!origin || isDevelopment || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    credentials: true,
-  },
-})
+@WebSocketGateway(getWebSocketCorsConfig())
 export class NotificationsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;

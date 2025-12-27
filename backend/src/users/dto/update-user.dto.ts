@@ -1,9 +1,11 @@
-import { IsString, IsOptional, IsUrl, IsBoolean, ValidateIf } from 'class-validator';
+import { IsString, IsOptional, IsUrl, IsBoolean, ValidateIf, IsDateString, IsIn } from 'class-validator';
 
 export class UpdateUserDto {
-  @IsOptional()
-  @IsString()
-  username?: string;
+  // 🔒 KRİTİK: Username kaldırıldı - profil URL'ini korumak için
+  // Username değişikliği ayrı bir endpoint'te yapılmalı (gelecekte)
+  // @IsOptional()
+  // @IsString()
+  // username?: string;
 
   @IsOptional()
   @IsString()
@@ -25,5 +27,27 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isPrivate?: boolean;
+
+  @IsOptional()
+  @IsString()
+  phoneNumber?: string;
+
+  @IsOptional()
+  @IsDateString({}, { message: 'Geçerli bir tarih girin' })
+  dateOfBirth?: string;
+
+  @IsOptional()
+  @IsString()
+  country?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsIn(['FEMALE', 'MALE', 'UNSPECIFIED'], {
+    message: 'Geçerli bir cinsiyet seçeneği seçin',
+  })
+  gender?: string;
 }
 

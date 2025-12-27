@@ -80,31 +80,38 @@ export class ExploreService {
     return `${baseUrl}${cleanPath}`;
   }
 
-  async getExplorePosts(userId: string, limit: number = 20, cursor?: string) {
+  async getExplorePosts(userId: string | null, limit: number = 20, cursor?: string) {
     // Get posts from users that the current user does NOT follow
     // This creates the "discovery" feed - new content from users you haven't followed yet
-    const where = cursor
-      ? {
-          id: { lt: cursor },
-          userId: { not: userId }, // Exclude own posts
-          user: {
-            followers: {
-              none: {
-                followerId: userId, // Exclude posts from users you follow
+    // If userId is null (no auth), show all public posts
+    const where = userId
+      ? (cursor
+          ? {
+              id: { lt: cursor },
+              userId: { not: userId }, // Exclude own posts
+              user: {
+                followers: {
+                  none: {
+                    followerId: userId, // Exclude posts from users you follow
+                  },
+                },
               },
-            },
-          },
-        }
-      : {
-          userId: { not: userId }, // Exclude own posts
-          user: {
-            followers: {
-              none: {
-                followerId: userId, // Exclude posts from users you follow
+            }
+          : {
+              userId: { not: userId }, // Exclude own posts
+              user: {
+                followers: {
+                  none: {
+                    followerId: userId, // Exclude posts from users you follow
+                  },
+                },
               },
-            },
-          },
-        };
+            })
+      : (cursor
+          ? {
+              id: { lt: cursor },
+            }
+          : {});
 
     const posts = await this.prisma.post.findMany({
       where,
@@ -159,14 +166,16 @@ export class ExploreService {
       ? filteredPosts[filteredPosts.length - 1].id
       : undefined;
 
-    // Check if liked
+    // Check if liked (only if userId is provided)
     const postIds = filteredPosts.map(p => p.id);
-    const likes = await this.prisma.like.findMany({
-      where: {
-        postId: { in: postIds },
-        userId,
-      },
-    });
+    const likes = userId
+      ? await this.prisma.like.findMany({
+          where: {
+            postId: { in: postIds },
+            userId,
+          },
+        })
+      : [];
 
     const likedPostIds = new Set(likes.map(l => l.postId));
 
@@ -286,14 +295,16 @@ export class ExploreService {
       ? filteredPosts[filteredPosts.length - 1].id
       : undefined;
 
-    // Check if liked
+    // Check if liked (only if userId is provided)
     const postIds = filteredPosts.map(p => p.id);
-    const likes = await this.prisma.like.findMany({
-      where: {
-        postId: { in: postIds },
-        userId,
-      },
-    });
+    const likes = userId
+      ? await this.prisma.like.findMany({
+          where: {
+            postId: { in: postIds },
+            userId,
+          },
+        })
+      : [];
 
     const likedPostIds = new Set(likes.map(l => l.postId));
 

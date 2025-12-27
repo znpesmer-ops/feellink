@@ -27,18 +27,9 @@ export class CollectionsService {
       throw new NotFoundException('User not found');
     }
 
-    const roles = (user.roles as string[]) ?? [];
-    const plan = (user.plan as SubscriptionPlanCode) ?? 'FREE';
-    const badges = Array.isArray(user.badges) ? (user.badges as string[]) : [];
-    const capabilities = computeCapabilities(roles, plan, badges);
-
-    const hasAccess = requireManage
-      ? capabilities.permissions.canManageCollections
-      : capabilities.permissions.canAccessCollections;
-
-    if (!hasAccess) {
-      throw new ForbiddenException('Bu işlem için Koleksiyoner yetkisine sahip olmalısınız.');
-    }
+    // ✅ Tüm kullanıcılar koleksiyon oluşturabilir ve yönetebilir
+    // Artık yetki kontrolü yok - herkes erişebilir
+    return true;
   }
 
   async getMyCollections(userId: string) {
@@ -251,11 +242,20 @@ export class CollectionsService {
 
     // Eser sahibine bildirim gönder (koleksiyon sahibi kendi eserini eklemiyorsa)
     if (post.userId !== userId) {
-      const addedUserName = post.user.username || post.user.fullName || 'Kullanıcı';
+      // Koleksiyon sahibinin bilgilerini al
+      const collectionOwner = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          username: true,
+          fullName: true,
+        },
+      });
+      
+      const addedUserName = collectionOwner?.fullName || collectionOwner?.username || 'Kullanıcı';
       await this.notificationsService.createNotification({
         userId: post.userId,
         type: 'collection_added',
-        message: `"${collection.title}" koleksiyonuna eklendiniz. Eser sahibi: @${addedUserName}`,
+        message: `${addedUserName}, eserinizi "${collection.title}" koleksiyonuna ekledi`,
         fromUserId: userId,
         targetPath: `/collections/${collectionId}`,
         targetUrl: `/collections/${collectionId}`,

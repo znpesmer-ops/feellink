@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Logger, Inject, forwardRef } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateJobDto } from './dto/create-job.dto';
@@ -6,6 +6,7 @@ import { LimitsService } from '../limits/limits.service';
 import { CreateJobApplicationDto } from './dto/create-application.dto';
 import { ApplicationStatus } from './dto/update-application-status.dto';
 import { MailService } from '../mail/mail.service';
+import { ChatService } from '../chat/chat.service';
 
 @Injectable()
 export class JobsService {
@@ -15,6 +16,8 @@ export class JobsService {
     private readonly prisma: PrismaService,
     private readonly limitsService: LimitsService,
     private readonly mailService: MailService,
+    @Inject(forwardRef(() => ChatService))
+    private readonly chatService: ChatService,
   ) {}
 
   async create(userId: string, dto: CreateJobDto) {

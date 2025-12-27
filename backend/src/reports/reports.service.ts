@@ -265,5 +265,76 @@ export class ReportsService {
 
     return report;
   }
+
+  async createContentReport(
+    reporterId: string,
+    contentType: 'post' | 'comment',
+    contentId: string,
+    reason: ReportReason,
+    note?: string,
+  ) {
+    // İçerik var mı kontrol et
+    if (contentType === 'post') {
+      const post = await this.prisma.post.findUnique({
+        where: { id: contentId },
+      });
+      if (!post) {
+        throw new NotFoundException('Post not found');
+      }
+    } else if (contentType === 'comment') {
+      const comment = await this.prisma.comment.findUnique({
+        where: { id: contentId },
+      });
+      if (!comment) {
+        throw new NotFoundException('Comment not found');
+      }
+    }
+
+    // Rapor oluştur
+    // Note: Report model schema'da tanımlı değil, geçici olarak any kullanılıyor
+    const report = await (this.prisma as any).report.create({
+      data: {
+        reporterId,
+        contentType,
+        contentId,
+        reason,
+        note,
+        status: 'OPEN',
+      },
+      include: {
+        reporter: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    // Admin'lere bildirim oluştur
+    const admins = await this.prisma.user.findMany({
+      where: {
+        OR: [{ isAdmin: true }, { superAdmin: true }],
+      },
+      select: { id: true },
+    });
+
+    await Promise.all(
+      admins.map((admin) =>
+        this.prisma.notification.create({
+          data: {
+            userId: admin.id,
+            type: 'REPORT_CREATED',
+            message: `Yeni içerik raporu: ${contentType === 'post' ? 'Gönderi' : 'Yorum'}`,
+            fromUserId: reporterId,
+          },
+        }),
+      ),
+    );
+
+    return report;
+  }
 }
 

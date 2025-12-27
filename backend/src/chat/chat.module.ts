@@ -4,6 +4,7 @@ import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
 import { PrismaModule } from '../prisma/prisma.module';
 import { BlocksModule } from '../blocks/blocks.module';
+import { FollowModule } from '../follow/follow.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
@@ -11,6 +12,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
   imports: [
     PrismaModule,
     BlocksModule,
+    FollowModule, // 🔥 Instagram mantığı için takip kontrolü
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

@@ -33,16 +33,17 @@ export class JobsController {
     return this.jobsService.getAll();
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get(':id')
-  async getJob(@Param('id') jobId: string, @CurrentUser() user: CurrentUserPayload) {
-    return this.jobsService.getById(jobId, user.id);
-  }
-
   // ⚠️ ÖNEMLİ: Route sıralaması kritik!
-  // 1. 'me' route'ları (en spesifik)
+  // 1. 'me' route'ları (en spesifik) - ÖNCE BUNLAR
   // 2. 'applications' route'ları (spesifik)
   // 3. ':id' route'ları (genel, en sonda)
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/analytics')
+  async getMyListingsAnalytics(@CurrentUser() user: CurrentUserPayload) {
+    // Tüm authenticated kullanıcılar kendi ilanlarının analizini görebilir
+    return this.jobsService.getOwnerListingsAnalytics(user.id);
+  }
 
   @UseGuards(JwtAuthGuard)
   @Get('me/applications')
@@ -55,13 +56,6 @@ export class JobsController {
   async getMyJobs(@CurrentUser() user: CurrentUserPayload) {
     // Herkes kendi ilanlarını görebilir (rol kontrolü yok)
     return this.jobsService.getMyJobs(user.id);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('me/analytics')
-  async getMyListingsAnalytics(@CurrentUser() user: CurrentUserPayload) {
-    // Tüm authenticated kullanıcılar kendi ilanlarının analizini görebilir
-    return this.jobsService.getOwnerListingsAnalytics(user.id);
   }
 
   // ⚠️ 'applications' route'ları ':id' route'larından ÖNCE olmalı
@@ -96,6 +90,13 @@ export class JobsController {
     @Body() dto: UpdateApplicationStatusDto,
   ) {
     return this.jobsService.updateApplicationStatus(applicationId, user.id, dto.status);
+  }
+
+  // ':id' route'ları en sonda (genel route'lar)
+  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  async getJob(@Param('id') jobId: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.jobsService.getById(jobId, user.id);
   }
 
   // ':id' route'ları en sonda (genel route'lar)

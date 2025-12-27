@@ -21,12 +21,15 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 export class ChatController {
   constructor(private chatService: ChatService) {}
 
+  // ⚠️ ÖNEMLİ: Route sıralaması kritik!
+  // 'conversations' route'u ':id' route'undan ÖNCE olmalı
   @Get('conversations')
   @ApiOperation({ summary: 'Get all conversations for current user' })
   async getConversations(@CurrentUser() user: any) {
     return this.chatService.getConversations(user.id);
   }
 
+  // ':id' route'ları 'conversations' route'undan SONRA olmalı
   @Get('conversations/:id')
   @ApiOperation({ summary: 'Get conversation details' })
   async getConversation(@Param('id') id: string, @CurrentUser() user: any) {
@@ -47,10 +50,10 @@ export class ChatController {
   @Post('conversations')
   @ApiOperation({ summary: 'Create a new conversation' })
   async createConversation(
-    @Body() body: { participantIds: string[] },
+    @Body() body: { participantIds: string[]; context?: 'DIRECT' | 'JOB_APPLICATION'; jobId?: string; applicationId?: string },
     @CurrentUser() user: any,
   ) {
-    return this.chatService.createConversation(user.id, body.participantIds);
+    return this.chatService.createConversation(user.id, body.participantIds, body.context, body.jobId, body.applicationId);
   }
 
   @Put('conversations/:id/read')
@@ -91,6 +94,35 @@ export class ChatController {
   @ApiOperation({ summary: 'Get files from a conversation' })
   async getFiles(@Param('id') conversationId: string, @CurrentUser() user: any) {
     return this.chatService.getFiles(conversationId, user.id);
+  }
+
+  // 🔥 INSTAGRAM MANTIĞI: Mesaj isteklerini getir
+  @Get('message-requests')
+  @ApiOperation({ summary: 'Get message requests (Instagram style)' })
+  async getMessageRequests(@CurrentUser() user: any) {
+    return this.chatService.getMessageRequests(user.id);
+  }
+
+  // 🔥 INSTAGRAM MANTIĞI: Mesaj isteğini kabul et
+  @Put('message-requests/:id/accept')
+  @ApiOperation({ summary: 'Accept a message request' })
+  async acceptMessageRequest(@Param('id') conversationId: string, @CurrentUser() user: any) {
+    return this.chatService.acceptMessageRequest(conversationId, user.id);
+  }
+
+  // 🔥 INSTAGRAM MANTIĞI: Mesaj isteğini reddet
+  @Put('message-requests/:id/decline')
+  @ApiOperation({ summary: 'Decline a message request' })
+  async declineMessageRequest(@Param('id') conversationId: string, @CurrentUser() user: any) {
+    return this.chatService.declineMessageRequest(conversationId, user.id);
+  }
+
+  // 🔥 OKUNMAMIŞ MESAJ SAYISI (Bildirimler gibi)
+  @Get('unread-count')
+  @ApiOperation({ summary: 'Get total unread message count' })
+  async getUnreadCount(@CurrentUser() user: any) {
+    const count = await this.chatService.getUnreadMessageCount(user.id);
+    return { count };
   }
 }
 

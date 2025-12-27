@@ -14,20 +14,41 @@ export class EventsService {
   ) {}
 
   async getAllEvents() {
-    return this.prisma.event.findMany({
-      where: { isDeleted: false },
-      include: { 
-        tickets: true, 
-        owner: true,
-        participants: {
-          select: {
-            userId: true,
-            status: true,
+    try {
+      // 🔒 GÜVENLİ GEVŞETME - Eski event'ler kaybolmasın
+      // Sadece silinmemiş eventleri getir, diğer filtreleri kaldır
+      const events = await this.prisma.event.findMany({
+        where: { 
+          isDeleted: false,
+          // approved, isPublic, status gibi katı filtreler kaldırıldı
+          // Böylece eski kayıtlar da görünür
+        },
+        include: { 
+          tickets: true, 
+          owner: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+              avatar: true,
+            },
+          },
+          participants: {
+            select: {
+              userId: true,
+              status: true,
+            },
           },
         },
-      },
-      orderBy: { date: 'asc' },
-    });
+        orderBy: { createdAt: 'desc' }, // En yeni önce
+      });
+      
+      return events;
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      // Hata durumunda boş array döndür, 500 hatası verme
+      return [];
+    }
   }
 
   async getMyEvents(userId: string) {

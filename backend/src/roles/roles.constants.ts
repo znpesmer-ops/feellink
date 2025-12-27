@@ -41,11 +41,11 @@ export const ROLE_FEATURE_MATRIX: Record<UserRoleCode, RoleFeatureFlags> = {
   art_lover: {
     canCreateEvents: false,
     canAccessMyEvents: false,
-    canAccessCollections: false,
-    canManageCollections: false,
+    canAccessCollections: true, // ✅ Sanatsever de koleksiyonları görebilir
+    canManageCollections: true, // ✅ Sanatsever de koleksiyon oluşturabilir
     canAccessAnalytics: true,
     canCreateListings: false,
-    canCreateArtworks: false,
+    canCreateArtworks: true, // ✅ Sanatsever de eser yükleyebilir
   },
   corporate: {
     canCreateEvents: true,
@@ -68,8 +68,8 @@ export const ROLE_FEATURE_MATRIX: Record<UserRoleCode, RoleFeatureFlags> = {
   artist: {
     canCreateEvents: true,
     canAccessMyEvents: true,
-    canAccessCollections: false,
-    canManageCollections: false,
+    canAccessCollections: true, // ✅ Sanatçı da koleksiyonları görebilir
+    canManageCollections: true, // ✅ Sanatçı da koleksiyon oluşturabilir
     canAccessAnalytics: true,
     canCreateListings: false,
     canCreateArtworks: true,
@@ -132,8 +132,8 @@ export const ROLE_SIDEBAR_CONFIG: Record<UserRoleCode, RoleSidebarConfig> = {
     profile: true,
     createEvent: false,
     myEvents: false,
-    collections: false,
-    manageCollections: false,
+    collections: true, // ✅ Sanatsever de koleksiyonları görebilir
+    manageCollections: true, // ✅ Sanatsever de koleksiyon oluşturabilir
     analytics: true,
     listings: true,
     badges: true,
@@ -171,8 +171,8 @@ export const ROLE_SIDEBAR_CONFIG: Record<UserRoleCode, RoleSidebarConfig> = {
     profile: true,
     createEvent: true,
     myEvents: true,
-    collections: false,
-    manageCollections: false,
+    collections: true, // ✅ Sanatçı da koleksiyonları görebilir
+    manageCollections: true, // ✅ Sanatçı da koleksiyon oluşturabilir
     analytics: true,
     listings: true,
     badges: true,

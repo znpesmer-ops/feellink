@@ -7,30 +7,9 @@ import { Server, Socket } from 'socket.io';
 import { Injectable } from '@nestjs/common';
 import { AdminGateway } from '../admin/admin.gateway';
 
-@WebSocketGateway({
-  cors: {
-    origin: (origin, callback) => {
-      const isDevelopment = process.env.NODE_ENV !== 'production';
-      const allowedOrigins = isDevelopment
-        ? [
-            'http://localhost:3000',
-            'http://localhost:3001',
-            'http://localhost:3002',
-            'http://127.0.0.1:3000',
-            'http://127.0.0.1:3001',
-            'http://127.0.0.1:3002',
-          ]
-        : [process.env.FRONTEND_URL || 'http://localhost:3000'];
-      
-      if (!origin || isDevelopment || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    credentials: true,
-  },
-})
+import { getWebSocketCorsConfig } from '../common/utils/websocket-cors.util';
+
+@WebSocketGateway(getWebSocketCorsConfig())
 @Injectable()
 export class SidebarGateway implements OnGatewayConnection {
   @WebSocketServer()

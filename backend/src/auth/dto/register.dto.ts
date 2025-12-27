@@ -1,5 +1,5 @@
 import { UserRoleCode } from '../../roles/roles.types';
-import { IsNotEmpty, IsOptional, IsString, MinLength, Matches } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MinLength, Matches, IsBoolean } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { IsUnicodeEmail } from '../../common/validators/is-unicode-email.decorator';
 

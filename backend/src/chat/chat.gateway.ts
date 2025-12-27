@@ -12,31 +12,13 @@ import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlocksService } from '../blocks/blocks.service';
+import { FollowService } from '../follow/follow.service';
+
+import { getWebSocketCorsConfig } from '../common/utils/websocket-cors.util';
 
 @WebSocketGateway({
   namespace: '/chat',
-  cors: {
-    origin: (origin, callback) => {
-      const isDevelopment = process.env.NODE_ENV !== 'production';
-      const allowedOrigins = isDevelopment
-        ? [
-            'http://localhost:3000',
-            'http://localhost:3001',
-            'http://localhost:3002',
-            'http://127.0.0.1:3000',
-            'http://127.0.0.1:3001',
-            'http://127.0.0.1:3002',
-          ]
-        : [process.env.FRONTEND_URL || 'http://localhost:3000'];
-      
-      if (!origin || isDevelopment || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    credentials: true,
-  },
+  ...getWebSocketCorsConfig(),
 })
 export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -49,6 +31,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     private jwtService: JwtService,
     private prisma: PrismaService,
     private blocksService: BlocksService,
+    private followService: FollowService,
   ) {}
 
   afterInit(server: Server) {
@@ -192,24 +175,76 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
       // Block kontrolü: Karşı tarafı engellemiş mi veya engellenmiş mi kontrol et
       const otherParticipant = conversation.participants.find((p) => p.userId !== userId);
-      if (otherParticipant) {
-        const isBlocked = await this.blocksService.isBlocked(userId, otherParticipant.userId);
-        if (isBlocked) {
-          return { error: 'Cannot send message. User is blocked.' };
+      if (!otherParticipant) {
+        return { error: 'Other participant not found' };
+      }
+
+      const isBlocked = await this.blocksService.isBlocked(userId, otherParticipant.userId);
+      if (isBlocked) {
+        return { error: 'Cannot send message. User is blocked.' };
+      }
+
+      // 🔥 INSTAGRAM MANTIĞI: Gizli hesap kontrolü ve mesaj isteği
+      // Alıcının hesap bilgilerini al
+      const recipient = await this.prisma.user.findUnique({
+        where: { id: otherParticipant.userId },
+        select: { id: true, isPrivate: true },
+      });
+
+      let isRequest = false;
+      if (recipient?.isPrivate) {
+        // Gizli hesap ise, gönderen takipçi mi kontrol et
+        const isFollowing = await this.prisma.follow.findUnique({
+          where: {
+            followerId_followingId: {
+              followerId: userId,
+              followingId: recipient.id,
+            },
+          },
+        });
+        
+        // Eğer takipçi değilse, mesaj isteği olarak işaretle
+        if (!isFollowing) {
+          isRequest = true;
+          console.log(`📩 [ChatGateway] Message marked as request: sender=${userId}, recipient=${recipient.id} (private account, not following)`);
         }
       }
 
-      // Mesajı veritabanına kaydet
+      // ✅ Mesaj bağlamını conversation'dan al (context, jobId, applicationId)
+      // Prisma client generate edilene kadar type assertion kullan
+      const conversationAny = conversation as any
+      const messageContext = conversationAny.context || 'DIRECT'
+      const messageJobId = conversationAny.jobId || null
+      const messageApplicationId = conversationAny.applicationId || null
+
+      // Mesajı veritabanına kaydet (kalıcı olması için)
+      // Prisma client generate edilene kadar type assertion kullan
+      const messageData: any = {
+        conversationId: data.conversationId,
+        senderId: userId,
+        content: data.content || null,
+        imageUrl: data.imageUrl || null,
+        fileUrl: data.fileUrl || null,
+        fileName: data.fileName || null,
+        fileType: data.fileType || null,
+        isRequest: isRequest, // 🔥 Instagram tarzı mesaj isteği
+        isDeleted: false, // 🔥 KRİTİK: Mesaj kalıcı olmalı
+        read: false, // İlk başta okunmamış
+      }
+      
+      // Prisma client generate edilene kadar context, jobId ve applicationId'yi optional olarak ekle
+      if (messageContext) {
+        messageData.context = messageContext
+      }
+      if (messageJobId) {
+        messageData.jobId = messageJobId
+      }
+      if (messageApplicationId) {
+        messageData.applicationId = messageApplicationId
+      }
+      
       const message = await this.prisma.message.create({
-        data: {
-          conversationId: data.conversationId,
-          senderId: userId,
-          content: data.content || null,
-          imageUrl: data.imageUrl || null,
-          fileUrl: data.fileUrl || null,
-          fileName: data.fileName || null,
-          fileType: data.fileType || null,
-        },
+        data: messageData,
         include: {
           sender: {
             select: {
@@ -220,40 +255,236 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
           },
         },
       });
+      
+      console.log(`✅ [ChatGateway] Message created in DB: ${message.id}, conversation: ${data.conversationId}, sender: ${userId}`);
 
-      // Konuşmayı güncelle (updatedAt)
-      await this.prisma.conversation.update({
+      // 🔥 KRİTİK: Socket event'lerini HEMEN gönder (gecikme yok - anlık)
+      // DB güncellemelerini arka planda yap, socket event'lerini önce gönder
+      this.broadcastMessageImmediately(message, conversation, userId, data.conversationId);
+
+      // 🔥 ARKA PLANDA: Conversation metadata güncelle (sol panel için)
+      // MongoDB'de manuel yapmak ZORUNLU (Postgres otomatik yapıyordu)
+      this.prisma.conversation.update({
         where: { id: data.conversationId },
-        data: { updatedAt: new Date() },
-      });
-
-      // ✅ Yeni mesaj geldiğinde silinmiş sohbetleri geri getir
-      await this.prisma.userConversation.updateMany({
-        where: {
-          conversationId: data.conversationId,
-          isDeleted: true,
-        },
         data: {
+          lastMessage: message.content ?? (message.imageUrl ? '📷 Fotoğraf' : (message.fileUrl ? '📎 Dosya' : 'Yeni mesaj')),
+          updatedAt: new Date(),
+        },
+      }).catch(err => console.error('[ChatGateway] Failed to update conversation:', err));
+
+      // ✅ ARKA PLANDA: Receiver için conversation kaydı MUTLAKA oluştur (Instagram gibi)
+      // Sadece receiver için silinmiş sohbeti geri getir (sender zaten mesaj gönderiyor, conversation'ı silmemiş demektir)
+      const receiverParticipant = conversation.participants.find((p) => p.userId !== userId);
+      if (receiverParticipant) {
+        this.prisma.userConversation.upsert({
+          where: {
+            userId_conversationId: {
+              userId: receiverParticipant.userId,
+              conversationId: data.conversationId,
+            },
+          },
+          create: {
+            userId: receiverParticipant.userId,
+            conversationId: data.conversationId,
+            isDeleted: false,
+          },
+          update: {
+            isDeleted: false, // ✅ Sadece receiver için silinmiş sohbeti geri getir
+          },
+        }).then(() => {
+          console.log(`✅ [ChatGateway] UserConversation ensured for receiver: ${receiverParticipant.userId}`);
+        }).catch(err => {
+          console.error(`❌ [ChatGateway] Failed to create UserConversation for receiver: ${err.message}`);
+        });
+      }
+
+      // 🔥 ARKA PLANDA: Sender için de UserConversation kaydı oluştur (ama isDeleted'i değiştirme)
+      // Sender zaten mesaj gönderiyor, conversation'ı silmemiş demektir
+      this.prisma.userConversation.upsert({
+        where: {
+          userId_conversationId: {
+            userId: userId,
+            conversationId: data.conversationId,
+          },
+        },
+        create: {
+          userId: userId,
+          conversationId: data.conversationId,
           isDeleted: false,
         },
+        update: {
+          // ✅ Sender için isDeleted'i değiştirme - eğer silmişse silinmiş kalsın
+          // Sadece receiver için geri getir
+        },
+      }).then(() => {
+        console.log(`✅ [ChatGateway] UserConversation ensured for sender: ${userId}`);
+      }).catch(err => {
+        console.error(`❌ [ChatGateway] Failed to create UserConversation for sender: ${err.message}`);
       });
 
-      // Mesajı aynı konuşmadaki tüm kullanıcılara gönder
-      this.server.to(`conversation_${data.conversationId}`).emit('receive_message', message);
-
-      // Eğer kullanıcılar sohbette değilse, kişisel bildirim gönder
-      conversation.participants.forEach((participant) => {
-        if (participant.userId !== userId) {
-          this.server.to(`user_${participant.userId}`).emit('new_message', {
-            conversationId: data.conversationId,
-            message,
-          });
-        }
+      // 🔥 ARKA PLANDA: updatedConversation'ı hazırla (conversation_updated event'i için)
+      this.prepareAndSendConversationUpdate(data.conversationId, message).catch(err => {
+        console.error(`❌ [ChatGateway] Failed to prepare conversation update: ${err.message}`);
       });
 
       return { success: true, message };
     } catch (error) {
       return { error: error.message };
+    }
+  }
+
+  // 🔥 KRİTİK: Mesajı ANINDA gönder (gecikme yok)
+  private async broadcastMessageImmediately(
+    message: any,
+    conversation: any,
+    userId: string,
+    conversationId: string
+  ) {
+    // 🔥 KRİTİK: Mesajı TÜM katılımcılara gönder (garantili - çoklu yöntem)
+    console.log(`📤 [ChatGateway] Broadcasting message ${message.id} to conversation ${conversationId} (IMMEDIATE)`);
+    console.log(`📤 [ChatGateway] Sender: ${userId}`);
+    console.log(`📤 [ChatGateway] Participants:`, conversation.participants.map((p: any) => ({ userId: p.userId, username: p.user?.username })));
+    console.log(`📤 [ChatGateway] Active sockets:`, Array.from(this.userSockets.entries()).map(([uid, sid]) => ({ userId: uid, socketId: sid })));
+    
+    // 🔥 KRİTİK: Conversation objesini hazırla (new_message event'i için)
+    // Prisma client generate edilene kadar type assertion kullan
+    const conversationAny = conversation as any
+    const updatedConversation = {
+      id: conversation.id,
+      createdAt: conversation.createdAt,
+      updatedAt: new Date(),
+      lastMessage: message.content ?? (message.imageUrl ? '📷 Fotoğraf' : (message.fileUrl ? '📎 Dosya' : 'Yeni mesaj')),
+      context: conversationAny.context || 'DIRECT', // ✅ Context bilgisi eklendi
+      jobId: conversationAny.jobId || null, // ✅ JobId bilgisi eklendi
+      applicationId: conversationAny.applicationId || null, // ✅ ApplicationId bilgisi eklendi
+      participants: conversation.participants.map((p: any) => ({
+        id: p.id || p.userId, // UserConversation id'si
+        userId: p.userId,
+        user: p.user,
+      })),
+    };
+    
+    // 🔥 1. Conversation room'una gönder (join olanlar için)
+    this.server.to(`conversation_${conversationId}`).emit('receive_message', message);
+    this.server.to(`conversation_${conversationId}`).emit('new_message', {
+      conversationId: conversationId,
+      message,
+      conversation: updatedConversation, // ✅ Conversation objesi eklendi
+    });
+    console.log(`📤 [ChatGateway] Sent to conversation room: conversation_${conversationId}`);
+    
+    // 🔥 2. Her katılımcıya GARANTİLİ gönderim (3 yöntemle)
+    conversation.participants.forEach((participant: any) => {
+      const participantUserId = participant.userId;
+      const participantSocketId = this.userSockets.get(participantUserId);
+      
+      // Receiver için (sender hariç)
+      if (participantUserId !== userId) {
+        console.log(`📤 [ChatGateway] Sending to RECEIVER: ${participantUserId}, Socket ID: ${participantSocketId || 'NOT FOUND'}`);
+        
+        // ✅ KRİTİK: Receiver'a MUTLAKA gönder (3 yöntemle garantili)
+        // YÖNTEM 1: Socket ID'ye direkt gönder (en hızlı)
+        if (participantSocketId) {
+          this.server.to(participantSocketId).emit('receive_message', message);
+          this.server.to(participantSocketId).emit('new_message', {
+            conversationId: conversationId,
+            message,
+            conversation: updatedConversation,
+          });
+          this.server.to(participantSocketId).emit('conversation_updated', updatedConversation);
+          console.log(`✅ [ChatGateway] Message sent to receiver socket ID: ${participantSocketId} (userId: ${participantUserId})`);
+        } else {
+          console.warn(`⚠️ [ChatGateway] Receiver socket ID not found for userId: ${participantUserId} - using user room fallback`);
+        }
+        
+        // YÖNTEM 2: User room'a gönder (her zaman aktif - reconnect olduğunda alır)
+        // ✅ KRİTİK: User room'a MUTLAKA gönder (receiver bağlı olmasa bile reconnect olduğunda alır)
+        this.server.to(`user_${participantUserId}`).emit('receive_message', message);
+        this.server.to(`user_${participantUserId}`).emit('new_message', {
+          conversationId: conversationId,
+          message,
+          conversation: updatedConversation,
+        });
+        this.server.to(`user_${participantUserId}`).emit('conversation_updated', updatedConversation);
+        console.log(`✅ [ChatGateway] Message sent to receiver user room: user_${participantUserId}`);
+        
+        // YÖNTEM 3: Conversation room'a gönder (receiver join olmuşsa alır)
+        this.server.to(`conversation_${conversationId}`).emit('receive_message', message);
+        this.server.to(`conversation_${conversationId}`).emit('new_message', {
+          conversationId: conversationId,
+          message,
+          conversation: updatedConversation,
+        });
+        this.server.to(`conversation_${conversationId}`).emit('conversation_updated', updatedConversation);
+        console.log(`✅ [ChatGateway] Message sent to conversation room: conversation_${conversationId}`);
+      } else {
+        // Sender için de gönder (optimistic update için)
+        if (participantSocketId) {
+          this.server.to(participantSocketId).emit('receive_message', message);
+          this.server.to(participantSocketId).emit('new_message', {
+            conversationId: conversationId,
+            message,
+            conversation: updatedConversation,
+          });
+          console.log(`✅ [ChatGateway] Message sent to sender socket ID: ${participantSocketId}`);
+        }
+      }
+    });
+
+    console.log(`✅ [ChatGateway] Message ${message.id} broadcasted to all participants of conversation ${conversationId} (IMMEDIATE)`);
+  }
+
+  // 🔥 ARKA PLANDA: Conversation update'i hazırla ve gönder
+  private async prepareAndSendConversationUpdate(conversationId: string, message: any): Promise<void> {
+    try {
+      const updatedConversation = await this.prisma.conversation.findUnique({
+        where: { id: conversationId },
+        include: {
+          participants: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  avatar: true,
+                  fullName: true,
+                  isOnline: true,
+                  lastSeen: true,
+                },
+              },
+            },
+          },
+          messages: {
+            take: 1,
+            orderBy: {
+              createdAt: 'desc',
+            },
+            include: {
+              sender: {
+                select: {
+                  id: true,
+                  username: true,
+                  avatar: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Conversation update event'ini gönder
+      if (updatedConversation) {
+        updatedConversation.participants.forEach((participant: any) => {
+          const participantSocketId = this.userSockets.get(participant.userId);
+          if (participantSocketId) {
+            this.server.to(participantSocketId).emit('conversation_updated', updatedConversation);
+          }
+          this.server.to(`user_${participant.userId}`).emit('conversation_updated', updatedConversation);
+        });
+        console.log(`✅ [ChatGateway] Conversation update sent for conversation ${conversationId}`);
+      }
+    } catch (error: any) {
+      console.error(`❌ [ChatGateway] Failed to prepare conversation update: ${error.message}`);
     }
   }
 

@@ -4,7 +4,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('explore')
-@UseGuards(JwtAuthGuard)
 export class ExploreController {
   constructor(private exploreService: ExploreService) {}
 
@@ -14,8 +13,9 @@ export class ExploreController {
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
   ) {
+    // User optional - token yoksa da çalışır
     return this.exploreService.getExplorePosts(
-      user.id,
+      user?.id || null,
       limit ? parseInt(limit) : 20,
       cursor,
     );
@@ -33,6 +33,7 @@ export class ExploreController {
   }
 
   @Get('hashtags/:hashtag/posts')
+  @UseGuards(JwtAuthGuard)
   async getHashtagPosts(
     @CurrentUser() user: any,
     @Param('hashtag') hashtag: string,
@@ -43,7 +44,7 @@ export class ExploreController {
     const hashtagName = decodeURIComponent(hashtag);
     return this.exploreService.getHashtagPosts(
       hashtagName,
-      user.id,
+      user?.id || null,
       limit ? parseInt(limit) : 20,
       cursor,
     );

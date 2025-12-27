@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UpdateRoleSelectionDto } from './dto/update-role-selection.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 
 @Controller('users')
 export class UsersController {
@@ -42,6 +43,18 @@ export class UsersController {
     @Body() data: UpdateUserDto
   ) {
     return this.usersService.updateProfile(user.id, data);
+  }
+
+  @Post('me/complete-onboarding')
+  @UseGuards(JwtAuthGuard)
+  async completeOnboarding(
+    @CurrentUser() user: any,
+    @Body() data: CompleteOnboardingDto
+  ) {
+    if (!user?.id) {
+      throw new NotFoundException('Kullanıcı kimliği bulunamadı.');
+    }
+    return this.usersService.completeOnboarding(user.id, data);
   }
 
   @Get('search')
@@ -147,6 +160,27 @@ export class UsersController {
       throw new NotFoundException('Kullanıcı bulunamadı.');
     }
     return this.usersService.getSaved(userId);
+  }
+
+  @Post('verify-phone')
+  @UseGuards(JwtAuthGuard)
+  async verifyPhone(
+    @CurrentUser() user: any,
+    @Body() data: { code: string }
+  ) {
+    if (!user?.id) {
+      throw new NotFoundException('Kullanıcı kimliği bulunamadı.');
+    }
+    return this.usersService.verifyPhone(user.id, data.code);
+  }
+
+  @Post('resend-phone-code')
+  @UseGuards(JwtAuthGuard)
+  async resendPhoneCode(@CurrentUser() user: any) {
+    if (!user?.id) {
+      throw new NotFoundException('Kullanıcı kimliği bulunamadı.');
+    }
+    return this.usersService.resendPhoneCode(user.id);
   }
 }
 

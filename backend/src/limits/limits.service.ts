@@ -74,28 +74,29 @@ export class LimitsService {
       });
     }
 
-    if (limits.eventCooldownMonths && limits.eventCooldownMonths > 0) {
-      const since = new Date();
-      since.setMonth(since.getMonth() - limits.eventCooldownMonths);
+    // ✅ 6 aylık cooldown limiti kaldırıldı - artık sınırsız
+    // if (limits.eventCooldownMonths && limits.eventCooldownMonths > 0) {
+    //   const since = new Date();
+    //   since.setMonth(since.getMonth() - limits.eventCooldownMonths);
 
-      const lastEvent = await this.prisma.event.findFirst({
-        where: {
-          ownerId: userId,
-          createdAt: { gte: since },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
+    //   const lastEvent = await this.prisma.event.findFirst({
+    //     where: {
+    //       ownerId: userId,
+    //       createdAt: { gte: since },
+    //     },
+    //     orderBy: { createdAt: 'desc' },
+    //   });
 
-      if (lastEvent) {
-        throw new ForbiddenException({
-          statusCode: 403,
-          code: 'LIMIT_REACHED',
-          message: `Son ${limits.eventCooldownMonths} ay içinde zaten bir etkinlik oluşturdunuz.`,
-        });
-      }
+    //   if (lastEvent) {
+    //     throw new ForbiddenException({
+    //       statusCode: 403,
+    //       code: 'LIMIT_REACHED',
+    //       message: `Son ${limits.eventCooldownMonths} ay içinde zaten bir etkinlik oluşturdunuz.`,
+    //     });
+    //   }
 
-      return capabilities;
-    }
+    //   return capabilities;
+    // }
 
     if (typeof limits.eventLimitMonthly === 'number') {
       const monthStart = this.getMonthStart();
@@ -203,19 +204,20 @@ export class LimitsService {
 
     const roleLimits = (LIMITS as any)[role]?.[plan] || {};
 
-    if (action === 'create_event' && role === 'art_lover' && plan === 'FREE') {
-      const eventCount = await this.prisma.event.count({
-        where: { 
-          ownerId: userId, 
-          createdAt: { gte: sixMonthsAgo },
-          isDeleted: false,
-        },
-      });
+    // ✅ 6 aylık etkinlik limiti kaldırıldı - artık sınırsız
+    // if (action === 'create_event' && role === 'art_lover' && plan === 'FREE') {
+    //   const eventCount = await this.prisma.event.count({
+    //     where: { 
+    //       ownerId: userId, 
+    //       createdAt: { gte: sixMonthsAgo },
+    //       isDeleted: false,
+    //     },
+    //   });
 
-      if (eventCount >= (roleLimits.events_per_6_months || 0)) {
-        throw new ForbiddenException('6 ayda 1 etkinlik hakkınıza ulaştınız.');
-      }
-    }
+    //   if (eventCount >= (roleLimits.events_per_6_months || 0)) {
+    //     throw new ForbiddenException('6 ayda 1 etkinlik hakkınıza ulaştınız.');
+    //   }
+    // }
 
     if (action === 'upload_artwork' && (role === 'artist' || role === 'collector')) {
       const baseLimit = roleLimits.artworks_per_month || 0;

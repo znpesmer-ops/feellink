@@ -1,615 +1,395 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateHighlightDto } from './dto/create-highlight.dto';
 
 @Injectable()
 export class HighlightsService {
-  private readonly logger = new Logger(HighlightsService.name);
-  
   constructor(private prisma: PrismaService) {}
 
-  async getByUsername(username: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { username },
-      select: { id: true },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    this.logger.log(`🔍 Fetching highlights for username: ${username}, userId: ${user.id}`);
-    
-    return this.getByUserId(user.id);
-  }
-
-  async getByUserId(userId: string) {
-    this.logger.log(`🔍 Fetching highlights for userId: ${userId}`);
-    
-    // User'ın var olduğunu kontrol et
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    // Plan kontrolü kaldırıldı - artık herkes highlights görebilir
-
-    const highlights = await this.prisma.highlight.findMany({
-      where: { userId: userId },
-      include: {
-        coverPost: {
-          include: {
-            media: {
-              orderBy: { order: 'asc' },
-              take: 1,
-            },
-          },
-        },
-        items: {
-          include: {
-            post: {
-              include: {
-                media: {
-                  orderBy: { order: 'asc' },
-                  take: 1,
-                },
-              },
-            },
-          },
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    this.logger.log(`📦 Found ${highlights.length} highlights for userId: ${userId}`);
-    if (highlights.length > 0) {
-      this.logger.log(`📦 Highlight IDs: [${highlights.map(h => h.id).join(', ')}]`);
-      this.logger.log(`📦 Highlight userIds: [${highlights.map(h => h.userId).join(', ')}]`);
-      // 🔥 KRİTİK: userId eşleşmesini kontrol et
-      const wrongUserIds = highlights.filter(h => h.userId !== userId)
-      if (wrongUserIds.length > 0) {
-        this.logger.warn(`⚠️ WARNING: Found ${wrongUserIds.length} highlights with wrong userId! Expected: ${userId}, Got: [${wrongUserIds.map(h => h.userId).join(', ')}]`);
-      }
-    } else {
-      this.logger.warn(`⚠️ No highlights found for userId: ${userId}. Checking database...`);
-      // Database'de gerçekten highlight var mı kontrol et
-      const allHighlights = await this.prisma.highlight.findMany({
-        where: {},
-        select: { id: true, userId: true, title: true },
-        take: 10,
-      });
-      this.logger.log(`📦 Total highlights in database: ${allHighlights.length}`);
-      if (allHighlights.length > 0) {
-        this.logger.log(`📦 Sample highlights: [${allHighlights.map(h => `id=${h.id}, userId=${h.userId}, title=${h.title}`).join('; ')}]`);
-      }
-    }
-
-    // Media URL'lerini düzelt
-    return highlights.map((highlight) => ({
-      ...highlight,
-      coverPost: highlight.coverPost
-        ? {
-            ...highlight.coverPost,
-            imageUrl: highlight.coverPost.media[0]?.url || null,
-          }
-        : null,
-      items: highlight.items.map((item) => ({
-        ...item,
-        post: {
-          id: item.post.id,
-          title: item.post.title || null,
-          caption: item.post.caption || null,
-          imageUrl: item.post.media[0]?.url || null,
-        },
-      })),
-    }));
-  }
-
-  async create(dto: CreateHighlightDto, userId: string) {
-    // 🔥 KRİTİK: ZORUNLU VALIDASYONLAR (Kullanıcının istediği gibi)
-    if (!dto.postIds || dto.postIds.length === 0) {
-      this.logger.error('❌ CRITICAL: postIds is empty or undefined!');
-      throw new BadRequestException('Tema için en az 1 eser seçilmelidir');
-    }
-
-    if (!dto.coverPostId) {
-      this.logger.error('❌ CRITICAL: coverPostId is missing!');
-      throw new BadRequestException('Kapak eseri zorunludur');
-    }
-
-    // 🔥 KRİTİK: userId kontrolü
-    if (!userId || userId === 'undefined' || userId === 'null') {
-      this.logger.error(`❌ CRITICAL: Invalid userId! userId: ${userId}, type: ${typeof userId}`);
-      throw new BadRequestException('Geçersiz kullanıcı kimliği');
-    }
-    
-    // 🔥 KRİTİK: Tema adı kontrolü
-    if (!dto.title || !dto.title.trim()) {
-      throw new BadRequestException('Tema adı zorunludur');
-    }
-    
-    this.logger.log(`🔍 Creating highlight - All validations passed: userId=${userId}, title=${dto.title}, coverPostId=${dto.coverPostId}, postIds.length=${dto.postIds.length}`);
-
-    // Plan kontrolü kaldırıldı - artık herkes highlight oluşturabilir
-    // Kullanıcının var olduğunu kontrol et
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true },
-    });
-
-    if (!user) {
-      throw new ForbiddenException('Kullanıcı bulunamadı.');
-    }
-
-    // ÖNE ÇIKAN TEMALAR: Sadece kullanıcının KENDİ post'larını eklemesine izin ver
-    // ❌ Başkalarının eserleri YOK
-    // ❌ Genel arama YOK
-    // ❌ Koleksiyon mantığı YOK
-    // ✅ Sadece kullanıcının kendi yüklediği post'lar
-    const posts = await this.prisma.post.findMany({
-      where: {
-        id: { in: dto.postIds },
-        userId, // Sadece kullanıcının kendi post'ları
-      },
-      select: { id: true },
-    });
-
-    if (posts.length !== dto.postIds.length) {
-      throw new BadRequestException('Tüm gönderiler size ait olmalıdır.');
-    }
-
-    if (posts.length === 0) {
-      throw new BadRequestException('En az bir gönderi seçmelisiniz.');
-    }
-
-    // Cover post kontrolü - coverPostId zorunlu ve postIds içinde olmalı
-    const coverPostId = dto.coverPostId;
-    if (!dto.postIds.includes(coverPostId)) {
-      throw new BadRequestException('Kapak görseli seçilen eserler arasında olmalıdır.');
-    }
-
-    // Cover post'un kullanıcıya ait olduğunu kontrol et
-    const coverPost = await this.prisma.post.findUnique({
-      where: { id: coverPostId },
-      select: { userId: true },
-    });
-
-    if (!coverPost) {
-      throw new BadRequestException('Kapak eseri bulunamadı');
-    }
-
-    if (coverPost.userId !== userId) {
-      throw new ForbiddenException('Sadece kendi eserlerinizi kapak olarak kullanabilirsiniz');
-    }
-
-    this.logger.log(`Creating highlight for user ${userId} with title: ${dto.title}, coverPostId: ${coverPostId}, postIds: ${dto.postIds.join(', ')}`);
-    this.logger.log(`📦 PostIds array length: ${dto.postIds.length}, postIds: [${dto.postIds.join(', ')}]`);
-    this.logger.log(`🔍 Database write - userId: ${userId}, userId type: ${typeof userId}, userId valid: ${!!userId && userId !== 'undefined' && userId !== 'null'}`);
-
-    // 🔥 KRİTİK: Transaction ile tema ve eser ilişkilerini birlikte kaydet
-    // 🔥 KRİTİK: userId'nin kesinlikle geçerli olduğundan emin ol
-    // 🔥 KRİTİK: Try/catch içinde MUTLAKA throw yap (Kullanıcının istediği gibi)
-    let createdHighlight;
+  /**
+   * ✅ Ayın Öne Çıkanları - Tek kaynak endpoint
+   * 
+   * Bu ay için admin kontrollü veya otomatik seçilmiş öne çıkanları döner.
+   * Eğer bu ay için kayıt yoksa, otomatik olarak en popüler içerikleri seçer.
+   */
+  async getMonthlyHighlights() {
     try {
-      createdHighlight = await this.prisma.highlight.create({
-        data: {
-          title: dto.title,
-          userId: userId, // 🔴 BURASI NULL/UNDEFINED OLMAMALI
-          coverPostId,
-          items: {
-            create: dto.postIds.map((postId, index) => {
-              this.logger.log(`  → Creating HighlightItem ${index + 1}/${dto.postIds.length}: postId=${postId}, sortOrder=${index}`);
-              return {
-                postId,
-                sortOrder: index,
-              };
-            }),
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1; // 1-12
+
+      console.log(`[HighlightsService] Getting monthly highlights for ${year}-${month}`);
+
+      // Bu ay için kayıt var mı kontrol et
+      let monthlyHighlight = await this.prisma.monthlyHighlight.findFirst({
+          where: {
+            year,
+            month,
           },
-        },
-      include: {
-        coverPost: {
           include: {
-            media: {
-              orderBy: { order: 'asc' },
-              take: 1,
+            museum: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                avatar: true,
+                bio: true,
+              },
             },
-          },
-        },
-        items: {
-          include: {
-            post: {
+            artwork: {
               include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    fullName: true,
+                    avatar: true,
+                  },
+                },
                 media: {
-                  orderBy: { order: 'asc' },
                   take: 1,
+                  orderBy: { order: 'asc' },
+                },
+              },
+            },
+            comment: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    fullName: true,
+                    avatar: true,
+                  },
+                },
+                post: {
+                  select: {
+                    id: true,
+                    caption: true,
+                  },
+                },
+              },
+            },
+            collection: {
+              include: {
+                owner: {
+                  select: {
+                    id: true,
+                    username: true,
+                    fullName: true,
+                    avatar: true,
+                  },
                 },
               },
             },
           },
-          orderBy: { sortOrder: 'asc' },
+        });
+
+      // Eğer bu ay için kayıt yoksa, otomatik seçim yap
+      if (!monthlyHighlight) {
+        console.log('[HighlightsService] No monthly highlight found, selecting automatic highlights');
+        monthlyHighlight = await this.selectAutomaticHighlights(year, month);
+      }
+
+    // Response formatı
+    const response: any = {
+      museum: null,
+      artwork: null,
+      comment: null,
+      collection: null,
+    };
+
+    // Museum
+    if (monthlyHighlight.museumId && monthlyHighlight.museum) {
+      response.museum = {
+        id: monthlyHighlight.museum.id,
+        name: monthlyHighlight.museum.fullName || monthlyHighlight.museum.username,
+        username: monthlyHighlight.museum.username,
+        imageUrl: monthlyHighlight.museum.avatar || null,
+        bio: monthlyHighlight.museum.bio || null,
+      };
+    }
+
+    // Artwork
+    if (monthlyHighlight.artworkId && monthlyHighlight.artwork) {
+      response.artwork = {
+        id: monthlyHighlight.artwork.id,
+        title: monthlyHighlight.artwork.title || monthlyHighlight.artwork.caption || 'İsimsiz',
+        postId: monthlyHighlight.artwork.id,
+        imageUrl: monthlyHighlight.artwork.media?.[0]?.url || null,
+        artist: {
+          id: monthlyHighlight.artwork.user.id,
+          username: monthlyHighlight.artwork.user.username,
+          fullName: monthlyHighlight.artwork.user.fullName,
+          avatar: monthlyHighlight.artwork.user.avatar,
         },
-      },
-      });
-      
-      this.logger.log(`✅ Prisma create SUCCESS - Highlight ID: ${createdHighlight.id}`);
+      };
+    }
+
+    // Comment
+    if (monthlyHighlight.commentId && monthlyHighlight.comment) {
+      response.comment = {
+        id: monthlyHighlight.comment.id,
+        commentId: monthlyHighlight.comment.id,
+        postId: monthlyHighlight.comment.postId,
+        text: monthlyHighlight.comment.content,
+        username: monthlyHighlight.comment.user.username,
+        fullName: monthlyHighlight.comment.user.fullName || monthlyHighlight.comment.user.username,
+        avatar: monthlyHighlight.comment.user.avatar,
+      };
+    }
+
+    // Collection
+    if (monthlyHighlight.collectionId && monthlyHighlight.collection) {
+      response.collection = {
+        id: monthlyHighlight.collection.id,
+        title: monthlyHighlight.collection.title,
+        coverImage: monthlyHighlight.collection.coverImage || null,
+        owner: {
+          id: monthlyHighlight.collection.owner.id,
+          username: monthlyHighlight.collection.owner.username,
+          fullName: monthlyHighlight.collection.owner.fullName,
+          avatar: monthlyHighlight.collection.owner.avatar,
+        },
+      };
+    }
+
+      return response;
     } catch (error: any) {
-      // 🔥 KRİTİK: Hata oluşursa MUTLAKA throw et (Kullanıcının istediği gibi)
-      this.logger.error(`❌ CRITICAL: Prisma create FAILED! Error:`, error);
-      this.logger.error(`❌ Error details:`, {
-        message: error?.message,
-        code: error?.code,
-        meta: error?.meta,
-        postIds: dto.postIds,
-        coverPostId: coverPostId,
-        userId: userId,
+      console.error('[HighlightsService] Error getting monthly highlights:', error);
+      // Hata durumunda boş response dön (frontend boş placeholder gösterecek)
+      return {
+        museum: null,
+        artwork: null,
+        comment: null,
+        collection: null,
+      };
+    }
+  }
+
+  /**
+   * Otomatik seçim: Son 30 günün en popüler içerikleri
+   * Prisma model henüz generate edilmemişse, direkt response döner (create etmeden)
+   */
+  private async selectAutomaticHighlights(year: number, month: number) {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // 1. Ayın Müzesi: En çok takipçisi olan museum role'lü kullanıcı
+    const topMuseum = await this.prisma.user.findFirst({
+      where: {
+        roles: { has: 'corporate' }, // Museum role'ü corporate olabilir veya ayrı bir role
+        createdAt: { lte: thirtyDaysAgo },
+      },
+      orderBy: {
+        followerCount: 'desc',
+      },
+      select: {
+        id: true,
+        username: true,
+        fullName: true,
+        avatar: true,
+        bio: true,
+      },
+    });
+
+    // 2. Ayın Eseri: Son 30 günde en çok beğenilen artwork
+    // MongoDB'de _count ile orderBy çalışmadığı için tüm artwork'leri çekip JavaScript'te sıralıyoruz
+    const artworks = await this.prisma.post.findMany({
+      where: {
+        type: 'artwork',
+        createdAt: { gte: thirtyDaysAgo },
+        },
+      include: {
+        _count: {
+          select: {
+            likes: true,
+          },
+        },
+      },
+      take: 100, // Performans için limit
+    });
+    
+    // JavaScript'te like count'a göre sırala
+    const topArtwork = artworks.length > 0 
+      ? artworks.sort((a, b) => (b._count?.likes || 0) - (a._count?.likes || 0))[0]
+      : null;
+    
+    // Eğer topArtwork varsa, detaylarını çek
+    let artworkDetails = null;
+    if (topArtwork) {
+      artworkDetails = await this.prisma.post.findUnique({
+        where: { id: topArtwork.id },
+      include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+              avatar: true,
+            },
+          },
+                media: {
+            take: 1,
+                  orderBy: { order: 'asc' },
+          },
+        },
       });
-      throw error; // ❗ MUTLAKA THROW - Frontend'e hata dön
     }
 
-    this.logger.log(`✅ Highlight created successfully with ID: ${createdHighlight.id} for user ${userId}`);
-    this.logger.log(`🔍 Database verification - Created highlight userId: ${createdHighlight.userId}, matches input: ${createdHighlight.userId === userId}`);
-    
-    // 🔥 KRİTİK: Database'e yazıldığını doğrula
-    if (!createdHighlight.userId || createdHighlight.userId !== userId) {
-      this.logger.error(`❌ CRITICAL: Highlight created with WRONG userId! Expected: ${userId}, Got: ${createdHighlight.userId}`);
-      throw new Error('Tema oluşturulurken bir hata oluştu');
-    }
-
-    // 🔥 KRİTİK: getByUsername ile aynı formatta döndür (frontend'in beklediği format)
-    const formattedHighlight = {
-      ...createdHighlight,
-      coverPost: createdHighlight.coverPost
-        ? {
-            ...createdHighlight.coverPost,
-            imageUrl: createdHighlight.coverPost.media[0]?.url || null,
-          }
-        : null,
-      items: createdHighlight.items.map((item) => ({
-        ...item,
-        post: {
-          id: item.post.id,
-          title: item.post.title || null,
-          caption: item.post.caption || null,
-          imageUrl: item.post.media[0]?.url || null,
-        },
-      })),
-    };
-
-    this.logger.log(`📦 Formatted highlight returned:`, {
-      id: formattedHighlight.id,
-      title: formattedHighlight.title,
-      userId: formattedHighlight.userId,
-      hasCoverPost: !!formattedHighlight.coverPost,
-      coverPostImageUrl: formattedHighlight.coverPost?.imageUrl || null,
-      itemsCount: formattedHighlight.items.length,
-      items: formattedHighlight.items.map((item, idx) => ({
-        index: idx,
-        itemId: item.id,
-        postId: item.post.id,
-        postTitle: item.post.title,
-        hasImageUrl: !!item.post.imageUrl,
-      })),
-    });
-    
-    // 🔥 KRİTİK: Eğer items boşsa uyarı ver
-    if (formattedHighlight.items.length === 0) {
-      this.logger.warn(`⚠️ WARNING: Highlight created with NO ITEMS! ID: ${formattedHighlight.id}, postIds sent: [${dto.postIds.join(', ')}]`);
-    }
-    
-    // 🔥 KRİTİK: Database'den tekrar oku ve doğrula (Instagram mantığı - kesinlik için)
-    const verifiedHighlight = await this.prisma.highlight.findUnique({
-      where: { id: formattedHighlight.id },
+    // 3. Ayın Yorumu: Son 30 günde en çok beğenilen yorum
+    // MongoDB'de _count ile orderBy çalışmadığı için tüm yorumları çekip JavaScript'te sıralıyoruz
+    const comments = await this.prisma.comment.findMany({
+      where: {
+        createdAt: { gte: thirtyDaysAgo },
+      },
       include: {
-        coverPost: {
-          include: {
-            media: {
-              orderBy: { order: 'asc' },
-              take: 1,
-            },
+        _count: {
+          select: {
+            likes: true,
           },
-        },
-        items: {
-          include: {
-            post: {
-              include: {
-                media: {
-                  orderBy: { order: 'asc' },
-                  take: 1,
-                },
-              },
-            },
-          },
-          orderBy: { sortOrder: 'asc' },
         },
       },
+      take: 100, // Performans için limit
     });
     
-    if (!verifiedHighlight) {
-      this.logger.error(`❌ CRITICAL: Highlight not found in database after creation! ID: ${formattedHighlight.id}`);
-      throw new Error('Tema oluşturuldu ama database\'de bulunamadı');
-    }
+    // JavaScript'te like count'a göre sırala
+    const topComment = comments.length > 0
+      ? comments.sort((a, b) => (b._count?.likes || 0) - (a._count?.likes || 0))[0]
+      : null;
     
-    this.logger.log(`✅ Verified highlight in database: ID=${verifiedHighlight.id}, userId=${verifiedHighlight.userId}, itemsCount=${verifiedHighlight.items.length}`);
-    
-    // Verified highlight'ı formatla ve döndür
-    const finalHighlight = {
-      ...verifiedHighlight,
-      coverPost: verifiedHighlight.coverPost
-        ? {
-            ...verifiedHighlight.coverPost,
-            imageUrl: verifiedHighlight.coverPost.media[0]?.url || null,
-          }
-        : null,
-      items: verifiedHighlight.items.map((item) => ({
-        ...item,
-        post: {
-          id: item.post.id,
-          title: item.post.title || null,
-          caption: item.post.caption || null,
-          imageUrl: item.post.media[0]?.url || null,
-        },
-      })),
-    };
-
-    return finalHighlight;
-  }
-
-  async updateTitle(highlightId: string, title: string, userId: string) {
-    // Highlight'ın kullanıcıya ait olduğunu kontrol et
-    const highlight = await this.prisma.highlight.findUnique({
-      where: { id: highlightId },
-      select: { userId: true },
-    });
-
-    if (!highlight) {
-      throw new NotFoundException('Highlight not found');
-    }
-
-    if (highlight.userId !== userId) {
-      throw new ForbiddenException('Bu temayı düzenleme yetkiniz yok.');
-    }
-
-    return this.prisma.highlight.update({
-      where: { id: highlightId },
-      data: { title },
+    // Eğer topComment varsa, detaylarını çek
+    let commentDetails = null;
+    if (topComment) {
+      commentDetails = await this.prisma.comment.findUnique({
+        where: { id: topComment.id },
       include: {
-        coverPost: {
-          include: {
-            media: {
-              orderBy: { order: 'asc' },
-              take: 1,
+          user: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+              avatar: true,
             },
           },
-        },
-        items: {
-          include: {
             post: {
-              include: {
-                media: {
-                  orderBy: { order: 'asc' },
-                  take: 1,
-                },
-              },
+            select: {
+              id: true,
+              caption: true,
             },
-          },
-          orderBy: { sortOrder: 'asc' },
         },
       },
     });
   }
 
-  async addPosts(highlightId: string, postIds: string[], userId: string) {
-    // Highlight'ın kullanıcıya ait olduğunu kontrol et
-    const highlight = await this.prisma.highlight.findUnique({
-      where: { id: highlightId },
-      select: { userId: true },
-    });
-
-    if (!highlight) {
-      throw new NotFoundException('Highlight not found');
-    }
-
-    if (highlight.userId !== userId) {
-      throw new ForbiddenException('Bu temaya eser ekleme yetkiniz yok.');
-    }
-
-    // ÖNE ÇIKAN TEMALAR: Sadece kullanıcının KENDİ post'larını eklemesine izin ver
-    // ❌ Başkalarının eserleri YOK
-    // ❌ Genel arama YOK
-    // ❌ Koleksiyon mantığı YOK
-    // ✅ Sadece kullanıcının kendi yüklediği post'lar
-    const posts = await this.prisma.post.findMany({
+    // 4. Ayın Koleksiyonu: Son 30 günde en çok item eklenen koleksiyon
+    // MongoDB'de _count ile orderBy çalışmadığı için tüm koleksiyonları çekip JavaScript'te sıralıyoruz
+    const collections = await this.prisma.collection.findMany({
       where: {
-        id: { in: postIds },
-        userId, // Sadece kullanıcının kendi post'ları
+        createdAt: { gte: thirtyDaysAgo },
       },
-      select: { id: true },
-    });
-
-    if (posts.length !== postIds.length) {
-      throw new BadRequestException('Tüm gönderiler size ait olmalıdır.');
-    }
-
-    if (posts.length === 0) {
-      throw new BadRequestException('En az bir gönderi seçmelisiniz.');
-    }
-
-    // Mevcut item'ları kontrol et (duplicate önleme)
-    const existingItems = await this.prisma.highlightItem.findMany({
-      where: {
-        highlightId,
-        postId: { in: postIds },
-      },
-      select: { postId: true },
-    });
-
-    const existingPostIds = existingItems.map((item) => item.postId);
-    const newPostIds = postIds.filter((id) => !existingPostIds.includes(id));
-
-    if (newPostIds.length === 0) {
-      throw new BadRequestException('Seçilen eserler zaten temada mevcut.');
-    }
-
-    // Mevcut item sayısını al (sortOrder için)
-    const currentItemCount = await this.prisma.highlightItem.count({
-      where: { highlightId },
-    });
-
-    // Yeni item'ları ekle
-    await this.prisma.highlightItem.createMany({
-      data: newPostIds.map((postId, index) => ({
-        highlightId,
-        postId,
-        sortOrder: currentItemCount + index,
-      })),
-    });
-
-    return this.prisma.highlight.findUnique({
-      where: { id: highlightId },
       include: {
-        coverPost: {
-          include: {
-            media: {
-              orderBy: { order: 'asc' },
-              take: 1,
+        _count: {
+          select: {
+            items: true,
+          },
+        },
+      },
+      take: 100, // Performans için limit
+    });
+    
+    // JavaScript'te item count'a göre sırala
+    const topCollection = collections.length > 0
+      ? collections.sort((a, b) => (b._count?.items || 0) - (a._count?.items || 0))[0]
+      : null;
+    
+    // Eğer topCollection varsa, detaylarını çek
+    let collectionDetails = null;
+    if (topCollection) {
+      collectionDetails = await this.prisma.collection.findUnique({
+        where: { id: topCollection.id },
+        include: {
+          owner: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+              avatar: true,
             },
           },
         },
-        items: {
-          include: {
-            post: {
-              include: {
-                media: {
-                  orderBy: { order: 'asc' },
-                  take: 1,
-                },
-              },
-            },
-          },
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
-    });
-  }
-
-  async removePosts(highlightId: string, postIds: string[], userId: string) {
-    // Highlight'ın kullanıcıya ait olduğunu kontrol et
-    const highlight = await this.prisma.highlight.findUnique({
-      where: { id: highlightId },
-      select: { userId: true },
-    });
-
-    if (!highlight) {
-      throw new NotFoundException('Highlight not found');
-    }
-
-    if (highlight.userId !== userId) {
-      throw new ForbiddenException('Bu temadan eser kaldırma yetkiniz yok.');
-    }
-
-    if (postIds.length === 0) {
-      throw new BadRequestException('En az bir eser seçmelisiniz.');
-    }
-
-    // Mevcut item'ları kontrol et
-    const existingItems = await this.prisma.highlightItem.findMany({
-      where: {
-        highlightId,
-        postId: { in: postIds },
-      },
-      select: { id: true, postId: true },
-    });
-
-    if (existingItems.length === 0) {
-      throw new BadRequestException('Seçilen eserler temada bulunamadı.');
-    }
-
-    // Item'ları sil
-    const itemIdsToDelete = existingItems.map((item) => item.id);
-    await this.prisma.highlightItem.deleteMany({
-      where: {
-        id: { in: itemIdsToDelete },
-      },
-    });
-
-    // Eğer silinen eserlerden biri coverPost ise, coverPost'u güncelle
-    const deletedPostIds = existingItems.map((item) => item.postId);
-    const highlightWithCover = await this.prisma.highlight.findUnique({
-      where: { id: highlightId },
-      select: { coverPostId: true },
-    });
-
-    if (highlightWithCover?.coverPostId && deletedPostIds.includes(highlightWithCover.coverPostId)) {
-      // Cover post silindi, yeni bir cover seç
-      const remainingItems = await this.prisma.highlightItem.findFirst({
-        where: { highlightId },
-        orderBy: { sortOrder: 'asc' },
-        select: { postId: true },
       });
+    }
 
-      await this.prisma.highlight.update({
-        where: { id: highlightId },
+    // MonthlyHighlight kaydı oluştur (otomatik seçim)
+    const created = await this.prisma.monthlyHighlight.create({
         data: {
-          coverPostId: remainingItems?.postId || null,
+          year,
+          month,
+          museumId: topMuseum?.id || null,
+          artworkId: topArtwork?.id || null,
+          commentId: topComment?.id || null,
+          collectionId: topCollection?.id || null,
+          isAuto: true,
         },
-      });
-    }
-
-    return this.prisma.highlight.findUnique({
-      where: { id: highlightId },
-      include: {
-        coverPost: {
-          include: {
-            media: {
-              orderBy: { order: 'asc' },
-              take: 1,
+        include: {
+          museum: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+              avatar: true,
+              bio: true,
             },
           },
-        },
-        items: {
-          include: {
-            post: {
-              include: {
-                media: {
-                  orderBy: { order: 'asc' },
-                  take: 1,
+          artwork: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  fullName: true,
+                  avatar: true,
+                },
+              },
+              media: {
+                take: 1,
+                orderBy: { order: 'asc' },
+              },
+            },
+          },
+          comment: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  fullName: true,
+                  avatar: true,
+                },
+              },
+              post: {
+                select: {
+                  id: true,
+                  caption: true,
                 },
               },
             },
           },
-          orderBy: { sortOrder: 'asc' },
+          collection: {
+            include: {
+              owner: {
+                select: {
+                  id: true,
+                  username: true,
+                  fullName: true,
+                  avatar: true,
+                },
+              },
+            },
+          },
         },
-      },
-    });
-  }
+      });
 
-  async delete(highlightId: string, userId: string) {
-    // Highlight'ın kullanıcıya ait olduğunu kontrol et
-    const highlight = await this.prisma.highlight.findUnique({
-      where: { id: highlightId },
-      select: { userId: true },
-    });
-
-    if (!highlight) {
-      throw new NotFoundException('Highlight not found');
-    }
-
-    if (highlight.userId !== userId) {
-      throw new ForbiddenException('Bu temayı silme yetkiniz yok.');
-    }
-
-    // Prisma cascade delete ile HighlightItem'lar otomatik silinir
-    // Post'lar silinmez (sadece bağlantı kopar)
-    await this.prisma.highlight.delete({
-      where: { id: highlightId },
-    });
-
-    return { success: true };
+    return created;
   }
 }
-

@@ -10,22 +10,3 @@ import { PrismaModule } from '../prisma/prisma.module';
   exports: [HighlightsService],
 })
 export class HighlightsModule {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

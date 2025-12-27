@@ -150,10 +150,18 @@ export class ArticlesController {
   async update(
     @Param('id') id: string,
     @CurrentUser() user: any,
-    @Body() body: { title?: string; content?: string; coverImage?: string; excerpt?: string; scheduledAt?: string },
+    @Body() body: { title?: string; content?: string; coverImage?: string; excerpt?: string; publish?: boolean; scheduledAt?: string },
   ) {
     const scheduledAt = body.scheduledAt ? new Date(body.scheduledAt) : undefined;
-    return this.articlesService.update(id, user.id, { ...body, scheduledAt });
+    const { publish, ...restBody } = body;
+    
+    // publish field'ını isPublished'e çevir
+    const updateData: any = { ...restBody, scheduledAt };
+    if (publish !== undefined) {
+      updateData.isPublished = publish && !scheduledAt; // Eğer zamanlanmışsa henüz yayınlama
+    }
+    
+    return this.articlesService.update(id, user.id, updateData);
   }
 
   @Delete('/:id')

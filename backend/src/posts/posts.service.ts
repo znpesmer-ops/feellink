@@ -14,6 +14,7 @@ import { LimitsService } from '../limits/limits.service';
 import { generateUniqueArtworkCode } from './artwork.utils';
 import { generateQrDataUrl } from '../tickets/ticket.utils';
 import { ColorAnalysisService } from './color-analysis.service';
+import { containsBadWord } from '../common/utils/containsBadWord';
 import * as PDFDocument from 'pdfkit';
 import * as QRCode from 'qrcode';
 import * as fs from 'fs';
@@ -114,6 +115,11 @@ export class PostsService {
       throw new BadRequestException('At least one media file is required');
     }
 
+    // Küfür kontrolü
+    if (dto.caption && containsBadWord(dto.caption)) {
+      throw new BadRequestException('Bu içerik topluluk kurallarına uygun değil.');
+    }
+
     // 🎨 Sanatsever Free gönderi oluşturabilir ama yalnızca "artwork" tipindeki paylaşımlar yasaktır
     // Eğer post.type === "artwork" ise engelle, diğer her şeyi (post, photo, video) serbest bırak
     const postType = dto.type || 'post'; // Default to 'post' if not provided
@@ -197,12 +203,18 @@ export class PostsService {
     const CDN_BASE = this.configService.get('CDN_BASE_URL') || 
       `http://${this.configService.get('MINIO_ENDPOINT')}:${this.configService.get('MINIO_PORT')}/${this.configService.get('MINIO_BUCKET_NAME')}`;
     
+    // 🔥 MongoDB: Manuel count
+    const [likeCount, commentCount] = await Promise.all([
+      this.prisma.like.count({ where: { postId: post.id } }),
+      this.prisma.comment.count({ where: { postId: post.id, parentId: null } }),
+    ]);
+
     const postPayload = {
       id: post.id,
       caption: post.caption,
       imageUrl: post.media && post.media.length > 0 ? post.media[0].url : null,
-      likeCount: post._count.likes,
-      commentCount: post._count.comments,
+      likeCount: likeCount,
+      commentCount: commentCount,
       createdAt: post.createdAt.toISOString(),
       author: {
         id: post.user.id,
@@ -243,11 +255,60 @@ export class PostsService {
             hashtag: true,
           },
         },
-        comments: {
-          where: {
-            postId: postId, // ✅ Açıkça postId ile filtrele (tüm yorumlar görünür)
-            parentId: null, // Sadece ana yorumlar
+        // _count removed - using manual count instead for MongoDB compatibility
+      },
+    });
+
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    // 🔥 KRİTİK: MongoDB'de relation'lar bazen include ile çalışmayabilir, manuel query yap
+    // 🔥 DEBUG: Önce tüm yorumları kontrol et (parentId kontrolü olmadan)
+    const allComments = await this.prisma.comment.findMany({
+      where: {
+        postId: postId,
+      },
+      select: {
+        id: true,
+        postId: true,
+        parentId: true,
+        content: true,
+      },
+    });
+    console.log(`🔍 [getPost] Post "${postId}" (type: ${typeof postId}) için toplam ${allComments.length} yorum bulundu (parentId kontrolü olmadan):`, allComments.map((c: any) => ({ id: c.id, postId: c.postId, postIdType: typeof c.postId, parentId: c.parentId })));
+    
+    // 🔥 KRİTİK: parentId: null veya undefined olan yorumları al
+    // 🔥 KRİTİK: parentId: null olan yorumları al (MongoDB'de undefined değil null olarak saklanıyor)
+    const comments = await this.prisma.comment.findMany({
+      where: {
+        postId: String(postId), // ✅ postId'yi string'e çevir (MongoDB uyumluluğu için)
+        parentId: null, // Sadece ana yorumlar
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true,
+            isVerified: true,
           },
+        },
+        _count: {
+          select: {
+            likes: true,
+          },
+        },
+        likes: currentUserId ? {
+          where: {
+            userId: currentUserId,
+          },
+          select: {
+            id: true,
+          },
+        } : false,
+        replies: {
           include: {
             user: {
               select: {
@@ -271,46 +332,14 @@ export class PostsService {
                 id: true,
               },
             } : false,
-            replies: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    username: true,
-                    fullName: true,
-                    avatar: true,
-                    isVerified: true,
-                  },
-                },
-                _count: {
-                  select: {
-                    likes: true,
-                  },
-                },
-                likes: currentUserId ? {
-                  where: {
-                    userId: currentUserId,
-                  },
-                  select: {
-                    id: true,
-                  },
-                } : false,
-              },
-              orderBy: { createdAt: 'asc' },
-            },
           },
-          orderBy: [
-            { isPinned: 'desc' }, // Sabitlenmiş yorumlar en üstte
-            { createdAt: 'desc' },
-          ],
-        },
-        _count: {
-          select: {
-            likes: true,
-            comments: true,
-          },
+          orderBy: { createdAt: 'asc' },
         },
       },
+      orderBy: [
+        { isPinned: 'desc' }, // Sabitlenmiş yorumlar en üstte
+        { createdAt: 'desc' },
+      ],
     });
 
     if (!post) {
@@ -321,21 +350,18 @@ export class PostsService {
     let isSaved = false;
     
     if (currentUserId) {
+      // 🔥 MongoDB: Compound unique için findFirst kullan
       const [like, savedPost] = await Promise.all([
-        this.prisma.like.findUnique({
+        this.prisma.like.findFirst({
           where: {
-            postId_userId: {
-              postId,
-              userId: currentUserId,
-            },
+            postId,
+            userId: currentUserId,
           },
         }),
-        this.prisma.savedPost.findUnique({
+        this.prisma.savedPost.findFirst({
           where: {
-            userId_postId: {
-              userId: currentUserId,
-              postId,
-            },
+            userId: currentUserId,
+            postId,
           },
         }),
       ]);
@@ -343,20 +369,29 @@ export class PostsService {
       isSaved = !!savedPost;
     }
 
+    // 🔥 MongoDB: Manuel count (daha güvenilir)
+    const [likeCount, commentCount] = await Promise.all([
+      this.prisma.like.count({ where: { postId } }),
+      this.prisma.comment.count({ where: { postId, parentId: null } }),
+    ]);
+
     // Avatar URL'lerini formatla
     const CDN_BASE = this.configService.get('CDN_BASE_URL') || 
       `http://${this.configService.get('MINIO_ENDPOINT')}:${this.configService.get('MINIO_PORT')}/${this.configService.get('MINIO_BUCKET_NAME')}`;
 
-    // Comments'leri formatla (nested replies dahil)
-    const formattedComments = post.comments.map((comment: any) => ({
+    // 🔥 DEBUG: Yorumları logla
+    console.log(`📝 [getPost] Post ${postId} için ${comments.length} yorum bulundu:`, comments.map((c: any) => ({ id: c.id, content: c.content?.substring(0, 30) })))
+    
+    // Comments'leri formatla (nested replies dahil) - MongoDB entegrasyonu
+    const formattedComments = comments.map((comment: any) => ({
       id: comment.id,
       postId: comment.postId,
       parentId: comment.parentId,
       content: comment.content,
-      createdAt: comment.createdAt,
-      updatedAt: comment.updatedAt,
+      createdAt: comment.createdAt instanceof Date ? comment.createdAt.toISOString() : comment.createdAt,
+      updatedAt: comment.updatedAt instanceof Date ? comment.updatedAt.toISOString() : comment.updatedAt,
       userId: comment.userId,
-      isPinned: comment.isPinned,
+      isPinned: comment.isPinned || false,
       isLikedByCurrentUser: comment.likes && comment.likes.length > 0,
       likesCount: comment._count?.likes || 0,
       user: {
@@ -364,15 +399,15 @@ export class PostsService {
         username: comment.user.username,
         fullName: comment.user.fullName,
         avatar: comment.user.avatar ? (comment.user.avatar.startsWith('http') ? comment.user.avatar : `${CDN_BASE}/${comment.user.avatar}`) : null,
-        isVerified: comment.user.isVerified,
+        isVerified: comment.user.isVerified || false,
       },
-      replies: comment.replies.map((reply: any) => ({
+      replies: (comment.replies || []).map((reply: any) => ({
         id: reply.id,
         postId: reply.postId,
         parentId: reply.parentId,
         content: reply.content,
-        createdAt: reply.createdAt,
-        updatedAt: reply.updatedAt,
+        createdAt: reply.createdAt instanceof Date ? reply.createdAt.toISOString() : reply.createdAt,
+        updatedAt: reply.updatedAt instanceof Date ? reply.updatedAt.toISOString() : reply.updatedAt,
         userId: reply.userId,
         isLikedByCurrentUser: reply.likes && reply.likes.length > 0,
         likesCount: reply._count?.likes || 0,
@@ -381,7 +416,7 @@ export class PostsService {
           username: reply.user.username,
           fullName: reply.user.fullName,
           avatar: reply.user.avatar ? (reply.user.avatar.startsWith('http') ? reply.user.avatar : `${CDN_BASE}/${reply.user.avatar}`) : null,
-          isVerified: reply.user.isVerified,
+          isVerified: reply.user.isVerified || false,
         },
       })),
     }));
@@ -400,11 +435,47 @@ export class PostsService {
 
     return {
       ...post,
+      id: post.id,
+      userId: post.userId,
+      caption: post.caption,
+      title: post.title,
+      location: post.location,
+      type: post.type,
+      createdAt: post.createdAt instanceof Date ? post.createdAt.toISOString() : post.createdAt,
+      updatedAt: post.updatedAt instanceof Date ? post.updatedAt.toISOString() : post.updatedAt,
       media: transformedMedia,
       user: transformedUser,
-      comments: formattedComments,
+      comments: formattedComments, // ✅ MongoDB'den gelen yorumlar formatlanmış şekilde
       isLiked,
       isSaved,
+      _count: {
+        likes: likeCount,
+        comments: commentCount,
+      },
+    };
+    
+    // 🔥 DEBUG: Response'u logla
+    console.log(`✅ [getPost] Post ${postId} response: ${formattedComments.length} yorum döndürülüyor`)
+    
+    return {
+      ...post,
+      id: post.id,
+      userId: post.userId,
+      caption: post.caption,
+      title: post.title,
+      location: post.location,
+      type: post.type,
+      createdAt: post.createdAt instanceof Date ? post.createdAt.toISOString() : post.createdAt,
+      updatedAt: post.updatedAt instanceof Date ? post.updatedAt.toISOString() : post.updatedAt,
+      media: transformedMedia,
+      user: transformedUser,
+      comments: formattedComments, // ✅ MongoDB'den gelen yorumlar formatlanmış şekilde
+      isLiked,
+      isSaved,
+      _count: {
+        likes: likeCount,
+        comments: commentCount,
+      },
     };
   }
 
@@ -419,6 +490,11 @@ export class PostsService {
 
     if (post.userId !== userId) {
       throw new ForbiddenException('Cannot update this post');
+    }
+
+    // Küfür kontrolü
+    if (data.caption && containsBadWord(data.caption)) {
+      throw new BadRequestException('Bu içerik topluluk kurallarına uygun değil.');
     }
 
     const updatedPost = await this.prisma.post.update({
@@ -460,6 +536,9 @@ export class PostsService {
   async deletePost(postId: string, userId: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
+      include: {
+        media: true,
+      },
     });
 
     if (!post) {
@@ -470,6 +549,40 @@ export class PostsService {
       throw new ForbiddenException('Cannot delete this post');
     }
 
+    // ✅ Önce PostMedia kayıtlarını sil (required relation hatası önlemek için)
+    if (post.media && post.media.length > 0) {
+      await this.prisma.postMedia.deleteMany({
+        where: { postId },
+      });
+    }
+
+    // ✅ Post ile ilişkili diğer kayıtları da sil
+    // Comments (cascade delete yoksa manuel sil)
+    await this.prisma.comment.deleteMany({
+      where: { postId },
+    });
+
+    // Likes
+    await this.prisma.like.deleteMany({
+      where: { postId },
+    });
+
+    // SavedPosts
+    await this.prisma.savedPost.deleteMany({
+      where: { postId },
+    });
+
+    // SavedArtworks
+    await this.prisma.savedArtwork.deleteMany({
+      where: { postId },
+    });
+
+    // PostHashtags
+    await this.prisma.postHashtag.deleteMany({
+      where: { postId },
+    });
+
+    // Şimdi Post'u sil
     await this.prisma.post.delete({
       where: { id: postId },
     });
@@ -495,31 +608,27 @@ export class PostsService {
       throw new NotFoundException('Post not found');
     }
 
-    // Use upsert to handle already liked case
-    await this.prisma.like.upsert({
+    // 🔥 MongoDB: Compound unique için findFirst kullan
+    const existingLike = await this.prisma.like.findFirst({
       where: {
-        postId_userId: {
-          postId,
-          userId,
-        },
-      },
-      update: {},
-      create: {
         postId,
         userId,
       },
     });
 
-    // Get updated like count
-    const updatedPost = await this.prisma.post.findUnique({
-      where: { id: postId },
-      include: {
-        _count: {
-          select: {
-            likes: true,
-          },
+    if (!existingLike) {
+      // Like yoksa oluştur
+      await this.prisma.like.create({
+        data: {
+          postId,
+          userId,
         },
-      },
+      });
+    }
+
+    // 🔥 MongoDB: Manuel count (daha güvenilir)
+    const likeCount = await this.prisma.like.count({
+      where: { postId },
     });
 
     // Send notification (don't notify if user likes their own post)
@@ -544,16 +653,16 @@ export class PostsService {
       this.postsGateway.server.emit('postLikeUpdated', {
         postId,
         change: +1,
-        likeCount: updatedPost._count.likes,
+        likeCount: likeCount,
         isLiked: true,
         userId,
       });
       // Admin panel için özel event
       this.postsGateway.server.emit('post:like', {
         postId,
-        likes: updatedPost._count.likes,
+        likes: likeCount,
       });
-      console.log(`❤️ Post liked event broadcasted: ${postId}`);
+      console.log(`❤️ Post liked event broadcasted: ${postId}, likeCount: ${likeCount}`);
     }
 
     // 🏆 Ziyaretçi güncelleme - Post sahibi corporate ise analytics'i güncelle
@@ -571,19 +680,12 @@ export class PostsService {
       console.error('Error updating visitor analytics:', error);
     }
 
-    return { success: true, liked: true, likeCount: updatedPost._count.likes };
+    return { success: true, liked: true, likeCount: likeCount };
   }
 
   async unlikePost(postId: string, userId: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
-      include: {
-        _count: {
-          select: {
-            likes: true,
-          },
-        },
-      },
     });
 
     if (!post) {
@@ -597,16 +699,9 @@ export class PostsService {
       },
     });
 
-    // Get updated like count
-    const updatedPost = await this.prisma.post.findUnique({
-      where: { id: postId },
-      include: {
-        _count: {
-          select: {
-            likes: true,
-          },
-        },
-      },
+    // 🔥 MongoDB: Manuel count (daha güvenilir)
+    const likeCount = await this.prisma.like.count({
+      where: { postId },
     });
 
     // 🔔 Real-time yayın - Socket.IO ile beğeni kaldırma güncellemesi
@@ -614,19 +709,19 @@ export class PostsService {
       this.postsGateway.server.emit('postLikeUpdated', {
         postId,
         change: -1,
-        likeCount: updatedPost._count.likes,
+        likeCount: likeCount,
         isLiked: false,
         userId,
       });
       // Admin panel için özel event
       this.postsGateway.server.emit('post:like', {
         postId,
-        likes: updatedPost._count.likes,
+        likes: likeCount,
       });
-      console.log(`💔 Post unliked event broadcasted: ${postId}`);
+      console.log(`💔 Post unliked event broadcasted: ${postId}, likeCount: ${likeCount}`);
     }
 
-    return { success: true, liked: false, likeCount: updatedPost._count.likes };
+    return { success: true, liked: false, likeCount: likeCount };
   }
 
   async createComment(postId: string, userId: string, content: string, parentId?: string) {
@@ -638,12 +733,15 @@ export class PostsService {
       throw new NotFoundException('Post not found');
     }
 
+    // 🔥 DEBUG: Yorum oluşturulmadan önce postId'yi logla
+    console.log(`💬 [createComment] Yorum oluşturuluyor - postId: "${postId}" (type: ${typeof postId}), userId: ${userId}, content: ${content.substring(0, 50)}`);
+    
     const comment = await this.prisma.comment.create({
       data: {
-        postId,
-        userId,
-        content,
-        parentId,
+        postId: String(postId), // ✅ Açıkça postId'yi string'e çevir ve kaydet (MongoDB uyumluluğu için)
+        userId: String(userId),
+        content: String(content),
+        parentId: parentId ? String(parentId) : null,
       },
       include: {
         user: {
@@ -662,6 +760,16 @@ export class PostsService {
         },
       },
     });
+    
+    // 🔥 DEBUG: Yorum oluşturulduktan sonra logla
+    console.log(`✅ [createComment] Yorum oluşturuldu - id: ${comment.id}, postId: "${comment.postId}" (type: ${typeof comment.postId}, length: ${comment.postId?.length}), userId: ${comment.userId}`);
+    
+    // 🔥 DEBUG: Yorumun gerçekten kaydedildiğini doğrula
+    const verifyComment = await this.prisma.comment.findUnique({
+      where: { id: comment.id },
+      select: { id: true, postId: true, content: true },
+    });
+    console.log(`✅ [createComment] Yorum doğrulandı - id: ${verifyComment?.id}, postId: "${verifyComment?.postId}"`);
 
     // Send notification to post owner (preference kontrolü ile)
     if (post.userId !== userId) {
@@ -816,7 +924,29 @@ export class PostsService {
       console.error('Error updating visitor analytics:', error);
     }
 
-    return comment;
+    // 🔥 KRİTİK: Response'u frontend formatına çevir
+    const CDN_BASE_RESPONSE = this.configService.get('CDN_BASE_URL') || 
+      `http://${this.configService.get('MINIO_ENDPOINT')}:${this.configService.get('MINIO_PORT')}/${this.configService.get('MINIO_BUCKET_NAME')}`;
+
+    return {
+      id: comment.id,
+      postId: comment.postId,
+      content: comment.content,
+      createdAt: comment.createdAt.toISOString(),
+      parentId: comment.parentId,
+      user: {
+        id: comment.user.id,
+        username: comment.user.username,
+        fullName: comment.user.fullName,
+        avatar: comment.user.avatar ? (comment.user.avatar.startsWith('http') ? comment.user.avatar : `${CDN_BASE_RESPONSE}/${comment.user.avatar}`) : null,
+        avatarUrl: comment.user.avatar ? (comment.user.avatar.startsWith('http') ? comment.user.avatar : `${CDN_BASE_RESPONSE}/${comment.user.avatar}`) : null,
+        isVerified: comment.user.isVerified,
+      },
+      _count: {
+        likes: 0,
+        replies: comment._count.replies || 0,
+      },
+    };
   }
 
   async getUserComments(userId: string) {
@@ -1172,20 +1302,56 @@ export class PostsService {
     return reactions.map((r) => r.emoji);
   }
 
-  async getUserPosts(userId: string, currentUserId?: string) {
+  async getUserPosts(userId: string, currentUserId?: string, type?: 'post' | 'artwork') {
+    // 🔥 KRİTİK: userId null/undefined kontrolü
+    if (!userId || userId === 'undefined' || userId === 'null') {
+      console.warn(`⚠️ [PostsService] getUserPosts called with invalid userId: ${userId}`);
+      return [];
+    }
+
+    // 🔥 KRİTİK: Eğer userId MongoDB ObjectId formatında değilse (username olabilir), önce userId'yi bul
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(userId);
+    let actualUserId = userId;
+    
+    if (!isObjectId) {
+      // Username ile kullanıcıyı bul
+      console.log(`🔍 [PostsService] userId looks like username, searching for user: ${userId}`);
+      const allUsers = await this.prisma.user.findMany({
+        select: { id: true, username: true },
+      });
+      
+      const normalizedSearch = userId.toLowerCase().trim();
+      const foundUser = allUsers.find(
+        (u) => u.username?.toLowerCase().trim() === normalizedSearch
+      );
+      
+      if (!foundUser) {
+        console.warn(`⚠️ [PostsService] User not found by username: ${userId}`);
+        return [];
+      }
+      
+      actualUserId = foundUser.id;
+      console.log(`✅ [PostsService] Found user by username: ${userId} -> ${actualUserId}`);
+    }
+
     // Check if current user can see posts (privacy check)
-    if (currentUserId && currentUserId !== userId) {
+    if (currentUserId && currentUserId !== actualUserId) {
       const targetUser = await this.prisma.user.findUnique({
-        where: { id: userId },
+        where: { id: actualUserId },
       });
 
+      // 🔥 KRİTİK: targetUser null kontrolü
+      if (!targetUser) {
+        console.warn(`⚠️ [PostsService] User not found: ${actualUserId}`);
+        return [];
+      }
+
       if (targetUser.isPrivate) {
-        const isFollowing = await this.prisma.follow.findUnique({
+        // 🔥 MongoDB: Compound unique için findFirst kullan
+        const isFollowing = await this.prisma.follow.findFirst({
           where: {
-            followerId_followingId: {
-              followerId: currentUserId,
-              followingId: userId,
-            },
+            followerId: currentUserId,
+            followingId: actualUserId,
           },
         });
 
@@ -1195,8 +1361,14 @@ export class PostsService {
       }
     }
 
+    // ✅ Type filtresi ekle: post veya artwork
+    const whereClause: any = { userId: actualUserId };
+    if (type) {
+      whereClause.type = type;
+    }
+
     const posts = await this.prisma.post.findMany({
-      where: { userId },
+      where: whereClause,
       include: {
         user: {
           select: {
@@ -1208,19 +1380,32 @@ export class PostsService {
           },
         },
         media: true,
-        _count: {
-          select: {
-            likes: true,
-            comments: true,
-          },
-        },
+        // _count removed - using manual count instead for MongoDB compatibility
       },
       orderBy: { createdAt: 'desc' },
     });
 
+    // 🔥 MongoDB: Manuel count ile beğeni ve yorum sayılarını hesapla
+    const postsWithCounts = await Promise.all(
+      posts.map(async (post) => {
+        const [likeCount, commentCount] = await Promise.all([
+          this.prisma.like.count({ where: { postId: post.id } }),
+          this.prisma.comment.count({ where: { postId: post.id, parentId: null } }),
+        ]);
+        
+        return {
+          ...post,
+          _count: {
+            likes: likeCount,
+            comments: commentCount,
+          },
+        };
+      }),
+    );
+
     // Check if liked by current user
     if (currentUserId) {
-      const postIds = posts.map(p => p.id);
+      const postIds = postsWithCounts.map(p => p.id);
       const likes = await this.prisma.like.findMany({
         where: {
           postId: { in: postIds },
@@ -1231,7 +1416,7 @@ export class PostsService {
       const likedPostIds = new Set(likes.map(l => l.postId));
 
       // Transform media URLs and return posts with type field
-      return posts.map(post => {
+      return postsWithCounts.map(post => {
         const transformedMedia = post.media?.map((m: any) => ({
           ...m,
           url: this.transformMediaUrl(m.url),
@@ -1250,7 +1435,7 @@ export class PostsService {
     }
 
     // Transform media URLs and return posts with type field
-    return posts.map(post => {
+    return postsWithCounts.map(post => {
       const transformedMedia = post.media?.map((m: any) => ({
         ...m,
         url: this.transformMediaUrl(m.url),
@@ -1342,20 +1527,22 @@ export class PostsService {
             media: {
               orderBy: { order: 'asc' },
             },
-            _count: {
-              select: {
-                likes: true,
-                comments: true,
-              },
-            },
+            // _count removed - using manual count instead for MongoDB compatibility
           },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
 
+    // Filter out null posts (in case post was deleted)
+    const validSavedPosts = savedPosts.filter((sp): sp is typeof sp & { post: NonNullable<typeof sp.post> } => sp.post !== null);
+
+    if (validSavedPosts.length === 0) {
+      return [];
+    }
+
     // Check if liked
-    const postIds = savedPosts.map(sp => sp.postId);
+    const postIds = validSavedPosts.map(sp => sp.postId);
     const likes = await this.prisma.like.findMany({
       where: {
         postId: { in: postIds },
@@ -1365,10 +1552,37 @@ export class PostsService {
 
     const likedPostIds = new Set(likes.map(l => l.postId));
 
-    return savedPosts.map(savedPost => ({
+    // 🔥 MongoDB uyumluluğu için manuel count yap
+    const [likeCounts, commentCounts] = await Promise.all([
+      Promise.all(
+        postIds.map(async (postId) => {
+          const count = await this.prisma.like.count({
+            where: { postId },
+          });
+          return { postId, count };
+        })
+      ),
+      Promise.all(
+        postIds.map(async (postId) => {
+          const count = await this.prisma.comment.count({
+            where: { postId, parentId: null }, // Sadece ana yorumlar
+          });
+          return { postId, count };
+        })
+      ),
+    ]);
+
+    const likeCountMap = new Map(likeCounts.map(lc => [lc.postId, lc.count]));
+    const commentCountMap = new Map(commentCounts.map(cc => [cc.postId, cc.count]));
+
+    return validSavedPosts.map(savedPost => ({
       ...savedPost.post,
       isLiked: likedPostIds.has(savedPost.postId),
       savedAt: savedPost.createdAt,
+      _count: {
+        likes: likeCountMap.get(savedPost.postId) || 0,
+        comments: commentCountMap.get(savedPost.postId) || 0,
+      },
     }));
   }
 
@@ -1433,12 +1647,14 @@ export class PostsService {
 
   async getSavedArtworks(userId: string) {
     const savedArtworks = await this.prisma.savedArtwork.findMany({
-      where: { userId },
+      where: {
+        userId,
+        post: {
+          type: 'artwork',
+        },
+      },
       include: {
         post: {
-          where: {
-            type: 'artwork',
-          },
           include: {
             user: {
               select: {
@@ -1465,7 +1681,7 @@ export class PostsService {
     });
 
     // Filter out null posts (in case artwork was deleted)
-    const validArtworks = savedArtworks.filter(sa => sa.post !== null);
+    const validArtworks = savedArtworks.filter((sa): sa is typeof sa & { post: NonNullable<typeof sa.post> } => sa.post !== null);
 
     // Check if liked
     const postIds = validArtworks.map(sa => sa.postId);
@@ -1549,6 +1765,27 @@ export class PostsService {
     const likesCount = await this.prisma.commentLike.count({
       where: { commentId },
     });
+
+    // 🔔 Socket.IO ile real-time güncelleme gönder (MongoDB entegrasyonu)
+    if (this.commentsGateway) {
+      const room = `post_${comment.postId}`;
+      this.commentsGateway.server.to(room).emit('commentLikeUpdated', {
+        commentId,
+        postId: comment.postId,
+        liked: !existingLike,
+        likesCount,
+        userId,
+      });
+      // Global event de gönder
+      this.commentsGateway.server.emit('commentLikeUpdated', {
+        commentId,
+        postId: comment.postId,
+        liked: !existingLike,
+        likesCount,
+        userId,
+      });
+      console.log(`💬 Comment like updated event broadcasted: ${commentId} (liked: ${!existingLike}, count: ${likesCount})`);
+    }
 
     return {
       liked: !existingLike,

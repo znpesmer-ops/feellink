@@ -11,10 +11,26 @@ export class FeedService {
     private prisma: PrismaService,
     private configService: ConfigService,
   ) {
-    this.redis = new Redis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-    });
+    // Redis bağlantısı - hata durumunda sessizce devam et (fallback kullanılacak)
+    try {
+      this.redis = new Redis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+        retryStrategy: () => null, // Retry yapma, direkt fallback kullan
+        maxRetriesPerRequest: 0, // Retry yapma
+      });
+      
+      this.redis.on('error', (err) => {
+        console.warn('[FeedService] ⚠️ Redis connection error (using fallback):', err.message);
+      });
+      
+      this.redis.on('connect', () => {
+        console.log('[FeedService] ✅ Redis connected');
+      });
+    } catch (error) {
+      console.warn('[FeedService] ⚠️ Redis initialization failed (using fallback):', error);
+      this.redis = null as any; // Fallback kullanılacak
+    }
   }
 
   // Helper: Transform media URLs for mobile compatibility
@@ -86,23 +102,45 @@ export class FeedService {
   }
 
   async getFeed(userId: string, limit: number = 20, cursor?: string) {
+    // Redis yoksa direkt database'den çek (fallback)
+    const isRedisAvailable = this.redis && (this.redis.status === 'ready' || this.redis.status === 'connect');
+    if (!isRedisAvailable) {
+      console.log('[FeedService] ⚠️ Redis not available, using database fallback');
+      const posts = await this.rebuildFeed(userId, limit);
+      return {
+        posts,
+        nextCursor: posts.length > 0 ? posts[posts.length - 1].id : undefined,
+        hasMore: false,
+      };
+    }
+
     const cacheKey = `feed:${userId}`;
 
     let postIds: string[] = [];
     let hasMore = false;
     let nextCursor: string | undefined;
 
-    if (cursor) {
-      // Cursor-based pagination from cache
-      const cursorIndex = await this.redis.lpos(cacheKey, cursor);
-      if (cursorIndex !== null) {
-        const startIndex = cursorIndex + 1;
-        const endIndex = startIndex + limit - 1;
-        postIds = await this.redis.lrange(cacheKey, startIndex, endIndex);
+    try {
+      if (cursor) {
+        // Cursor-based pagination from cache
+        const cursorIndex = await this.redis.lpos(cacheKey, cursor);
+        if (cursorIndex !== null) {
+          const startIndex = cursorIndex + 1;
+          const endIndex = startIndex + limit - 1;
+          postIds = await this.redis.lrange(cacheKey, startIndex, endIndex);
+        }
+      } else {
+        // First page - get from cache or rebuild
+        postIds = await this.redis.lrange(cacheKey, 0, limit - 1);
       }
-    } else {
-      // First page - get from cache or rebuild
-      postIds = await this.redis.lrange(cacheKey, 0, limit - 1);
+    } catch (error) {
+      console.warn('[FeedService] ⚠️ Redis error, using database fallback:', error);
+      const posts = await this.rebuildFeed(userId, limit);
+      return {
+        posts,
+        nextCursor: posts.length > 0 ? posts[posts.length - 1].id : undefined,
+        hasMore: false,
+      };
     }
 
     // If cache is empty or insufficient, rebuild feed
@@ -138,12 +176,7 @@ export class FeedService {
             hashtag: true,
           },
         },
-        _count: {
-          select: {
-            likes: true,
-            comments: true,
-          },
-        },
+        // _count removed - using manual count instead for MongoDB compatibility
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -159,23 +192,46 @@ export class FeedService {
 
     const likedPostIds = new Set(likes.map(l => l.postId));
 
+    // 🔥 MongoDB: Manuel count ile beğeni ve yorum sayılarını hesapla
+    const postsWithCounts = await Promise.all(
+      posts.map(async (post) => {
+        const [likeCount, commentCount] = await Promise.all([
+          this.prisma.like.count({ where: { postId: post.id } }),
+          this.prisma.comment.count({ where: { postId: post.id, parentId: null } }),
+        ]);
+        
+        return {
+          ...post,
+          _count: {
+            likes: likeCount,
+            comments: commentCount,
+          },
+        };
+      }),
+    );
+
     // Check if there are more posts
-    if (cursor) {
-      const cursorIndex = await this.redis.lpos(cacheKey, cursor);
-      if (cursorIndex !== null) {
-        const nextIndex = cursorIndex + posts.length + 1;
-        const nextPostId = await this.redis.lindex(cacheKey, nextIndex);
+    try {
+      if (cursor) {
+        const cursorIndex = await this.redis.lpos(cacheKey, cursor);
+        if (cursorIndex !== null) {
+          const nextIndex = cursorIndex + posts.length + 1;
+          const nextPostId = await this.redis.lindex(cacheKey, nextIndex);
+          hasMore = nextPostId !== null;
+        }
+      } else {
+        const nextPostId = await this.redis.lindex(cacheKey, limit);
         hasMore = nextPostId !== null;
       }
-    } else {
-      const nextPostId = await this.redis.lindex(cacheKey, limit);
-      hasMore = nextPostId !== null;
+    } catch (error) {
+      console.warn('[FeedService] ⚠️ Redis error checking hasMore:', error);
+      hasMore = false;
     }
 
     nextCursor = posts.length > 0 ? posts[posts.length - 1].id : undefined;
 
     return {
-      posts: posts.map(post => ({
+      posts: postsWithCounts.map(post => ({
         ...post,
         isLiked: likedPostIds.has(post.id),
         media: post.media?.map((m: any) => ({
@@ -255,28 +311,46 @@ export class FeedService {
           },
         },
         media: true,
-        _count: {
-          select: {
-            likes: true,
-            comments: true,
-          },
-        },
+        // _count removed - using manual count instead for MongoDB compatibility
       },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
 
-    // Cache the post IDs
-    if (posts.length > 0) {
-      const cacheKey = `feed:${userId}`;
-      const postIds = posts.map(p => p.id);
-      await this.redis.lpush(cacheKey, ...postIds);
-      await this.redis.ltrim(cacheKey, 0, 1000);
-      await this.redis.expire(cacheKey, 7 * 24 * 60 * 60);
+    // 🔥 MongoDB: Manuel count ile beğeni ve yorum sayılarını hesapla
+    const postsWithCounts = await Promise.all(
+      posts.map(async (post) => {
+        const [likeCount, commentCount] = await Promise.all([
+          this.prisma.like.count({ where: { postId: post.id } }),
+          this.prisma.comment.count({ where: { postId: post.id, parentId: null } }),
+        ]);
+        
+        return {
+          ...post,
+          _count: {
+            likes: likeCount,
+            comments: commentCount,
+          },
+        };
+      }),
+    );
+
+    // Cache the post IDs (if Redis is available)
+    const isRedisAvailable = this.redis && (this.redis.status === 'ready' || this.redis.status === 'connect');
+    if (postsWithCounts.length > 0 && isRedisAvailable) {
+      try {
+        const cacheKey = `feed:${userId}`;
+        const postIds = postsWithCounts.map(p => p.id);
+        await this.redis.lpush(cacheKey, ...postIds);
+        await this.redis.ltrim(cacheKey, 0, 1000);
+        await this.redis.expire(cacheKey, 7 * 24 * 60 * 60);
+      } catch (error) {
+        console.warn('[FeedService] ⚠️ Failed to cache feed (non-critical):', error);
+      }
     }
 
     // Check if liked
-    const postIds = posts.map(p => p.id);
+    const postIds = postsWithCounts.map(p => p.id);
     const likes = await this.prisma.like.findMany({
       where: {
         postId: { in: postIds },
@@ -286,7 +360,7 @@ export class FeedService {
 
     const likedPostIds = new Set(likes.map(l => l.postId));
 
-    return posts.map(post => ({
+    return postsWithCounts.map(post => ({
       ...post,
       isLiked: likedPostIds.has(post.id),
       media: post.media?.map((m: any) => ({

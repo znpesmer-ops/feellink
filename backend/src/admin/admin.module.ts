@@ -4,6 +4,7 @@ import { AdminService } from './admin.service';
 import { AdminGateway } from './admin.gateway';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ReportsModule } from '../reports/reports.module';
+import { MailModule } from '../mail/mail.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -13,6 +14,7 @@ import { PostsModule } from '../posts/posts.module';
   imports: [
     PrismaModule,
     ReportsModule,
+    MailModule,
     JwtModule,
     ConfigModule,
     ScheduleModule.forRoot(),

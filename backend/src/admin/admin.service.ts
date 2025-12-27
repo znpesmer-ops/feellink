@@ -2,6 +2,7 @@ import { Injectable, Inject, forwardRef, NotFoundException, BadRequestException 
 import { Prisma, UserRole } from '@prisma/client';
 import { getPrismaInstance } from '../prisma/prisma.service';
 import { ColorAnalysisService } from '../posts/color-analysis.service';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AdminService {
@@ -10,6 +11,7 @@ export class AdminService {
   constructor(
     @Inject(forwardRef(() => ColorAnalysisService))
     private colorAnalysisService: ColorAnalysisService,
+    private mailService: MailService,
   ) {}
 
   async getSummary() {
@@ -115,7 +117,16 @@ export class AdminService {
     };
   }
 
-  async getUsers(page = 1, limit = 20, search?: string, role?: string) {
+  async getUsers(
+    page = 1,
+    limit = 20,
+    search?: string,
+    role?: string,
+    city?: string,
+    gender?: string,
+    ageMin?: number,
+    ageMax?: number,
+  ) {
     const skip = (page - 1) * limit;
     const where: any = {};
 
@@ -129,6 +140,32 @@ export class AdminService {
 
     if (role) {
       where.roles = { has: role };
+    }
+
+    if (city) {
+      where.city = { contains: city, mode: 'insensitive' };
+    }
+
+    if (gender) {
+      where.gender = gender;
+    }
+
+    // Age range filter (calculate from dateOfBirth)
+    if (ageMin !== undefined || ageMax !== undefined) {
+      const today = new Date();
+      where.dateOfBirth = {};
+      
+      if (ageMax !== undefined) {
+        // Minimum birth date (oldest age)
+        const minBirthDate = new Date(today.getFullYear() - ageMax - 1, today.getMonth(), today.getDate());
+        where.dateOfBirth.lte = minBirthDate;
+      }
+      
+      if (ageMin !== undefined) {
+        // Maximum birth date (youngest age)
+        const maxBirthDate = new Date(today.getFullYear() - ageMin, today.getMonth(), today.getDate());
+        where.dateOfBirth.gte = maxBirthDate;
+      }
     }
 
     const [users, total] = await Promise.all([
@@ -153,6 +190,11 @@ export class AdminService {
           followingCount: true,
           isOnline: true,
           createdAt: true,
+          dateOfBirth: true,
+          country: true,
+          city: true,
+          gender: true,
+          profileCompleted: true,
         },
       }),
       this.prisma.user.count({ where }),
@@ -170,6 +212,22 @@ export class AdminService {
     },
     actorId: string,
   ) {
+    // Eski kullanıcı bilgilerini al (rol değişikliği kontrolü için)
+    const oldUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        username: true,
+        roles: true,
+      },
+    });
+
+    if (!oldUser) {
+      throw new NotFoundException('Kullanıcı bulunamadı');
+    }
+
     const { roles: incomingRoles, ...rest } = data;
 
     const normalizedRoles = incomingRoles
@@ -189,6 +247,32 @@ export class AdminService {
       ...rest,
     };
 
+    // ✅ 30 GÜN KONTROLÜ (Sadece rol değişikliği için)
+    if (normalizedRoles && normalizedRoles.length > 0) {
+      const oldRolesSorted = [...(oldUser.roles || [])].sort().join(',');
+      const newRolesSorted = [...normalizedRoles].sort().join(',');
+      
+      // Rol değişmişse 30 gün kontrolü yap
+      if (oldRolesSorted !== newRolesSorted) {
+        const lastChange = await this.prisma.roleChangeLog.findFirst({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (lastChange) {
+          const diffInDays =
+            (Date.now() - lastChange.createdAt.getTime()) / (1000 * 60 * 60 * 24);
+
+          if (diffInDays < 30) {
+            const remainingDays = Math.ceil(30 - diffInDays);
+            throw new BadRequestException(
+              `Bu kullanıcının rolü ${remainingDays} gün sonra tekrar değiştirilebilir.`,
+            );
+          }
+        }
+      }
+    }
+
     if (normalizedRoles) {
       updatePayload.roles = { set: normalizedRoles };
     }
@@ -196,7 +280,57 @@ export class AdminService {
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: updatePayload,
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        username: true,
+        roles: true,
+      },
     });
+
+    // ✅ Rol değişikliği kontrolü, log ve mail gönderimi
+    if (normalizedRoles && normalizedRoles.length > 0) {
+      const oldRolesSorted = [...(oldUser.roles || [])].sort().join(',');
+      const newRolesSorted = [...normalizedRoles].sort().join(',');
+      
+      // Rol değişmişse log kaydet, mail gönder ve refresh token'ları invalidate et
+      if (oldRolesSorted !== newRolesSorted) {
+        // ✅ RoleChangeLog kaydı oluştur
+        await this.prisma.roleChangeLog.create({
+          data: {
+            userId,
+            changedBy: actorId,
+            oldRoles: oldUser.roles || [],
+            newRoles: normalizedRoles,
+          },
+        });
+
+        // ✅ Mail gönder (süre bilgisi ile)
+        const nextChangeDate = new Date();
+        nextChangeDate.setDate(nextChangeDate.getDate() + 30);
+        
+        this.mailService.sendRoleChangedMail({
+          to: user.email,
+          name: user.fullName || user.username,
+          oldRoles: oldUser.roles || [],
+          newRoles: normalizedRoles,
+          nextChangeDate: nextChangeDate,
+        }).catch((error) => {
+          console.error('Failed to send role changed email:', error);
+        });
+
+        // Session invalidate: Kullanıcının tüm refresh token'larını sil
+        try {
+          await this.prisma.refreshToken.deleteMany({
+            where: { userId: userId },
+          });
+        } catch (error) {
+          console.error('Failed to invalidate refresh tokens:', error);
+          // Hata durumunda işlemi engelleme
+        }
+      }
+    }
 
     // Audit log
     await this.prisma.auditLog.create({
@@ -211,6 +345,65 @@ export class AdminService {
     });
 
     return user;
+  }
+
+  // ✅ Rol geçmişi endpoint'i
+  async getRoleHistory(userId: string) {
+    const logs = await this.prisma.roleChangeLog.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 50, // Son 50 değişiklik
+      include: {
+        user: {
+          select: {
+            username: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    // ChangedBy bilgisini almak için admin kullanıcıları çek
+    const changedByIds = [...new Set(logs.map(log => log.changedBy))] as string[];
+    const changers = await this.prisma.user.findMany({
+      where: { id: { in: changedByIds } },
+      select: {
+        id: true,
+        username: true,
+        fullName: true,
+      },
+    });
+
+    const changersMap = new Map(changers.map(c => [c.id, c.fullName || c.username]));
+
+    return logs.map(log => ({
+      id: log.id,
+      oldRoles: log.oldRoles as UserRole[],
+      newRoles: log.newRoles as UserRole[],
+      changedBy: changersMap.get(log.changedBy) || 'Bilinmeyen',
+      createdAt: log.createdAt,
+    }));
+  }
+
+  // ✅ Kalan gün bilgisi (30 gün kontrolü için)
+  async getRoleChangeRemainingDays(userId: string): Promise<number | null> {
+    const lastChange = await this.prisma.roleChangeLog.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!lastChange) {
+      return null; // Hiç değişiklik yoksa null döndür
+    }
+
+    const diffInDays =
+      (Date.now() - lastChange.createdAt.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (diffInDays >= 30) {
+      return 0; // 30 gün geçmiş, değişiklik yapılabilir
+    }
+
+    return Math.ceil(30 - diffInDays);
   }
 
   async deleteUser(userId: string, actorId: string) {
@@ -852,6 +1045,73 @@ export class AdminService {
       };
     } catch (error) {
       throw new Error(`Renk analizi yeniden hesaplama hatası: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // Settings management - Gerçek database write
+  async updateSetting(key: string, value: string, updatedBy?: string) {
+    try {
+      // 🔒 Validasyon: Boş değer gitmesin
+      if (!value || !value.trim()) {
+        throw new BadRequestException(`${key} boş olamaz`);
+      }
+
+      // 🔒 KRİTİK: await + upsert ile gerçek database write
+      // @ts-ignore - Prisma client generated, setting model exists
+      const updated = await this.prisma.setting.upsert({
+        where: { key },
+        update: {
+          value: value.trim(),
+          updatedBy: updatedBy || null,
+        },
+        create: {
+          key,
+          value: value.trim(),
+          updatedBy: updatedBy || null,
+        },
+      });
+
+      // ✅ Kesin commit oldu - return ediyoruz
+      return {
+        success: true,
+        key: updated.key,
+        value: updated.value,
+        updatedAt: updated.updatedAt,
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new Error(`Ayar güncellenemedi: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async getSettings() {
+    try {
+      // 🔒 Database'den gerçek değerleri çek
+      // @ts-ignore - Prisma client generated, setting model exists
+      const settings = await this.prisma.setting.findMany({
+        where: {
+          key: {
+            in: ['siteName', 'siteDescription', 'adminEmail'],
+          },
+        },
+      });
+
+      // Key-value map oluştur
+      const settingsMap = settings.reduce((acc, setting) => {
+        acc[setting.key] = setting.value;
+        return acc;
+      }, {} as Record<string, string>);
+
+      // Default değerlerle merge et (database'de yoksa)
+      return {
+        siteName: settingsMap.siteName || 'Feellink',
+        siteDescription: settingsMap.siteDescription || 'Modern sosyal medya platformu',
+        adminEmail: settingsMap.adminEmail || 'admin@feellink.com',
+      };
+    } catch (error) {
+      throw new Error(`Ayarlar alınamadı: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

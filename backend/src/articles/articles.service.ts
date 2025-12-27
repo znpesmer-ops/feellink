@@ -296,7 +296,7 @@ export class ArticlesService {
     };
   }
 
-  async update(id: string, userId: string, data: { title?: string; content?: string; coverImage?: string; excerpt?: string; scheduledAt?: Date }) {
+  async update(id: string, userId: string, data: { title?: string; content?: string; coverImage?: string; excerpt?: string; isPublished?: boolean; scheduledAt?: Date }) {
     const article = await this.prisma.article.findUnique({
       where: { id },
     });
@@ -311,16 +311,29 @@ export class ArticlesService {
 
     // Eğer scheduledAt varsa ve yazı henüz yayınlanmamışsa, scheduledAt'ı güncelle
     // Eğer yazı zaten yayınlanmışsa scheduledAt'ı güncelleyemeyiz
+    const { isPublished, ...restData } = data;
     const updateData: any = {
-      ...data,
+      ...restData,
       updatedAt: new Date(),
     };
+
+    // isPublished field'ını kontrol et
+    if (isPublished !== undefined) {
+      // Eğer scheduledAt varsa ve yazı henüz yayınlanmamışsa, isPublished'i false yap
+      if (data.scheduledAt && !article.isPublished) {
+        updateData.isPublished = false;
+      } else {
+        updateData.isPublished = isPublished;
+      }
+    }
 
     // scheduledAt varsa ve yazı henüz yayınlanmamışsa
     if (data.scheduledAt && !article.isPublished) {
       updateData.scheduledAt = data.scheduledAt;
       // Zamanlanmış yazılar henüz yayınlanmamalı
-      updateData.isPublished = false;
+      if (isPublished === undefined) {
+        updateData.isPublished = false;
+      }
     } else if (data.scheduledAt === undefined) {
       // scheduledAt undefined ise mevcut değeri koru
       delete updateData.scheduledAt;

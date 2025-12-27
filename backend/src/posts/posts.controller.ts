@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Delete, Patch, Body, Param, UseGuards, Query, UseInterceptors, UploadedFiles, BadRequestException, Res } from '@nestjs/common';
+import { containsBadWord } from '../common/utils/containsBadWord';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -179,6 +180,11 @@ export class PostsController {
     @CurrentUser() user: any,
     @Body() dto: CreateCommentDto,
   ) {
+    // Küfür kontrolü
+    if (containsBadWord(dto.content)) {
+      throw new BadRequestException('Bu yorum topluluk kurallarına uygun değil.');
+    }
+    
     return this.postsService.createComment(params.id, user.id, dto.content, dto.parentId);
   }
 
@@ -193,8 +199,12 @@ export class PostsController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get user posts' })
   @ApiResponse({ status: 200, description: 'User posts retrieved successfully' })
-  async getUserPosts(@Param('userId') userId: string, @CurrentUser() user: any) {
-    return this.postsService.getUserPosts(userId, user.id);
+  async getUserPosts(
+    @Param('userId') userId: string,
+    @Query('type') type?: 'post' | 'artwork',
+    @CurrentUser() user?: any,
+  ) {
+    return this.postsService.getUserPosts(userId, user?.id, type);
   }
 
   @Get('comments/user/:userId')
@@ -255,6 +265,11 @@ export class PostsController {
     @Body() dto: CreateCommentDto,
     @CurrentUser() user: any,
   ) {
+    // Küfür kontrolü
+    if (containsBadWord(dto.content)) {
+      throw new BadRequestException('Bu yorum topluluk kurallarına uygun değil.');
+    }
+    
     return this.postsService.updateComment(commentId, user.id, dto.content);
   }
 

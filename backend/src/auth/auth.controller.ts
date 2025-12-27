@@ -7,6 +7,7 @@ import { RefreshDto } from './dto/refresh.dto';
 import { SetRoleDto } from './dto/role.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
@@ -172,6 +173,26 @@ export class AuthController {
   @Post('reset-password')
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  async changePassword(
+    @CurrentUser() user: any,
+    @Body() dto: ChangePasswordDto,
+    @Req() req: Request,
+  ) {
+    this.logger.log(`🔐 [PASSWORD CHANGE] Password change request received for user: ${user.id} (${user.email || 'no email'})`);
+    
+    // Request bilgilerini service'e ilet (IP, User-Agent için)
+    const result = await this.authService.changePassword(user.id, dto, {
+      ip: req.ip || req.socket.remoteAddress || req.headers['x-forwarded-for'] || 'unknown',
+      userAgent: req.headers['user-agent'] || 'unknown',
+    });
+    
+    this.logger.log(`✅ [PASSWORD CHANGE] Password change completed for user: ${user.id}`);
+    
+    return result;
   }
 }
 

@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
@@ -24,7 +24,7 @@ enum UserRole {
 }
 
 model User {
-  id                    String           @id @default(cuid())
+  id                    String           @id @default(auto()) @map("_id") @db.ObjectId
   username              String           @unique
   email                 String           @unique
   password              String
@@ -43,11 +43,21 @@ model User {
   followingCount        Int              @default(0)
   isOnline              Boolean          @default(false)
   lastSeen              DateTime?
-  passwordResetToken    String?          @db.VarChar(255)
+  passwordResetToken    String?          
   passwordResetExpires  DateTime?
   usernameLastChangedAt DateTime?
   nameLastChangedAt     DateTime?
   website               String?
+  dateOfBirth           DateTime?
+  country               String?
+  city                  String?
+  gender                String?
+  profileCompleted      Boolean          @default(false)
+  phoneNumber           String?
+  phoneVerified         Boolean          @default(false)
+  gdprConsent           Boolean          @default(false)
+  gdprConsentAt         DateTime?
+  analyticsConsent      Boolean          @default(false)
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
 
@@ -85,18 +95,19 @@ model User {
   jobListings            JobListing[]
   jobApplications        JobApplication[]        @relation("JobApplications")
   highlights             Highlight[]
+  monthlyHighlightsAsMuseum MonthlyHighlight[]   @relation("MonthlyHighlightMuseum")
   collectionItems        CollectionItem[]        @relation("CollectionItemAddedBy")
   reportsMade            UserReport[]            @relation("ReportsMade")
   reportsReceived        UserReport[]            @relation("ReportsReceived")
   emailChangeRequests    EmailChangeRequest[]
+  phoneVerifications     PhoneVerification[]
+  roleChangeLogs         RoleChangeLog[]              @relation("RoleChanges")
 
-  @@index([username])
-  @@index([email])
   @@map("users")
 }
 
 model Post {
-  id           String   @id @default(cuid())
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
   userId       String
   caption      String?
   title        String? // 🎨 Eser adı (artwork için)
@@ -109,7 +120,7 @@ model Post {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id])
   media           PostMedia[]
   comments        Comment[]
   likes           Like[]
@@ -119,6 +130,7 @@ model Post {
   highlightItems  HighlightItem[]
   collectionItems CollectionItem[]
   savedByArtworks SavedArtwork[]   @relation("SavedByArtworks")
+  monthlyHighlightsAsArtwork MonthlyHighlight[] @relation("MonthlyHighlightArtwork")
 
   @@index([userId])
   @@index([createdAt])
@@ -126,7 +138,7 @@ model Post {
 }
 
 model PostMedia {
-  id           String   @id @default(cuid())
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
   postId       String
   type         String // 'image' | 'video'
   url          String
@@ -134,31 +146,30 @@ model PostMedia {
   order        Int      @default(0)
   createdAt    DateTime @default(now())
 
-  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id])
 
   @@index([postId])
   @@map("post_media")
 }
 
 model Hashtag {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   name      String   @unique
   postCount Int      @default(0)
   createdAt DateTime @default(now())
 
   posts PostHashtag[]
 
-  @@index([name])
   @@map("hashtags")
 }
 
 model PostHashtag {
-  id        String @id @default(cuid())
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
   postId    String
   hashtagId String
 
-  post    Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
-  hashtag Hashtag @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+  post    Post    @relation(fields: [postId], references: [id])
+  hashtag Hashtag @relation(fields: [hashtagId], references: [id])
 
   @@unique([postId, hashtagId])
   @@index([hashtagId])
@@ -166,7 +177,7 @@ model PostHashtag {
 }
 
 model Comment {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   postId    String
   userId    String
   content   String
@@ -175,12 +186,13 @@ model Comment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  post      Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent    Comment?          @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  post      Post              @relation(fields: [postId], references: [id])
+  user      User              @relation(fields: [userId], references: [id])
+  parent    Comment?          @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   replies   Comment[]         @relation("CommentReplies")
   reactions CommentReaction[]
   likes     CommentLike[]
+  monthlyHighlights MonthlyHighlight[] @relation("MonthlyHighlightComment")
 
   @@index([postId])
   @@index([userId])
@@ -189,14 +201,14 @@ model Comment {
 }
 
 model CommentReaction {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   commentId String
   userId    String
   emoji     String
   createdAt DateTime @default(now())
 
-  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment Comment @relation(fields: [commentId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
 
   @@unique([commentId, userId, emoji])
   @@index([commentId])
@@ -205,13 +217,13 @@ model CommentReaction {
 }
 
 model Like {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   postId    String
   userId    String
   createdAt DateTime @default(now())
 
-  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@unique([postId, userId])
   @@index([postId])
@@ -220,13 +232,13 @@ model Like {
 }
 
 model Follow {
-  id          String   @id @default(cuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   followerId  String
   followingId String
   createdAt   DateTime @default(now())
 
-  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
-  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  follower  User @relation("Follower", fields: [followerId], references: [id])
+  following User @relation("Following", fields: [followingId], references: [id])
 
   @@unique([followerId, followingId])
   @@index([followerId])
@@ -235,13 +247,13 @@ model Follow {
 }
 
 model FollowRequest {
-  id          String   @id @default(cuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   requesterId String
   requestedId String
   createdAt   DateTime @default(now())
 
-  requester User @relation("RequesterUser", fields: [requesterId], references: [id], onDelete: Cascade)
-  requested User @relation("RequestedUser", fields: [requestedId], references: [id], onDelete: Cascade)
+  requester User @relation("RequesterUser", fields: [requesterId], references: [id])
+  requested User @relation("RequestedUser", fields: [requestedId], references: [id])
 
   @@unique([requesterId, requestedId])
   @@index([requestedId])
@@ -250,13 +262,13 @@ model FollowRequest {
 }
 
 model Block {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   blockerId String
   blockedId String
   createdAt DateTime @default(now())
 
-  blocker User @relation("BlockerUser", fields: [blockerId], references: [id], onDelete: Cascade)
-  blocked User @relation("BlockedUser", fields: [blockedId], references: [id], onDelete: Cascade)
+  blocker User @relation("BlockerUser", fields: [blockerId], references: [id])
+  blocked User @relation("BlockedUser", fields: [blockedId], references: [id])
 
   @@unique([blockerId, blockedId])
   @@index([blockerId])
@@ -265,7 +277,7 @@ model Block {
 }
 
 model Notification {
-  id         String   @id @default(cuid())
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
   userId     String
   type       String // 'like', 'comment', 'follow', 'follow_request', 'follow_accept', 'message', 'mention', 'reply', 'comment_like', 'job_application_received', 'job_application_status_changed', 'collection_added'
   message    String? // Bildirim metni (örn: "Ahmet gönderini beğendi")
@@ -278,8 +290,8 @@ model Notification {
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
 
-  user     User  @relation("ReceivedNotifications", fields: [userId], references: [id], onDelete: Cascade)
-  fromUser User? @relation("SentNotifications", fields: [fromUserId], references: [id], onDelete: SetNull)
+  user     User  @relation("ReceivedNotifications", fields: [userId], references: [id])
+  fromUser User? @relation("SentNotifications", fields: [fromUserId], references: [id])
 
   @@index([userId, isRead])
   @@index([createdAt])
@@ -287,7 +299,7 @@ model Notification {
 }
 
 model NotificationPreference {
-  id        String    @id @default(cuid())
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
   userId    String    @unique
   mention   Boolean   @default(true)
   follow    Boolean   @default(true)
@@ -296,20 +308,20 @@ model NotificationPreference {
   createdAt DateTime? @default(now())
   updatedAt DateTime? @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@map("notification_preferences")
 }
 
 model Story {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   userId    String
   mediaUrl  String
   mediaType String // 'image' | 'video'
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User        @relation(fields: [userId], references: [id])
   views StoryView[]
 
   @@index([userId])
@@ -318,13 +330,13 @@ model Story {
 }
 
 model StoryView {
-  id       String   @id @default(cuid())
+  id       String   @id @default(auto()) @map("_id") @db.ObjectId
   storyId  String
   userId   String
   viewedAt DateTime @default(now())
 
-  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story Story @relation(fields: [storyId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
 
   @@unique([storyId, userId])
   @@index([storyId])
@@ -332,78 +344,90 @@ model StoryView {
 }
 
 model FeedCache {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   userId    String
   postIds   String[] // Array of post IDs
   updatedAt DateTime @default(now())
 
   @@unique([userId])
-  @@index([userId])
   @@map("feed_cache")
 }
 
 model RefreshToken {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   token     String   @unique
   userId    String
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
-  @@index([token])
   @@index([expiresAt])
   @@map("refresh_tokens")
 }
 
 model SavedPost {
-  userId    String
-  postId    String
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  postId    String   @db.ObjectId
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+  post Post @relation(fields: [postId], references: [id])
 
-  @@id([userId, postId])
+  @@unique([userId, postId])
   @@index([userId])
   @@index([postId])
   @@map("saved_posts")
 }
 
 model SavedArtwork {
-  userId    String
-  postId    String
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  postId    String   @db.ObjectId
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post Post @relation("SavedByArtworks", fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+  post Post @relation("SavedByArtworks", fields: [postId], references: [id])
 
-  @@id([userId, postId])
+  @@unique([userId, postId])
   @@index([userId])
   @@index([postId])
   @@map("saved_artworks")
 }
 
+enum ConversationContext {
+  DIRECT
+  JOB_APPLICATION // ✅ Başvuruya bağlı sohbet (LinkedIn/Upwork mantığı)
+}
+
 model Conversation {
-  id           String             @id @default(cuid())
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  id           String              @id @default(auto()) @map("_id") @db.ObjectId
+  lastMessage  String?             // 🔥 Son mesaj içeriği (sol panel için)
+  context      ConversationContext @default(DIRECT) // "DIRECT" | "JOB_APPLICATION" - mesaj bağlamı
+  jobId        String?             @db.ObjectId // İlan üzerinden mesaj ise ilan ID'si
+  applicationId String?            @db.ObjectId // ✅ Başvuruya bağlı sohbet ise başvuru ID'si (LinkedIn/Upwork mantığı)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
   participants UserConversation[]
   messages     Message[]
 
   @@index([createdAt])
+  @@index([updatedAt])
+  @@index([context, jobId])
+  @@index([context, applicationId]) // ✅ Başvuruya bağlı sohbetler için index
   @@map("conversations")
 }
 
 model UserConversation {
-  id             String       @id @default(cuid())
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
   userId         String
   conversationId String
   isDeleted      Boolean      @default(false) // Kullanıcıya özel sohbet silme (soft delete)
   createdAt      DateTime     @default(now())
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
 
   @@unique([userId, conversationId])
   @@index([userId])
@@ -413,7 +437,7 @@ model UserConversation {
 }
 
 model Message {
-  id             String       @id @default(cuid())
+  id             String              @id @default(auto()) @map("_id") @db.ObjectId
   content        String?
   imageUrl       String?
   fileUrl        String?
@@ -421,22 +445,29 @@ model Message {
   fileType       String?
   senderId       String
   conversationId String
-  read           Boolean      @default(false)
-  isEdited       Boolean      @default(false)
-  isDeleted      Boolean      @default(false)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  context        ConversationContext? @default(DIRECT) // "DIRECT" | "JOB_APPLICATION" - mesaj bağlamı (conversation'dan inherit edilir)
+  jobId          String?              @db.ObjectId // İlan üzerinden mesaj ise ilan ID'si (conversation'dan inherit edilir)
+  applicationId  String?              @db.ObjectId // ✅ Başvuruya bağlı sohbet ise başvuru ID'si (conversation'dan inherit edilir)
+  read           Boolean              @default(false)
+  isEdited        Boolean              @default(false)
+  isDeleted       Boolean              @default(false)
+  isRequest       Boolean              @default(false) // 🔥 Instagram tarzı mesaj isteği
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  sender          User                 @relation(fields: [senderId], references: [id])
+  conversation    Conversation         @relation(fields: [conversationId], references: [id])
 
   @@index([conversationId, createdAt])
   @@index([senderId])
   @@index([read])
+  @@index([isRequest])
+  @@index([context, jobId])
+  @@index([context, applicationId]) // ✅ Başvuruya bağlı mesajlar için index
   @@map("messages")
 }
 
 model Article {
-  id          String    @id @default(cuid())
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   content     String
   coverImage  String?
@@ -448,7 +479,7 @@ model Article {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  author   User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author   User             @relation(fields: [authorId], references: [id])
   comments ArticleComment[]
 
   @@index([authorId])
@@ -459,7 +490,7 @@ model Article {
 }
 
 model ArticleComment {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   articleId String
   userId    String
   content   String
@@ -467,9 +498,9 @@ model ArticleComment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  article Article              @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  user    User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent  ArticleComment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  article Article              @relation(fields: [articleId], references: [id])
+  user    User                 @relation(fields: [userId], references: [id])
+  parent  ArticleComment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   replies ArticleComment[]     @relation("CommentReplies")
   likes   ArticleCommentLike[]
 
@@ -480,13 +511,13 @@ model ArticleComment {
 }
 
 model ArticleCommentLike {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   commentId String
   userId    String
   createdAt DateTime @default(now())
 
-  comment ArticleComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment ArticleComment @relation(fields: [commentId], references: [id])
+  user    User           @relation(fields: [userId], references: [id])
 
   @@unique([commentId, userId])
   @@index([commentId])
@@ -495,7 +526,7 @@ model ArticleCommentLike {
 }
 
 model JobListing {
-  id          String   @id @default(cuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String
   company     String?
@@ -505,7 +536,7 @@ model JobListing {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  createdBy    User             @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdBy    User             @relation(fields: [createdById], references: [id])
   createdById  String
   applications JobApplication[]
 
@@ -522,12 +553,12 @@ enum ApplicationStatus {
 }
 
 model JobApplication {
-  id           String     @id @default(cuid())
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
   jobListingId String
-  jobListing   JobListing @relation(fields: [jobListingId], references: [id], onDelete: Cascade)
+  jobListing   JobListing @relation(fields: [jobListingId], references: [id])
 
   applicantId String
-  applicant   User   @relation("JobApplications", fields: [applicantId], references: [id], onDelete: Cascade)
+  applicant   User   @relation("JobApplications", fields: [applicantId], references: [id])
 
   coverLetter      String?
   portfolioUrl     String?
@@ -535,6 +566,8 @@ model JobApplication {
   cvUrl            String?
 
   status ApplicationStatus @default(PENDING)
+
+  conversationId String?   @db.ObjectId // ✅ Başvuru onaylandığında oluşturulan sohbet ID'si (LinkedIn/Upwork mantığı)
 
   expiresAt      DateTime? // 30 günlük yanıt süresi (başvuru tarihinden itibaren)
   reminderSentAt DateTime? // Son hatırlatma bildirimi gönderilme tarihi
@@ -553,13 +586,14 @@ model JobApplication {
   @@index([jobListingId])
   @@index([applicantId])
   @@index([status])
+  @@index([conversationId]) // ✅ Conversation ID için index
   @@map("job_applications")
 }
 
 model ApplicationActivity {
-  id            String         @id @default(cuid())
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
   applicationId String
-  application   JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  application   JobApplication @relation(fields: [applicationId], references: [id])
 
   action  String // "APPROVED" | "REJECTED" | "REVIEWED" | "NOTE_ADDED" | "TAG_ADDED" | "TAG_REMOVED" | "MAIL_SENT"
   details String? // Ek bilgiler (örn: eklenen etiket, not içeriği özeti)
@@ -572,13 +606,13 @@ model ApplicationActivity {
 }
 
 model CommentLike {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   commentId String
   userId    String
   createdAt DateTime @default(now())
 
-  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment Comment @relation(fields: [commentId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
 
   @@unique([commentId, userId])
   @@index([commentId])
@@ -587,7 +621,7 @@ model CommentLike {
 }
 
 model Collection {
-  id          String   @id @default(cuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String?
   coverImage  String?
@@ -596,8 +630,9 @@ model Collection {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  owner User             @relation("CollectionOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  owner User             @relation("CollectionOwner", fields: [ownerId], references: [id])
   items CollectionItem[]
+  monthlyHighlights MonthlyHighlight[] @relation("MonthlyHighlightCollection")
 
   @@index([ownerId])
   @@index([createdAt])
@@ -605,15 +640,15 @@ model Collection {
 }
 
 model CollectionItem {
-  id           String   @id @default(cuid())
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
   collectionId String
   postId       String // Post modeli artwork'leri de içeriyor (type="artwork")
   addedById    String
   order        Int      @default(0)
   createdAt    DateTime @default(now())
 
-  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
-  post       Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  collection Collection @relation(fields: [collectionId], references: [id])
+  post       Post       @relation(fields: [postId], references: [id])
   addedBy    User       @relation("CollectionItemAddedBy", fields: [addedById], references: [id])
 
   @@unique([collectionId, postId])
@@ -623,7 +658,7 @@ model CollectionItem {
 }
 
 model Event {
-  id               String    @id @default(cuid())
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
   title            String
   description      String?
   coverImage       String?
@@ -634,12 +669,13 @@ model Event {
   isFree           Boolean   @default(true)
   location         String?
   ownerId          String
+  reminderMailSent Boolean   @default(false) // 24 saat hatırlatma maili gönderildi mi?
   isDeleted        Boolean   @default(false)
   deletedAt        DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  owner        User               @relation("EventOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  owner        User               @relation("EventOwner", fields: [ownerId], references: [id])
   comments     EventComment[]
   participants EventParticipant[] @relation("EventParticipants")
   tickets      Ticket[]
@@ -652,14 +688,14 @@ model Event {
 }
 
 model EventComment {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   text      String
   createdAt DateTime @default(now())
   eventId   String
   authorId  String
 
-  event  Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  author User  @relation("EventCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  event  Event @relation(fields: [eventId], references: [id])
+  author User  @relation("EventCommentAuthor", fields: [authorId], references: [id])
 
   @@index([eventId])
   @@index([authorId])
@@ -674,15 +710,16 @@ enum EventParticipantStatus {
 }
 
 model EventParticipant {
-  id             String                 @id @default(cuid())
-  eventId        String
-  userId         String
-  status         EventParticipantStatus @default(PENDING)
-  reminderSentAt DateTime?
-  createdAt      DateTime               @default(now())
+  id                String                 @id @default(auto()) @map("_id") @db.ObjectId
+  eventId           String
+  userId            String
+  status            EventParticipantStatus @default(PENDING)
+  reminderSentAt    DateTime?              // 30 dakika hatırlatma için
+  reminder24hSentAt DateTime?              // 24 saat hatırlatma için
+  createdAt         DateTime               @default(now())
 
-  event Event @relation("EventParticipants", fields: [eventId], references: [id], onDelete: Cascade)
-  user  User  @relation("EventParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation("EventParticipants", fields: [eventId], references: [id])
+  user  User  @relation("EventParticipantUser", fields: [userId], references: [id])
 
   @@unique([eventId, userId])
   @@index([eventId])
@@ -690,11 +727,12 @@ model EventParticipant {
   @@index([status])
   @@index([createdAt])
   @@index([reminderSentAt])
+  @@index([reminder24hSentAt])
   @@map("event_participants")
 }
 
 model Ticket {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   eventId   String
   type      String
   price     Float
@@ -704,7 +742,7 @@ model Ticket {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  event     Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event     Event            @relation(fields: [eventId], references: [id])
   purchases TicketPurchase[]
 
   @@index([eventId])
@@ -713,7 +751,7 @@ model Ticket {
 }
 
 model TicketPurchase {
-  id        String    @id @default(cuid())
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
   ticketId  String
   userId    String
   code      String    @unique
@@ -722,19 +760,18 @@ model TicketPurchase {
   usedAt    DateTime?
   createdAt DateTime  @default(now())
 
-  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  user   User   @relation("TicketPurchaseUser", fields: [userId], references: [id], onDelete: Cascade)
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  user   User   @relation("TicketPurchaseUser", fields: [userId], references: [id])
 
   @@index([ticketId])
   @@index([userId])
-  @@index([code])
   @@index([used])
   @@index([createdAt])
   @@map("ticket_purchases")
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   actorId   String
   action    String // 'user.ban', 'post.delete', 'role.update', etc.
   target    String? // 'user:abc123', 'post:xyz789', etc.
@@ -743,7 +780,7 @@ model AuditLog {
   userAgent String?
   createdAt DateTime @default(now())
 
-  actor User @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: Cascade)
+  actor User @relation("AuditLogActor", fields: [actorId], references: [id])
 
   @@index([actorId])
   @@index([action])
@@ -753,7 +790,7 @@ model AuditLog {
 }
 
 model FeatureFlag {
-  key       String   @id
+  key       String   @id @map("_id")
   enabled   Boolean  @default(false)
   note      String?
   updatedAt DateTime @updatedAt
@@ -763,12 +800,12 @@ model FeatureFlag {
 }
 
 model Highlight {
-  id          String          @id @default(cuid())
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   coverPostId String?
-  coverPost   Post?           @relation("HighlightCoverPost", fields: [coverPostId], references: [id], onDelete: SetNull)
+  coverPost   Post?           @relation("HighlightCoverPost", fields: [coverPostId], references: [id])
   userId      String
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User            @relation(fields: [userId], references: [id])
   items       HighlightItem[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -779,11 +816,11 @@ model Highlight {
 }
 
 model HighlightItem {
-  id          String    @id @default(cuid())
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
   highlightId String
-  highlight   Highlight @relation(fields: [highlightId], references: [id], onDelete: Cascade)
+  highlight   Highlight @relation(fields: [highlightId], references: [id])
   postId      String
-  post        Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post        Post      @relation(fields: [postId], references: [id])
   sortOrder   Int       @default(0)
 
   @@unique([highlightId, postId])
@@ -801,7 +838,7 @@ enum ReportReason {
 }
 
 model UserReport {
-  id             String        @id @default(cuid())
+  id             String        @id @default(auto()) @map("_id") @db.ObjectId
   reporterId     String
   reportedUserId String
   conversationId String?
@@ -811,8 +848,8 @@ model UserReport {
   status         String        @default("OPEN")
   createdAt      DateTime      @default(now())
 
-  reporter     User @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
-  reportedUser User @relation("ReportsReceived", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  reporter     User @relation("ReportsMade", fields: [reporterId], references: [id])
+  reportedUser User @relation("ReportsReceived", fields: [reportedUserId], references: [id])
 
   @@index([status, createdAt])
   @@index([reportedUserId])
@@ -821,17 +858,75 @@ model UserReport {
 }
 
 model EmailChangeRequest {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   userId    String
   newEmail  String
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
-  @@index([token])
   @@index([expiresAt])
   @@map("email_change_requests")
+}
+
+model PhoneVerification {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  phoneNumber String
+  code        String
+  verified    Boolean  @default(false)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([code])
+  @@index([expiresAt])
+  @@map("phone_verifications")
+}
+
+model RoleChangeLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  oldRoles  String[]
+  newRoles  String[]
+  changedBy String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  user User @relation("RoleChanges", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("role_change_logs")
+}
+
+// ✅ Ayın Öne Çıkanları - Admin kontrollü veya otomatik seçim
+model MonthlyHighlight {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  year          Int       // Yıl (2024, 2025, vb.)
+  month         Int       // Ay (1-12)
+  museumId      String?   @db.ObjectId // Ayın Müzesi (User ID - museum role)
+  artworkId     String?   @db.ObjectId // Ayın Eseri (Post ID - type="artwork")
+  commentId     String?   @db.ObjectId // Ayın Yorumu (Comment ID)
+  collectionId String?   @db.ObjectId // Ayın Koleksiyonu (Collection ID)
+  isAuto        Boolean   @default(false) // Otomatik seçim mi, admin override mi?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations (optional - nullable)
+  museum      User?      @relation("MonthlyHighlightMuseum", fields: [museumId], references: [id])
+  artwork     Post?      @relation("MonthlyHighlightArtwork", fields: [artworkId], references: [id])
+  comment     Comment?   @relation("MonthlyHighlightComment", fields: [commentId], references: [id])
+  collection  Collection? @relation("MonthlyHighlightCollection", fields: [collectionId], references: [id])
+
+  @@unique([year, month]) // Her ay için sadece bir kayıt (bu zaten bir index oluşturur)
+  @@index([museumId])
+  @@index([artworkId])
+  @@index([commentId])
+  @@index([collectionId])
+  @@map("monthly_highlights")
 }

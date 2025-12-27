@@ -4,29 +4,31 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('collections')
-@UseGuards(JwtAuthGuard)
 export class CollectionsController {
   constructor(private collectionsService: CollectionsService) {}
 
 
-  // 🔥 Tüm koleksiyonları getir (public - herkes görebilir)
+  // 🔥 Tüm koleksiyonları getir (public - herkes görebilir, authentication gerekmez)
   @Get('public')
   async getAllCollections() {
     return this.collectionsService.getAllCollections();
   }
 
   @Get('my')
+  @UseGuards(JwtAuthGuard)
   async getMyCollections(@CurrentUser() user: any) {
     return this.collectionsService.getMyCollections(user.id);
   }
 
   // ⚠️ ÖNEMLİ: Bu route en son olmalı, çünkü :id her şeyi yakalar
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
   async getCollectionById(@Param('id') id: string) {
     return this.collectionsService.getCollectionById(id);
   }
 
   @Get(':id/search-addable')
+  @UseGuards(JwtAuthGuard)
   async searchAddableItems(
     @CurrentUser() user: any,
     @Param('id') collectionId: string,
@@ -46,21 +48,25 @@ export class CollectionsController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard)
   async createCollection(@CurrentUser() user: any, @Body() data: any) {
     return this.collectionsService.createCollection(user.id, data);
   }
 
   @Put(':id')
+  @UseGuards(JwtAuthGuard)
   async updateCollection(@CurrentUser() user: any, @Param('id') id: string, @Body() data: any) {
     return this.collectionsService.updateCollection(user.id, id, data);
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
   async deleteCollection(@CurrentUser() user: any, @Param('id') id: string) {
     return this.collectionsService.deleteCollection(user.id, id);
   }
 
   @Post(':id/items')
+  @UseGuards(JwtAuthGuard)
   async addItemToCollection(
     @CurrentUser() user: any,
     @Param('id') collectionId: string,
@@ -70,6 +76,7 @@ export class CollectionsController {
   }
 
   @Delete(':id/items/:itemId')
+  @UseGuards(JwtAuthGuard)
   async removeItemFromCollection(
     @CurrentUser() user: any,
     @Param('id') collectionId: string,
@@ -79,6 +86,7 @@ export class CollectionsController {
   }
 
   @Patch(':id/items/reorder')
+  @UseGuards(JwtAuthGuard)
   async reorderItems(
     @CurrentUser() user: any,
     @Param('id') collectionId: string,

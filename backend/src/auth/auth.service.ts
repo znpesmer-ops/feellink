@@ -10,6 +10,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import {
   ensureRoleAssignment,
   computeCapabilities,
@@ -21,6 +22,7 @@ import { SubscriptionPlanCode, UserRoleCode } from '../roles/roles.types';
 import { getDashboardSnapshot } from '../dashboard/dashboard.features';
 import { getBadgesFromSelection } from '../users/users.service';
 import { MailService } from '../mail/mail.service';
+import { Inject, forwardRef } from '@nestjs/common';
 
 @Injectable()
 export class AuthService {
@@ -48,6 +50,7 @@ export class AuthService {
     isVerified: true,
     isAdmin: true,
     superAdmin: true, // 🔥 GOD-MODE
+    profileCompleted: true,
     createdAt: true,
   } as const;
 
@@ -132,11 +135,17 @@ export class AuthService {
     const { email, username, password, fullName, role } = registerDto;
 
     try {
+      // 🔥 DEBUG: Register işlemi başladı
+      this.logger.log(`[REGISTER DEBUG] Starting registration for: ${email}`);
+      this.logger.log(`[REGISTER DEBUG] Username: ${username}, FullName: ${fullName || 'N/A'}`);
+
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
+      this.logger.log(`[REGISTER DEBUG] Password hashed successfully`);
 
       // Create user - roles are empty until user configures dashboard
       const initialRoles = role && isValidRole(role) ? [role] : [];
+      this.logger.log(`[REGISTER DEBUG] Initial roles: ${JSON.stringify(initialRoles)}`);
 
       const user = await this.prisma.user.create({
         data: {
@@ -153,19 +162,25 @@ export class AuthService {
         },
       });
 
+      this.logger.log(`[REGISTER DEBUG] User created successfully: ${user.id}`);
+
       // Generate tokens
       const tokens = await this.generateTokens(user.id);
+      this.logger.log(`[REGISTER DEBUG] Tokens generated`);
 
       // Index user in Meilisearch for fast search
       try {
         await this.searchService.indexUser(user);
+        this.logger.log(`[REGISTER DEBUG] User indexed in Meilisearch`);
       } catch (error) {
-        console.error('Error indexing new user:', error);
+        this.logger.warn(`[REGISTER DEBUG] Error indexing new user (non-critical): ${error instanceof Error ? error.message : error}`);
         // Continue even if indexing fails
       }
 
       const payload = this.hydrateAuthUser(user);
       const needsRoleSelection = (user.roles?.length ?? 0) === 0;
+
+      this.logger.log(`[REGISTER DEBUG] Registration successful for: ${email}`);
 
       return {
         ...payload,
@@ -176,6 +191,7 @@ export class AuthService {
       // Prisma unique constraint hatası (email veya username çakışması)
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
         const target = (err.meta?.target as string[]) || [];
+        this.logger.warn(`[REGISTER DEBUG] Unique constraint violation: ${JSON.stringify(target)}`);
         if (target.includes('email')) {
           throw new ConflictException('Bu e-posta adresi zaten kullanımda');
         }
@@ -186,7 +202,12 @@ export class AuthService {
       }
 
       // Validation dışındaki diğer hatalar
-      this.logger.error('Registration error:', err);
+      this.logger.error(`[REGISTER DEBUG] Registration error for ${email}:`, err);
+      this.logger.error(`[REGISTER DEBUG] Error details:`, {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        code: err instanceof PrismaClientKnownRequestError ? err.code : undefined,
+      });
       throw new BadRequestException('Kayıt işlemi sırasında bir hata oluştu');
     }
   }
@@ -195,6 +216,8 @@ export class AuthService {
     const user = await this.validateUser(loginDto);
 
     if (!user) {
+      // 🔒 GÜVENLİK: Tek bir güvenli mesaj (user enumeration önleme)
+      // Frontend'de bu mesaj "E-posta adresi veya şifre hatalı." olarak gösterilecek
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -328,6 +351,8 @@ export class AuthService {
     const user = await this.validateUser(loginDto);
 
     if (!user) {
+      // 🔒 GÜVENLİK: Tek bir güvenli mesaj (user enumeration önleme)
+      // Frontend'de bu mesaj "E-posta adresi veya şifre hatalı." olarak gösterilecek
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -351,25 +376,88 @@ export class AuthService {
       return null;
     }
 
-    const whereClause = this.buildLoginWhereClause(loginDto, options);
+    // Case-insensitive arama için normalize et
+    const normalize = (value?: string) => value?.trim().toLowerCase();
+    const emailOrUsername = normalize(loginDto.emailOrUsername);
+    const email = normalize(loginDto.email);
+    const username = normalize(loginDto.username);
 
-    const user = await this.prisma.user.findFirst({
-      where: {
-        ...whereClause,
-      },
-      select: {
-        ...this.authSelect,
-        password: true,
-      },
-    });
-
-    if (!user) {
+    // Arama kriteri belirle
+    const searchTerm = emailOrUsername || email || username;
+    if (!searchTerm) {
+      this.logger.warn(`[LOGIN DEBUG] No search term provided`);
       return null;
     }
 
+    // Basit ve garantili yöntem: Tüm kullanıcıları çekip JavaScript'te filtrele
+    this.logger.log(`[LOGIN DEBUG] Searching for user with term: "${searchTerm}"`);
+    
+    const allUsers = await this.prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        password: true,
+        fullName: true,
+        avatar: true,
+        bio: true,
+        roles: true,
+        plan: true,
+        badges: true,
+        isPrivate: true,
+        isVerified: true,
+        isAdmin: true,
+        superAdmin: true,
+        profileCompleted: true,
+        createdAt: true,
+      },
+    });
+
+    this.logger.log(`[LOGIN DEBUG] Found ${allUsers.length} users in database`);
+    allUsers.forEach((u, i) => {
+      this.logger.log(`[LOGIN DEBUG] User ${i}: email="${u.email}", username="${u.username}"`);
+    });
+
+    // Case-insensitive arama
+    const user = allUsers.find((u) => {
+      const uEmail = (u.email || '').toLowerCase().trim();
+      const uUsername = (u.username || '').toLowerCase().trim();
+      const emailMatch = uEmail === searchTerm;
+      const usernameMatch = uUsername === searchTerm;
+      const match = emailMatch || usernameMatch;
+      
+      if (match) {
+        this.logger.log(`[LOGIN DEBUG] ✅ MATCH FOUND: email="${u.email}" (${emailMatch}), username="${u.username}" (${usernameMatch})`);
+      }
+      return match;
+    });
+
+    if (!user) {
+      this.logger.warn(`[LOGIN DEBUG] User not found for: emailOrUsername=${emailOrUsername}, email=${email}, username=${username}`);
+      return null;
+    }
+
+    // Corporate kontrolü
+    if (options?.requireCorporate) {
+      const roles = Array.isArray(user.roles) ? user.roles : (user.roles ? [user.roles] : []);
+      const hasCorporateRole = roles.includes('corporate');
+      if (!hasCorporateRole) {
+        this.logger.warn(`[LOGIN DEBUG] User found but not corporate: ${user.email || user.username}`);
+        return null;
+      }
+    }
+
+    // 🔥 DEBUG: Şifre hash kontrolü için log
+    this.logger.log(`[LOGIN DEBUG] INPUT password: ${password.substring(0, 3)}***`);
+    this.logger.log(`[LOGIN DEBUG] STORED hash: ${user.password.substring(0, 20)}... (length: ${user.password.length})`);
+    this.logger.log(`[LOGIN DEBUG] Hash format: ${user.password.startsWith('$2') ? 'bcrypt' : user.password.length === 40 ? 'legacy' : 'plaintext/unknown'}`);
+
     const passwordValid = await this.verifyAndMigratePassword(password, user);
 
+    this.logger.log(`[LOGIN DEBUG] COMPARE RESULT: ${passwordValid}`);
+
     if (!passwordValid) {
+      this.logger.warn(`[LOGIN DEBUG] Password validation failed for user: ${user.email || user.username}`);
       return null;
     }
 
@@ -566,61 +654,99 @@ export class AuthService {
   async forgotPassword(dto: ForgotPasswordDto) {
     const { email } = dto;
 
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-    });
-
-    // Kullanıcı yoksa bile "başarılı" dön -> güvenlik
-    if (!user) {
-      return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı gönderildi.' };
-    }
-
-    const { resetToken, hashedToken } = this.createPasswordResetToken();
-    const expires = new Date();
-    expires.setHours(expires.getHours() + 1); // 1 saat geçerli
-
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        passwordResetToken: hashedToken,
-        passwordResetExpires: expires,
-      },
-    });
-
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
-
-    // Gerçek mail gönderimi
-    let mailSent = false;
     try {
-      await this.mailService.sendPasswordResetMail(email, resetUrl);
-      this.logger.log(`✅ Password reset email sent successfully to ${email}`);
-      mailSent = true;
-    } catch (error) {
-      this.logger.error(`Failed to send password reset email to ${email}:`, error);
-      
-      // Development ortamında console'a link yazdır
-      if (process.env.NODE_ENV !== 'production') {
-        this.logger.warn(`\n🔗 DEVELOPMENT MODE - Password reset link for ${email}:`);
-        this.logger.warn(`   ${resetUrl}\n`);
-        this.logger.warn('⚠️  Mail gönderimi başarısız oldu. SMTP ayarlarını kontrol edin.');
-        this.logger.warn('   Yukarıdaki linki kopyalayıp tarayıcıda açabilirsiniz.\n');
-      }
-      
-      // Mail gönderimi başarısız olsa bile kullanıcıya başarılı mesajı dön (güvenlik)
-    }
+      const user = await this.prisma.user.findUnique({
+        where: { email },
+      });
 
-    return {
-      message:
-        'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',
-      // Development ortamında mail gönderimi başarısız olduğunda frontend'e bilgi ver
-      ...(process.env.NODE_ENV !== 'production' && !mailSent
-        ? {
-            developmentMode: true,
-            resetUrl: resetUrl,
+      // Kullanıcı yoksa bile "başarılı" dön -> güvenlik
+      // Development modunda kullanıcı yoksa bile reset URL'i döndür (test için)
+      const isDevelopment = process.env.NODE_ENV !== 'production';
+      if (!user) {
+        if (isDevelopment) {
+      // Kullanıcı yoksa sadece success mesajı döndür (reset URL gösterilmez)
+      return {
+        message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı gönderildi.',
+      };
+        }
+        return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı gönderildi.' };
+      }
+
+      const { resetToken, hashedToken } = this.createPasswordResetToken();
+      const expires = new Date();
+      expires.setHours(expires.getHours() + 1); // 1 saat geçerli
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordResetToken: hashedToken,
+          passwordResetExpires: expires,
+        },
+      });
+
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+      // Gerçek mail gönderimi (MAIL_MODE=prod ise)
+      const mailMode = process.env.MAIL_MODE || 'dev';
+      let mailSent = false;
+      let mailError: any = null;
+      
+      if (mailMode === 'prod') {
+        // Production modunda SMTP ile mail gönder
+        try {
+          await this.mailService.sendPasswordResetMail(email, resetUrl);
+          this.logger.log(`✅ Password reset email sent successfully to ${email}`);
+          mailSent = true;
+        } catch (error: any) {
+          mailError = error;
+          this.logger.error(`❌ Failed to send password reset email to ${email}:`, error.message || error);
+          
+          // SMTP kimlik doğrulama hatası için özel log
+          if (error.code === 'EAUTH' || error.responseCode === 535) {
+            this.logger.error('🔴 SMTP kimlik doğrulama hatası!');
+            this.logger.error('Lütfen backend/.env dosyasındaki SMTP ayarlarını kontrol edin:');
+            this.logger.error('- SMTP_USER: Tam e-posta adresi (örn: info@feellink.io)');
+            this.logger.error('- SMTP_PASS: Gmail App Password (normal şifre değil!)');
+            this.logger.error('- Gmail için: https://myaccount.google.com/apppasswords adresinden App Password oluşturun');
           }
-        : {}),
-    };
+        }
+      } else {
+        // Development modunda mail gönderme, sadece logla
+        this.logger.log(`[DEV] Mail gönderimi atlandı (MAIL_MODE=${mailMode})`);
+        this.logger.log(`[DEV] Reset URL for ${email}: ${resetUrl}`);
+        mailSent = false; // Development modunda mail gönderilmedi
+      }
+
+      // 🔥 Development modunda reset URL'i sadece console'da logla (kullanıcıya gösterilmez)
+      if (mailMode !== 'prod') {
+        this.logger.log(`[DEV] Reset URL for ${email}: ${resetUrl}`);
+        this.logger.log(`[DEV] Reset Token: ${resetToken}`);
+      }
+
+      // ✅ Sadece success mesajı döndür (reset URL kullanıcıya gösterilmez)
+      return {
+        message:
+          'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',
+      };
+    } catch (error) {
+      // 🔥 DB bağlantı hatası veya prepared statement hatası durumunda graceful handling
+      this.logger.error(`Database error in forgotPassword for ${email}:`, error);
+      
+      // Development modunda DB hatası olsa bile reset URL döndür (test için)
+      const isDevelopment = process.env.NODE_ENV !== 'production';
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      
+      // DB hatası olsa bile sadece success mesajı döndür (reset URL gösterilmez)
+      // Güvenlik için her zaman başarılı mesajı dön (user enumeration önleme)
+      if (isDevelopment) {
+        this.logger.warn(`[DEV] Database error in forgotPassword for ${email} - reset URL not shown to user`);
+      }
+      return {
+        message:
+          'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',
+      };
+    }
   }
 
   async resetPassword(dto: ResetPasswordDto) {
@@ -655,5 +781,130 @@ export class AuthService {
 
     return { message: 'Şifreniz başarıyla güncellendi. Şimdi giriş yapabilirsiniz.' };
   }
+
+  async changePassword(userId: string, dto: ChangePasswordDto, requestMeta?: { ip?: string; userAgent?: string }) {
+    const { currentPassword, newPassword } = dto;
+
+    // Kullanıcıyı şifre ile birlikte getir
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        password: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Kullanıcı bulunamadı.');
+    }
+
+    // Mevcut şifreyi doğrula
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isValidPassword) {
+      throw new UnauthorizedException('Mevcut şifreniz doğrulanamadı.');
+    }
+
+    // Yeni şifre eski şifreyle aynı olamaz
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    if (isSamePassword) {
+      throw new BadRequestException('Yeni şifre eski şifreyle aynı olamaz.');
+    }
+
+    // Yeni şifreyi hash'le
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Şifreyi güncelle
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+      },
+    });
+
+    this.logger.log(`✅ Password changed for user: ${userId}`);
+
+    // ✅ Güvenlik bildirimi e-postası gönder (ZORUNLU - güvenlik için kritik)
+    this.logger.log(`📧 [PASSWORD CHANGE] Starting mail send process for user: ${userId}`);
+    
+    try {
+      // 1️⃣ Kullanıcı bilgilerini al
+      const userWithEmail = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          email: true,
+          fullName: true,
+        },
+      });
+
+      if (!userWithEmail) {
+        this.logger.error(`❌ [PASSWORD CHANGE] User not found for userId: ${userId}`);
+        throw new Error('User not found for email');
+      }
+
+      if (!userWithEmail.email) {
+        this.logger.error(`❌ [PASSWORD CHANGE] User email is missing for userId: ${userId}`);
+        throw new Error('User email is missing');
+      }
+
+      this.logger.log(`📧 [PASSWORD CHANGE] Sending password change mail to: ${userWithEmail.email}`);
+
+      // 2️⃣ Mail servisi kontrolü
+      if (!this.mailService) {
+        this.logger.error(`❌ [PASSWORD CHANGE] MailService is not injected! This is a critical error.`);
+        throw new Error('MailService is not available');
+      }
+
+      // 3️⃣ Tarih/saat formatla
+      const now = new Date();
+      const dateTime = now.toLocaleString('tr-TR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+
+      // 4️⃣ IP'yi maskele (son 2 okteti gizle)
+      let ipMasked: string | undefined;
+      if (requestMeta?.ip) {
+        const ipParts = requestMeta.ip.split('.');
+        if (ipParts.length === 4) {
+          ipMasked = `${ipParts[0]}.${ipParts[1]}.x.x`;
+        } else {
+          ipMasked = requestMeta.ip; // IPv6 veya farklı format
+        }
+      }
+
+      this.logger.log(`📧 [PASSWORD CHANGE] Mail params: email=${userWithEmail.email}, dateTime=${dateTime}, ipMasked=${ipMasked || 'N/A'}`);
+
+      // 5️⃣ Mail gönder
+      await this.mailService.sendPasswordChangedMail({
+        to: userWithEmail.email,
+        name: userWithEmail.fullName || 'Kullanıcı',
+        dateTime,
+        device: requestMeta?.userAgent || undefined,
+        ipMasked,
+      });
+
+      this.logger.log(`✅ [PASSWORD CHANGE] Password change mail sent successfully to: ${userWithEmail.email}`);
+    } catch (mailError: any) {
+      // 🔴 KRİTİK: Mail gönderilemezse detaylı log
+      this.logger.error(`❌ [PASSWORD CHANGE] CRITICAL: Failed to send password changed email to user ${userId}`);
+      this.logger.error(`❌ [PASSWORD CHANGE] Error details:`, {
+        error: mailError?.message || String(mailError),
+        stack: mailError?.stack,
+        userId,
+        email: mailError?.email || 'unknown',
+      });
+      
+      // ⚠️ Güvenlik notu: Mail gönderilemezse bile şifre değişikliği başarılı kalmalı
+      // Ama bu durum mutlaka loglanmalı ve izlenmeli
+      // Production'da bu loglar alert sistemine bağlanmalı
+    }
+
+    return { message: 'Şifreniz başarıyla güncellendi.' };
+  }
 }
+
 

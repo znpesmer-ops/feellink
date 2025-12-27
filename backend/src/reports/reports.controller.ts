@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -24,21 +25,39 @@ export class ReportsController {
     @CurrentUser() user: any,
     @Body()
     body: {
-      reportedUserId: string;
+      reportedUserId?: string;
+      contentType?: 'post' | 'comment';
+      contentId?: string;
       conversationId?: string;
       messageId?: string;
       reason: ReportReason;
       note?: string;
     },
   ) {
-    return this.reportsService.createReport(
-      user.id,
-      body.reportedUserId,
-      body.reason,
-      body.conversationId,
-      body.messageId,
-      body.note,
-    );
+    // Post/Comment raporlama
+    if (body.contentType && body.contentId) {
+      return this.reportsService.createContentReport(
+        user.id,
+        body.contentType,
+        body.contentId,
+        body.reason,
+        body.note,
+      );
+    }
+
+    // Kullanıcı raporlama (eski endpoint)
+    if (body.reportedUserId) {
+      return this.reportsService.createReport(
+        user.id,
+        body.reportedUserId,
+        body.reason,
+        body.conversationId,
+        body.messageId,
+        body.note,
+      );
+    }
+
+    throw new BadRequestException('Either reportedUserId or contentType+contentId must be provided');
   }
 
   @Get('admin')
@@ -70,4 +89,6 @@ export class ReportsController {
     return this.reportsService.updateReportStatus(reportId, body.status);
   }
 }
+
+
 

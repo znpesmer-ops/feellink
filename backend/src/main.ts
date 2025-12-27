@@ -167,8 +167,28 @@ async function bootstrap() {
     }),
   );
 
-  const basePort = parseInt(process.env.PORT || '3002', 10);
-  const port = await findAvailablePort(basePort);
+  // 🔒 KRİTİK: Port 3002 ZORUNLU - Frontend bu portu bekliyor!
+  const port = 3002;
+  
+  // Port meşgulse hata ver (3003'e geçmesin!)
+  const isPortFree = await new Promise<boolean>((resolve) => {
+    const server = net.createServer();
+    server.once('error', () => {
+      server.close();
+      resolve(false);
+    });
+    server.once('listening', () => {
+      server.close();
+      resolve(true);
+    });
+    server.listen(port);
+  });
+
+  if (!isPortFree) {
+    logger.error(`❌ Port ${port} meşgul! Lütfen portu kullanan process'i durdurun.`);
+    logger.error(`   Komut: lsof -ti:${port} | xargs kill -9`);
+    process.exit(1);
+  }
 
   // 🔥 Mobil erişim için 0.0.0.0'da dinle (tüm network interface'lerde)
   await app.listen(port, '0.0.0.0');

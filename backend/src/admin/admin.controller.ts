@@ -39,12 +39,20 @@ export class AdminController {
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('role') role?: string,
+    @Query('city') city?: string,
+    @Query('gender') gender?: string,
+    @Query('ageMin') ageMin?: string,
+    @Query('ageMax') ageMax?: string,
   ) {
     return this.adminService.getUsers(
       page ? parseInt(page) : 1,
       limit ? parseInt(limit) : 20,
       search,
       role,
+      city,
+      gender,
+      ageMin ? parseInt(ageMin) : undefined,
+      ageMax ? parseInt(ageMax) : undefined,
     );
   }
 
@@ -55,6 +63,29 @@ export class AdminController {
     @CurrentUser() user: any,
   ) {
     return this.adminService.updateUser(userId, data, user.id);
+  }
+
+  // Rol değiştirme endpoint'i (Frontend RoleChanger component'i için)
+  @Patch('users/:id/roles')
+  async updateUserRoles(
+    @Param('id') userId: string,
+    @Body() data: { roles: string[] },
+    @CurrentUser() user: any,
+  ) {
+    return this.adminService.updateUser(userId, { roles: data.roles }, user.id);
+  }
+
+  // ✅ Rol geçmişi endpoint'i
+  @Get('users/:id/role-history')
+  async getRoleHistory(@Param('id') userId: string) {
+    return this.adminService.getRoleHistory(userId);
+  }
+
+  // ✅ Kalan gün bilgisi endpoint'i
+  @Get('users/:id/role-change-remaining-days')
+  async getRoleChangeRemainingDays(@Param('id') userId: string) {
+    const remainingDays = await this.adminService.getRoleChangeRemainingDays(userId);
+    return { remainingDays };
   }
 
   @Delete('users/:id')
@@ -271,5 +302,54 @@ export class AdminController {
     @Body() body: { status: string },
   ) {
     return this.reportsService.updateReportStatus(reportId, body.status);
+  }
+
+  // Settings endpoints
+  @Patch('settings/site-name')
+  async updateSiteName(
+    @Body() body: { value: string },
+    @CurrentUser() user: any,
+  ) {
+    // 🔒 KRİTİK: await + response kontrolü
+    const result = await this.adminService.updateSetting('siteName', body.value, user.id);
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  @Patch('settings/site-description')
+  async updateSiteDescription(
+    @Body() body: { value: string },
+    @CurrentUser() user: any,
+  ) {
+    // 🔒 KRİTİK: await + response kontrolü
+    const result = await this.adminService.updateSetting('siteDescription', body.value, user.id);
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  @Patch('settings/admin-email')
+  async updateAdminEmail(
+    @Body() body: { value: string },
+    @CurrentUser() user: any,
+  ) {
+    // 🔒 KRİTİK: await + response kontrolü
+    const result = await this.adminService.updateSetting('adminEmail', body.value, user.id);
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  @Get('settings')
+  async getSettings() {
+    const settings = await this.adminService.getSettings();
+    return {
+      success: true,
+      data: settings,
+    };
   }
 }

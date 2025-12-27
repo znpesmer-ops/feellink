@@ -130,6 +130,13 @@ export class NotificationsService {
   }
 
   async getNotifications(userId: string, limit: number = 20, offset: number = 0) {
+    // 🔥 KRİTİK: Kullanıcının profil tamamlanma durumunu kontrol et
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { profileCompleted: true },
+    });
+
+    // Bildirimleri getir
     const notifications = await this.prisma.notification.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
@@ -148,11 +155,25 @@ export class NotificationsService {
       },
     });
 
-    // Okunmamış bildirim sayısını al
-    const unreadCount = await this.getUnreadCount(userId);
+    // 🔥 KRİTİK: Profil tamamlandıysa profile_incomplete bildirimlerini filtrele
+    const filteredNotifications = notifications.filter((notification) => {
+      // Profil tamamlandıysa (profileCompleted: true) profile_incomplete bildirimlerini gösterme
+      if (notification.type === 'profile_incomplete' && user?.profileCompleted === true) {
+        return false
+      }
+      // isRead: true olan profile_incomplete bildirimlerini de gösterme
+      if (notification.type === 'profile_incomplete' && notification.isRead === true) {
+        return false
+      }
+      return true
+    });
+
+    // Okunmamış bildirim sayısını al (filtrelenmiş bildirimlerden)
+    // Ayrıca profile_incomplete bildirimlerini unreadCount'tan çıkar
+    const unreadCount = await this.getUnreadCount(userId, user?.profileCompleted === true);
 
     // Notification'ları frontend için formatla
-    const formattedNotifications = notifications.map((notification) => {
+    const formattedNotifications = filteredNotifications.map((notification) => {
       const { fromUser, ...rest } = notification;
       return {
         ...rest,
@@ -225,12 +246,20 @@ export class NotificationsService {
     };
   }
 
-  async getUnreadCount(userId: string) {
+  async getUnreadCount(userId: string, excludeProfileIncomplete: boolean = false) {
+    // 🔥 KRİTİK: Profil tamamlandıysa profile_incomplete bildirimlerini sayma
+    const whereClause: any = {
+      userId,
+      isRead: false,
+    };
+    
+    // Profil tamamlandıysa profile_incomplete bildirimlerini hariç tut
+    if (excludeProfileIncomplete) {
+      whereClause.type = { not: 'profile_incomplete' };
+    }
+    
     return this.prisma.notification.count({
-      where: {
-        userId,
-        isRead: false,
-      },
+      where: whereClause,
     });
   }
 
