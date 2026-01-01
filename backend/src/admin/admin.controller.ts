@@ -65,6 +65,27 @@ export class AdminController {
     return this.adminService.updateUser(userId, data, user.id);
   }
 
+  // 🔒 Hesap askıya alma
+  @Patch('users/:id/suspend')
+  async suspendUser(
+    @Param('id') userId: string,
+    @Body() data: { until?: string; reason: string; note?: string },
+    @CurrentUser() admin: any,
+  ) {
+    const until = data.until ? new Date(data.until) : null;
+    return this.adminService.suspendUser(userId, admin.id, {
+      until,
+      reason: data.reason,
+      note: data.note,
+    });
+  }
+
+  // 🔒 Hesap askıdan çıkarma
+  @Patch('users/:id/unsuspend')
+  async unsuspendUser(@Param('id') userId: string) {
+    return this.adminService.unsuspendUser(userId);
+  }
+
   // Rol değiştirme endpoint'i (Frontend RoleChanger component'i için)
   @Patch('users/:id/roles')
   async updateUserRoles(
@@ -86,6 +107,38 @@ export class AdminController {
   async getRoleChangeRemainingDays(@Param('id') userId: string) {
     const remainingDays = await this.adminService.getRoleChangeRemainingDays(userId);
     return { remainingDays };
+  }
+
+  // Role change requests
+  @Get('role-change-requests')
+  async getRoleChangeRequests(
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.getRoleChangeRequests(
+      status,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 20,
+    );
+  }
+
+  @Patch('role-change-requests/:id/approve')
+  async approveRoleChangeRequest(
+    @Param('id') requestId: string,
+    @CurrentUser() adminUser: any,
+    @Body() data?: { reviewNote?: string },
+  ) {
+    return this.adminService.approveRoleChangeRequest(requestId, adminUser.id, data?.reviewNote);
+  }
+
+  @Patch('role-change-requests/:id/reject')
+  async rejectRoleChangeRequest(
+    @Param('id') requestId: string,
+    @CurrentUser() adminUser: any,
+    @Body() data?: { reviewNote?: string },
+  ) {
+    return this.adminService.rejectRoleChangeRequest(requestId, adminUser.id, data?.reviewNote);
   }
 
   @Delete('users/:id')

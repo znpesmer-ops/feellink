@@ -47,12 +47,18 @@ async function bootstrap() {
   app.use(json({ limit: '2mb' }));
   app.use(urlencoded({ limit: '2mb', extended: true }));
 
-  // Enable CORS
+  // Enable CORS - 🔒 Güvenlik: Production'da sadece izin verilen origin'ler
   const isDevelopment = process.env.NODE_ENV !== 'production';
   const localIP = '192.168.1.59'; // 🔥 Mobil erişim için local IP
   const mainIP = '192.168.1.6'; // 🔥 Ana network IP (WiFi/Ethernet)
   const vpnIP = '192.168.175.1'; // 🔥 VPN erişim için IP
   const vmIP = '192.168.56.1'; // 🔥 VM/Network erişim için IP
+  
+  // 🔒 Production: Frontend URL'i env'den al (güvenlik için)
+  const productionOrigins = process.env.FRONTEND_URL 
+    ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+    : ['http://localhost:3000'];
+  
   const allowedOrigins = isDevelopment
     ? [
         'http://localhost:3000',
@@ -79,7 +85,7 @@ async function bootstrap() {
         `http://${vmIP}`, // 🔥 VM/Network bazı cihazlar port eklemeden bağlanır
         'https://composer-variation-result-father.trycloudflare.com', // 🔥 Cloudflare Frontend Tunnel
       ]
-    : [process.env.FRONTEND_URL || 'http://localhost:3000'];
+    : productionOrigins; // 🔒 Production'da sadece env'den gelen URL'ler
 
   app.enableCors({
     origin: (origin, callback) => {
@@ -132,13 +138,13 @@ async function bootstrap() {
   // Global exception filter - TÜM HATALARI LOGLA
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // Global validation pipe
+  // Global validation pipe - 🔒 GÜVENLİK: NoSQL Injection koruması için forbidNonWhitelisted: true
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: false, // Geçici olarak false - debug için
+      forbidNonWhitelisted: true, // 🔒 Güvenlik: $ne, $gt, $or gibi Mongo operatörlerini otomatik çöpe atar
       transform: true,
-      enableDebugMessages: true, // Detaylı hata mesajları için
+      enableDebugMessages: process.env.NODE_ENV === 'development', // Sadece development'ta detaylı hata
       transformOptions: {
         enableImplicitConversion: true,
       },

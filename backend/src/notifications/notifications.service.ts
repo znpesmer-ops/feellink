@@ -156,15 +156,14 @@ export class NotificationsService {
     });
 
     // 🔥 KRİTİK: Profil tamamlandıysa profile_incomplete bildirimlerini filtrele
+    // profile_incomplete bildirimleri kalıcıdır (okundu ile kaybolmaz, sadece profil tamamlanınca silinir)
     const filteredNotifications = notifications.filter((notification) => {
       // Profil tamamlandıysa (profileCompleted: true) profile_incomplete bildirimlerini gösterme
+      // (Zaten silinmiş olmalı, ama güvenlik için kontrol ediyoruz)
       if (notification.type === 'profile_incomplete' && user?.profileCompleted === true) {
         return false
       }
-      // isRead: true olan profile_incomplete bildirimlerini de gösterme
-      if (notification.type === 'profile_incomplete' && notification.isRead === true) {
-        return false
-      }
+      // profile_incomplete bildirimleri kalıcıdır, isRead durumuna bakılmaz
       return true
     });
 
@@ -204,6 +203,12 @@ export class NotificationsService {
       throw new Error('Notification not found or unauthorized')
     }
 
+    // 🔥 KRİTİK: profile_incomplete bildirimleri kalıcıdır, okundu olarak işaretlenmez
+    if (notification.type === 'profile_incomplete') {
+      // profile_incomplete bildirimleri kalıcıdır, okundu olarak işaretlenmez
+      return { count: 0 }
+    }
+
     // Sadece okunmamış bildirimleri güncelle
     if (!notification.isRead) {
       const updated = await this.prisma.notification.updateMany({
@@ -228,10 +233,12 @@ export class NotificationsService {
   }
 
   async markAllAsRead(userId: string) {
+    // 🔥 KRİTİK: profile_incomplete bildirimleri kalıcıdır, okundu olarak işaretlenmez
     await this.prisma.notification.updateMany({
       where: {
         userId,
         isRead: false,
+        type: { not: 'profile_incomplete' }, // profile_incomplete hariç
       },
       data: {
         isRead: true,

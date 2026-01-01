@@ -5,6 +5,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UpdateRoleSelectionDto } from './dto/update-role-selection.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
+import { RoleChangeRequestDto } from './dto/role-change-request.dto';
 
 @Controller('users')
 export class UsersController {
@@ -18,6 +19,18 @@ export class UsersController {
       throw new NotFoundException('Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın.');
     }
     return this.usersService.getSelf(user.id);
+  }
+
+  // ✅ ÖNEMLİ: Daha spesifik route'lar önce tanımlanmalı
+  // color-signature route'u profile/:username'den önce gelmeli
+  @Get('profile/:username/color-signature')
+  @UseGuards(JwtAuthGuard)
+  async getColorSignature(@Param('username') username: string) {
+    // 🔥 KRİTİK: Username null/undefined kontrolü
+    if (!username || username === 'undefined' || username === 'null' || username === '[object Object]') {
+      throw new NotFoundException('Geçersiz kullanıcı adı. Lütfen tekrar deneyin.');
+    }
+    return this.usersService.getColorSignature(username);
   }
 
   @Get('profile/:username')
@@ -181,6 +194,18 @@ export class UsersController {
       throw new NotFoundException('Kullanıcı kimliği bulunamadı.');
     }
     return this.usersService.resendPhoneCode(user.id);
+  }
+
+  @Post('role-change-request')
+  @UseGuards(JwtAuthGuard)
+  async createRoleChangeRequest(
+    @CurrentUser() user: any,
+    @Body() dto: RoleChangeRequestDto
+  ) {
+    if (!user?.id) {
+      throw new NotFoundException('Kullanıcı kimliği bulunamadı.');
+    }
+    return this.usersService.createRoleChangeRequest(user.id, dto);
   }
 }
 

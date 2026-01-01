@@ -12,129 +12,63 @@ export class ChatService {
   async getConversations(userId: string) {
     console.log(`📋 [ChatService] getConversations called for user: ${userId}`);
     
-    // 🔥 EN BASİT VE GÜVENİLİR YÖNTEM: Kullanıcının participant olduğu TÜM conversation'ları bul
-    const allConversations = await this.prisma.conversation.findMany({
+    // ✅ DOĞRU MANTIK: Kullanıcının sadece kendi conversation'larını getir
+    // UserConversation tablosuna göre filtrele (isDeleted: false olanlar)
+    const userConversations = await this.prisma.userConversation.findMany({
       where: {
-        participants: {
-          some: {
-            userId: userId,
-          },
-        },
+        userId,
+        isDeleted: false,
       },
       include: {
-        participants: {
+        conversation: {
           include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                avatar: true,
-                fullName: true,
-                isOnline: true,
-                lastSeen: true,
+            participants: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    avatar: true,
+                    fullName: true,
+                    isOnline: true,
+                    lastSeen: true,
+                  },
+                },
               },
             },
-          },
-        },
-        messages: {
-          take: 1,
-          orderBy: {
-            createdAt: 'desc',
-          },
-          include: {
-            sender: {
-              select: {
-                id: true,
-                username: true,
-                avatar: true,
+            messages: {
+              take: 1,
+              orderBy: {
+                createdAt: 'desc',
+              },
+              include: {
+                sender: {
+                  select: {
+                    id: true,
+                    username: true,
+                    avatar: true,
+                  },
+                },
               },
             },
           },
         },
       },
       orderBy: {
-        updatedAt: 'desc',
+        conversation: {
+          updatedAt: 'desc',
+        },
       },
     });
 
-    console.log(`📋 [ChatService] Found ${allConversations.length} conversations where user ${userId} is a participant`);
+    // UserConversation'dan conversation'ları çıkar
+    const allConversations = userConversations.map((uc) => uc.conversation).filter(Boolean);
 
-    // 🔥 KRİTİK: Her conversation için UserConversation kaydını garantile
-    await Promise.all(
-      allConversations.map(async (conv) => {
-        try {
-          await this.prisma.userConversation.upsert({
-            where: {
-              userId_conversationId: {
-                userId: userId,
-                conversationId: conv.id,
-              },
-            },
-            create: {
-              userId: userId,
-              conversationId: conv.id,
-              isDeleted: false,
-            },
-            update: {
-              isDeleted: false, // Eğer silinmişse geri getir
-            },
-          });
-        } catch (error) {
-          if (error.code !== 'P2002') {
-            console.error(`❌ [ChatService] Failed to ensure UserConversation: ${error.message}`);
-          }
-        }
-      }),
-    );
+    console.log(`📋 [ChatService] Found ${allConversations.length} conversations for user ${userId}`);
 
-    // 🔥 KRİTİK: UserConversation kaydı olan ve silinmemiş conversation'ları filtrele
-    const userConversations = await this.prisma.userConversation.findMany({
-      where: {
-        userId,
-        isDeleted: false,
-        conversationId: { in: allConversations.map((c) => c.id) },
-      },
-      select: {
-        conversationId: true,
-      },
-    });
-
-    const visibleConversationIds = new Set(userConversations.map((uc) => uc.conversationId));
-    
-    // 🔥 KRİTİK: UserConversation kaydı olmayan conversation'ları da dahil et
-    // Çünkü mesaj gönderildiğinde UserConversation kaydı oluşturuluyor ama
-    // sayfa yenilendiğinde henüz oluşturulmamış olabilir
-    // Bu durumda, conversation'da mesaj varsa göster
-    // Ayrıca, kullanıcının mesaj gönderdiği/alığı conversation'ları da kontrol et
-    // ✅ KRİTİK: Ama eğer UserConversation kaydı varsa ve isDeleted: true ise, ASLA gösterme
+    // ✅ Sadece mesajı olan conversation'ları göster (boş conversation'ları gösterme)
     const conversationsWithMessages = await Promise.all(
       allConversations.map(async (c) => {
-        // ✅ KRİTİK: UserConversation kaydı varsa ve silinmemişse göster
-        if (visibleConversationIds.has(c.id)) {
-          return { conv: c, shouldShow: true };
-        }
-        
-        // ✅ KRİTİK: UserConversation kaydı var ama isDeleted: true ise, ASLA gösterme
-        // (Kullanıcı conversation'ı silmişse, geri gelmemeli)
-        const userConv = await this.prisma.userConversation.findUnique({
-          where: {
-            userId_conversationId: {
-              userId: userId,
-              conversationId: c.id,
-            },
-          },
-          select: {
-            isDeleted: true,
-          },
-        });
-        
-        if (userConv && userConv.isDeleted) {
-          return { conv: c, shouldShow: false }; // ✅ Silinmiş conversation'ı gösterme
-        }
-        
-        // UserConversation kaydı yoksa, conversation'da herhangi bir mesaj var mı kontrol et
-        // (mesaj gönderilmiş ama UserConversation henüz oluşturulmamış olabilir)
-        // Kullanıcı participant olduğu için, conversation'da mesaj varsa göster
         const hasMessage = await this.prisma.message.count({
           where: {
             conversationId: c.id,
@@ -151,7 +85,7 @@ export class ChatService {
       .filter(({ shouldShow }) => shouldShow)
       .map(({ conv }) => conv);
 
-    console.log(`📋 [ChatService] Returning ${filteredConversations.length} conversations for user ${userId} (after filtering)`);
+    console.log(`📋 [ChatService] Returning ${filteredConversations.length} conversations for user ${userId} (with messages)`);
 
     // Her konuşma için okunmamış mesaj sayısını ekle
     const conversationsWithUnread = await Promise.all(
@@ -349,15 +283,14 @@ export class ChatService {
     } else {
       // DIRECT: Sadece participant'lara bak (context/jobId/applicationId ignore edilir)
       // ✅ ALTIN KURAL: İki kullanıcı arasında DIRECT context'te SADECE 1 conversation olabilir
-      const userConversations = await this.prisma.conversation.findMany({
+      // 🔥 GÜÇLENDİRİLMİŞ KONTROL: Tüm conversation'ları kontrol et (context filtresi yok)
+      const allUserConversations = await this.prisma.conversation.findMany({
         where: {
           participants: {
             some: {
               userId: userId,
             },
           },
-          // @ts-ignore - Prisma client generate edilene kadar
-          ...(context === 'DIRECT' ? { context: 'DIRECT' } : {}),
         },
         include: {
           participants: true,
@@ -365,7 +298,8 @@ export class ChatService {
       });
 
       // Participant sırasız kontrol (A-B ve B-A aynı)
-      for (const conv of userConversations) {
+      // DIRECT context için: context/jobId/applicationId'yi TAMAMEN ignore et
+      for (const conv of allUserConversations) {
         const convAny = conv as any;
         const convParticipantIds = convAny.participants.map((p: any) => p.userId).sort();
         
@@ -374,9 +308,11 @@ export class ChatService {
           convParticipantIds.length === sortedParticipantIds.length &&
           convParticipantIds.every((id, index) => id === sortedParticipantIds[index])
         ) {
-          // DIRECT context için: context/jobId/applicationId'yi ignore et, sadece participant'lara bak
+          // ✅ KRİTİK: DIRECT context için: context/jobId/applicationId'yi TAMAMEN ignore et
+          // Sadece participant'lara bak - aynı iki kullanıcı arasında SADECE 1 conversation olabilir
           if (context === 'DIRECT' || !context) {
             existingConversation = conv;
+            console.log(`✅ [ChatService] Found existing DIRECT conversation: ${conv.id} (ignoring context/jobId/applicationId)`);
             break;
           }
           // JOB_APPLICATION context için: applicationId de eşleşmeli (yukarıda kontrol edildi)
@@ -611,6 +547,31 @@ export class ChatService {
       },
     });
 
+    // ✅ KRİTİK: Conversation'ın lastMessage'ını güncelle (düzenlenen mesaj son mesajsa)
+    // Son mesajı kontrol et
+    const lastMessage = await this.prisma.message.findFirst({
+      where: {
+        conversationId: message.conversationId,
+        isDeleted: false,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 1,
+    });
+
+    if (lastMessage && lastMessage.id === messageId) {
+      // Düzenlenen mesaj son mesajsa, conversation'ı güncelle
+      await this.prisma.conversation.update({
+        where: { id: message.conversationId },
+        data: {
+          lastMessage: newContent,
+          updatedAt: new Date(),
+        },
+      });
+      console.log(`✅ [ChatService] Conversation lastMessage updated after edit: ${newContent.substring(0, 50)}...`);
+    }
+
     // Socket.IO ile gerçek zamanlı güncelleme
     if (this.chatGateway) {
       await this.chatGateway.broadcastMessageEdited(updated);
@@ -646,6 +607,47 @@ export class ChatService {
         imageUrl: null,
       },
     });
+
+    // ✅ KRİTİK: Conversation'ın lastMessage'ını güncelle (silinen mesaj son mesajsa)
+    // Son mesajı kontrol et
+    const lastMessage = await this.prisma.message.findFirst({
+      where: {
+        conversationId: message.conversationId,
+        isDeleted: false,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 1,
+    });
+
+    if (lastMessage && lastMessage.id === messageId) {
+      // Silinen mesaj son mesajsa, bir önceki mesajı bul
+      const previousMessage = await this.prisma.message.findFirst({
+        where: {
+          conversationId: message.conversationId,
+          isDeleted: false,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: 1,
+        take: 1,
+      });
+
+      const lastMessageText = previousMessage
+        ? (previousMessage.content ?? (previousMessage.imageUrl ? '📷 Fotoğraf' : (previousMessage.fileUrl ? '📎 Dosya' : 'Yeni mesaj')))
+        : null;
+
+      await this.prisma.conversation.update({
+        where: { id: message.conversationId },
+        data: {
+          lastMessage: lastMessageText,
+          updatedAt: new Date(),
+        },
+      });
+      console.log(`✅ [ChatService] Conversation lastMessage updated after delete: ${lastMessageText ? lastMessageText.substring(0, 50) + '...' : 'null'}`);
+    }
 
     // Socket.IO ile gerçek zamanlı güncelleme
     if (this.chatGateway) {

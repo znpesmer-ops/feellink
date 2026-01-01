@@ -262,15 +262,18 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       // DB güncellemelerini arka planda yap, socket event'lerini önce gönder
       this.broadcastMessageImmediately(message, conversation, userId, data.conversationId);
 
-      // 🔥 ARKA PLANDA: Conversation metadata güncelle (sol panel için)
+      // ✅ KRİTİK: Conversation metadata güncelle (sol panel için - lastMessage)
       // MongoDB'de manuel yapmak ZORUNLU (Postgres otomatik yapıyordu)
-      this.prisma.conversation.update({
+      // await ile yapmalıyız - lastMessage her zaman güncel olmalı
+      const lastMessageText = message.content ?? (message.imageUrl ? '📷 Fotoğraf' : (message.fileUrl ? '📎 Dosya' : 'Yeni mesaj'));
+      await this.prisma.conversation.update({
         where: { id: data.conversationId },
         data: {
-          lastMessage: message.content ?? (message.imageUrl ? '📷 Fotoğraf' : (message.fileUrl ? '📎 Dosya' : 'Yeni mesaj')),
+          lastMessage: lastMessageText,
           updatedAt: new Date(),
         },
-      }).catch(err => console.error('[ChatGateway] Failed to update conversation:', err));
+      });
+      console.log(`✅ [ChatGateway] Conversation lastMessage updated: ${lastMessageText.substring(0, 50)}...`);
 
       // ✅ ARKA PLANDA: Receiver için conversation kaydı MUTLAKA oluştur (Instagram gibi)
       // Sadece receiver için silinmiş sohbeti geri getir (sender zaten mesaj gönderiyor, conversation'ı silmemiş demektir)

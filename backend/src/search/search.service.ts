@@ -10,8 +10,9 @@ export class SearchService implements OnModuleInit {
   private hashtagsIndex: any = null;
   private readonly logger = new Logger(SearchService.name);
   private isDisabled = false;
-  private readonly defaultAvatar =
-    'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=320&q=80';
+  // ✅ Avatar yoksa null döndür - frontend safeAvatar() fonksiyonu fallback kullanacak
+  // ✅ Eski Unsplash URL'i kaldırıldı (kadın placeholder sorunu)
+  private readonly defaultAvatar = null;
   private readonly FORCE_FALLBACK = true; // Local (Prisma) arama aktif
 
   constructor(
@@ -163,8 +164,9 @@ export class SearchService implements OnModuleInit {
   }
 
   private getAvatarUrl(avatar: string | null): string | null {
+    // ✅ Avatar yoksa null döndür - frontend safeAvatar() fonksiyonu güvenli fallback kullanacak
     if (!avatar || avatar.trim() === '') {
-      return this.defaultAvatar;
+      return null;
     }
     if (avatar.startsWith('http')) {
       return avatar;

@@ -127,6 +127,7 @@ export class UsersService {
           country: true,
           city: true,
           gender: true,
+          showProfileColorSignature: true, // 🎨 Profil renk imzası göster/gizle
           _count: {
             select: {
               posts: true,
@@ -183,6 +184,7 @@ export class UsersService {
               country: true,
               city: true,
               gender: true,
+              showProfileColorSignature: true, // 🎨 Profil renk imzası göster/gizle
               _count: {
                 select: {
                   posts: true,
@@ -393,8 +395,7 @@ export class UsersService {
       }) || [],
     }));
 
-    // ✅ KRİTİK: isAdmin'i garantile (undefined ise false)
-    const userIsAdmin = user.isAdmin === true;
+    // ✅ KRİTİK: isAdmin'i garantile (undefined ise false) - zaten yukarıda tanımlanmış
     console.log('[getProfile] User isAdmin check:', { 
       isAdmin: user.isAdmin, 
       userIsAdmin,
@@ -428,6 +429,8 @@ export class UsersService {
       profileCompleted: user.profileCompleted,
       // ✅ Aktif rol (profil header'da gösterilecek)
       activeRole: activeRole || null, // ✅ null ise null döndür (undefined değil)
+      // 🎨 Profil renk imzası göster/gizle flag'i
+      showProfileColorSignature: user.showProfileColorSignature ?? true, // Default: true (geriye dönük uyumluluk)
     };
     } catch (error) {
       // HttpException ise olduğu gibi fırlat
@@ -480,6 +483,9 @@ export class UsersService {
         gender: true,
         phoneNumber: true,
         phoneVerified: true,
+        accountStatus: true, // 🔒 Hesap durumu
+        suspendedUntil: true, // 🔒 Askıya alma bitiş tarihi
+        suspensionReason: true, // 🔒 Askıya alma nedeni
       },
     });
 
@@ -535,12 +541,11 @@ export class UsersService {
     
     // Sadece profil tamamlanmamışsa bildirim oluştur
     if (!isProfileCompleted) {
-      // Mevcut "profile_incomplete" bildirimi var mı kontrol et
+      // Mevcut "profile_incomplete" bildirimi var mı kontrol et (isRead durumuna bakılmaz - kalıcı bildirim)
       const existingNotification = await this.prisma.notification.findFirst({
         where: {
           userId: user.id,
           type: 'profile_incomplete',
-          isRead: false,
         },
       });
 
@@ -550,8 +555,9 @@ export class UsersService {
           await this.notificationsService.createNotification({
             userId: user.id,
             type: 'profile_incomplete',
-            message: 'Feellink\'i tam kullanabilmek için bazı bilgilerin eksik.',
-            targetPath: '/profile/edit?required=true',
+            message: 'Profil bilgilerini tamamladığında Feellink deneyimin çok daha güçlü hale gelir.',
+            targetPath: '/settings',
+            targetUrl: '/settings',
           });
         } catch (notifError) {
           // Bildirim oluşturma hatası kritik değil, logla
@@ -559,20 +565,16 @@ export class UsersService {
         }
       }
     } else {
-      // 🔥 Profil tamamlandıysa mevcut bildirimleri kapat (kalıcı çözüm)
+      // 🔥 Profil tamamlandıysa mevcut bildirimleri sil (kalıcı çözüm)
       try {
-        await this.prisma.notification.updateMany({
+        await this.prisma.notification.deleteMany({
           where: {
             userId: user.id,
             type: 'profile_incomplete',
-            isRead: false,
-          },
-          data: {
-            isRead: true, // Bildirimi kapat (geçmişi koru)
           },
         });
       } catch (notifError) {
-        console.warn('[UsersService] Failed to close profile_incomplete notifications:', notifError);
+        console.warn('[UsersService] Failed to delete profile_incomplete notifications:', notifError);
       }
     }
 
@@ -597,6 +599,9 @@ export class UsersService {
       country: user.country,
       city: user.city,
       gender: user.gender,
+      accountStatus: user.accountStatus, // 🔒 Hesap durumu
+      suspendedUntil: user.suspendedUntil, // 🔒 Askıya alma bitiş tarihi
+      suspensionReason: user.suspensionReason, // 🔒 Askıya alma nedeni
       capabilities,
       sidebar,
       dashboard,
@@ -729,6 +734,7 @@ export class UsersService {
         country: true,
         city: true,
         gender: true,
+        showProfileColorSignature: true, // 🎨 Profil renk imzası göster/gizle
       },
     });
 
@@ -737,23 +743,19 @@ export class UsersService {
     console.log('[updateProfile] USERNAME FROM DB:', updatedUser.username);
     console.log('[updateProfile] PROFILE COMPLETED:', updatedUser.profileCompleted);
 
-    // 🔔 Zorunlu alanlar tamamlandıysa bildirimi kapat (silme, sadece isRead: true)
+    // 🔔 Zorunlu alanlar tamamlandıysa bildirimi sil (kalıcı çözüm)
     if (allRequiredFieldsPresent) {
       try {
-        // "profile_incomplete" bildirimlerini kapat (isRead: true yap, silme)
-        await this.prisma.notification.updateMany({
+        // "profile_incomplete" bildirimlerini sil (kalıcı çözüm)
+        await this.prisma.notification.deleteMany({
           where: {
             userId: userId,
             type: 'profile_incomplete',
-            isRead: false, // Sadece okunmamış olanları kapat
-          },
-          data: {
-            isRead: true, // Bildirimi kapat (geçmişi koru)
           },
         });
-        console.log('[updateProfile] ✅ Profile completed - marked profile_incomplete notifications as read');
+        console.log('[updateProfile] ✅ Profile completed - deleted profile_incomplete notifications');
       } catch (notifError) {
-        console.warn('[UsersService] Failed to update profile_incomplete notifications:', notifError);
+        console.warn('[UsersService] Failed to delete profile_incomplete notifications:', notifError);
       }
     }
 
@@ -849,23 +851,19 @@ export class UsersService {
       },
     });
 
-    // 🔔 Zorunlu alanlar tamamlandıysa bildirimi sil
+    // 🔔 Zorunlu alanlar tamamlandıysa bildirimi sil (kalıcı çözüm)
     const hasRequiredFields = updatedUser.dateOfBirth && updatedUser.country && updatedUser.city && updatedUser.gender;
     if (hasRequiredFields) {
       try {
-        // "profile_incomplete" bildirimlerini kapat (isRead: true yap, silme)
-        await this.prisma.notification.updateMany({
+        // "profile_incomplete" bildirimlerini sil (kalıcı çözüm)
+        await this.prisma.notification.deleteMany({
           where: {
             userId: userId,
             type: 'profile_incomplete',
-            isRead: false,
-          },
-          data: {
-            isRead: true, // Bildirimi kapat (geçmişi koru)
           },
         });
       } catch (notifError) {
-        console.warn('[UsersService] Failed to update profile_incomplete notifications:', notifError);
+        console.warn('[UsersService] Failed to delete profile_incomplete notifications:', notifError);
       }
     }
 
@@ -1036,6 +1034,7 @@ export class UsersService {
         extras: true,
         plan: true,
         badges: true,
+        isAdmin: true, // 🎯 activeRole hesaplaması için gerekli
       },
     });
 
@@ -1077,6 +1076,7 @@ export class UsersService {
         extras: true,
         plan: true,
         badges: true,
+        isAdmin: true, // 🎯 activeRole hesaplaması için gerekli
       },
     });
 
@@ -1089,9 +1089,51 @@ export class UsersService {
     );
     const sidebar = getSidebarVisibility(capabilities);
 
+    // 🎯 Aktif rolü hesapla (getProfile metodundaki mantıkla aynı)
+    const getActiveRole = (roles: string[], isAdmin: boolean): string | null => {
+      if (isAdmin) {
+        return 'Admin';
+      }
+      if (!roles || roles.length === 0) {
+        return null;
+      }
+      
+      // Öncelik sırası: corporate > collector > artist > art_lover
+      const rolePriority: Record<string, number> = {
+        corporate: 1,
+        collector: 2,
+        artist: 3,
+        art_lover: 4,
+      };
+      
+      const sortedRoles = roles
+        .filter((r) => rolePriority[r] !== undefined)
+        .sort((a, b) => rolePriority[a] - rolePriority[b]);
+      
+      if (sortedRoles.length === 0) {
+        return null;
+      }
+      
+      const activeRoleCode = sortedRoles[0];
+      const roleLabels: Record<string, string> = {
+        art_lover: 'Sanatsever',
+        corporate: 'Kurum',
+        collector: 'Koleksiyoner',
+        artist: 'Sanatçı',
+      };
+      
+      return roleLabels[activeRoleCode] || null;
+    };
+
+    const userIsAdmin = current.isAdmin === true;
+    const activeRole = getActiveRole(normalizedRoles, userIsAdmin);
+
     return {
       message: 'Rol ve plan bilgileri güncellendi',
-      user: updatedUser,
+      user: {
+        ...updatedUser,
+        activeRole: activeRole || null, // 🎯 Aktif rol eklendi
+      },
       capabilities,
       sidebar,
     };
@@ -1629,6 +1671,176 @@ export class UsersService {
     }
 
     return response;
+  }
+
+  /**
+   * 🎨 Kullanıcının renk imzasını döndürür (tüm artwork'lerinden en çok kullanılan 5 renk)
+   * @param username - Kullanıcı adı veya ID
+   * @returns En çok kullanılan 5 renk (HEX formatında)
+   * 
+   * NOT: Bu metod sadece profil seviyesinde renk imzası için kullanılır.
+   * Eser kartları veya eser grid'i ile ilgili değildir.
+   */
+  async getColorSignature(username: string): Promise<{ topColors: string[] }> {
+    // Önce kullanıcıyı bul
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(username);
+    let user = null;
+
+    if (isObjectId) {
+      user = await this.prisma.user.findFirst({
+        where: { id: username },
+        select: { id: true },
+      });
+    } else {
+      user = await this.prisma.user.findFirst({
+        where: { username: { equals: username, mode: 'insensitive' } },
+        select: { id: true },
+      });
+    }
+
+    if (!user) {
+      throw new NotFoundException('Kullanıcı bulunamadı');
+    }
+
+    // ✅ Circular dependency olmadan doğrudan Prisma kullanarak renkleri hesapla
+    // ✅ Tüm artwork'leri al (renk olmasa bile - çünkü media'dan renk çıkarabiliriz)
+    const userArtworks = await this.prisma.post.findMany({
+      where: {
+        userId: user.id,
+        type: 'artwork',
+      },
+      select: {
+        id: true,
+        colorPalette: true,
+        colors: true, // Eski eserler için fallback
+        media: {
+          select: {
+            url: true,
+            type: true,
+          },
+          orderBy: { order: 'asc' },
+          take: 1, // İlk görseli al
+        },
+      },
+    });
+
+    // Tüm renkleri topla (colorPalette öncelikli, colors fallback)
+    const allColors: string[] = [];
+    
+    for (const artwork of userArtworks) {
+      // Önce colorPalette'e bak
+      if (artwork.colorPalette && artwork.colorPalette.length > 0) {
+        allColors.push(...artwork.colorPalette);
+      } 
+      // Sonra colors'a bak (eski eserler için)
+      else if (artwork.colors && artwork.colors.length > 0) {
+        allColors.push(...artwork.colors);
+      }
+      // Eğer hiç renk yoksa ve görsel varsa, backend'de renk analizi yapılabilir
+      // Ama şu an için sadece mevcut renkleri kullanıyoruz (performans için)
+    }
+
+    // Renk sıklığını hesapla
+    const colorFrequency: Record<string, number> = {};
+    for (const color of allColors) {
+      if (color && typeof color === 'string' && color.trim() !== '') {
+        colorFrequency[color] = (colorFrequency[color] || 0) + 1;
+      }
+    }
+
+    // En sık kullanılan renkleri sırala ve ilk 5'i al
+    const topColors = Object.entries(colorFrequency)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([color]) => color);
+
+    return { topColors };
+  }
+
+  async createRoleChangeRequest(userId: string, dto: { requestedRole: string; message?: string }) {
+    // Kullanıcının mevcut rolünü kontrol et
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { roles: true, username: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Kullanıcı bulunamadı.');
+    }
+
+    // Aynı rolü seçmişse hata ver
+    const currentRole = user.roles?.[0];
+    if (dto.requestedRole === currentRole) {
+      throw new BadRequestException('Zaten bu role sahipsiniz.');
+    }
+
+    // Bekleyen bir talebi varsa hata ver
+    const existingRequest = await this.prisma.roleChangeRequest.findFirst({
+      where: {
+        userId,
+        status: 'PENDING',
+      },
+    });
+
+    if (existingRequest) {
+      throw new BadRequestException('Zaten bekleyen bir rol değişikliği talebiniz var.');
+    }
+
+    // Yeni talep oluştur
+    const request = await this.prisma.roleChangeRequest.create({
+      data: {
+        userId,
+        requestedRole: dto.requestedRole as any,
+        message: dto.message || null,
+        status: 'PENDING',
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Admin'lere bildirim gönder (notifications service kullanarak)
+    try {
+      const admins = await this.prisma.user.findMany({
+        where: {
+          OR: [{ isAdmin: true }, { superAdmin: true }],
+        },
+        select: { id: true },
+      });
+
+      for (const admin of admins) {
+        await this.notificationsService.createNotification({
+          userId: admin.id,
+          type: 'role_change_request',
+          message: `${user.username || 'Bir kullanıcı'} rol değişikliği talebinde bulundu.`,
+          meta: {
+            requestId: request.id,
+            requestedRole: dto.requestedRole,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Bildirim gönderilirken hata:', error);
+      // Bildirim hatası talep oluşturmayı engellemez
+    }
+
+    return {
+      success: true,
+      message: 'Rol değişikliği talebiniz gönderildi. Yöneticiler tarafından incelenecektir.',
+      request: {
+        id: request.id,
+        requestedRole: request.requestedRole,
+        status: request.status,
+        createdAt: request.createdAt,
+      },
+    };
   }
 }
 

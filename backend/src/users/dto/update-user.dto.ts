@@ -49,5 +49,9 @@ export class UpdateUserDto {
     message: 'Geçerli bir cinsiyet seçeneği seçin',
   })
   gender?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  showProfileColorSignature?: boolean; // 🎨 Profil renk imzasını göster/gizle
 }
 

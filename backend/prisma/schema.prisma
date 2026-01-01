@@ -23,6 +23,11 @@ enum UserRole {
   artist
 }
 
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+}
+
 model User {
   id                    String           @id @default(auto()) @map("_id") @db.ObjectId
   username              String           @unique
@@ -58,6 +63,14 @@ model User {
   gdprConsent           Boolean          @default(false)
   gdprConsentAt         DateTime?
   analyticsConsent      Boolean          @default(false)
+  showProfileColorSignature Boolean      @default(true) // 🎨 Profil renk imzasını göster/gizle
+  termsAcceptedAt       DateTime?       // ✅ Kullanıcı sözleşmesi onay tarihi
+  accountStatus         AccountStatus   @default(ACTIVE) // 🔒 Hesap durumu
+  suspendedAt           DateTime?       // 🔒 Askıya alma tarihi
+  suspendedUntil        DateTime?       // 🔒 Askıya alma bitiş tarihi
+  suspensionReason      String?         // 🔒 Askıya alma nedeni
+  suspensionNote        String?         // 🔒 Admin iç notu
+  suspendedByAdminId    String?         @db.ObjectId // 🔒 Askıya alan admin ID
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
 
@@ -94,6 +107,8 @@ model User {
   auditLogs              AuditLog[]              @relation("AuditLogActor")
   jobListings            JobListing[]
   jobApplications        JobApplication[]        @relation("JobApplications")
+  roleChangeRequests     RoleChangeRequest[]     @relation("RoleChangeRequests")
+  reviewedRoleChangeRequests RoleChangeRequest[] @relation("ReviewedRoleChangeRequests")
   highlights             Highlight[]
   monthlyHighlightsAsMuseum MonthlyHighlight[]   @relation("MonthlyHighlightMuseum")
   collectionItems        CollectionItem[]        @relation("CollectionItemAddedBy")
@@ -855,6 +870,26 @@ model UserReport {
   @@index([reportedUserId])
   @@index([reporterId])
   @@map("user_reports")
+}
+
+model RoleChangeRequest {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String    @db.ObjectId
+  requestedRole UserRole
+  message       String?
+  status        String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  reviewedBy    String?   @db.ObjectId // Admin ID
+  reviewedAt    DateTime?
+  reviewNote    String?   // Admin notu
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation("RoleChangeRequests", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer      User?     @relation("ReviewedRoleChangeRequests", fields: [reviewedBy], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("role_change_requests")
 }
 
 model EmailChangeRequest {

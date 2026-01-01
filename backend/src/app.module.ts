@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
+import { AccountStatusGuard } from './auth/guards/account-status.guard';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -69,6 +71,12 @@ import { EmailChangeModule } from './email-change/email-change.module';
     BlocksModule,
     ReportsModule,
     EmailChangeModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: AccountStatusGuard,
+    },
   ],
 })
 export class AppModule {}

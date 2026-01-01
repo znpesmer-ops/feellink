@@ -127,80 +127,96 @@ export class AdminService {
     ageMin?: number,
     ageMax?: number,
   ) {
-    const skip = (page - 1) * limit;
-    const where: any = {};
+    try {
+      const skip = (page - 1) * limit;
+      const where: any = {};
 
-    if (search) {
-      where.OR = [
-        { username: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { fullName: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    if (role) {
-      where.roles = { has: role };
-    }
-
-    if (city) {
-      where.city = { contains: city, mode: 'insensitive' };
-    }
-
-    if (gender) {
-      where.gender = gender;
-    }
-
-    // Age range filter (calculate from dateOfBirth)
-    if (ageMin !== undefined || ageMax !== undefined) {
-      const today = new Date();
-      where.dateOfBirth = {};
-      
-      if (ageMax !== undefined) {
-        // Minimum birth date (oldest age)
-        const minBirthDate = new Date(today.getFullYear() - ageMax - 1, today.getMonth(), today.getDate());
-        where.dateOfBirth.lte = minBirthDate;
+      if (search) {
+        // MongoDB için Prisma syntax (case-insensitive için regex kullanılmaz, contains kullanılır)
+        where.OR = [
+          { username: { contains: search } },
+          { email: { contains: search } },
+          { fullName: { contains: search } },
+        ];
       }
-      
-      if (ageMin !== undefined) {
-        // Maximum birth date (youngest age)
-        const maxBirthDate = new Date(today.getFullYear() - ageMin, today.getMonth(), today.getDate());
-        where.dateOfBirth.gte = maxBirthDate;
+
+      if (role) {
+        where.roles = { has: role };
       }
+
+      if (city) {
+        where.city = { contains: city };
+      }
+
+      if (gender) {
+        where.gender = gender;
+      }
+
+      // Age range filter (calculate from dateOfBirth)
+      if (ageMin !== undefined || ageMax !== undefined) {
+        const today = new Date();
+        where.dateOfBirth = {};
+        
+        if (ageMax !== undefined) {
+          // Minimum birth date (oldest age)
+          const minBirthDate = new Date(today.getFullYear() - ageMax - 1, today.getMonth(), today.getDate());
+          where.dateOfBirth.lte = minBirthDate;
+        }
+        
+        if (ageMin !== undefined) {
+          // Maximum birth date (youngest age)
+          const maxBirthDate = new Date(today.getFullYear() - ageMin, today.getMonth(), today.getDate());
+          where.dateOfBirth.gte = maxBirthDate;
+        }
+      }
+
+      const [users, total] = await Promise.all([
+        this.prisma.user.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            fullName: true,
+            avatar: true,
+            roles: true,
+            plan: true,
+            badges: true,
+            isVerified: true,
+            isAdmin: true,
+            isPrivate: true,
+            followerCount: true,
+            followingCount: true,
+            isOnline: true,
+            createdAt: true,
+            dateOfBirth: true,
+            country: true,
+            city: true,
+            gender: true,
+            profileCompleted: true,
+            termsAcceptedAt: true, // ✅ Kullanıcı sözleşmesi onay tarihi
+            accountStatus: true, // 🔒 Hesap durumu
+            suspendedAt: true, // 🔒 Askıya alma tarihi
+            suspendedUntil: true, // 🔒 Askıya alma bitiş tarihi
+            suspensionReason: true, // 🔒 Askıya alma nedeni
+          },
+        }),
+        this.prisma.user.count({ where }),
+      ]);
+
+      return { users, total, page, limit };
+    } catch (error: any) {
+      console.error('[AdminService] getUsers error:', error);
+      console.error('[AdminService] Error details:', {
+        message: error?.message,
+        code: error?.code,
+        stack: error?.stack,
+      });
+      throw error;
     }
-
-    const [users, total] = await Promise.all([
-      this.prisma.user.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          username: true,
-          email: true,
-          fullName: true,
-          avatar: true,
-          roles: true,
-          plan: true,
-          badges: true,
-          isVerified: true,
-          isAdmin: true,
-          isPrivate: true,
-          followerCount: true,
-          followingCount: true,
-          isOnline: true,
-          createdAt: true,
-          dateOfBirth: true,
-          country: true,
-          city: true,
-          gender: true,
-          profileCompleted: true,
-        },
-      }),
-      this.prisma.user.count({ where }),
-    ]);
-
-    return { users, total, page, limit };
   }
 
   async updateUser(
@@ -404,6 +420,161 @@ export class AdminService {
     }
 
     return Math.ceil(30 - diffInDays);
+  }
+
+  async getRoleChangeRequests(status?: string, page: number = 1, limit: number = 20) {
+    const skip = (page - 1) * limit;
+    const where: any = {};
+    
+    if (status) {
+      where.status = status;
+    }
+
+    const [requests, total] = await Promise.all([
+      this.prisma.roleChangeRequest.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+              email: true,
+              roles: true,
+            },
+          },
+          reviewer: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+            },
+          },
+        },
+      }),
+      this.prisma.roleChangeRequest.count({ where }),
+    ]);
+
+    return {
+      requests,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async approveRoleChangeRequest(requestId: string, adminId: string, reviewNote?: string) {
+    const request = await this.prisma.roleChangeRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            roles: true,
+          },
+        },
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Rol değişikliği talebi bulunamadı.');
+    }
+
+    if (request.status !== 'PENDING') {
+      throw new BadRequestException('Bu talep zaten işleme alınmış.');
+    }
+
+    // Kullanıcının rolünü güncelle
+    const updatedRoles = [request.requestedRole as any];
+    
+    await this.prisma.user.update({
+      where: { id: request.userId },
+      data: {
+        roles: updatedRoles,
+      },
+    });
+
+    // Talebi onaylandı olarak işaretle
+    await this.prisma.roleChangeRequest.update({
+      where: { id: requestId },
+      data: {
+        status: 'APPROVED',
+        reviewedBy: adminId,
+        reviewedAt: new Date(),
+        reviewNote: reviewNote || null,
+      },
+    });
+
+    // Kullanıcıya bildirim gönder
+    try {
+      const { NotificationsService } = await import('../notifications/notifications.service');
+      const { PrismaService } = await import('../prisma/prisma.service');
+      const prismaService = new PrismaService();
+      // NotificationsService için gerekli bağımlılıkları geçici olarak atla, direkt Prisma kullan
+      const notification = await this.prisma.notification.create({
+        data: {
+          userId: request.userId,
+          type: 'role_change_approved',
+          message: `Rol değişikliği talebiniz onaylandı. Yeni rolünüz: ${request.requestedRole}`,
+        },
+      });
+    } catch (error) {
+      console.error('Bildirim gönderilirken hata:', error);
+      // Bildirim hatası işlemi engellemez
+    }
+
+    return {
+      success: true,
+      message: 'Rol değişikliği talebi onaylandı ve kullanıcının rolü güncellendi.',
+    };
+  }
+
+  async rejectRoleChangeRequest(requestId: string, adminId: string, reviewNote?: string) {
+    const request = await this.prisma.roleChangeRequest.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Rol değişikliği talebi bulunamadı.');
+    }
+
+    if (request.status !== 'PENDING') {
+      throw new BadRequestException('Bu talep zaten işleme alınmış.');
+    }
+
+    // Talebi reddedildi olarak işaretle
+    await this.prisma.roleChangeRequest.update({
+      where: { id: requestId },
+      data: {
+        status: 'REJECTED',
+        reviewedBy: adminId,
+        reviewedAt: new Date(),
+        reviewNote: reviewNote || null,
+      },
+    });
+
+    // Kullanıcıya bildirim gönder
+    try {
+      await this.prisma.notification.create({
+        data: {
+          userId: request.userId,
+          type: 'role_change_rejected',
+          message: reviewNote || 'Rol değişikliği talebiniz reddedildi.',
+        },
+      });
+    } catch (error) {
+      console.error('Bildirim gönderilirken hata:', error);
+      // Bildirim hatası işlemi engellemez
+    }
+
+    return {
+      success: true,
+      message: 'Rol değişikliği talebi reddedildi.',
+    };
   }
 
   async deleteUser(userId: string, actorId: string) {
@@ -1113,6 +1284,64 @@ export class AdminService {
     } catch (error) {
       throw new Error(`Ayarlar alınamadı: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  // 🔒 Hesap askıya alma
+  async suspendUser(
+    userId: string,
+    adminId: string,
+    data: {
+      until?: Date | null;
+      reason: string;
+      note?: string;
+    },
+  ) {
+    const updateData: any = {
+      accountStatus: 'SUSPENDED',
+      suspendedAt: new Date(),
+      suspendedUntil: data.until || null,
+      suspensionReason: data.reason,
+      suspensionNote: data.note || null,
+      suspendedByAdminId: adminId,
+    };
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        accountStatus: true,
+        suspendedUntil: true,
+        suspensionReason: true,
+      },
+    });
+
+    return user;
+  }
+
+  // 🔒 Hesap askıdan çıkarma
+  async unsuspendUser(userId: string) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        accountStatus: 'ACTIVE',
+        suspendedAt: null,
+        suspendedUntil: null,
+        suspensionReason: null,
+        suspensionNote: null,
+        suspendedByAdminId: null,
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        accountStatus: true,
+      },
+    });
+
+    return user;
   }
 }
 

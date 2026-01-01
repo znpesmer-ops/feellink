@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { AccountStatusGuard } from './guards/account-status.guard';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SearchModule } from '../search/search.module';
 import { MailModule } from '../mail/mail.module';
@@ -27,9 +28,9 @@ import { MailModule } from '../mail/mail.module';
     SearchModule,
     MailModule,
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, AccountStatusGuard],
   controllers: [AuthController],
-  exports: [AuthService],
+  exports: [AuthService, AccountStatusGuard],
 })
 export class AuthModule {}
 

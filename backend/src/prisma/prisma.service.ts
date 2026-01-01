@@ -1,6 +1,11 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
 
+// 🔥 Global singleton pattern - her request'te yeni instance oluşmasını önle
+const globalForPrisma = global as unknown as {
+  prisma: PrismaService | undefined;
+};
+
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private static readonly logger = new Logger(PrismaService.name);
@@ -19,6 +24,15 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       };
     }
 
+    // ✅ MongoDB için connection timeout ayarları
+    const isMongoDB = normalizedUrl?.includes('mongodb://') || normalizedUrl?.includes('mongodb+srv://');
+    if (isMongoDB) {
+      // Prisma client seviyesinde timeout ayarları
+      options.log = process.env.NODE_ENV === 'development' 
+        ? ['query', 'error', 'warn'] 
+        : ['error', 'warn'];
+    }
+
     // 🔥 Supabase pgBouncer için prepared statements'ı devre dışı bırak
     if (process.env.PRISMA_DB_DISABLE_PREPARED_STATEMENTS === 'true') {
       options.log = options.log || [];
@@ -28,20 +42,95 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     }
 
     super(options);
+    
+    // 🔥 Development'ta global instance'ı sakla (hot reload için)
+    if (process.env.NODE_ENV !== 'production') {
+      globalForPrisma.prisma = this;
+    }
+
+    // 🔥 MongoDB bağlantı kontrolü middleware KALDIRILDI
+    // Recursive $connect() çağrısı sorun yaratıyordu
+    // Bağlantı kontrolü onModuleInit'te yapılıyor, middleware gereksiz
   }
 
   async onModuleInit() {
-    // 🔥 DB bağlantısı opsiyonel - bağlanamazsa backend yine başlasın
-    this.$connect()
-      .then(() => {
+    // 🔥 MongoDB bağlantısı - agresif retry ve otomatik reconnect
+    await this.ensureConnection();
+  }
+
+  // 🔥 Bağlantıyı garantile - retry mekanizması ile
+  async ensureConnection(): Promise<void> {
+    const maxRetries = 10; // ✅ 5 -> 10 (daha fazla deneme)
+    let retryCount = 0;
+    
+    const attemptConnection = async (): Promise<void> => {
+      try {
+        // Bağlantıyı kapat (varsa) ve yeniden bağlan
+        try {
+          await this.$disconnect();
+        } catch (disconnectError) {
+          // Zaten kapalı, sorun değil
+        }
+
+        // Direkt bağlan (query kontrolü yapma, sadece connect)
+        await this.$connect();
         PrismaService.logger.log('✅ Database connected successfully');
-      })
-      .catch((err) => {
-        PrismaService.logger.error(
-          `⚠️ Database connection failed, continuing without DB: ${err.message}`,
-        );
-        // Backend yine başlayacak, sadece DB işlemleri çalışmayacak
-      });
+        
+        // Bağlantıyı test et (sadece PostgreSQL için)
+        const dbUrl = process.env.DATABASE_URL || PrismaService.DEFAULT_DB_URL;
+        if (dbUrl.includes('postgresql://')) {
+          await (this as any).$queryRaw`SELECT 1`;
+          PrismaService.logger.log('✅ Database connection verified');
+        }
+      } catch (err: any) {
+        retryCount++;
+        const errorMessage = err?.message || 'Unknown error';
+        
+        if (retryCount < maxRetries) {
+          const waitTime = Math.min(3000 * retryCount, 20000); // ✅ Exponential backoff (max 20s)
+          PrismaService.logger.warn(
+            `⚠️ Database connection attempt ${retryCount}/${maxRetries} failed: ${errorMessage.substring(0, 100)}. Retrying in ${waitTime/1000}s...`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, waitTime));
+          return attemptConnection();
+        } else {
+          PrismaService.logger.error(
+            `❌ Database connection failed after ${maxRetries} attempts: ${errorMessage.substring(0, 200)}`,
+          );
+          PrismaService.logger.warn(
+            '⚠️ Backend will continue without database connection. Some features may not work.',
+          );
+          PrismaService.logger.warn(
+            '💡 Please check: 1) MongoDB Atlas IP whitelist (0.0.0.0/0), 2) Network connectivity, 3) DATABASE_URL in .env',
+          );
+          // ❌ Bağlantı başarısız ama backend devam etsin
+        }
+      }
+    };
+    
+    // İlk bağlantı denemesini başlat (timeout ile - MongoDB için daha uzun süre)
+    const connectionPromise = attemptConnection();
+    const timeoutPromise = new Promise<void>((_, reject) => 
+      setTimeout(() => reject(new Error('Database connection timeout after 180 seconds')), 180000) // ✅ 120s -> 180s
+    );
+    
+    try {
+      await Promise.race([connectionPromise, timeoutPromise]);
+    } catch (err: any) {
+      PrismaService.logger.error(`❌ Database connection timeout: ${err.message}`);
+      PrismaService.logger.warn('💡 MongoDB Atlas connection issues? Check: 1) IP whitelist, 2) Network, 3) Connection string');
+      // ❌ Timeout ama backend devam etsin
+    }
+  }
+
+  // 🔥 Query öncesi bağlantı kontrolü - otomatik reconnect
+  async $ensureConnected(): Promise<void> {
+    try {
+      await (this as any).$queryRaw`SELECT 1`;
+    } catch (error) {
+      PrismaService.logger.warn('⚠️ Database connection lost, attempting to reconnect...');
+      await this.ensureConnection();
+    }
   }
 
   async onModuleDestroy() {
@@ -61,8 +150,72 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       
       // MongoDB connection string'leri için parametre ekleme
       if (parsed.protocol === 'mongodb:' || parsed.protocol === 'mongodb+srv:') {
-        this.logger.log('✅ MongoDB connection string detected, skipping PostgreSQL-specific parameters');
-        return rawUrl; // MongoDB için raw URL'i olduğu gibi döndür
+        this.logger.log('✅ MongoDB connection string detected, adding connection pool parameters');
+        
+        // MongoDB için connection pool ve timeout parametreleri ekle
+        const mongoParams = parsed.searchParams;
+        
+        // Connection pool ayarları - Atlas için optimize (timeout hatalarını önlemek için)
+        if (!mongoParams.has('maxPoolSize')) {
+          mongoParams.set('maxPoolSize', '100'); // ✅ Artırıldı: 50 -> 100 (daha fazla concurrent connection)
+        }
+        if (!mongoParams.has('minPoolSize')) {
+          mongoParams.set('minPoolSize', '10'); // ✅ Artırıldı: 5 -> 10 (daha fazla hazır connection)
+        }
+        
+        // Timeout ayarları (milisaniye cinsinden) - MongoDB Atlas için optimize edilmiş
+        if (!mongoParams.has('serverSelectionTimeoutMS')) {
+          mongoParams.set('serverSelectionTimeoutMS', '120000'); // ✅ Artırıldı: 60s -> 120s (2 dakika)
+        }
+        if (!mongoParams.has('connectTimeoutMS')) {
+          mongoParams.set('connectTimeoutMS', '120000'); // ✅ Artırıldı: 60s -> 120s (2 dakika)
+        }
+        if (!mongoParams.has('socketTimeoutMS')) {
+          mongoParams.set('socketTimeoutMS', '300000'); // ✅ Artırıldı: 120s -> 300s (5 dakika)
+        }
+        if (!mongoParams.has('heartbeatFrequencyMS')) {
+          mongoParams.set('heartbeatFrequencyMS', '10000'); // 10 saniye heartbeat
+        }
+        
+        // ✅ Yeni: Connection pool timeout ayarları
+        if (!mongoParams.has('waitQueueTimeoutMS')) {
+          mongoParams.set('waitQueueTimeoutMS', '120000'); // ✅ Artırıldı: 60s -> 120s (Connection pool'da bekleme süresi)
+        }
+        if (!mongoParams.has('maxIdleTimeMS')) {
+          mongoParams.set('maxIdleTimeMS', '300000'); // ✅ Artırıldı: 60s -> 300s (5 dakika idle connection timeout)
+        }
+        
+        // Retry ayarları - Atlas için kritik
+        if (!mongoParams.has('retryWrites')) {
+          mongoParams.set('retryWrites', 'true');
+        }
+        if (!mongoParams.has('retryReads')) {
+          mongoParams.set('retryReads', 'true');
+        }
+        
+        // ✅ Prisma MongoDB tarafından desteklenmeyen parametreleri kaldır
+        // Bu parametreler Prisma connection string'inde sorun yaratıyor
+        if (mongoParams.has('serverSelectionTryOnce')) {
+          mongoParams.delete('serverSelectionTryOnce');
+        }
+        if (mongoParams.has('compressors')) {
+          mongoParams.delete('compressors');
+        }
+        
+        // Atlas için özel ayarlar
+        if (!mongoParams.has('w')) {
+          mongoParams.set('w', 'majority'); // Write concern
+        }
+        if (!mongoParams.has('readPreference')) {
+          // 🔥 Transaction kullanımı için primary olmalı (primaryPreferred transaction'larda çalışmaz)
+          mongoParams.set('readPreference', 'primary'); // Primary read (transaction uyumlu)
+        }
+        
+        parsed.search = mongoParams.toString();
+        const optimizedUrl = parsed.toString();
+        
+        this.logger.log(`✅ MongoDB connection string optimized with pool and timeout settings`);
+        return optimizedUrl;
       }
 
       const params = parsed.searchParams;

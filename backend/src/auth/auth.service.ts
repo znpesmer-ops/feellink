@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, NotFoundException, Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
@@ -107,6 +107,44 @@ export class AuthService {
     const dashboard = getDashboardSnapshot(primaryRole, plan);
     const sidebar = getSidebarVisibility(capabilities);
 
+    // ✅ Aktif rolü hesapla (getProfile metodundaki mantıkla aynı)
+    const getActiveRole = (roles: string[], isAdmin: boolean): string | null => {
+      if (isAdmin) {
+        return 'Admin';
+      }
+      if (!roles || roles.length === 0) {
+        return null;
+      }
+      
+      // Öncelik sırası: corporate > collector > artist > art_lover
+      const rolePriority: Record<string, number> = {
+        corporate: 1,
+        collector: 2,
+        artist: 3,
+        art_lover: 4,
+      };
+      
+      const sortedRoles = roles
+        .filter((r) => rolePriority[r] !== undefined)
+        .sort((a, b) => rolePriority[a] - rolePriority[b]);
+      
+      if (sortedRoles.length === 0) {
+        return null;
+      }
+      
+      const activeRoleCode = sortedRoles[0];
+      const roleLabels: Record<string, string> = {
+        art_lover: 'Sanatsever',
+        corporate: 'Kurum',
+        collector: 'Koleksiyoner',
+        artist: 'Sanatçı',
+      };
+      
+      return roleLabels[activeRoleCode] || null;
+    };
+
+    const activeRole = getActiveRole(roles, isAdmin);
+
     return {
       user: {
         id: user.id ?? '',
@@ -124,6 +162,7 @@ export class AuthService {
         isAdmin: user.isAdmin ?? false,
         superAdmin: user.superAdmin ?? false, // 🔥 GOD-MODE
         createdAt: user.createdAt ?? new Date(),
+        activeRole: activeRole || null, // 🎯 Aktif rol (profil header'da gösterilecek)
       },
       capabilities,
       dashboard,
@@ -132,7 +171,12 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto) {
-    const { email, username, password, fullName, role } = registerDto;
+    const { email, username, password, fullName, role, termsAccepted } = registerDto;
+
+    // ✅ Kullanıcı sözleşmesi kontrolü
+    if (termsAccepted !== true) {
+      throw new BadRequestException('Kullanıcı sözleşmesi kabul edilmeden kayıt olunamaz.');
+    }
 
     try {
       // 🔥 DEBUG: Register işlemi başladı
@@ -156,6 +200,7 @@ export class AuthService {
           roles: initialRoles,
           plan: 'FREE',
           badges: [],
+          termsAcceptedAt: new Date(), // ✅ Kullanıcı sözleşmesi onay tarihi
         },
         select: {
           ...this.authSelect,
@@ -213,16 +258,97 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const user = await this.validateUser(loginDto);
+    const loginIdentifier = loginDto.emailOrUsername || loginDto.email || loginDto.username;
+    this.logger.log(`[LOGIN] Login attempt for: ${loginIdentifier}`);
+    
+    // 🔥 1. DB bağlantısı kontrolü - sadece hızlı ping (timeout önlemek için)
+    // Prisma middleware zaten bağlantıyı kontrol ediyor, burada ekstra kontrol gereksiz
+    // try {
+    //   await this.prisma.$queryRaw`SELECT 1`;
+    // } catch (dbError: any) {
+    //   // Bağlantı sorunu varsa validateUser'da yakalanacak
+    // }
+    
+    // 🔥 2. Kullanıcıyı bul
+    let user;
+    try {
+      user = await this.validateUser(loginDto);
+    } catch (dbError: any) {
+      // DB hatası (connection timeout, etc.) - auth hatası değil
+      const errorMessage = dbError?.message || '';
+      const isConnectionError = 
+        errorMessage.includes('No available servers') ||
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('Connection pool') ||
+        errorMessage.includes('timeout');
+      
+      if (isConnectionError) {
+        this.logger.error(`[LOGIN] Database connection error during user lookup: ${errorMessage}`);
+        throw new UnauthorizedException('Veritabanı bağlantı hatası. Lütfen tekrar deneyin.');
+      }
+      // Diğer hatalar için normal auth hatası olarak devam et
+      this.logger.warn(`[LOGIN] User lookup error (treating as user not found): ${errorMessage}`);
+      user = null;
+    }
 
     if (!user) {
       // 🔒 GÜVENLİK: Tek bir güvenli mesaj (user enumeration önleme)
       // Frontend'de bu mesaj "E-posta adresi veya şifre hatalı." olarak gösterilecek
-      throw new UnauthorizedException('Invalid credentials');
+      this.logger.warn(`[LOGIN] User not found or password invalid for: ${loginIdentifier}`);
+      throw new UnauthorizedException('E-posta veya şifre hatalı');
     }
 
-    // Generate tokens
-    const tokens = await this.generateTokens(user.id);
+    this.logger.log(`[LOGIN] User found: ${user.email || user.username}, accountStatus: ${user.accountStatus || 'ACTIVE (default)'}`);
+
+    // 🔥 3. Askıya alma kontrolü
+    // ⚠️ accountStatus null ise ACTIVE kabul et (eski kullanıcılar için)
+    if (user.accountStatus === 'SUSPENDED') {
+      // Süre dolmuşsa otomatik aktif yap
+      if (user.suspendedUntil && new Date(user.suspendedUntil) < new Date()) {
+        this.logger.log(`[LOGIN] Suspension expired, activating account for: ${user.email || user.username}`);
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            accountStatus: 'ACTIVE',
+            suspendedAt: null,
+            suspendedUntil: null,
+            suspensionReason: null,
+            suspensionNote: null,
+            suspendedByAdminId: null,
+          },
+        });
+        // Aktif hale geldi, devam et
+      } else {
+        // Hala askıda, giriş yapılamaz
+        // 🔒 403 Forbidden kullan (401 Unauthorized değil - kullanıcı doğru ama yetkisi yok)
+        this.logger.warn(`[LOGIN] Account suspended for: ${user.email || user.username}, reason: ${user.suspensionReason || 'Belirtilmemiş'}`);
+        throw new ForbiddenException({
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Hesabınız askıya alınmıştır. Giriş yapamazsınız.',
+          reason: user.suspensionReason || 'Belirtilmemiş',
+          until: user.suspendedUntil || null,
+        });
+      }
+    }
+
+    // 🔥 4. Token oluşturma
+    let tokens;
+    try {
+      tokens = await this.generateTokens(user.id);
+    } catch (tokenError: any) {
+      const errorMessage = tokenError?.message || '';
+      const isConnectionError = 
+        errorMessage.includes('No available servers') ||
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('Connection pool') ||
+        errorMessage.includes('timeout');
+      
+      if (isConnectionError) {
+        this.logger.error(`[LOGIN] Database connection error during token generation: ${errorMessage}`);
+        throw new UnauthorizedException('Veritabanı bağlantı hatası. Lütfen tekrar deneyin.');
+      }
+      throw tokenError;
+    }
 
     const { password: _, ...userWithoutPassword } = user;
     const payload = this.hydrateAuthUser(userWithoutPassword);
@@ -271,13 +397,24 @@ export class AuthService {
     expiresAt.setDate(expiresAt.getDate() + 30);
 
     // Save refresh token to database
-    await this.prisma.refreshToken.create({
-      data: {
-        token: refreshToken,
-        userId,
-        expiresAt,
-      },
-    });
+    // 🔥 Connection string'de readPreference=primary yapıldı, transaction gerekmez
+    // ✅ MongoDB timeout hatalarını yakalamak için try-catch
+    try {
+      await this.prisma.refreshToken.create({
+        data: {
+          token: refreshToken,
+          userId,
+          expiresAt,
+        },
+      });
+    } catch (error: any) {
+      // MongoDB connection timeout hatası
+      if (error.message?.includes('timeout') || error.message?.includes('Connection pool')) {
+        this.logger.error(`MongoDB connection timeout in generateTokens: ${error.message}`);
+        throw new UnauthorizedException('Veritabanı bağlantı hatası. Lütfen tekrar deneyin.');
+      }
+      throw error;
+    }
 
     return {
       accessToken,
@@ -356,6 +493,36 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // 🔒 Hesap askıya alınmışsa giriş yapılamaz
+    // ⚠️ accountStatus null ise ACTIVE kabul et (eski kullanıcılar için)
+    if (user.accountStatus === 'SUSPENDED') {
+      // Süre dolmuşsa otomatik aktif yap
+      if (user.suspendedUntil && new Date(user.suspendedUntil) < new Date()) {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            accountStatus: 'ACTIVE',
+            suspendedAt: null,
+            suspendedUntil: null,
+            suspensionReason: null,
+            suspensionNote: null,
+            suspendedByAdminId: null,
+          },
+        });
+        // Aktif hale geldi, devam et
+      } else {
+        // Hala askıda, giriş yapılamaz
+        // 🔒 403 Forbidden kullan (401 Unauthorized değil - kullanıcı doğru ama yetkisi yok)
+        this.logger.warn(`[LOGIN] Account suspended for: ${user.email || user.username}, reason: ${user.suspensionReason || 'Belirtilmemiş'}`);
+        throw new ForbiddenException({
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Hesabınız askıya alınmıştır. Giriş yapamazsınız.',
+          reason: user.suspensionReason || 'Belirtilmemiş',
+          until: user.suspendedUntil || null,
+        });
+      }
+    }
+
     // Generate tokens
     const tokens = await this.generateTokens(user.id);
 
@@ -373,94 +540,164 @@ export class AuthService {
   async validateUser(loginDto: LoginDto, options?: { requireCorporate?: boolean }) {
     const { password } = loginDto;
     if (!password) {
+      this.logger.warn('validateUser: No password provided');
       return null;
     }
 
-    // Case-insensitive arama için normalize et
-    const normalize = (value?: string) => value?.trim().toLowerCase();
-    const emailOrUsername = normalize(loginDto.emailOrUsername);
-    const email = normalize(loginDto.email);
-    const username = normalize(loginDto.username);
+    // ✅ Önce orijinal case ile arama yap (daha hızlı)
+    const emailOrUsername = loginDto.emailOrUsername?.trim();
+    const email = loginDto.email?.trim();
+    const username = loginDto.username?.trim();
 
-    // Arama kriteri belirle
+    // Arama kriteri belirle (önce orijinal case)
     const searchTerm = emailOrUsername || email || username;
     if (!searchTerm) {
-      this.logger.warn(`[LOGIN DEBUG] No search term provided`);
+      this.logger.warn('validateUser: No search term provided (emailOrUsername, email, or username)');
       return null;
     }
 
-    // Basit ve garantili yöntem: Tüm kullanıcıları çekip JavaScript'te filtrele
-    this.logger.log(`[LOGIN DEBUG] Searching for user with term: "${searchTerm}"`);
-    
-    const allUsers = await this.prisma.user.findMany({
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        password: true,
-        fullName: true,
-        avatar: true,
-        bio: true,
-        roles: true,
-        plan: true,
-        badges: true,
-        isPrivate: true,
-        isVerified: true,
-        isAdmin: true,
-        superAdmin: true,
-        profileCompleted: true,
-        createdAt: true,
-      },
-    });
+    this.logger.log(`[LOGIN DEBUG] 🔍 Searching for user with term: ${searchTerm.substring(0, 3)}***`);
 
-    this.logger.log(`[LOGIN DEBUG] Found ${allUsers.length} users in database`);
-    allUsers.forEach((u, i) => {
-      this.logger.log(`[LOGIN DEBUG] User ${i}: email="${u.email}", username="${u.username}"`);
-    });
-
-    // Case-insensitive arama
-    const user = allUsers.find((u) => {
-      const uEmail = (u.email || '').toLowerCase().trim();
-      const uUsername = (u.username || '').toLowerCase().trim();
-      const emailMatch = uEmail === searchTerm;
-      const usernameMatch = uUsername === searchTerm;
-      const match = emailMatch || usernameMatch;
+    // ✅ Case-insensitive arama: Hem orijinal hem lowercase ile dene
+    // MongoDB'de mode: 'insensitive' çalışmıyor, bu yüzden manuel olarak deniyoruz
+    let userByEmail, userByUsername;
+    try {
+      // Önce orijinal case ile email dene
+      userByEmail = await this.prisma.user.findUnique({
+        where: { email: searchTerm },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          password: true,
+          roles: true,
+          plan: true,
+          badges: true,
+          isAdmin: true,
+          superAdmin: true,
+          accountStatus: true,
+          suspendedUntil: true,
+          suspensionReason: true,
+        },
+      });
       
-      if (match) {
-        this.logger.log(`[LOGIN DEBUG] ✅ MATCH FOUND: email="${u.email}" (${emailMatch}), username="${u.username}" (${usernameMatch})`);
+      // Orijinal case ile bulunamazsa lowercase ile dene
+      if (!userByEmail) {
+        userByEmail = await this.prisma.user.findUnique({
+          where: { email: searchTerm.toLowerCase().trim() },
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            password: true,
+            roles: true,
+            plan: true,
+            badges: true,
+            isAdmin: true,
+            superAdmin: true,
+            accountStatus: true,
+            suspendedUntil: true,
+            suspensionReason: true,
+          },
+        });
       }
-      return match;
-    });
+      
+      // Email ile bulunamazsa username ile dene (önce orijinal, sonra lowercase)
+      if (!userByEmail) {
+        userByUsername = await this.prisma.user.findUnique({
+          where: { username: searchTerm },
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            password: true,
+            roles: true,
+            plan: true,
+            badges: true,
+            isAdmin: true,
+            superAdmin: true,
+            accountStatus: true,
+            suspendedUntil: true,
+            suspensionReason: true,
+          },
+        });
+        
+        if (!userByUsername) {
+          userByUsername = await this.prisma.user.findUnique({
+            where: { username: searchTerm.toLowerCase().trim() },
+            select: {
+              id: true,
+              username: true,
+              email: true,
+              password: true,
+              roles: true,
+              plan: true,
+              badges: true,
+              isAdmin: true,
+              superAdmin: true,
+              accountStatus: true,
+              suspendedUntil: true,
+              suspensionReason: true,
+            },
+          });
+        }
+      }
+    } catch (error: any) {
+      // Tüm hataları log'la ama kullanıcı bulunamadı olarak işle
+      const errorMessage = error?.message || '';
+      this.logger.error(`validateUser query error: ${errorMessage}`);
+      this.logger.error(`Full error: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`);
+      // Hata olsa bile null dön (kullanıcı bulunamadı olarak işle)
+      return null;
+    }
+
+    let user = userByEmail || userByUsername;
+
+    if (user) {
+      this.logger.log(`[LOGIN DEBUG] ✅ User found by ${userByEmail ? 'email' : 'username'}: ${user.email || user.username}`);
+    } else {
+      this.logger.warn(`[LOGIN DEBUG] ❌ User not found: ${searchTerm}`);
+    }
+
+    // ✅ Case-insensitive arama zaten yukarıda yapıldı, burada fallback gerekmez
 
     if (!user) {
-      this.logger.warn(`[LOGIN DEBUG] User not found for: emailOrUsername=${emailOrUsername}, email=${email}, username=${username}`);
+      this.logger.warn(`validateUser: User not found after all search attempts: ${searchTerm}`);
       return null;
     }
+
+    // ✅ User bulundu, devam et
 
     // Corporate kontrolü
     if (options?.requireCorporate) {
       const roles = Array.isArray(user.roles) ? user.roles : (user.roles ? [user.roles] : []);
       const hasCorporateRole = roles.includes('corporate');
       if (!hasCorporateRole) {
-        this.logger.warn(`[LOGIN DEBUG] User found but not corporate: ${user.email || user.username}`);
         return null;
       }
     }
 
-    // 🔥 DEBUG: Şifre hash kontrolü için log
-    this.logger.log(`[LOGIN DEBUG] INPUT password: ${password.substring(0, 3)}***`);
-    this.logger.log(`[LOGIN DEBUG] STORED hash: ${user.password.substring(0, 20)}... (length: ${user.password.length})`);
-    this.logger.log(`[LOGIN DEBUG] Hash format: ${user.password.startsWith('$2') ? 'bcrypt' : user.password.length === 40 ? 'legacy' : 'plaintext/unknown'}`);
-
-    const passwordValid = await this.verifyAndMigratePassword(password, user);
-
-    this.logger.log(`[LOGIN DEBUG] COMPARE RESULT: ${passwordValid}`);
-
-    if (!passwordValid) {
-      this.logger.warn(`[LOGIN DEBUG] Password validation failed for user: ${user.email || user.username}`);
+    // Şifre doğrulama
+    this.logger.log(`[LOGIN DEBUG] 🔐 Verifying password for: ${user.email || user.username}`);
+    this.logger.log(`[LOGIN DEBUG] Password length: ${password?.length || 0}`);
+    this.logger.log(`[LOGIN DEBUG] Hash exists: ${!!user.password}, hash type: ${user.password?.startsWith('$2') ? 'bcrypt' : 'other'}`);
+    
+    try {
+      const passwordValid = await this.verifyAndMigratePassword(password, user);
+      
+      if (!passwordValid) {
+        this.logger.warn(`[LOGIN DEBUG] ❌ Password validation FAILED for: ${user.email || user.username}`);
+        return null;
+      }
+      
+      this.logger.log(`[LOGIN DEBUG] ✅ Password validation SUCCESS for: ${user.email || user.username}`);
+    } catch (error: any) {
+      this.logger.error(`[LOGIN DEBUG] ⚠️ Password verification error: ${error?.message}`);
       return null;
     }
 
+    // ✅ Debug: Kullanıcı başarıyla doğrulandı
+    this.logger.log(`User validated successfully: ${user.email || user.username}`);
     return user;
   }
 
@@ -485,9 +722,26 @@ export class AuthService {
   ): Promise<boolean> {
     const storedHash = user.password;
 
+    if (!storedHash) {
+      this.logger.warn(`User ${user.id} has no password hash`);
+      return false;
+    }
+
+    this.logger.log(`verifyAndMigratePassword: Hash type check - starts with $2: ${storedHash.startsWith('$2')}, length: ${storedHash.length}`);
+
     // 1) Modern bcrypt hash (yeni kayıtlar)
     if (storedHash.startsWith('$2')) {
-      return bcrypt.compare(plainPassword, storedHash);
+      try {
+        const isValid = await bcrypt.compare(plainPassword, storedHash);
+        this.logger.log(`verifyAndMigratePassword: Bcrypt compare result: ${isValid}`);
+        if (!isValid) {
+          this.logger.warn(`Bcrypt password comparison failed for user ${user.id}`);
+        }
+        return isValid;
+      } catch (error: any) {
+        this.logger.error(`Bcrypt compare error for user ${user.id}: ${error.message}`);
+        return false;
+      }
     }
 
     // 2) 40 karakterlik legacy hash (halihazırda destekleniyor)

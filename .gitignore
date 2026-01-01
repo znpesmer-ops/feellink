@@ -19,6 +19,27 @@ out/
 .env.development.local
 .env.test.local
 .env.production.local
+backend/.env
+frontend/.env
+frontend/.env.local
+
+# Log files
+*.log
+*.pid
+backend.log
+frontend.log
+backend-tunnel.log
+frontend-tunnel.log
+cloudflare-tunnel.log
+localtunnel-*.log
+prisma-push.log
+
+# Process IDs
+*.pid
+
+# Cache
+.cache/
+.parcel-cache/
 
 # IDE
 .vscode/

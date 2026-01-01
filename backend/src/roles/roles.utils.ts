@@ -59,7 +59,25 @@ export const normalizeRoles = (roles: string[] | null | undefined): UserRoleCode
   return ROLE_ORDER.filter((role) => unique.has(role));
 };
 
+// 🎯 Rol bazlı yetki kısıtları izole edildi (devre dışı, kod korunuyor)
+// Tüm kullanıcılar tüm özelliklere erişebilir
+const ALLOW_ALL_ROLES = true; // Geri alınabilir flag
+
 const mergeFeatureFlags = (roles: UserRoleCode[]): RoleFeatureFlags => {
+  // ✅ Tüm yetkiler herkese açık (rol kısıtı yok)
+  if (ALLOW_ALL_ROLES) {
+    return {
+      canCreateEvents: true,
+      canAccessMyEvents: true,
+      canAccessCollections: true,
+      canManageCollections: true,
+      canAccessAnalytics: true,
+      canCreateListings: true,
+      canCreateArtworks: true,
+    };
+  }
+
+  // 🔄 Orijinal kod (geri alınabilir)
   if (roles.length === 0) {
     return {
       canCreateEvents: false,
@@ -95,6 +113,24 @@ const mergeFeatureFlags = (roles: UserRoleCode[]): RoleFeatureFlags => {
 };
 
 const mergeSidebarConfig = (roles: UserRoleCode[]): RoleSidebarConfig => {
+  // ✅ Tüm sidebar öğeleri herkese açık (rol kısıtı yok)
+  if (ALLOW_ALL_ROLES) {
+    return {
+      home: true,
+      explore: true,
+      messages: true,
+      profile: true,
+      createEvent: true,
+      myEvents: true,
+      collections: true,
+      manageCollections: true,
+      analytics: true,
+      listings: true,
+      badges: true,
+    };
+  }
+
+  // 🔄 Orijinal kod (geri alınabilir)
   return roles.reduce<RoleSidebarConfig>((acc, role) => {
     const cfg = ROLE_SIDEBAR_CONFIG[role];
     return {

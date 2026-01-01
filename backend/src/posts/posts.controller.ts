@@ -5,6 +5,7 @@ import { Response } from 'express';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PostsService } from './posts.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AccountStatusGuard } from '../auth/guards/account-status.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { MediaService } from '../media/media.service';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -21,7 +22,7 @@ export class PostsController {
   ) {}
 
   @Post('create')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStatusGuard)
   @UseInterceptors(FilesInterceptor('files', 10))
   @ApiOperation({ summary: 'Create post with file upload' })
   @ApiResponse({ status: 201, description: 'Post created successfully' })
@@ -90,7 +91,7 @@ export class PostsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStatusGuard)
   @ApiOperation({ summary: 'Create post with media URLs' })
   @ApiResponse({ status: 201, description: 'Post created successfully' })
   async createPostWithUrls(@CurrentUser() user: any, @Body() dto: CreatePostDto) {
@@ -136,7 +137,7 @@ export class PostsController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStatusGuard)
   @ApiOperation({ summary: 'Update a post' })
   @ApiResponse({ status: 200, description: 'Post updated successfully' })
   async updatePost(
@@ -148,7 +149,7 @@ export class PostsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStatusGuard)
   @ApiOperation({ summary: 'Delete post' })
   @ApiResponse({ status: 200, description: 'Post deleted successfully' })
   async deletePost(@Param() params: PostIdDto, @CurrentUser() user: any) {
@@ -156,7 +157,7 @@ export class PostsController {
   }
 
   @Post(':id/like')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStatusGuard)
   @ApiOperation({ summary: 'Like a post' })
   @ApiResponse({ status: 200, description: 'Post liked successfully' })
   async likePost(@Param() params: PostIdDto, @CurrentUser() user: any) {
@@ -164,7 +165,7 @@ export class PostsController {
   }
 
   @Delete(':id/like')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStatusGuard)
   @ApiOperation({ summary: 'Unlike a post' })
   @ApiResponse({ status: 200, description: 'Post unliked successfully' })
   async unlikePost(@Param() params: PostIdDto, @CurrentUser() user: any) {
@@ -172,7 +173,7 @@ export class PostsController {
   }
 
   @Post(':id/comments')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStatusGuard)
   @ApiOperation({ summary: 'Add comment to post' })
   @ApiResponse({ status: 201, description: 'Comment added successfully' })
   async createComment(
@@ -216,7 +217,7 @@ export class PostsController {
   }
 
   @Post(':id/save')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStatusGuard)
   @ApiOperation({ summary: 'Save a post' })
   @ApiResponse({ status: 200, description: 'Post saved successfully' })
   async savePost(@Param() params: PostIdDto, @CurrentUser() user: any) {
@@ -224,7 +225,7 @@ export class PostsController {
   }
 
   @Delete(':id/save')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStatusGuard)
   @ApiOperation({ summary: 'Unsave a post' })
   @ApiResponse({ status: 200, description: 'Post unsaved successfully' })
   async unsavePost(@Param() params: PostIdDto, @CurrentUser() user: any) {
@@ -240,7 +241,7 @@ export class PostsController {
   }
 
   @Post(':id/save-artwork')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStatusGuard)
   @ApiOperation({ summary: 'Save an artwork' })
   @ApiResponse({ status: 200, description: 'Artwork saved successfully' })
   async saveArtwork(@Param() params: PostIdDto, @CurrentUser() user: any) {
@@ -248,7 +249,7 @@ export class PostsController {
   }
 
   @Delete(':id/save-artwork')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStatusGuard)
   @ApiOperation({ summary: 'Unsave an artwork' })
   @ApiResponse({ status: 200, description: 'Artwork unsaved successfully' })
   async unsaveArtwork(@Param() params: PostIdDto, @CurrentUser() user: any) {
@@ -256,7 +257,7 @@ export class PostsController {
   }
 
   @Patch(':id/comments/:commentId')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStatusGuard)
   @ApiOperation({ summary: 'Update a comment' })
   @ApiResponse({ status: 200, description: 'Comment updated successfully' })
   async updateComment(
@@ -274,7 +275,7 @@ export class PostsController {
   }
 
   @Delete(':id/comments/:commentId')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStatusGuard)
   @ApiOperation({ summary: 'Delete a comment' })
   @ApiResponse({ status: 200, description: 'Comment deleted successfully' })
   async deleteComment(
@@ -286,7 +287,7 @@ export class PostsController {
   }
 
   @Post('comments/:commentId/like')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStatusGuard)
   @ApiOperation({ summary: 'Toggle comment like' })
   @ApiResponse({ status: 200, description: 'Comment like toggled successfully' })
   async toggleCommentLike(
@@ -297,7 +298,7 @@ export class PostsController {
   }
 
   @Post('comments/:commentId/react')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStatusGuard)
   @ApiOperation({ summary: 'Toggle comment reaction' })
   @ApiResponse({ status: 200, description: 'Reaction toggled successfully' })
   async toggleCommentReaction(
@@ -327,7 +328,7 @@ export class PostsController {
   }
 
   @Post('comments/:commentId/pin')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AccountStatusGuard)
   @ApiOperation({ summary: 'Pin or unpin a comment' })
   @ApiResponse({ status: 200, description: 'Comment pin status updated successfully' })
   async toggleCommentPin(
