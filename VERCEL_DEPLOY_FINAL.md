@@ -20,30 +20,14 @@
 
 ### 2️⃣ Project Settings (ÖNEMLİ!)
 
-**Root Directory:**
-```
-frontend
-```
+**⚠️ ÖNEMLİ:** `rootDirectory` sadece Vercel UI'da ayarlanmalı, `vercel.json`'da olmamalı!
 
-**Framework Preset:**
-```
-Next.js
-```
-
-**Build Command:**
-```
-cd frontend && npm run build
-```
-
-**Output Directory:**
-```
-frontend/.next
-```
-
-**Install Command:**
-```
-cd frontend && npm install
-```
+**Vercel UI'da ayarlayın:**
+- **Root Directory:** `frontend` (Vercel UI'da seçin, `vercel.json`'da değil!)
+- **Framework Preset:** `Next.js`
+- **Build Command:** `cd frontend && npm run build`
+- **Output Directory:** `frontend/.next`
+- **Install Command:** `cd frontend && npm install`
 
 ### 3️⃣ ⚠️ KRİTİK: Environment Variables
 
