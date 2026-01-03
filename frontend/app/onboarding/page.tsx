@@ -34,9 +34,9 @@ export default function OnboardingPage() {
   // Load countries data
   useEffect(() => {
     fetch('/data/countries.json')
-      .then((res) => res.json())
-      .then((data) => setCountries(data))
-      .catch((err) => {
+      .then((res: any) => res.json())
+      .then((data: any) => setCountries(data))
+      .catch((err: any) => {
         console.error('Error loading countries:', err)
         toast.error('Ülke listesi yüklenemedi')
       })
@@ -168,7 +168,7 @@ export default function OnboardingPage() {
                 <input
                   type="date"
                   value={dateOfBirth}
-                  onChange={(e) => setDateOfBirth(e.target.value)}
+                  onChange={(e: any) => setDateOfBirth(e.target.value)}
                   max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
                   className="w-full px-4 py-3 border border-[var(--border)] rounded-lg bg-[var(--bg)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[#ff7b00]"
                   required
@@ -182,7 +182,7 @@ export default function OnboardingPage() {
                 </label>
                 <select
                   value={country ?? ''}
-                  onChange={(e) => {
+                  onChange={(e: any) => {
                     setCountry(e.target.value || null)
                     setCity(null) // 🔒 Ülke değişince şehir sıfırlanır
                   }}
@@ -190,7 +190,7 @@ export default function OnboardingPage() {
                   required
                 >
                   <option value="" disabled>Ülke seçin</option>
-                  {countries.map((c) => (
+                  {countries.map((c: any) => (
                     <option key={c.code} value={c.code}>
                       {c.name}
                     </option>
@@ -205,7 +205,7 @@ export default function OnboardingPage() {
                 </label>
                 <select
                   value={city ?? ''}
-                  onChange={(e) => setCity(e.target.value || null)}
+                  onChange={(e: any) => setCity(e.target.value || null)}
                   disabled={!country}
                   className="w-full px-4 py-3 border border-[var(--border)] rounded-lg bg-[var(--bg)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[#ff7b00] disabled:opacity-50 disabled:cursor-not-allowed"
                   required
@@ -229,7 +229,7 @@ export default function OnboardingPage() {
                     // Diğer ülkeler için countries.json'dan
                     country &&
                     countries
-                      .find((c) => c.code === country)
+                      .find((c: any) => c.code === country)
                       ?.cities.map((cityName) => (
                         <option key={cityName} value={cityName}>
                           {cityName}
@@ -249,7 +249,7 @@ export default function OnboardingPage() {
                     { value: 'FEMALE', label: 'Kadın' },
                     { value: 'MALE', label: 'Erkek' },
                     { value: 'UNSPECIFIED', label: 'Belirtmek istemiyorum' },
-                  ].map((option) => (
+                  ].map((option: any) => (
                     <label
                       key={option.value}
                       className="flex items-center gap-3 p-4 border border-[var(--border)] rounded-lg cursor-pointer hover:bg-[var(--muted)] transition-colors"
@@ -259,7 +259,7 @@ export default function OnboardingPage() {
                         name="gender"
                         value={option.value}
                         checked={gender === option.value}
-                        onChange={(e) => setGender(e.target.value as Gender)}
+                        onChange={(e: any) => setGender(e.target.value as Gender)}
                         className="w-4 h-4 text-[#ff7b00] focus:ring-[#ff7b00]"
                       />
                       <span className="text-[var(--text)]">{option.label}</span>
@@ -308,7 +308,7 @@ export default function OnboardingPage() {
                 <input
                   type="checkbox"
                   checked={gdprConsent}
-                  onChange={(e) => setGdprConsent(e.target.checked)}
+                  onChange={(e: any) => setGdprConsent(e.target.checked)}
                   className="mt-1 w-5 h-5 text-[#ff7b00] focus:ring-[#ff7b00] rounded"
                   required
                 />
@@ -334,7 +334,7 @@ export default function OnboardingPage() {
                 <input
                   type="checkbox"
                   checked={analyticsConsent}
-                  onChange={(e) => setAnalyticsConsent(e.target.checked)}
+                  onChange={(e: any) => setAnalyticsConsent(e.target.checked)}
                   className="mt-1 w-5 h-5 text-[#ff7b00] focus:ring-[#ff7b00] rounded"
                 />
                 <div className="flex-1">

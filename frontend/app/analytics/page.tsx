@@ -232,7 +232,7 @@ export default function AnalyticsPage() {
     }
 
     // Store değişikliklerini dinle - hydration tamamlandığında user/accessToken set edilecek
-    const unsubscribe = useAuthStore.subscribe((state) => {
+    const unsubscribe = useAuthStore.subscribe((state: any) => {
       // Eğer user veya accessToken yüklendiyse hydration tamamlanmıştır
       if (state.user !== null || state.accessToken !== null) {
         setIsHydrated(true);
@@ -393,10 +393,10 @@ export default function AnalyticsPage() {
     // Her etkinlik için listener ekle
     const listeners: Array<() => void> = [];
     
-    eventStats.forEach((event) => {
+    eventStats.forEach((event: any) => {
       const handler = (ticketData: any) => {
-        setEventStats((prev) =>
-          prev.map((e) => {
+        setEventStats((prev: any) =>
+          prev.map((e: any) => {
             if (e.id === ticketData.eventId) {
               // Yeni bilet listesinin başına ekle ve son 5'i tut
               const updatedRecentTickets = [
@@ -425,7 +425,7 @@ export default function AnalyticsPage() {
     });
 
     return () => {
-      listeners.forEach((cleanup) => cleanup());
+      listeners.forEach((cleanup: any) => cleanup());
     };
   }, [user, eventStats]);
 
@@ -571,11 +571,11 @@ export default function AnalyticsPage() {
   };
 
   const wordsChartData = {
-    labels: words.slice(0, 15).map((w) => w.word),
+    labels: words.slice(0, 15).map((w: any) => w.word),
     datasets: [
       {
         label: "Kullanım Sayısı",
-        data: words.slice(0, 15).map((w) => w.count),
+        data: words.slice(0, 15).map((w: any) => w.count),
         backgroundColor: chartColorPrimary, // Mavi bar
         borderRadius: 8,
         borderSkipped: false,
@@ -666,7 +666,7 @@ export default function AnalyticsPage() {
             </h1>
             {/* Zaman Kırılımı Toggle */}
             <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-              {(['today', '7d', '30d'] as const).map((range) => (
+              {(['today', '7d', '30d'] as const).map((range: any) => (
                 <button
                   key={range}
                   onClick={() => setDateRange(range)}
@@ -737,7 +737,7 @@ export default function AnalyticsPage() {
                   Henüz aktif ziyaretçi bulunmuyor
                 </p>
               ) : (
-                topUsers.map((u, index) => (
+                topUsers.map((u: any, index: any) => (
                   <Link
                     key={u.username}
                     href={`/profile/${u.username}`}
@@ -782,7 +782,7 @@ export default function AnalyticsPage() {
             <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/40 shadow-sm">
               <h3 className="text-[#FF8A00] font-semibold mb-4">Etkinlik Katılım Analizi</h3>
               <div className="space-y-4">
-                {eventStats.slice(0, 3).map((event) => {
+                {eventStats.slice(0, 3).map((event: any) => {
                   const requestCount = event.recentTickets?.length || 0;
                   return (
                     <div
@@ -1066,14 +1066,14 @@ export default function AnalyticsPage() {
             });
 
             // En çok kullanılan renkleri sırala
-            const totalColorUsages = Object.values(colorCount).reduce((sum, count) => sum + count, 0);
+            const totalColorUsages = Object.values(colorCount).reduce((sum: any, count: any) => sum + count, 0);
             const topColors = Object.entries(colorCount)
               .map(([color, count]) => ({
                 color,
                 count,
                 percent: totalColorUsages > 0 ? (count / totalColorUsages) * 100 : 0,
               }))
-              .sort((a, b) => b.count - a.count)
+              .sort((a: any, b: any) => b.count - a.count)
               .slice(0, 12); // En çok kullanılan 12 renk
 
             return (
@@ -1082,7 +1082,7 @@ export default function AnalyticsPage() {
 
                 {topColors.length > 0 ? (
                   <div className="flex flex-wrap gap-4">
-                    {topColors.map((c, i) => (
+                    {topColors.map((c: any, i: any) => (
                       <div key={i} className="flex flex-col items-center gap-1">
                         <div
                           style={{
@@ -1133,7 +1133,7 @@ export default function AnalyticsPage() {
 
           {Array.isArray(eventStats) && eventStats.length > 0 ? (
             <div className="space-y-3">
-              {eventStats.map((event) => (
+              {eventStats.map((event: any) => (
                 <div
                   key={event.id}
                   className="border-t-4 border-[#1E88E5] border-l border-r border-b border-gray-200 dark:border-gray-700/40 rounded-xl overflow-hidden transition-all hover:border-[#FF8A00]/30"
@@ -1181,7 +1181,7 @@ export default function AnalyticsPage() {
                             Son Katılım Talepleri
                           </p>
                           <div className="space-y-2">
-                            {event.recentTickets.map((ticket, i) => (
+                             {event.recentTickets.map((ticket: any, i: any) => (
                               <div
                                 key={i}
                                 className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700/40 hover:bg-gray-100 dark:hover:bg-gray-800 transition"

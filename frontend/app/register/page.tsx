@@ -237,7 +237,7 @@ export default function RegisterPage() {
                 type="checkbox"
                 id="termsAccepted"
                 checked={termsAccepted}
-                onChange={(e) => setTermsAccepted(e.target.checked)}
+                onChange={(e: any) => setTermsAccepted(e.target.checked)}
                 className="mt-1 h-4 w-4 text-[#ff7b00] focus:ring-[#ff7b00] border-gray-300 dark:border-gray-600 rounded"
               />
               <label htmlFor="termsAccepted" className="ml-2 text-sm text-gray-700 dark:text-gray-300">

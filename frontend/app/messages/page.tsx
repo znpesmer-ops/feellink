@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, Suspense } from 'react'
 import { useSearchParams, useParams, useRouter, usePathname } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
@@ -118,7 +118,7 @@ interface Conversation {
   unreadCount?: number
 }
 
-export default function MessagesPage() {
+function MessagesPageContent() {
   const { user, accessToken } = useAuthStore()
   const searchParams = useSearchParams()
   const params = useParams()
@@ -171,7 +171,7 @@ export default function MessagesPage() {
       data = queryClient.getQueryData<Conversation[]>(['conversations', accessToken]) || []
     }
     // ✅ KRİTİK: Silinen conversation'ları filtrele
-    const filtered = data.filter((c) => !deletedConversationsRef.current.has(c.id))
+    const filtered = data.filter((c: any) => !deletedConversationsRef.current.has(c.id))
     console.log('📋 [Frontend] Conversations filtered:', {
       total: data.length,
       deleted: deletedConversationsRef.current.size,
@@ -256,7 +256,7 @@ export default function MessagesPage() {
       console.log('❌ Chat socket disconnected')
     })
 
-    socket.on('connect_error', (error) => {
+    socket.on('connect_error', (error: any) => {
       console.error('Socket connection error:', error)
     })
 
@@ -284,19 +284,19 @@ export default function MessagesPage() {
         console.log('✅ [Frontend] Message belongs to active conversation, adding to state immediately')
         
         // ANLIK: Mesajı direkt state'e ekle (gecikme yok)
-        setMessages((prev) => {
+        setMessages((prev: any) => {
           // Duplicate kontrolü
-          if (prev.some((m) => m.id === message.id)) {
+          if (prev.some((m: any) => m.id === message.id)) {
             console.log('⚠️ [Frontend] Message already in state, skipping:', message.id)
             return prev
           }
           
           // Temp mesajı gerçek mesajla değiştir (eğer varsa)
-          const hasTempMessage = prev.some((m) => m.id.startsWith('temp_'))
+          const hasTempMessage = prev.some((m: any) => m.id.startsWith('temp_'))
           if (hasTempMessage) {
-            const filtered = prev.filter((m) => !m.id.startsWith('temp_'))
+            const filtered = prev.filter((m: any) => !m.id.startsWith('temp_'))
             const updated = [...filtered, message]
-            updated.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+            updated.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
             console.log('✅ [Frontend] Replaced temp message with real message:', message.id)
             return updated
           }
@@ -304,7 +304,7 @@ export default function MessagesPage() {
           // Yeni mesajı ekle
           const updated = [...prev, message]
           // Tarihe göre sırala
-          updated.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          updated.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
           console.log('✅ [Frontend] Message added to state immediately:', message.id)
           return updated
         })
@@ -326,7 +326,7 @@ export default function MessagesPage() {
           }
           
           const updated = [...filtered, message]
-          updated.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          updated.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
           return { messages: updated }
         })
         
@@ -379,10 +379,10 @@ export default function MessagesPage() {
           if (!oldData) return [conv]
           
           // ✅ KRİTİK: Duplicate kontrolü - aynı ID varsa güncelle ve EN ÜSTE TAŞI
-          const exists = oldData.find((c) => c.id === conv.id)
+          const exists = oldData.find((c: any) => c.id === conv.id)
           if (exists) {
             // Mevcut conversation'ı çıkar, güncelle ve EN ÜSTE ekle
-            const filtered = oldData.filter((c) => c.id !== conv.id)
+            const filtered = oldData.filter((c: any) => c.id !== conv.id)
             return [
               {
                 ...conv,
@@ -398,11 +398,11 @@ export default function MessagesPage() {
         
         // State'i de güncelle (geriye uyumluluk için)
         // ✅ KRİTİK: Duplicate kontrolü - aynı ID varsa güncelle ve EN ÜSTE TAŞI
-        setConversations((prev) => {
-          const exists = prev.find((c) => c.id === conv.id)
+        setConversations((prev: any) => {
+          const exists = prev.find((c: any) => c.id === conv.id)
           if (exists) {
             // Mevcut conversation'ı çıkar, güncelle ve EN ÜSTE ekle
-            const filtered = prev.filter((c) => c.id !== conv.id)
+            const filtered = prev.filter((c: any) => c.id !== conv.id)
             return [
               {
                 ...conv,
@@ -426,19 +426,19 @@ export default function MessagesPage() {
         console.log('📬 [Frontend] Message belongs to active conversation, adding to state immediately')
         
         // ANLIK: Mesajı direkt state'e ekle (gecikme yok)
-        setMessages((prev) => {
+        setMessages((prev: any) => {
           // Duplicate kontrolü
-          if (prev.some((m) => m.id === data.message.id)) {
+          if (prev.some((m: any) => m.id === data.message.id)) {
             console.log('⚠️ [Frontend] Message already in state, skipping:', data.message.id)
             return prev
           }
           
           // Temp mesajı gerçek mesajla değiştir (eğer varsa)
-          const hasTempMessage = prev.some((m) => m.id.startsWith('temp_'))
+          const hasTempMessage = prev.some((m: any) => m.id.startsWith('temp_'))
           if (hasTempMessage) {
-            const filtered = prev.filter((m) => !m.id.startsWith('temp_'))
+            const filtered = prev.filter((m: any) => !m.id.startsWith('temp_'))
             const updated = [...filtered, data.message]
-            updated.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+            updated.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
             console.log('✅ [Frontend] Replaced temp message with real message:', data.message.id)
             return updated
           }
@@ -446,7 +446,7 @@ export default function MessagesPage() {
           // Yeni mesajı ekle
           const updated = [...prev, data.message]
           // Tarihe göre sırala
-          updated.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          updated.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
           console.log('✅ [Frontend] Message added to state immediately:', data.message.id)
           return updated
         })
@@ -468,7 +468,7 @@ export default function MessagesPage() {
           }
           
           const updated = [...filtered, data.message]
-          updated.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          updated.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
           return { messages: updated }
         })
         
@@ -509,10 +509,10 @@ export default function MessagesPage() {
       // ✅ DOĞRU MANTIK: Conversation ID bazlı kontrol - varsa güncelle ve en üste taşı, yoksa ekle
       queryClient.setQueryData(['conversations', accessToken], (oldData: Conversation[] | undefined) => {
         if (!oldData) return [updatedConversation]
-        const exists = oldData.find((c) => c.id === updatedConversation.id)
+        const exists = oldData.find((c: any) => c.id === updatedConversation.id)
         if (exists) {
           // Mevcut conversation'ı çıkar, güncelle ve EN ÜSTE ekle
-          const filtered = oldData.filter((c) => c.id !== updatedConversation.id)
+          const filtered = oldData.filter((c: any) => c.id !== updatedConversation.id)
           return [
             {
               ...updatedConversation,
@@ -528,11 +528,11 @@ export default function MessagesPage() {
       
       // State'i de güncelle (geriye uyumluluk için)
       // ✅ KRİTİK: Duplicate kontrolü - aynı ID varsa güncelle ve EN ÜSTE TAŞI
-      setConversations((prev) => {
-        const exists = prev.find((c) => c.id === updatedConversation.id)
+      setConversations((prev: any) => {
+        const exists = prev.find((c: any) => c.id === updatedConversation.id)
         if (exists) {
           // Mevcut conversation'ı çıkar, güncelle ve EN ÜSTE ekle
-          const filtered = prev.filter((c) => c.id !== updatedConversation.id)
+          const filtered = prev.filter((c: any) => c.id !== updatedConversation.id)
           return [
             {
               ...updatedConversation,
@@ -571,20 +571,20 @@ export default function MessagesPage() {
     // User status update - çevrim içi durumu
     const handleUserStatusUpdate = (data: { userId: string; isOnline: boolean; lastSeen?: string | Date | null }) => {
       console.log('🟢 User status update:', data)
-      setOnlineUsers((prev) => ({
+      setOnlineUsers((prev: any) => ({
         ...prev,
         [data.userId]: data.isOnline,
       }))
       
       if (!data.isOnline && data.lastSeen) {
         const lastSeenString = typeof data.lastSeen === 'string' ? data.lastSeen : data.lastSeen.toISOString()
-        setUserLastSeen((prev) => ({
+        setUserLastSeen((prev: any) => ({
           ...prev,
           [data.userId]: lastSeenString,
         }))
       } else if (data.isOnline) {
         // Çevrim içi olduğunda lastSeen'i temizle
-        setUserLastSeen((prev) => {
+        setUserLastSeen((prev: any) => {
           const updated = { ...prev }
           delete updated[data.userId]
           return updated
@@ -599,7 +599,7 @@ export default function MessagesPage() {
       userIds.forEach((userId) => {
         onlineMap[userId] = true
       })
-      setOnlineUsers((prev) => ({
+      setOnlineUsers((prev: any) => ({
         ...prev,
         ...onlineMap,
       }))
@@ -608,8 +608,8 @@ export default function MessagesPage() {
     // Messages read - tüm mesajlar okundu (konuşma açıldığında)
     const handleMessagesRead = (data: { conversationId: string; userId: string; count?: number }) => {
       if (data.conversationId === conversationId) {
-        setMessages((prev) =>
-          prev.map((m) => (m.senderId !== user.id ? { ...m, read: true } : m))
+        setMessages((prev: any) =>
+          prev.map((m: any) => (m.senderId !== user.id ? { ...m, read: true } : m))
         )
       }
     }
@@ -617,8 +617,8 @@ export default function MessagesPage() {
     // Message read update - tek mesaj okundu
     const handleMessageReadUpdate = (data: { messageId: string; conversationId: string; readBy: string }) => {
       if (data.conversationId === conversationId) {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === data.messageId ? { ...m, read: true } : m))
+        setMessages((prev: any) =>
+          prev.map((m: any) => (m.id === data.messageId ? { ...m, read: true } : m))
         )
       }
     }
@@ -626,8 +626,8 @@ export default function MessagesPage() {
     // Message edited - mesaj düzenlendi
     const handleMessageEdited = (message: Message) => {
       if (message.conversationId === conversationId) {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === message.id ? message : m))
+        setMessages((prev: any) =>
+          prev.map((m: any) => (m.id === message.id ? message : m))
         )
       }
     }
@@ -635,8 +635,8 @@ export default function MessagesPage() {
     // Message deleted - mesaj silindi
     const handleMessageDeleted = (data: { id: string; conversationId: string }) => {
       if (data.conversationId === conversationId) {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === data.id ? { ...m, isDeleted: true, content: null, imageUrl: null } : m))
+        setMessages((prev: any) =>
+          prev.map((m: any) => (m.id === data.id ? { ...m, isDeleted: true, content: null, imageUrl: null } : m))
         )
       }
     }
@@ -646,8 +646,8 @@ export default function MessagesPage() {
       if (data.success && data.message) {
         console.log('✅ Message sent event received:', data.message)
         // Mesaj zaten state'e eklenmiş olabilir (callback'den), duplicate kontrolü yap
-        setMessages((prev) => {
-          const exists = prev.find((m) => m.id === data.message.id)
+        setMessages((prev: any) => {
+          const exists = prev.find((m: any) => m.id === data.message.id)
           if (exists) {
             console.log('⚠️ Message already in state, skipping:', data.message.id)
             return prev
@@ -708,10 +708,10 @@ export default function MessagesPage() {
       setLoadingMedia(true)
       api
         .get(`/chat/conversations/${conversationId}/media`)
-        .then((res) => {
+        .then((res: any) => {
           setMedia(res.data)
         })
-        .catch((err) => {
+        .catch((err: any) => {
           console.error('Failed to load media:', err)
           setMedia([])
         })
@@ -722,10 +722,10 @@ export default function MessagesPage() {
       setLoadingFiles(true)
       api
         .get(`/chat/conversations/${conversationId}/files`)
-        .then((res) => {
+        .then((res: any) => {
           setFiles(res.data)
         })
-        .catch((err) => {
+        .catch((err: any) => {
           console.error('Failed to load files:', err)
           setFiles([])
         })
@@ -747,18 +747,18 @@ export default function MessagesPage() {
 
       // Eğer görsel mesaj ise medya listesine ekle
       if (message.imageUrl && !message.isDeleted) {
-        setMedia((prev) => {
+        setMedia((prev: any) => {
           // Zaten varsa ekleme
-          if (prev.some((m) => m.id === message.id)) return prev
+          if (prev.some((m: any) => m.id === message.id)) return prev
           return [{ id: message.id, imageUrl: message.imageUrl!, createdAt: message.createdAt, senderId: message.senderId }, ...prev]
         })
       }
 
       // Eğer dosya mesajı ise dosya listesine ekle
       if (message.fileUrl && !message.isDeleted) {
-        setFiles((prev) => {
+        setFiles((prev: any) => {
           // Zaten varsa ekleme
-          if (prev.some((f) => f.id === message.id)) return prev
+          if (prev.some((f: any) => f.id === message.id)) return prev
           return [
             {
               id: message.id,
@@ -807,7 +807,7 @@ export default function MessagesPage() {
       const currentConversationId = activeConversationRef.current?.id || conversationId
       const currentConversations = conversationsData || []
       
-      setConversations((prev) => {
+      setConversations((prev: any) => {
         // Yeni listede olmayan ama mevcut state'te olan conversation'ları bul
         const conversationsToKeep: Conversation[] = []
         
@@ -819,7 +819,7 @@ export default function MessagesPage() {
           } else {
             const existsInNew = loadedConversations.find((c: Conversation) => c.id === currentConversationId)
             if (!existsInNew) {
-              const existingConv = prev.find((c) => c.id === currentConversationId)
+              const existingConv = prev.find((c: any) => c.id === currentConversationId)
               if (existingConv) {
                 console.log('⚠️ [Frontend] Active conversation not in new list, keeping existing:', currentConversationId)
                 conversationsToKeep.push(existingConv)
@@ -832,7 +832,7 @@ export default function MessagesPage() {
         // Son eklenen conversation'ları (recentConversationsRef) ve son mesajı olan conversation'ları koru
         // ✅ KRİTİK: Silinen conversation'ları koruma - geri gelmesin
         const now = Date.now()
-        prev.forEach((conv) => {
+        prev.forEach((conv: any) => {
           // ✅ KRİTİK: Silinen conversation'ları koruma
           if (deletedConversationsRef.current.has(conv.id)) {
             console.log('⚠️ [Frontend] Conversation was deleted, not keeping:', conv.id)
@@ -869,7 +869,7 @@ export default function MessagesPage() {
           }
           return !isDeleted
         })
-        const filteredKept = conversationsToKeep.filter((c) => {
+        const filteredKept = conversationsToKeep.filter((c: any) => {
           const isDeleted = deletedConversationsRef.current.has(c.id)
           if (isDeleted) {
             console.log('⚠️ [Frontend] Filtered out deleted conversation from kept list:', c.id)
@@ -882,14 +882,14 @@ export default function MessagesPage() {
         
         // ✅ KRİTİK: ID bazlı duplicate'leri kaldır
         const uniqueById = merged.filter((conv, index, self) => 
-          index === self.findIndex((c) => c.id === conv.id)
+          index === self.findIndex((c: any) => c.id === conv.id)
         )
         
         // ✅ KRİTİK: Participant bazlı duplicate'leri kaldır (aynı kullanıcıyla birden fazla conversation varsa, en güncel olanı tut)
         // Her conversation için diğer participant'ı bul
         const participantMap = new Map<string, Conversation>()
         
-        uniqueById.forEach((conv) => {
+        uniqueById.forEach((conv: any) => {
           const otherParticipant = getOtherParticipant(conv)
           if (otherParticipant?.user?.id) {
             const otherUserId = otherParticipant.user.id
@@ -924,7 +924,7 @@ export default function MessagesPage() {
         const unique = Array.from(participantMap.values())
         
         // updatedAt'e göre sırala (en yeni en üstte)
-        unique.sort((a, b) => {
+        unique.sort((a: any, b: any) => {
           const aTime = new Date(a.updatedAt).getTime()
           const bTime = new Date(b.updatedAt).getTime()
           return bTime - aTime
@@ -1032,11 +1032,11 @@ export default function MessagesPage() {
             console.log('✅ [Frontend] Fetched conversation on page load:', fetchedConversation.id)
             
             // Conversation'ı listeye ekle (eğer yoksa)
-            setConversations((prev) => {
-              const exists = prev.find((c) => c.id === fetchedConversation.id)
+            setConversations((prev: any) => {
+              const exists = prev.find((c: any) => c.id === fetchedConversation.id)
               if (exists) {
                 // Mevcut conversation'ı güncelle
-                return prev.map((c) => c.id === fetchedConversation.id ? fetchedConversation : c)
+                return prev.map((c: any) => c.id === fetchedConversation.id ? fetchedConversation : c)
               }
               // Yeni conversation'ı ekle
               return [fetchedConversation, ...prev]
@@ -1100,7 +1100,7 @@ export default function MessagesPage() {
     }
 
     // Önce conversations listesinde ara
-    const conversation = conversations.find((c) => c.id === conversationId)
+    const conversation = conversations.find((c: any) => c.id === conversationId)
     if (conversation && activeConversation?.id !== conversationId) {
       console.log('✅ [Frontend] Found conversation in list, opening:', conversationId)
       setActiveConversation(conversation)
@@ -1110,7 +1110,7 @@ export default function MessagesPage() {
 
     // Mesaj isteklerinde de ara
     if (messageRequests.length > 0) {
-      const requestConversation = messageRequests.find((c) => c.id === conversationId)
+      const requestConversation = messageRequests.find((c: any) => c.id === conversationId)
       if (requestConversation) {
         console.log('✅ [Frontend] Found conversation in requests, opening:', conversationId)
         setActiveConversation(requestConversation)
@@ -1132,11 +1132,11 @@ export default function MessagesPage() {
           console.log('✅ [Frontend] Fetched conversation from backend:', fetchedConversation.id)
           
           // Conversation'ı listeye ekle (eğer yoksa) - ID bazlı duplicate kontrolü
-          setConversations((prev) => {
-            const exists = prev.find((c) => c.id === fetchedConversation.id)
+          setConversations((prev: any) => {
+            const exists = prev.find((c: any) => c.id === fetchedConversation.id)
             if (exists) {
               // Mevcut conversation'ı çıkar, güncelle ve EN ÜSTE ekle
-              const filtered = prev.filter((c) => c.id !== fetchedConversation.id)
+              const filtered = prev.filter((c: any) => c.id !== fetchedConversation.id)
               return [
                 {
                   ...fetchedConversation,
@@ -1181,8 +1181,8 @@ export default function MessagesPage() {
 
     const initializeConversation = async () => {
       // Önce mevcut konuşmaları kontrol et
-      const existingConversation = conversations.find((conv) => {
-        const participant = conv.participants?.find((p) => p.userId === userId)
+      const existingConversation = conversations.find((conv: any) => {
+        const participant = conv.participants?.find((p: any) => p.userId === userId)
         return participant !== undefined
       })
 
@@ -1202,11 +1202,11 @@ export default function MessagesPage() {
         
         // Backend duplicate kontrolü yaptığı için, dönen conversation zaten mevcut olabilir
         // ✅ KRİTİK: ID bazlı duplicate kontrolü - varsa güncelle ve en üste taşı, yoksa ekle
-        setConversations((prev) => {
-          const exists = prev.find((c) => c.id === conversation.id)
+        setConversations((prev: any) => {
+          const exists = prev.find((c: any) => c.id === conversation.id)
           if (exists) {
             // Mevcut conversation'ı çıkar, güncelle ve EN ÜSTE ekle
-            const filtered = prev.filter((c) => c.id !== conversation.id)
+            const filtered = prev.filter((c: any) => c.id !== conversation.id)
             return [
               {
                 ...conversation,
@@ -1263,7 +1263,7 @@ export default function MessagesPage() {
         activeConversationId: activeConversation.id,
       })
       
-      setMessages((prev) => {
+      setMessages((prev: any) => {
         // Eğer önceki mesajlar farklı bir conversation'a aitse, direkt yeni mesajları kullan
         const prevConversationId = prev.length > 0 ? prev[0]?.conversationId : null
         if (prevConversationId !== conversationId) {
@@ -1276,7 +1276,7 @@ export default function MessagesPage() {
         const loadedIds = new Set(cachedMessages.map((m: Message) => m.id))
         
         // Socket'ten gelen ama henüz API'de olmayan mesajları ekle
-        prev.forEach((prevMsg) => {
+         prev.forEach((prevMsg: any) => {
           if (prevMsg.conversationId === conversationId && !loadedIds.has(prevMsg.id)) {
             // Temp mesajlar hariç (bunlar zaten gerçek mesajla değiştirilecek)
             if (!prevMsg.id.startsWith('temp_')) {
@@ -1288,11 +1288,11 @@ export default function MessagesPage() {
         
         // ID'ye göre sırala ve duplicate'leri kaldır
         const unique = merged.filter((msg, index, self) => 
-          index === self.findIndex((m) => m.id === msg.id)
+          index === self.findIndex((m: any) => m.id === msg.id)
         )
         
         // Tarihe göre sırala
-        unique.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        unique.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
         
         console.log('📥 [Frontend] Merged messages from cache:', unique.length)
         return unique
@@ -1408,7 +1408,7 @@ export default function MessagesPage() {
       // ✅ KRİTİK: Önce ref'e ekle (loadConversations çağrılırsa geri gelmesin)
       deletedConversationsRef.current.add(conversationId)
       // ✅ KRİTİK: State'i güncelle (useMemo'yu tetiklemek için)
-      setDeletedConversationsVersion((prev) => prev + 1)
+      setDeletedConversationsVersion((prev: any) => prev + 1)
       
       // Backend'e silme isteği gönder
       await api.delete(`/chat/conversations/${conversationId}`)
@@ -1417,14 +1417,14 @@ export default function MessagesPage() {
       // ✅ KRİTİK: React Query cache'den kaldır (hemen güncelle)
       queryClient.setQueryData(['conversations', accessToken], (oldData: Conversation[] | undefined) => {
         if (!oldData) return []
-        const filtered = oldData.filter((c) => c.id !== conversationId)
+        const filtered = oldData.filter((c: any) => c.id !== conversationId)
         console.log('🗑️ [Frontend] Removed conversation from cache:', conversationId, 'Remaining:', filtered.length)
         return filtered
       })
       
       // ✅ KRİTİK: State'ten de kaldır (hemen güncelle)
-      setConversations((prev) => {
-        const filtered = prev.filter((c) => c.id !== conversationId)
+      setConversations((prev: any) => {
+        const filtered = prev.filter((c: any) => c.id !== conversationId)
         console.log('🗑️ [Frontend] Removed conversation from state:', conversationId, 'Remaining:', filtered.length)
         return filtered
       })
@@ -1472,7 +1472,7 @@ export default function MessagesPage() {
       loadConversations()
       loadMessageRequests()
       // İsteği kabul edilen konuşmayı aç
-      const conversation = conversations.find((c) => c.id === conversationId) || messageRequests.find((c) => c.id === conversationId)
+      const conversation = conversations.find((c: any) => c.id === conversationId) || messageRequests.find((c: any) => c.id === conversationId)
       if (conversation) {
         openConversation(conversation)
       }
@@ -1723,13 +1723,13 @@ export default function MessagesPage() {
     }
 
     // 🔥 KRİTİK: Optimistic update - mesajı hemen göster (anlık görünüm için)
-    setMessages((prev) => {
+    setMessages((prev: any) => {
       // Duplicate kontrolü
-      if (prev.some((m) => m.id === tempMessage.id)) {
+      if (prev.some((m: any) => m.id === tempMessage.id)) {
         return prev
       }
       const updated = [...prev, tempMessage]
-      updated.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      updated.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       return updated
     })
     
@@ -1741,7 +1741,7 @@ export default function MessagesPage() {
         return oldData
       }
       const updated = [...existingMessages, tempMessage]
-      updated.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      updated.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       return { messages: updated }
     })
     
@@ -1806,18 +1806,18 @@ export default function MessagesPage() {
               }
               
               const updated = [...filtered, sentMessage]
-              updated.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+              updated.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
               return { messages: updated }
             })
             
             // State'te de temp mesajı gerçek mesajla değiştir
-            setMessages((prev) => {
-              const filtered = prev.filter((m) => !m.id.startsWith('temp_'))
-              if (filtered.some((m) => m.id === sentMessage.id)) {
+            setMessages((prev: any) => {
+              const filtered = prev.filter((m: any) => !m.id.startsWith('temp_'))
+              if (filtered.some((m: any) => m.id === sentMessage.id)) {
                 return filtered
               }
               const updated = [...filtered, sentMessage]
-              updated.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+              updated.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
               return updated
             })
           }
@@ -1825,10 +1825,10 @@ export default function MessagesPage() {
           // Response'dan gelen conversation'ı listeye ekle (sadece conversation listesi için)
           if (response?.conversation) {
             console.log('✅ [Frontend] Updating conversation list from response:', response.conversation.id)
-            setConversations((prev) => {
-              const exists = prev.find((c) => c.id === response.conversation.id)
+            setConversations((prev: any) => {
+              const exists = prev.find((c: any) => c.id === response.conversation.id)
               if (exists) {
-                return prev.map((c) => c.id === response.conversation.id ? response.conversation : c)
+                return prev.map((c: any) => c.id === response.conversation.id ? response.conversation : c)
               }
               return [response.conversation, ...prev]
             })
@@ -1937,7 +1937,7 @@ export default function MessagesPage() {
       console.warn('⚠️ [Frontend] Conversation has no participants:', conversation.id)
       return null
     }
-    const participant = conversation.participants.find((p) => p.userId !== user?.id)
+    const participant = conversation.participants.find((p: any) => p.userId !== user?.id)
     if (!participant) {
       console.warn('⚠️ [Frontend] Other participant not found in conversation:', conversation.id, 'participants:', conversation.participants)
       return null
@@ -1995,7 +1995,7 @@ export default function MessagesPage() {
     return null
   }
 
-  const filteredConversations = conversations.filter((conv) => {
+  const filteredConversations = conversations.filter((conv: any) => {
     if (!searchQuery) return true
     const otherUser = getOtherParticipant(conv)
     const searchLower = searchQuery.toLowerCase()
@@ -2038,7 +2038,7 @@ export default function MessagesPage() {
               type="text"
               placeholder="Ara..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e: any) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange dark:text-white"
             />
           </div>
@@ -2085,7 +2085,7 @@ export default function MessagesPage() {
                   </p>
                 </div>
               ) : (
-                filteredConversations.map((conversation) => {
+                filteredConversations.map((conversation: any) => {
               const otherUser = getOtherParticipant(conversation)
               const lastMessage = getLastMessage(conversation)
               // 🔥 KRİTİK: Instagram mantığı - URL'den kontrol et
@@ -2196,7 +2196,7 @@ export default function MessagesPage() {
                     </div>
                     {/* ✅ Sohbet Silme Menüsü */}
                     <button
-                      onClick={(e) => {
+                      onClick={(e: any) => {
                         e.stopPropagation() // Konuşma açılmasını engelle
                         setDeleteConversationId(conversation.id)
                       }}
@@ -2219,7 +2219,7 @@ export default function MessagesPage() {
                   <p className="text-center">Henüz mesaj isteğiniz yok</p>
                 </div>
               ) : (
-                messageRequests.map((conversation) => {
+                messageRequests.map((conversation: any) => {
                   const otherUser = getOtherParticipant(conversation)
                   const lastMessage = getLastMessage(conversation)
 
@@ -2334,7 +2334,7 @@ export default function MessagesPage() {
                     <div className="relative" ref={conversationMenuRef}>
                       <button
                         type="button"
-                        onClick={(e) => {
+                        onClick={(e: any) => {
                           e.preventDefault()
                           e.stopPropagation()
                           const otherUser = getOtherParticipant(activeConversation)
@@ -2353,12 +2353,12 @@ export default function MessagesPage() {
                         <div 
                           ref={conversationMenuRef}
                           className="absolute right-0 top-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-[100] min-w-[180px]"
-                          onClick={(e) => e.stopPropagation()}
-                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e: any) => e.stopPropagation()}
+                          onMouseDown={(e: any) => e.stopPropagation()}
                         >
                           <button
                             type="button"
-                            onClick={(e) => {
+                            onClick={(e: any) => {
                               e.preventDefault()
                               e.stopPropagation()
                               // Önce modal state'ini set et
@@ -2372,7 +2372,7 @@ export default function MessagesPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={(e) => {
+                            onClick={(e: any) => {
                               e.preventDefault()
                               e.stopPropagation()
                               // Önce modal state'ini set et
@@ -2386,7 +2386,7 @@ export default function MessagesPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={(e) => {
+                            onClick={(e: any) => {
                               e.preventDefault()
                               e.stopPropagation()
                               if (activeConversation?.id) {
@@ -2421,7 +2421,7 @@ export default function MessagesPage() {
                   </div>
                 </div>
               ) : (
-                messages.map((message, index) => {
+                messages.map((message: any, index: any) => {
                 const isOwn = message.senderId === user?.id
                 const isLastMessage = index === messages.length - 1
                 const showReadReceipt = isOwn && isLastMessage && message.read
@@ -2628,7 +2628,7 @@ export default function MessagesPage() {
                 </div>
               ) : (
                 <form
-                  onSubmit={(e) => {
+                  onSubmit={(e: any) => {
                     e.preventDefault()
                     sendMessage()
                   }}
@@ -2658,7 +2658,7 @@ export default function MessagesPage() {
                     type="text"
                     value={messageText}
                     onChange={handleChange}
-                    onKeyDown={(e) => {
+                    onKeyDown={(e: any) => {
                       // ✅ Enter tuşu form submit'i tetikleyecek, ayrıca sendMessage çağırmaya gerek yok
                       // Form submit zaten sendMessage'ı çağırıyor, çift göndermeyi önlemek için burada çağırmıyoruz
                       if (e.key === 'Enter' && !e.shiftKey) {
@@ -2792,12 +2792,12 @@ export default function MessagesPage() {
                         <div 
                           ref={conversationMenuRef}
                           className="absolute right-0 top-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-[100] min-w-[180px]"
-                          onClick={(e) => e.stopPropagation()}
-                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e: any) => e.stopPropagation()}
+                          onMouseDown={(e: any) => e.stopPropagation()}
                         >
                           <button
                             type="button"
-                            onClick={(e) => {
+                            onClick={(e: any) => {
                               e.preventDefault()
                               e.stopPropagation()
                               // Önce modal state'ini set et
@@ -2811,7 +2811,7 @@ export default function MessagesPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={(e) => {
+                            onClick={(e: any) => {
                               e.preventDefault()
                               e.stopPropagation()
                               // Önce modal state'ini set et
@@ -2825,7 +2825,7 @@ export default function MessagesPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={(e) => {
+                            onClick={(e: any) => {
                               e.preventDefault()
                               e.stopPropagation()
                               if (activeConversation?.id) {
@@ -2895,7 +2895,7 @@ export default function MessagesPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-3">
-                    {media.map((m) => (
+                    {media.map((m: any) => (
                       <a
                         key={m.id}
                         href={m.imageUrl}
@@ -2931,7 +2931,7 @@ export default function MessagesPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {files.map((f) => (
+                    {files.map((f: any) => (
                       <a
                         key={f.id}
                         href={f.fileUrl}
@@ -2982,7 +2982,7 @@ export default function MessagesPage() {
                   </div>
                 </div>
               ) : (
-                messages.map((message, index) => {
+                messages.map((message: any, index: any) => {
                 const isOwn = message.senderId === user?.id
                 const isLastMessage = index === messages.length - 1
                 const showReadReceipt = isOwn && isLastMessage && message.read
@@ -3175,7 +3175,7 @@ export default function MessagesPage() {
                 </div>
               ) : (
                 <form
-                  onSubmit={(e) => {
+                  onSubmit={(e: any) => {
                     e.preventDefault()
                     sendMessage()
                   }}
@@ -3252,7 +3252,7 @@ export default function MessagesPage() {
         >
           <div 
             className="w-[400px] rounded-xl bg-white dark:bg-gray-900 p-6 shadow-xl border border-gray-200 dark:border-gray-800"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: any) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               Sohbeti silmek istiyor musunuz?
@@ -3324,7 +3324,7 @@ function ReportModal({ conversation, onClose }: { conversation: Conversation; on
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const getOtherParticipant = (conv: Conversation) => {
-    const participant = conv.participants?.find((p) => p.userId !== user?.id)
+    const participant = conv.participants?.find((p: any) => p.userId !== user?.id)
     return participant ? { ...participant, user: participant.user } : null
   }
 
@@ -3374,7 +3374,7 @@ function ReportModal({ conversation, onClose }: { conversation: Conversation; on
     >
       <div 
         className="w-[420px] max-w-[90vw] rounded-2xl bg-gradient-to-b from-[#0f172a] to-[#020617] border border-white/10 shadow-2xl p-6"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e: any) => e.stopPropagation()}
       >
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-white">
@@ -3388,7 +3388,7 @@ function ReportModal({ conversation, onClose }: { conversation: Conversation; on
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <div className="space-y-2 mt-4">
-              {reasons.map((reason) => (
+              {reasons.map((reason: any) => (
                 <label
                   key={reason.value}
                   className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
@@ -3402,7 +3402,7 @@ function ReportModal({ conversation, onClose }: { conversation: Conversation; on
                     name="reason"
                     value={reason.value}
                     checked={selectedReason === reason.value}
-                    onChange={(e) => setSelectedReason(e.target.value)}
+                    onChange={(e: any) => setSelectedReason(e.target.value)}
                     className="hidden"
                   />
                   <span 
@@ -3421,7 +3421,7 @@ function ReportModal({ conversation, onClose }: { conversation: Conversation; on
           <div className="mb-4">
             <textarea
               value={note}
-              onChange={(e) => setNote(e.target.value.slice(0, 300))}
+              onChange={(e: any) => setNote(e.target.value.slice(0, 300))}
               placeholder="İstersen kısaca açıklayabilirsin (opsiyonel)"
               className="mt-4 w-full rounded-lg bg-black/30 border border-white/10 focus:border-orange-500 focus:ring-0 text-sm text-white placeholder-gray-500 p-3 resize-none transition-colors"
               rows={3}
@@ -3470,7 +3470,7 @@ function BlockModal({
   const [isProcessing, setIsProcessing] = useState(false)
 
   const getOtherParticipant = (conv: Conversation) => {
-    const participant = conv.participants?.find((p) => p.userId !== user?.id)
+    const participant = conv.participants?.find((p: any) => p.userId !== user?.id)
     return participant ? { ...participant, user: participant.user } : null
   }
 
@@ -3505,7 +3505,7 @@ function BlockModal({
     >
       <div 
         className="w-[420px] max-w-[90vw] rounded-2xl bg-gradient-to-b from-[#0f172a] to-[#020617] border border-white/10 shadow-2xl p-6"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e: any) => e.stopPropagation()}
       >
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-white">
@@ -3539,6 +3539,20 @@ function BlockModal({
         </div>
       </div>
     </div>
+  )
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen bg-white dark:bg-gray-950">
+        <div className="flex items-center justify-center w-full">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
+        </div>
+      </div>
+    }>
+      <MessagesPageContent />
+    </Suspense>
   )
 }
 

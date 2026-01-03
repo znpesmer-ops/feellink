@@ -120,7 +120,7 @@ function NotificationsContent() {
         setUnreadCount(firstPage.unreadCount)
       } else {
         // Fallback: API'den çek
-        api.get('/notifications/unread-count').then((response) => {
+        api.get('/notifications/unread-count').then((response: any) => {
           setUnreadCount(response.data.count)
         })
       }
@@ -136,7 +136,7 @@ function NotificationsContent() {
 
     const socket = initSocket(accessToken)
 
-    socket.on('notification', (notification) => {
+    socket.on('notification', (notification: any) => {
       // If it's a follow_request_cancelled event, remove the notification from the list
       if (notification.type === 'follow_request_cancelled') {
         queryClient.setQueryData(['notifications'], (old: any) => {
@@ -256,7 +256,7 @@ function NotificationsContent() {
   }
 
   // Backend artık { notifications, unreadCount } döndürüyor
-  const notifications = data?.pages.flatMap((page) => {
+  const notifications = data?.pages.flatMap((page: any) => {
     // Eski format için geriye uyumluluk
     return page.notifications || page
   }) || []
@@ -488,7 +488,7 @@ function NotificationsContent() {
           { key: 'unread', label: 'Okunmamış' },
           { key: 'comment', label: 'Yorumlar' },
           { key: 'reply', label: 'Yanıtlar' },
-        ].map((tab) => (
+        ].map((tab: any) => (
           <button
             key={tab.key}
             onClick={() => setFilter(tab.key as any)}
@@ -606,7 +606,7 @@ function NotificationsContent() {
                       {notification.sender?.username ? (
                         <Link
                           href={`/profile/${notification.sender.username}`}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e: any) => e.stopPropagation()}
                           className="relative flex-shrink-0 hover:opacity-80 transition cursor-pointer"
                         >
                           <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
@@ -662,7 +662,7 @@ function NotificationsContent() {
                               {notification.sender?.username ? (
                                 <Link
                                   href={`/profile/${notification.sender.username}`}
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e: any) => e.stopPropagation()}
                                   className="font-semibold text-brand-orange dark:text-brand-orange hover:opacity-80 transition cursor-pointer"
                                 >
                                   {notification.sender?.fullName || notification.sender?.username || 'Sistem'}
@@ -684,7 +684,7 @@ function NotificationsContent() {
                         {/* Profil Tamamlama Butonu */}
                         {notification.type === 'profile_incomplete' && (
                           <button
-                            onClick={(e) => {
+                            onClick={(e: any) => {
                               e.stopPropagation()
                               router.push('/settings')
                             }}
@@ -699,7 +699,7 @@ function NotificationsContent() {
                       {notification.type === 'follow_request' && (
                         <div className="flex gap-2 flex-shrink-0">
                           <button
-                            onClick={(e) => {
+                            onClick={(e: any) => {
                               e.stopPropagation()
                               handleAcceptFollowRequest(notification.fromUserId)
                             }}
@@ -708,7 +708,7 @@ function NotificationsContent() {
                             Kabul Et
                           </button>
                           <button
-                            onClick={(e) => {
+                            onClick={(e: any) => {
                               e.stopPropagation()
                               handleRejectFollowRequest(notification.fromUserId)
                             }}

@@ -20,7 +20,7 @@ export function Navbar() {
 
     // Fetch initial count
     api.get('/notifications/unread-count')
-      .then((response) => setUnreadCount(response.data.count))
+      .then((response: { data: { count: number } }) => setUnreadCount(response.data.count))
       .catch(() => {})
 
     // Setup socket connection for real-time notifications
@@ -29,7 +29,7 @@ export function Navbar() {
     socket.on('notification', () => {
       setUnreadCount((prev) => prev + 1)
       api.get('/notifications/unread-count')
-        .then((response) => setUnreadCount(response.data.count))
+        .then((response: { data: { count: number } }) => setUnreadCount(response.data.count))
         .catch(() => {})
     })
 

@@ -46,14 +46,14 @@ export default function CollectionsPage() {
         console.log("🔄 Koleksiyonlar yükleniyor...");
         
         // Public endpoint - token gerektirmez
-        const publicRes = await api.get<Collection[]>("/collections/public").catch((err) => {
+        const publicRes = await api.get("/collections/public").catch((err: any) => {
           console.warn("⚠️ Public collections yüklenemedi:", err);
           return { data: [] };
         });
         
         // My collections - sadece token varsa ve yetki varsa
         const myRes = accessToken && canCreateCollection 
-          ? await api.get<Collection[]>("/collections/my").catch((err) => {
+          ? await api.get("/collections/my").catch((err: any) => {
               console.warn("⚠️ My collections yüklenemedi:", err);
               return { data: [] };
             })
@@ -92,20 +92,20 @@ export default function CollectionsPage() {
         break;
       case "Kurumsal":
         filtered = collections.filter(
-          (col) => col.owner?.roles && Array.isArray(col.owner.roles) && col.owner.roles.includes("corporate")
+          (col: any) => col.owner?.roles && Array.isArray(col.owner.roles) && col.owner.roles.includes("corporate")
         );
         break;
       case "Sanatçı":
         filtered = collections.filter(
-          (col) => col.owner?.roles && Array.isArray(col.owner.roles) && col.owner.roles.includes("artist")
+          (col: any) => col.owner?.roles && Array.isArray(col.owner.roles) && col.owner.roles.includes("artist")
         );
         break;
       case "Popüler":
         // Şimdilik en yeni olanları göster (ileride beğeni/yorum sayısına göre sıralanabilir)
-        filtered = [...collections].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        filtered = [...collections].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         break;
       case "Yeni":
-        filtered = [...collections].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        filtered = [...collections].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         break;
       default:
         filtered = collections;
@@ -116,7 +116,7 @@ export default function CollectionsPage() {
 
   const handleRefresh = async () => {
     try {
-      const res = await api.get<Collection[]>("/collections/public");
+      const res = await api.get("/collections/public");
       setCollections(res.data || []);
       setFilteredCollections(res.data || []);
     } catch (error) {
@@ -169,7 +169,7 @@ export default function CollectionsPage() {
             "Popüler",
             "Yeni",
             ...(canCreateCollection ? ["Koleksiyonlarım"] : []),
-          ] as FilterType[]).map((filter) => (
+          ] as FilterType[]).map((filter: any) => (
             <button
               key={filter}
               onClick={() => setActiveFilter(filter)}
@@ -209,7 +209,7 @@ export default function CollectionsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-            {filteredCollections.map((col) => (
+            {filteredCollections.map((col: any) => (
               <Link
                 key={col.id}
                 href={`/collections/${col.id}`}

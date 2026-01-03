@@ -124,11 +124,11 @@ export default function ArticleDetailPage() {
 
     // Yeni yorum geldiğinde state'e ekle
     socket.on('commentAdded', (newComment: any) => {
-      setArticle((prev) => {
+      setArticle((prev: any) => {
         if (!prev) return prev
         
         // Aynı içerikli temp comment varsa değiştir, yoksa yeni ekle
-        const existingTempIndex = prev.comments?.findIndex((c) => 
+        const existingTempIndex = prev.comments?.findIndex((c: any) => 
           c.id?.startsWith('temp_') && 
           c.content === newComment.content && 
           c.author.id === newComment.author.id
@@ -145,7 +145,7 @@ export default function ArticleDetailPage() {
         }
 
         // Çift eklemeyi önle
-        if (prev.comments?.some((c) => c.id === newComment.id)) {
+        if (prev.comments?.some((c: any) => c.id === newComment.id)) {
           return prev
         }
 
@@ -163,11 +163,11 @@ export default function ArticleDetailPage() {
 
     // Yorum silindiğinde state'ten çıkar
     socket.on('commentDeleted', (data: { id: string }) => {
-      setArticle((prev) => {
+      setArticle((prev: any) => {
         if (!prev) return prev
         return {
           ...prev,
-          comments: prev.comments?.filter((c) => c.id !== data.id) || [],
+          comments: prev.comments?.filter((c: any) => c.id !== data.id) || [],
           _count: {
             ...prev._count,
             comments: Math.max(0, (prev._count?.comments || 0) - 1),
@@ -178,15 +178,15 @@ export default function ArticleDetailPage() {
 
     // Reply geldiğinde state'e ekle
     socket.on('replyAdded', (newReply: any) => {
-      setArticle((prev) => {
+      setArticle((prev: any) => {
         if (!prev) return prev
         
         return {
           ...prev,
-          comments: prev.comments?.map((comment) => {
+          comments: prev.comments?.map((comment: any) => {
             if (comment.id === newReply.parentId) {
               // Temp reply varsa gerçek olanla değiştir
-              const existingTempIndex = (comment.replies || []).findIndex((r) => 
+              const existingTempIndex = (comment.replies || []).findIndex((r: any) => 
                 r.id?.startsWith('temp_reply_') && 
                 r.content === newReply.content && 
                 r.author.id === newReply.author.id
@@ -202,7 +202,7 @@ export default function ArticleDetailPage() {
               }
 
               // 🔍 Çift eklemeyi önle - aynı ID varsa tekrar ekleme
-              const alreadyExists = (comment.replies || []).some((r) => r.id === newReply.id)
+              const alreadyExists = (comment.replies || []).some((r: any) => r.id === newReply.id)
               if (alreadyExists) {
                 return comment
               }
@@ -256,7 +256,7 @@ export default function ArticleDetailPage() {
       replies: [],
     }
 
-    setArticle((prev) => {
+    setArticle((prev: any) => {
       if (!prev) return prev
       return {
         ...prev,
@@ -278,11 +278,11 @@ export default function ArticleDetailPage() {
       console.error('Failed to post comment:', error)
       
       // Hata durumunda optimistic update'i geri al
-      setArticle((prev) => {
+      setArticle((prev: any) => {
         if (!prev) return prev
         return {
           ...prev,
-          comments: prev.comments?.filter((c) => c.id !== tempComment.id) || [],
+          comments: prev.comments?.filter((c: any) => c.id !== tempComment.id) || [],
           _count: {
             ...prev._count,
             comments: Math.max(0, (prev._count?.comments || 0) - 1),
@@ -320,11 +320,11 @@ export default function ArticleDetailPage() {
       },
     }
 
-    setArticle((prev) => {
+    setArticle((prev: any) => {
       if (!prev) return prev
       return {
         ...prev,
-        comments: prev.comments?.map((comment) => {
+        comments: prev.comments?.map((comment: any) => {
           if (comment.id === commentId) {
             return {
               ...comment,
@@ -343,15 +343,15 @@ export default function ArticleDetailPage() {
       console.error('Failed to post reply:', error)
       
       // Revert optimistic update
-      setArticle((prev) => {
+      setArticle((prev: any) => {
         if (!prev) return prev
         return {
           ...prev,
-          comments: prev.comments?.map((comment) => {
+          comments: prev.comments?.map((comment: any) => {
             if (comment.id === commentId) {
               return {
                 ...comment,
-                replies: (comment.replies || []).filter((r) => r.id !== tempReply.id),
+                replies: (comment.replies || []).filter((r: any) => r.id !== tempReply.id),
               }
             }
             return comment
@@ -412,7 +412,7 @@ export default function ArticleDetailPage() {
               src={article.author.avatar}
               alt={article.author.username}
               className="w-full h-full object-cover"
-              onError={(e) => {
+              onError={(e: any) => {
                 e.currentTarget.src = '/default.png'
               }}
             />
@@ -513,8 +513,8 @@ export default function ArticleDetailPage() {
                   <textarea
                     placeholder="Yorumunuzu yazın..."
                     value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    onKeyDown={(e) => {
+                    onChange={(e: any) => setCommentText(e.target.value)}
+                    onKeyDown={(e: any) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault()
                         handleComment(e)
@@ -539,7 +539,7 @@ export default function ArticleDetailPage() {
         {/* Yorum Listesi */}
         {article.comments && article.comments.length > 0 ? (
           <div className="space-y-4">
-            {article.comments.map((comment) => (
+            {article.comments.map((comment: any) => (
               <div
                 key={comment.id}
                 id={`cmt-${comment.id}`}
@@ -555,7 +555,7 @@ export default function ArticleDetailPage() {
                           src={comment.author.avatar}
                           alt={comment.author.username || 'User'}
                           className="w-full h-full object-cover"
-                          onError={(e) => {
+                          onError={(e: any) => {
                             e.currentTarget.src = '/default.png'
                           }}
                         />
@@ -599,13 +599,13 @@ export default function ArticleDetailPage() {
                 {/* Reply formu */}
                 {replyingTo === comment.id && user && (
                   <form
-                    onSubmit={(e) => handleReply(e, comment.id)}
+                    onSubmit={(e: any) => handleReply(e, comment.id)}
                     className="mt-3 ml-8 border-l-2 border-[#ff7b00]/30 pl-4"
                   >
                     <textarea
                       value={replyContent[comment.id] || ''}
-                      onChange={(e) => setReplyContent({ ...replyContent, [comment.id]: e.target.value })}
-                      onKeyDown={(e) => {
+                      onChange={(e: any) => setReplyContent({ ...replyContent, [comment.id]: e.target.value })}
+                      onKeyDown={(e: any) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault()
                           handleReply(e, comment.id)
@@ -640,7 +640,7 @@ export default function ArticleDetailPage() {
                 {/* Yanıtlar (replies) */}
                 {comment.replies && comment.replies.length > 0 && (
                   <div className="mt-3 ml-6 space-y-2 border-l-2 border-gray-300 dark:border-gray-700 pl-4">
-                    {comment.replies.map((reply) => (
+                    {comment.replies.map((reply: any) => (
                       <div
                         key={reply.id}
                         id={`cmt-${reply.id}`}
@@ -654,7 +654,7 @@ export default function ArticleDetailPage() {
                               src={reply.author.avatar}
                               alt={reply.author.username || 'User'}
                               className="w-full h-full object-cover"
-                              onError={(e) => {
+                              onError={(e: any) => {
                                 e.currentTarget.src = '/default.png'
                               }}
                             />

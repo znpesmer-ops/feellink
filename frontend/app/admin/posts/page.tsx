@@ -52,19 +52,19 @@ export default function AdminPostsPage() {
     const postsSocket = initPostsSocket(accessToken)
 
     postsSocket.on('post:updated', (updatedPost: Post) => {
-      setPosts((prev) =>
-        prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
+      setPosts((prev: any) =>
+        prev.map((p: any) => (p.id === updatedPost.id ? updatedPost : p))
       )
     })
 
     postsSocket.on('post:deleted', (deletedId: string) => {
-      setPosts((prev) => prev.filter((p) => p.id !== deletedId))
+      setPosts((prev: any) => prev.filter((p: any) => p.id !== deletedId))
       setConfirmDelete(null)
     })
 
     postsSocket.on('post:like', (data: { postId: string; likes: number }) => {
-      setPosts((prev) =>
-        prev.map((p) =>
+      setPosts((prev: any) =>
+        prev.map((p: any) =>
           p.id === data.postId
             ? { ...p, _count: { ...p._count, likes: data.likes } }
             : p
@@ -75,8 +75,8 @@ export default function AdminPostsPage() {
     postsSocket.on(
       'post:comment',
       (data: { postId: string; comments: number }) => {
-        setPosts((prev) =>
-          prev.map((p) =>
+        setPosts((prev: any) =>
+          prev.map((p: any) =>
             p.id === data.postId
               ? { ...p, _count: { ...p._count, comments: data.comments } }
               : p
@@ -131,7 +131,7 @@ export default function AdminPostsPage() {
   const handleDelete = async (postId: string) => {
     try {
       await api.delete(`/admin/posts/${postId}`)
-      setPosts(posts.filter((p) => p.id !== postId))
+      setPosts(posts.filter((p: any) => p.id !== postId))
       setConfirmDelete(null)
     } catch (error) {
       console.error('Error deleting post:', error)
@@ -151,7 +151,7 @@ export default function AdminPostsPage() {
     })
   }
 
-  const filteredPosts = posts.filter((post) => {
+  const filteredPosts = posts.filter((post: any) => {
     if (searchQuery.trim() === '') return true
     const query = searchQuery.toLowerCase()
     return (
@@ -186,7 +186,7 @@ export default function AdminPostsPage() {
           type="text"
           placeholder="Gönderi ara..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e: any) => setSearchQuery(e.target.value)}
           className="w-full pl-12 pr-4 py-3 border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--accent)] bg-[var(--card)] text-[var(--text)]"
         />
       </div>
@@ -197,7 +197,7 @@ export default function AdminPostsPage() {
             Gönderi bulunamadı
           </div>
         ) : (
-          filteredPosts.map((post) => (
+          filteredPosts.map((post: any) => (
             <div
               key={post.id}
               className="flex flex-col bg-[var(--card)] rounded-2xl shadow-sm border border-[var(--border)] p-4 transition-all hover:shadow-md hover:border-[var(--accent)]/30"
@@ -244,13 +244,13 @@ export default function AdminPostsPage() {
                           src={resolvedImageUrl}
                           alt={post.caption || 'Gönderi'}
                           className="object-cover w-full h-full transition-transform duration-300 hover:scale-[1.03]"
-                          onError={(e) => {
+                          onError={(e: any) => {
                             console.error('❌ Image load error:', {
                               postId: post.id,
                               src: resolvedImageUrl,
                               error: e,
                             })
-                            setImageErrors((prev) => new Set(prev).add(post.id))
+                            setImageErrors((prev: Set<string>) => new Set<string>(prev).add(post.id))
                           }}
                         />
                         {post.media && post.media.length > 1 && (
@@ -356,14 +356,14 @@ export default function AdminPostsPage() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            onClick={() => setPage((p: any) => Math.max(1, p - 1))}
             disabled={page === 1}
             className="px-4 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--text)] text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--muted)] transition-colors"
           >
             Önceki
           </button>
           <button
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() => setPage((p: any) => p + 1)}
             disabled={page * 20 >= total}
             className="px-4 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--text)] text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--muted)] transition-colors"
           >

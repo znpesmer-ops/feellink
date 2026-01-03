@@ -167,7 +167,7 @@ function BlockedUsersModal({ onClose }: { onClose: () => void }) {
     >
       <div
         className="w-full max-w-[420px] max-h-[70vh] bg-white dark:bg-[#111827] rounded-xl shadow-xl flex flex-col overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e: any) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
@@ -216,7 +216,7 @@ function BlockedUsersModal({ onClose }: { onClose: () => void }) {
                         src={blockedUser.avatar}
                         alt={blockedUser.username}
                         className="w-10 h-10 rounded-full object-cover"
-                        onError={(e) => {
+                        onError={(e: any) => {
                           (e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
                         }}
                       />
@@ -308,7 +308,7 @@ function UsernameField({ user, userData, onUpdate }: { user: any; userData: any;
           <input
             type="text"
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(e: any) => setUsername(e.target.value)}
             disabled={isSaving}
             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange disabled:opacity-50"
           />
@@ -386,7 +386,7 @@ function EmailField({ user, onUpdate }: { user: any; onUpdate: () => void }) {
           <input
             type="email"
             value={newEmail}
-            onChange={(e) => setNewEmail(e.target.value)}
+            onChange={(e: any) => setNewEmail(e.target.value)}
             placeholder="Yeni e-posta adresi"
             disabled={isSaving}
             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange disabled:opacity-50"
@@ -626,7 +626,7 @@ function RoleChangeRequestModal({ isOpen, onClose, currentRole }: { isOpen: bool
     >
       <div
         className="w-full max-w-md bg-white dark:bg-[#111827] rounded-xl shadow-xl p-6"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e: any) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 mb-4">
           <Shield className="w-5 h-5 text-gray-500 dark:text-gray-400" />
@@ -644,8 +644,8 @@ function RoleChangeRequestModal({ isOpen, onClose, currentRole }: { isOpen: bool
                   Lütfen bir rol seçin
                 </div>
               )}
-              {allRoles.map((role) => {
-                const Icon = ROLE_METADATA[role].icon
+              {allRoles.map((role: any) => {
+                 const Icon = ROLE_METADATA[role as UserRoleCode]?.icon
                 const normalizedRole = normalizeRole(role)
                 const isCurrentRole = normalizedRole === normalizedCurrentRole
                 const isSelected = selectedRole === role && !isCurrentRole
@@ -681,7 +681,7 @@ function RoleChangeRequestModal({ isOpen, onClose, currentRole }: { isOpen: bool
                           ? 'text-brand-orange dark:text-brand-orange'
                           : 'text-gray-900 dark:text-white'
                       }`}>
-                        {ROLE_METADATA[role].label}
+                         {ROLE_METADATA[role as UserRoleCode]?.label}
                       </span>
                       {isCurrentRole && (
                         <span className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
@@ -702,7 +702,7 @@ function RoleChangeRequestModal({ isOpen, onClose, currentRole }: { isOpen: bool
             </label>
             <textarea
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e: any) => setMessage(e.target.value)}
               placeholder="Rol değişikliği talebinizin nedenini açıklayabilirsiniz..."
               rows={4}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange resize-none"

@@ -83,7 +83,7 @@ function CreatePostContent() {
     if (file) {
       setCoverFile(file)
       const reader = new FileReader()
-      reader.onload = (event) => {
+      reader.onload = (event: any) => {
         setCover(event.target?.result as string)
       }
       reader.readAsDataURL(file)
@@ -230,7 +230,7 @@ function CreatePostContent() {
             type="text"
             placeholder="Başlık..."
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e: any) => setTitle(e.target.value)}
             className="w-full text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 bg-transparent border-b-2 border-transparent hover:border-gray-200 dark:hover:border-gray-800 focus:border-[#ff7b00] outline-none pb-4 transition-colors placeholder:text-gray-400 dark:placeholder:text-gray-600"
           />
         </div>
@@ -240,7 +240,7 @@ function CreatePostContent() {
           <textarea
             placeholder="Yazınızı buraya yazın..."
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e: any) => setContent(e.target.value)}
             rows={20}
             className="w-full text-lg text-gray-800 dark:text-gray-200 bg-transparent border-0 outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600 resize-none leading-relaxed"
             style={{ minHeight: '500px' }}

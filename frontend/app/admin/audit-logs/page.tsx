@@ -72,7 +72,7 @@ export default function AdminAuditLogs() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {logs.map((log) => (
+              {logs.map((log: any) => (
                 <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-[#0d0d0d]">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
@@ -122,14 +122,14 @@ export default function AdminAuditLogs() {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() => setPage((p: any) => Math.max(1, p - 1))}
               disabled={page === 1}
               className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-[#0d0d0d] bg-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors"
             >
               Önceki
             </button>
             <button
-              onClick={() => setPage((p) => p + 1)}
+              onClick={() => setPage((p: any) => p + 1)}
               disabled={page * 50 >= total}
               className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-[#0d0d0d] bg-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors"
             >

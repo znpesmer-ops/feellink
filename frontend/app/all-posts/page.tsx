@@ -52,8 +52,8 @@ function AllPostsContent() {
       console.log('📝 New post received (legacy):', post)
       if (post.source === 'user') {
         // updatePosts eventi gelecek, bu yüzden burada sadece log
-        setPosts((prev) => {
-          if (prev.some((p) => p.id === post.id)) {
+        setPosts((prev: any) => {
+          if (prev.some((p: any) => p.id === post.id)) {
             return prev
           }
           return [post, ...prev]
@@ -85,7 +85,7 @@ function AllPostsContent() {
   const handleLike = (postId: string) => {
     if (!accessToken) return
 
-    const post = posts.find((p) => p.id === postId)
+    const post = posts.find((p: any) => p.id === postId)
     if (!post) return
 
     const isLiked = post.likedBy?.includes(user?.id || '')
@@ -100,7 +100,7 @@ function AllPostsContent() {
     }
 
     // Optimistic update
-    setPosts((prev) => prev.map((p) => (p.id === postId ? updatedPost : p)))
+    setPosts((prev: any) => prev.map((p: any) => (p.id === postId ? updatedPost : p)))
 
     // Global store'a bildir
     const postsSocket = initPostsSocket(accessToken)
@@ -126,7 +126,7 @@ function AllPostsContent() {
     // Arama filtresi (başlık, yazar, içerik)
     if (query.trim()) {
       const searchQuery = query.toLowerCase().trim()
-      filtered = filtered.filter((p) => {
+      filtered = filtered.filter((p: any) => {
         const titleMatch = p.title?.toLowerCase().includes(searchQuery) || false
         const authorMatch = p.author?.toLowerCase().includes(searchQuery) || 
                            p.authorUsername?.toLowerCase().includes(searchQuery) || false
@@ -136,7 +136,7 @@ function AllPostsContent() {
     }
 
     // Sıralama (filtreye göre)
-    filtered.sort((a, b) => {
+    filtered.sort((a: any, b: any) => {
       if (filter === 'popular') {
         return (b.likes || 0) - (a.likes || 0)
       }
@@ -174,7 +174,7 @@ function AllPostsContent() {
                 type="text"
                 placeholder="Ara (yazar, başlık, içerik...)"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e: any) => setQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-white/70 dark:bg-[#111]/70 
                            border border-gray-300 dark:border-gray-700 
                            rounded-lg text-sm text-gray-700 dark:text-gray-300 
@@ -197,7 +197,7 @@ function AllPostsContent() {
             {/* 📊 Filtre */}
             <select
               value={filter}
-              onChange={(e) => setFilter(e.target.value as FilterType)}
+              onChange={(e: any) => setFilter(e.target.value as FilterType)}
               className="text-sm bg-white/70 dark:bg-[#111]/70 border border-gray-300 dark:border-gray-700 
                          rounded-lg px-4 py-2.5 text-gray-700 dark:text-gray-300 
                          outline-none focus:ring-2 focus:ring-[#ff7b00] 
@@ -270,7 +270,7 @@ function AllPostsContent() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sortedPosts.map((post) => (
+            {sortedPosts.map((post: any) => (
               <PostCard key={post.id} post={post} onLike={handleLike} showLike={false} />
             ))}
           </div>
@@ -286,13 +286,13 @@ function AllPostsContent() {
               </div>
               <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50">
                 <p className="text-2xl font-bold text-[#ff7b00]">
-                  {sortedPosts.reduce((sum, p) => sum + (p.likes || 0), 0)}
+                  {sortedPosts.reduce((sum: any, p: any) => sum + (p.likes || 0), 0)}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Toplam Beğeni</p>
               </div>
               <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50">
                 <p className="text-2xl font-bold text-[#ff7b00]">
-                  {new Set(sortedPosts.map((p) => p.authorUsername || p.author)).size}
+                  {new Set(sortedPosts.map((p: any) => p.authorUsername || p.author)).size}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Yazar Sayısı</p>
               </div>

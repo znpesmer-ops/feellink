@@ -40,7 +40,7 @@ export function AddToCollectionModal({ postId, open, onClose, onSuccess }: AddTo
     async function fetchCollections() {
       try {
         setLoading(true)
-        const res = await api.get<Collection[]>('/collections/my')
+        const res = await api.get('/collections/my')
         setCollections(res.data || [])
       } catch (error) {
         console.error('Koleksiyonlar yüklenemedi:', error)
@@ -155,7 +155,7 @@ export function AddToCollectionModal({ postId, open, onClose, onSuccess }: AddTo
           onCreated={async () => {
             // Refresh collections list
             try {
-              const res = await api.get<Collection[]>('/collections/my')
+              const res = await api.get('/collections/my')
               setCollections(res.data || [])
             } catch (error) {
               console.error('Koleksiyonlar yüklenemedi:', error)

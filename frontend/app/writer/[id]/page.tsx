@@ -62,7 +62,7 @@ const WRITERS = [
 export default function WriterProfilePage() {
   const params = useParams()
   const id = params?.id as string
-  const writer = WRITERS.find((w) => w.id === id)
+  const writer = WRITERS.find((w: any) => w.id === id)
 
   if (!writer) {
     return (
@@ -103,7 +103,7 @@ export default function WriterProfilePage() {
           Yazıları
         </h2>
 
-        {writer.posts.map((post) => (
+        {writer.posts.map((post: any) => (
           <div
             key={post.id}
             className="rounded-2xl bg-gray-50/80 dark:bg-gray-800/60 

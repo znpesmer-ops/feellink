@@ -41,7 +41,7 @@ function RotatingComments({ comments }: { comments: Array<{ id: string; content:
     const interval = setInterval(() => {
       setFade(false)
       setTimeout(() => {
-        setIndex((prev) => (prev + 1) % comments.length)
+        setIndex((prev: any) => (prev + 1) % comments.length)
         setFade(true)
       }, 150) // Fade out süresi
     }, 2500) // 2.5 saniye (ideal)
@@ -176,7 +176,7 @@ function ExploreContent() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
-  const posts = data?.pages.flatMap((page) => page.posts) || []
+  const posts = data?.pages.flatMap((page: any) => page.posts) || []
   
   // Debug: Backend'den gelen veriyi kontrol et
   useEffect(() => {
@@ -208,7 +208,7 @@ function ExploreContent() {
         {/* Filtre Barı - KALDIRILDI */}
         {/* 
         <div className="flex items-center justify-center gap-4 mt-6 mb-8">
-          {filters.map((filter) => (
+          {filters.map((filter: any) => (
             <button
               key={filter}
               onClick={() => setActiveFilter(filter)}

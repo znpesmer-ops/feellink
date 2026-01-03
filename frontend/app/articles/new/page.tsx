@@ -29,7 +29,7 @@ function NewArticleContent() {
     if (file) {
       // Önce geçici görsel oluştur ve crop modalını aç
       const reader = new FileReader()
-      reader.onload = (e) => {
+      reader.onload = (e: any) => {
         const imageUrl = e.target?.result as string
         setTempImage(imageUrl)
         setShowCropper(true)
@@ -45,7 +45,7 @@ function NewArticleContent() {
     
     // Preview oluştur
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = (e: any) => {
       setCoverPreview(e.target?.result as string)
     }
     reader.readAsDataURL(croppedBlob)
@@ -204,7 +204,7 @@ function NewArticleContent() {
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e: any) => setTitle(e.target.value)}
               placeholder="Yazının başlığını girin..."
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#ff7b00] transition-all"
             />
@@ -217,7 +217,7 @@ function NewArticleContent() {
             </label>
             <textarea
               value={excerpt}
-              onChange={(e) => setExcerpt(e.target.value)}
+              onChange={(e: any) => setExcerpt(e.target.value)}
               placeholder="Yazının kısa bir özeti..."
               rows={3}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#ff7b00] transition-all resize-none"
@@ -252,7 +252,7 @@ function NewArticleContent() {
               <input
                 type="datetime-local"
                 value={scheduledAt}
-                onChange={(e) => setScheduledAt(e.target.value)}
+                onChange={(e: any) => setScheduledAt(e.target.value)}
                 min={new Date().toISOString().slice(0, 16)}
                 placeholder="Tarih ve saat seçin"
                 className="ml-3 w-full bg-transparent outline-none text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 text-sm"

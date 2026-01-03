@@ -137,11 +137,11 @@ export default function AdminDashboard() {
 
   // Traffic chart data
   const trafficData = {
-    labels: summary?.traffic30d.map((d) => new Date(d.date).toLocaleDateString('tr-TR', { month: 'short', day: 'numeric' })) || [],
+    labels: summary?.traffic30d.map((d: any) => new Date(d.date).toLocaleDateString('tr-TR', { month: 'short', day: 'numeric' })) || [],
     datasets: [
       {
         label: 'Yeni Kullanıcılar',
-        data: summary?.traffic30d.map((d) => d.count) || [],
+        data: summary?.traffic30d.map((d: any) => d.count) || [],
         borderColor: '#ff7b00',
         backgroundColor: 'rgba(255, 123, 0, 0.1)',
         fill: true,
@@ -196,7 +196,7 @@ export default function AdminDashboard() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-        {statCards.map((card, idx) => {
+        {statCards.map((card: any, idx: any) => {
           const Icon = card.icon
           return (
             <div

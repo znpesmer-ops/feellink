@@ -215,15 +215,15 @@ export default function SelectRolePage() {
   const router = useRouter()
   const { user } = useAuthStore()
   const { theme, toggleTheme } = useTheme()
-  const setUser = useAuthStore((state) => state.setUser)
-  const setCapabilities = useAuthStore((state) => state.setCapabilities)
+  const setUser = useAuthStore((state: any) => state.setUser)
+  const setCapabilities = useAuthStore((state: any) => state.setCapabilities)
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null)
   const [selectedExtra, setSelectedExtra] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [mutationError, setMutationError] = useState<string | null>(null)
 
   const activeRole = useMemo(
-    () => ROLE_CONFIG.find((role) => role.id === selectedRoleId) ?? null,
+    () => ROLE_CONFIG.find((role: any) => role.id === selectedRoleId) ?? null,
     [selectedRoleId]
   )
 
@@ -235,7 +235,7 @@ export default function SelectRolePage() {
   }
 
   const handleExtraToggle = (extraId: string) => {
-    setSelectedExtra((prev) => (prev === extraId ? null : extraId))
+    setSelectedExtra((prev: any) => (prev === extraId ? null : extraId))
     setMutationError(null)
   }
 
@@ -357,7 +357,7 @@ export default function SelectRolePage() {
         </div>
 
         <div className="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-          {ROLE_CONFIG.map((role) => {
+          {ROLE_CONFIG.map((role: any) => {
             const Icon = role.icon
             const isActive = role.id === selectedRoleId
             return (
@@ -428,7 +428,7 @@ export default function SelectRolePage() {
                 <div className="mt-6 space-y-3">
                   <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 mb-3 tracking-tight">Özellikler</h3>
                   <ul className="space-y-2.5 text-sm text-gray-700 dark:text-gray-200">
-                    {activeRole.features.map((feature, index) => (
+                    {activeRole.features.map((feature: any, index: any) => (
                       <li key={index} className="leading-relaxed font-normal">
                         {feature}
                       </li>
@@ -456,7 +456,7 @@ export default function SelectRolePage() {
                     activeRole.allowedExtras!.map((extraId) => {
                       const extra = EXTRA_PACKAGES[extraId]
                       const isActiveExtra = selectedExtra === extraId
-                      const partnerRole = ROLE_CONFIG.find((role) => role.id === extraId)?.title ?? ''
+                      const partnerRole = ROLE_CONFIG.find((role: any) => role.id === extraId)?.title ?? ''
 
                       return (
                         <motion.div
@@ -490,7 +490,7 @@ export default function SelectRolePage() {
                           </p>
 
                           <ul className="mt-4 space-y-2 text-sm text-gray-700 dark:text-gray-200">
-                            {extra.features.map((feature) => (
+                            {extra.features.map((feature: any) => (
                               <li key={feature} className="flex items-center gap-2">
                                 <span className={`inline-flex h-1.5 w-1.5 rounded-full mt-0.5 ${
                                   isActiveExtra ? 'bg-orange-500 dark:bg-orange-400' : 'bg-blue-500'
@@ -501,7 +501,7 @@ export default function SelectRolePage() {
                           </ul>
 
                           <button
-                            onClick={(event) => {
+                            onClick={(event: any) => {
                               event.stopPropagation()
                               handleExtraToggle(extraId)
                             }}

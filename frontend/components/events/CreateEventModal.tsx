@@ -42,7 +42,7 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
   useEffect(() => {
     if (isOpen && user) {
       api.get("/events/my")
-        .then((res) => setMyEvents(res.data || []))
+        .then((res: { data: any[] }) => setMyEvents(res.data || []))
         .catch(() => setMyEvents([]));
     }
   }, [isOpen, user]);

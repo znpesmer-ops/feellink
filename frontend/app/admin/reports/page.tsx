@@ -180,8 +180,8 @@ export default function AdminReportsPage() {
                   </td>
                 </tr>
               ) : (
-                reports.map((report) => {
-                  const statusInfo = statusConfig[report.status]
+                reports.map((report: any) => {
+                  const statusInfo = statusConfig[report.status as keyof typeof statusConfig]
                   const StatusIcon = statusInfo.icon
                   return (
                     <tr key={report.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
@@ -233,7 +233,7 @@ export default function AdminReportsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm text-gray-900 dark:text-white">
-                          {reasonLabels[report.reason]}
+                          {reasonLabels[report.reason as keyof typeof reasonLabels] || report.reason}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -275,7 +275,7 @@ export default function AdminReportsPage() {
       {total > 20 && (
         <div className="flex justify-center gap-2">
           <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            onClick={() => setPage((p: any) => Math.max(1, p - 1))}
             disabled={page === 1}
             className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -285,7 +285,7 @@ export default function AdminReportsPage() {
             Sayfa {page} / {Math.ceil(total / 20)}
           </span>
           <button
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() => setPage((p: any) => p + 1)}
             disabled={page >= Math.ceil(total / 20)}
             className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -302,7 +302,7 @@ export default function AdminReportsPage() {
         >
           <div
             className="w-[600px] max-h-[80vh] overflow-y-auto rounded-xl bg-white dark:bg-gray-900 p-6 shadow-xl border border-gray-200 dark:border-gray-800"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: any) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Şikayet Detayı</h3>

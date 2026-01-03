@@ -95,7 +95,7 @@ export default function AdminNotificationsPage() {
     }
   }
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length
+  const unreadCount = notifications.filter((n: any) => !n.isRead).length
 
   if (loading) {
     return (
@@ -122,7 +122,7 @@ export default function AdminNotificationsPage() {
               <p>Henüz bildirim bulunmuyor</p>
             </div>
           ) : (
-            notifications.map((notification) => {
+            notifications.map((notification: any) => {
               const { icon: Icon, color, bgColor } = getNotificationIcon(notification.type)
               return (
                 <div

@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useState, useEffect } from 'react'
+import { FormEvent, useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import api from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
@@ -15,7 +15,7 @@ interface Country {
   cities: string[]
 }
 
-export default function NewJobPage() {
+function NewJobPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user } = useAuthStore()
@@ -37,9 +37,9 @@ export default function NewJobPage() {
   // Load countries data
   useEffect(() => {
     fetch('/data/countries.json')
-      .then((res) => res.json())
-      .then((data) => setCountries(data))
-      .catch((err) => {
+      .then((res: any) => res.json())
+      .then((data: any) => setCountries(data))
+      .catch((err: any) => {
         console.error('Error loading countries:', err)
         toast.error('Ülke listesi yüklenemedi')
       })
@@ -50,7 +50,7 @@ export default function NewJobPage() {
     if (isEditMode && jobId && countries.length > 0) {
       setIsLoadingJob(true)
       api.get(`/jobs/${jobId}`)
-        .then((response) => {
+        .then((response: any) => {
           const job = response.data
           // Form alanlarını doldur
           if (job.title) {
@@ -81,7 +81,7 @@ export default function NewJobPage() {
               const countryValue = parts.slice(1).join(', ')
               setCity(cityValue)
               // Ülke adından code bul
-              const country = countries.find((c) => c.name === countryValue)
+              const country = countries.find((c: any) => c.name === countryValue)
               if (country) {
                 setSelectedCountry(country.code)
               } else if (countryValue === 'Türkiye') {
@@ -102,7 +102,7 @@ export default function NewJobPage() {
             }
           }
         })
-        .catch((err) => {
+        .catch((err: any) => {
           console.error('İlan yüklenirken hata:', err)
           toast.error('İlan yüklenirken bir hata oluştu')
           router.push('/jobs/new')
@@ -125,7 +125,7 @@ export default function NewJobPage() {
     const title = formData.get('title')?.toString().trim()
     const companyName = formData.get('companyName')?.toString().trim() || user?.fullName || ''
     const locationCity = city || formData.get('locationCity')?.toString().trim() || ''
-    const countryName = countries.find((c) => c.code === selectedCountry)?.name || 'Türkiye'
+    const countryName = countries.find((c: any) => c.code === selectedCountry)?.name || 'Türkiye'
     const location = [locationCity, countryName].filter(Boolean).join(', ') || undefined
 
     // Maaş formatı
@@ -353,13 +353,13 @@ export default function NewJobPage() {
               </label>
               <select
                 value={selectedCountry}
-                onChange={(e) => {
+                onChange={(e: any) => {
                   setSelectedCountry(e.target.value)
                   setCity('') // 🔒 Ülke değişince şehir sıfırlanır
                 }}
                 className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
               >
-                {countries.map((c) => (
+                {countries.map((c: any) => (
                   <option key={c.code} value={c.code}>
                     {c.name}
                   </option>
@@ -376,7 +376,7 @@ export default function NewJobPage() {
               {selectedCountry === 'TR' ? (
                 <select
                   value={city}
-                  onChange={(e) => setCity(e.target.value)}
+                  onChange={(e: any) => setCity(e.target.value)}
                   className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
                 >
                   <option value="">Şehir seçin</option>
@@ -391,7 +391,7 @@ export default function NewJobPage() {
                   name="locationCity"
                   type="text"
                   value={city}
-                  onChange={(e) => setCity(e.target.value)}
+                  onChange={(e: any) => setCity(e.target.value)}
                   placeholder="Şehir"
                   className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
                 />
@@ -468,7 +468,7 @@ export default function NewJobPage() {
                 rows={2}
                 maxLength={maxShortSummaryChars}
                 value={shortSummary}
-                onChange={(e) => setShortSummary(e.target.value.slice(0, maxShortSummaryChars))}
+                onChange={(e: any) => setShortSummary(e.target.value.slice(0, maxShortSummaryChars))}
                 placeholder="Örn: Bu ilan, sergi sürecinde görev alacak ve sanat üretim süreçlerine destek verecek kişiler içindir."
                 className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm resize-none text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
               />
@@ -665,6 +665,20 @@ export default function NewJobPage() {
       </form>
       )}
     </div>
+  )
+}
+
+export default function NewJobPage() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
+        </div>
+      </div>
+    }>
+      <NewJobPageContent />
+    </Suspense>
   )
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, Suspense } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -380,8 +380,9 @@ function ProfileContent() {
     // Eser yükleme yetkisi olan roller
     const artworkUploadRoles = ['artist', 'corporate', 'collector', 'gallery']
     
-    // Role string kontrolü (case-insensitive)
-    const roleStr = String(currentUser.role || '').toLowerCase()
+    // Role string kontrolü (case-insensitive) - roles array'den ilk role'ü al
+    const firstRole = Array.isArray(currentUser.roles) && currentUser.roles.length > 0 ? currentUser.roles[0] : ''
+    const roleStr = String(firstRole || '').toLowerCase()
     const isRoleMatch = artworkUploadRoles.includes(roleStr)
     
     // Roles array kontrolü
@@ -391,7 +392,7 @@ function ProfileContent() {
     
     // Direct role checks (case-insensitive)
     const hasArtworkRole = artworkUploadRoles.some(role => 
-      currentUser.role?.toLowerCase() === role || 
+      (Array.isArray(currentUser.roles) && currentUser.roles[0]?.toLowerCase() === role) || 
       (Array.isArray(currentUser.roles) && currentUser.roles.some((r: string) => String(r).toLowerCase() === role))
     )
     
@@ -501,7 +502,7 @@ function ProfileContent() {
     onSuccess: (_, postId) => {
       toast.success('Gönderi başarıyla silindi')
       // Remove from local state
-      setProfilePosts((prev) => prev.filter((p) => p.id !== postId))
+      setProfilePosts((prev: any) => prev.filter((p: any) => p.id !== postId))
       // Sadece ilgili query'leri invalidate et (profil query'sine dokunma - redirect'i engelle)
       queryClient.invalidateQueries({ queryKey: ['user-posts', profile?.id] })
       queryClient.invalidateQueries({ queryKey: ['posts'] })
@@ -595,9 +596,9 @@ function ProfileContent() {
           (activeTab === 'artworks' && newPost.type === 'artwork')
         
         if (shouldAdd) {
-          setProfilePosts((prev) => {
+          setProfilePosts((prev: any) => {
             // Çift eklemeyi önle
-            if (prev.some((p) => p.id === newPost.id)) {
+            if (prev.some((p: any) => p.id === newPost.id)) {
               return prev
             }
             return [newPost, ...prev]
@@ -617,7 +618,7 @@ function ProfileContent() {
     // 🔔 Real-time beğeni güncellemeleri
     postsSocket.on('postLikeUpdated', (data: { postId: string; change: number; likeCount: number; isLiked: boolean; userId: string }) => {
       // Profil postlarından bu post'u güncelle
-      setProfilePosts((prev) =>
+      setProfilePosts((prev: any) =>
         prev.map((p: any) => {
           if (p.id === data.postId) {
             return {
@@ -640,7 +641,7 @@ function ProfileContent() {
     const commentsSocket = initCommentsSocket(accessToken)
     commentsSocket.on('commentCreated', (data: any) => {
       // Profil postlarından bu post'un yorum sayısını güncelle
-      setProfilePosts((prev) =>
+      setProfilePosts((prev: any) =>
         prev.map((p: any) => {
           if (p.id === data.postId) {
             return {
@@ -661,7 +662,7 @@ function ProfileContent() {
 
     commentsSocket.on('commentDeleted', (data: { id: string; postId: string }) => {
       // Profil postlarından bu post'un yorum sayısını güncelle
-      setProfilePosts((prev) =>
+      setProfilePosts((prev: any) =>
         prev.map((p: any) => {
           if (p.id === data.postId) {
             return {
@@ -709,7 +710,7 @@ function ProfileContent() {
         await api.delete(`/follow/${profile.id}`)
       }
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['profile', username] })
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
       
@@ -1351,7 +1352,7 @@ function ProfileContent() {
 
         {/* Sekme Butonları - Instagram Tarzı İkonlu Sekmeler - Rol bazlı görünürlük */}
         <div className="flex justify-center gap-10 mb-6 border-b border-gray-200 dark:border-gray-700 pb-3 relative">
-          {tabs.map((tab) => {
+          {tabs.map((tab: any) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.key
             
@@ -1437,7 +1438,7 @@ function ProfileContent() {
                             src={resolveImageUrl(event.coverImage)}
                             alt={event.title}
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                            onError={(e) => {
+                            onError={(e: any) => {
                               (e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
                             }}
                           />
@@ -1561,7 +1562,7 @@ function ProfileContent() {
                               src={resolveImageUrl(post.media[0].url)}
                               alt={post.caption || 'Post'}
                               className="w-full h-full object-cover rounded-xl group-hover:scale-105 transition-transform duration-300"
-                              onError={(e) => {
+                              onError={(e: any) => {
                                 (e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
                               }}
                             />
@@ -1574,13 +1575,13 @@ function ProfileContent() {
                           {/* Menü butonu - Silme seçeneği - Sadece sahip görür - Post z-index */}
                           {isOwner && (
                             <div 
-                              ref={(el) => {
+                              ref={(el: any) => {
                                 menuRefs.current[post.id] = el
                               }}
                               className="absolute bottom-2 right-2 z-[60]"
                             >
                               <button
-                                onClick={(e) => {
+                                onClick={(e: any) => {
                                   e.stopPropagation()
                                   setMenuOpen(menuOpen === post.id ? null : post.id)
                                 }}
@@ -1593,11 +1594,11 @@ function ProfileContent() {
                               {/* Açılır menü - Sadece kartın içinde - Post z-index */}
                               {menuOpen === post.id && (
                                 <div 
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e: any) => e.stopPropagation()}
                                   className="absolute bottom-10 right-0 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden min-w-[120px] z-[60]"
                                 >
                                   <button
-                                    onClick={(e) => {
+                                    onClick={(e: any) => {
                                       e.stopPropagation()
                                       setEditingPost(post)
                                       setMenuOpen(null)
@@ -1608,7 +1609,7 @@ function ProfileContent() {
                                     Düzenle
                                   </button>
                                   <button
-                                    onClick={(e) => handleDeleteClick(e, post.id)}
+                                    onClick={(e: any) => handleDeleteClick(e, post.id)}
                                     disabled={deletePostMutation.isPending}
                                     className="w-full px-4 py-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
@@ -1663,7 +1664,7 @@ function ProfileContent() {
         >
           <div
             className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col transition-colors"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: any) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Followers</h2>
@@ -1706,7 +1707,7 @@ function ProfileContent() {
                     {isMe && (
                       <div className="flex items-center shrink-0 whitespace-nowrap">
                         <button
-                          onClick={(e) => {
+                          onClick={(e: any) => {
                             e.stopPropagation()
                             setShowRemoveFollowerModal({ userId: follower.id, username: follower.username })
                           }}
@@ -1747,7 +1748,7 @@ function ProfileContent() {
         >
           <div 
             className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: any) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               Gönderiyi Sil
@@ -1782,7 +1783,7 @@ function ProfileContent() {
         >
           <div
             className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col transition-colors"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: any) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Following</h2>
@@ -1825,7 +1826,7 @@ function ProfileContent() {
                     {isMe && (
                       <div className="flex items-center shrink-0 whitespace-nowrap">
                         <button
-                          onClick={(e) => {
+                          onClick={(e: any) => {
                             e.stopPropagation()
                             setShowUnfollowModal({ userId: follow.id, username: follow.username })
                           }}
@@ -1854,7 +1855,7 @@ function ProfileContent() {
         >
           <div
             className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 transition-colors"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: any) => e.stopPropagation()}
           >
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Takipten çıkar
@@ -1893,7 +1894,7 @@ function ProfileContent() {
         >
           <div
             className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 transition-colors"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: any) => e.stopPropagation()}
           >
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Takibi bırak
@@ -1959,7 +1960,7 @@ function ProfileContent() {
         >
           <div
             className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 transition-colors"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: any) => e.stopPropagation()}
           >
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Bu kişiyi engelle
@@ -1999,7 +2000,13 @@ export default function ProfilePage() {
   // ProfileContent'i doğrudan render et (AuthGuard zaten Providers içinde)
   return (
     <AuthGuard>
-      <ProfileContent />
+      <Suspense fallback={
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
+        </div>
+      }>
+        <ProfileContent />
+      </Suspense>
     </AuthGuard>
   )
 }

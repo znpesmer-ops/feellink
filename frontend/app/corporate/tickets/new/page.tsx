@@ -46,7 +46,7 @@ export default function NewTicketPage() {
     )
   }
 
-  const selectedEvent = events.find((e) => e.id === selectedEventId)
+  const selectedEvent = events.find((e: any) => e.id === selectedEventId)
 
   return (
     <div className="max-w-4xl mx-auto pt-8 px-4 pb-20">
@@ -114,7 +114,7 @@ function EventSelectionStep({
         Etkinlik Seçin
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-        {events.map((event) => (
+        {events.map((event: any) => (
           <button
             key={event.id}
             onClick={() => onSelectEvent(event.id)}
@@ -229,7 +229,7 @@ function TicketFormStep({
           <input
             type="text"
             value={type}
-            onChange={(e) => setType(e.target.value)}
+            onChange={(e: any) => setType(e.target.value)}
             className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff7b00] dark:bg-gray-800 dark:text-white transition"
             placeholder="Örn: Genel Giriş, VIP, Öğrenci"
             required
@@ -244,7 +244,7 @@ function TicketFormStep({
             <input
               type="number"
               value={price}
-              onChange={(e) => setPrice(e.target.value)}
+              onChange={(e: any) => setPrice(e.target.value)}
               min="0"
               step="0.01"
               className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff7b00] dark:bg-gray-800 dark:text-white transition"
@@ -260,7 +260,7 @@ function TicketFormStep({
             <input
               type="number"
               value={capacity}
-              onChange={(e) => setCapacity(e.target.value)}
+              onChange={(e: any) => setCapacity(e.target.value)}
               min="1"
               className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff7b00] dark:bg-gray-800 dark:text-white transition"
               placeholder="100"

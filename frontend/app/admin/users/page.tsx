@@ -224,7 +224,7 @@ export default function AdminUsersPage() {
             type="text"
             placeholder="Kullanıcı ara..."
             value={searchQuery}
-            onChange={(e) => {
+            onChange={(e: any) => {
               setSearchQuery(e.target.value)
               setPage(1)
             }}
@@ -259,14 +259,14 @@ export default function AdminUsersPage() {
               </label>
               <select
                 value={cityFilter}
-                onChange={(e) => {
+                onChange={(e: any) => {
                   setCityFilter(e.target.value)
                   setPage(1)
                 }}
                 className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff7b00] dark:bg-[#1a1a1a] dark:text-white"
               >
                 <option value="">Tüm Şehirler</option>
-                {TR_CITIES.map((city) => (
+                {TR_CITIES.map((city: any) => (
                   <option key={city} value={city}>
                     {city}
                   </option>
@@ -281,7 +281,7 @@ export default function AdminUsersPage() {
               </label>
               <select
                 value={genderFilter}
-                onChange={(e) => {
+                onChange={(e: any) => {
                   setGenderFilter(e.target.value)
                   setPage(1)
                 }}
@@ -305,7 +305,7 @@ export default function AdminUsersPage() {
                 min="18"
                 max="100"
                 value={ageMin}
-                onChange={(e) => {
+                onChange={(e: any) => {
                   setAgeMin(e.target.value)
                   setPage(1)
                 }}
@@ -324,7 +324,7 @@ export default function AdminUsersPage() {
                 min="18"
                 max="100"
                 value={ageMax}
-                onChange={(e) => {
+                onChange={(e: any) => {
                   setAgeMax(e.target.value)
                   setPage(1)
                 }}
@@ -382,7 +382,7 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {users.map((user) => (
+              {users.map((user: any) => (
                 <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-[#0d0d0d]">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
@@ -437,7 +437,7 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1.5">
-                      {(user.roles && user.roles.length > 0 ? user.roles : ['art_lover']).map((role) => {
+                      {(user.roles && user.roles.length > 0 ? user.roles : ['art_lover']).map((role: any) => {
                         const roleKey = role as UserRoleCode
                         const roleLabel = ROLE_METADATA[roleKey]?.label ?? role
                         
@@ -588,14 +588,14 @@ export default function AdminUsersPage() {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() => setPage((p: any) => Math.max(1, p - 1))}
               disabled={page === 1}
               className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-[#0d0d0d] bg-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors"
             >
               Önceki
             </button>
             <button
-              onClick={() => setPage((p) => p + 1)}
+              onClick={() => setPage((p: any) => p + 1)}
               disabled={page * 20 >= total}
               className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-[#0d0d0d] bg-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors"
             >
@@ -648,7 +648,7 @@ export default function AdminUsersPage() {
                 </label>
                 <select
                   value={suspendDuration}
-                  onChange={(e) => setSuspendDuration(e.target.value as any)}
+                  onChange={(e: any) => setSuspendDuration(e.target.value as any)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff7b00] dark:bg-[#1a1a1a] dark:text-white"
                 >
                   <option value="24h">24 Saat</option>
@@ -664,7 +664,7 @@ export default function AdminUsersPage() {
                 </label>
                 <select
                   value={suspendReason}
-                  onChange={(e) => setSuspendReason(e.target.value)}
+                  onChange={(e: any) => setSuspendReason(e.target.value)}
                   required
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff7b00] dark:bg-[#1a1a1a] dark:text-white"
                 >
@@ -686,7 +686,7 @@ export default function AdminUsersPage() {
                 </label>
                 <textarea
                   value={suspendNote}
-                  onChange={(e) => setSuspendNote(e.target.value)}
+                  onChange={(e: any) => setSuspendNote(e.target.value)}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff7b00] dark:bg-[#1a1a1a] dark:text-white"
                   placeholder="İç not (kullanıcı görmez)"

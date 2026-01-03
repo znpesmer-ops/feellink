@@ -41,7 +41,7 @@ export default function PublishedArticlesPage() {
     },
     onSuccess: (_, articleId) => {
       toast.success('Yazı başarıyla silindi')
-      setArticles((prev) => prev.filter((a) => a.id !== articleId))
+      setArticles((prev: any) => prev.filter((a: any) => a.id !== articleId))
       queryClient.invalidateQueries({ queryKey: ['articles'] })
       setMenuOpen(null)
       setConfirmDelete(null)
@@ -77,7 +77,7 @@ export default function PublishedArticlesPage() {
   // Click outside to close menu
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      Object.values(menuRefs.current).forEach((ref) => {
+      Object.values(menuRefs.current).forEach((ref: any) => {
         if (ref && !ref.contains(event.target as Node)) {
           setMenuOpen(null)
         }
@@ -129,7 +129,7 @@ export default function PublishedArticlesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {articles.map((article) => {
+          {articles.map((article: any) => {
             const isOwner = user?.id === article.author.id
             return (
               <div
@@ -139,13 +139,13 @@ export default function PublishedArticlesPage() {
                 {/* Menü butonu - Sadece yazı sahibi görür */}
                 {isOwner && (
                   <div
-                    ref={(el) => {
+                    ref={(el: any) => {
                       if (article.id) menuRefs.current[article.id] = el
                     }}
                     className="absolute top-5 right-5 z-10"
                   >
                     <button
-                      onClick={(e) => {
+                      onClick={(e: any) => {
                         e.stopPropagation()
                         setMenuOpen(menuOpen === article.id ? null : article.id)
                       }}
@@ -158,11 +158,11 @@ export default function PublishedArticlesPage() {
                     {/* Açılır menü */}
                     {menuOpen === article.id && (
                       <div
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e: any) => e.stopPropagation()}
                         className="absolute top-10 right-0 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden min-w-[120px] z-10"
                       >
                         <button
-                          onClick={(e) => handleDeleteClick(e, article.id)}
+                          onClick={(e: any) => handleDeleteClick(e, article.id)}
                           disabled={deleteMutation.isPending}
                           className="w-full px-4 py-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
@@ -186,7 +186,7 @@ export default function PublishedArticlesPage() {
                       src={article.author.avatar}
                       alt={article.author.username}
                       className="w-full h-full object-cover"
-                      onError={(e) => {
+                      onError={(e: any) => {
                         e.currentTarget.src = '/default.png'
                       }}
                     />
@@ -243,7 +243,7 @@ export default function PublishedArticlesPage() {
         >
           <div
             className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: any) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               Yazıyı Sil

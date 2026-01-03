@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 
-export default function ResetPasswordPage() {
+function ResetPasswordPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') || '';
-  const clearAuth = useAuthStore((state) => state.clearAuth);
+  const clearAuth = useAuthStore((state: any) => state.clearAuth);
 
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
@@ -79,7 +79,7 @@ export default function ResetPasswordPage() {
               type="password"
               required
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e: any) => setPassword(e.target.value)}
               className="w-full rounded-xl bg-[#1a1a1a] border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-amber-400"
               placeholder="Yeni şifreniz"
             />
@@ -91,7 +91,7 @@ export default function ResetPasswordPage() {
               type="password"
               required
               value={passwordConfirm}
-              onChange={(e) => setPasswordConfirm(e.target.value)}
+              onChange={(e: any) => setPasswordConfirm(e.target.value)}
               className="w-full rounded-xl bg-[#1a1a1a] border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-amber-400"
               placeholder="Yeni şifrenizi tekrar girin"
             />
@@ -111,5 +111,17 @@ export default function ResetPasswordPage() {
       </div>
     </div>
   );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="fixed inset-0 flex items-center justify-center bg-[#0d0d0d]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
+      </div>
+    }>
+      <ResetPasswordPageContent />
+    </Suspense>
+  )
 }
 

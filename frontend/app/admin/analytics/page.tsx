@@ -154,12 +154,12 @@ export default function AdminAnalyticsPage() {
   ]
 
   // Format dates for charts (show only day/month)
-  const formattedEngagementTrend = data.engagementTrend.map((item) => ({
+  const formattedEngagementTrend = data.engagementTrend.map((item: any) => ({
     ...item,
     date: new Date(item.date).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }),
   }))
 
-  const formattedGrowthTrend = data.growthTrend.map((item) => ({
+  const formattedGrowthTrend = data.growthTrend.map((item: any) => ({
     ...item,
     date: new Date(item.date).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }),
   }))
@@ -181,7 +181,7 @@ export default function AdminAnalyticsPage() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {statCards.map((stat, index) => {
+        {statCards.map((stat: any, index: any) => {
           const Icon = stat.icon
           return (
             <div
@@ -321,7 +321,7 @@ export default function AdminAnalyticsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {data.topCountries.map((item, index) => {
+              {data.topCountries.map((item: any, index: any) => {
                 const percentage = ((item.count / data.totalUsers) * 100).toFixed(1)
                 return (
                   <tr

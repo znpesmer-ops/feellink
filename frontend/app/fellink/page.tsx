@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, Sparkles, UserCircle2, Eye, Trash2, MoreVertical, Users, Edit, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, MessageCircle } from 'lucide-react'
+import { Loader2, Sparkles, UserCircle2, Eye, Trash2, MoreVertical, Users, Edit, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, MessageCircle, MessageSquare } from 'lucide-react'
 
 import api from '@/lib/api'
 import { Avatar } from '@/components/ui/Avatar'
@@ -213,7 +213,7 @@ function MyApplicationsTab({
 
   return (
     <div className="grid md:grid-cols-2 gap-5">
-      {applications.map((application) => (
+      {applications.map((application: any) => (
         <div
           key={application.id}
           className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0f1115] p-4 shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all"
@@ -276,6 +276,7 @@ interface ApplicationForJob {
   portfolioFileUrl?: string | null
   cvUrl?: string | null
   status: 'PENDING' | 'REVIEWED' | 'ACCEPTED' | 'REJECTED' | 'INTERVIEW'
+  conversationId?: string | null
   createdAt: string
   applicant: {
     id: string
@@ -313,6 +314,7 @@ function MyJobsTab({
   const [applications, setApplications] = useState<Record<string, ApplicationForJob[]>>({})
   const [loadingApplications, setLoadingApplications] = useState<Record<string, boolean>>({})
   const [loadedJobIds, setLoadedJobIds] = useState<Set<string>>(new Set()) // Yüklenen job ID'lerini takip et
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   
   // ✅ KRİTİK: İlanlar yüklendiğinde, her ilan için başvuru sayısını hemen yükle (eager loading)
   // Bu sayede kart üzerinde güncel başvuru sayısı görünür, "Başvuruları Gör" butonuna tıklamaya gerek kalmaz
@@ -322,26 +324,26 @@ function MyJobsTab({
     // Her ilan için başvuru sayısını paralel olarak yükle
     const loadApplicationCounts = async () => {
       // Sadece henüz yüklenmemiş job'ları yükle
-      const jobsToLoad = jobs.filter((job) => !loadedJobIds.has(job.id))
+      const jobsToLoad = jobs.filter((job: any) => !loadedJobIds.has(job.id))
       
       if (jobsToLoad.length === 0) {
         console.log('[MyJobsTab] Tüm başvuru sayıları zaten yüklü')
         return
       }
       
-      const promises = jobsToLoad.map(async (job) => {
+      const promises = jobsToLoad.map(async (job: any) => {
         try {
-          const response = await api.get<ApplicationForJob[]>(`/jobs/${job.id}/applications`)
+          const response = await api.get(`/jobs/${job.id}/applications`)
           const loadedApplications = response.data || []
           
           // Applications state'ini güncelle
-          setApplications((prev) => ({ ...prev, [job.id]: loadedApplications }))
+          setApplications((prev: any) => ({ ...prev, [job.id]: loadedApplications }))
           
           // Parent component'e bildir
           onApplicationsLoaded(job.id, loadedApplications.length)
           
           // Yüklenen job ID'sini işaretle
-          setLoadedJobIds((prev) => new Set(prev).add(job.id))
+           setLoadedJobIds((prev: Set<string>) => new Set<string>(prev).add(job.id))
           
           console.log(`[MyJobsTab] Başvuru sayısı yüklendi - JobId: ${job.id}, Count: ${loadedApplications.length}`)
           
@@ -379,21 +381,21 @@ function MyJobsTab({
   const toggleJobExpanded = async (jobId: string) => {
     if (expandedJobs.has(jobId)) {
       // Kapat
-      setExpandedJobs((prev) => {
-        const next = new Set(prev)
-        next.delete(jobId)
-        return next
-      })
+       setExpandedJobs((prev: Set<string>) => {
+         const next = new Set<string>(prev)
+         next.delete(jobId)
+         return next
+       })
     } else {
       // Aç ve başvuruları yükle
-      setExpandedJobs((prev) => new Set(prev).add(jobId))
+      setExpandedJobs((prev: Set<string>) => new Set<string>(prev).add(jobId))
       
       if (!applications[jobId]) {
-        setLoadingApplications((prev) => ({ ...prev, [jobId]: true }))
+        setLoadingApplications((prev: any) => ({ ...prev, [jobId]: true }))
         try {
-          const response = await api.get<ApplicationForJob[]>(`/jobs/${jobId}/applications`)
+          const response = await api.get(`/jobs/${jobId}/applications`)
           const loadedApplications = response.data || []
-          setApplications((prev) => ({ ...prev, [jobId]: loadedApplications }))
+          setApplications((prev: any) => ({ ...prev, [jobId]: loadedApplications }))
           
           // ✅ KRİTİK: Başvuru sayısını parent component'e bildir (myJobs state'ini güncellemek için)
           if (onApplicationsLoaded) {
@@ -403,7 +405,7 @@ function MyJobsTab({
           console.error('Başvurular yüklenemedi:', err)
           toast.error('Başvurular yüklenirken bir hata oluştu')
         } finally {
-          setLoadingApplications((prev) => ({ ...prev, [jobId]: false }))
+          setLoadingApplications((prev: any) => ({ ...prev, [jobId]: false }))
         }
       }
     }
@@ -415,9 +417,9 @@ function MyJobsTab({
       await api.patch(`/jobs/applications/${applicationId}/status`, { status: newStatus })
       
       // Local state'i güncelle
-      setApplications((prev) => ({
+      setApplications((prev: any) => ({
         ...prev,
-        [jobId]: prev[jobId]?.map((app) => 
+        [jobId]: prev[jobId]?.map((app: any) => 
           app.id === applicationId ? { ...app, status: newStatus } : app
         ) || []
       }))
@@ -497,7 +499,7 @@ function MyJobsTab({
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
-      {jobs.map((job) => {
+      {jobs.map((job: any) => {
         const cleanedDescription = cleanText(job.description)
         const shortDescription = cleanedDescription.length > 100 
           ? cleanedDescription.substring(0, 100) + '...'
@@ -576,7 +578,7 @@ function MyJobsTab({
                 {/* Etiketler */}
                 {job.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-3">
-                    {job.tags.slice(0, 3).map((tag) => (
+                    {job.tags.slice(0, 3).map((tag: any) => (
                       <span
                         key={tag}
                         className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-normal text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50"
@@ -609,7 +611,7 @@ function MyJobsTab({
 
                 {/* Başvuruları Gör Butonu - Her zaman göster */}
                 <button
-                  onClick={(e) => {
+                  onClick={(e: any) => {
                     e.stopPropagation()
                     toggleJobExpanded(job.id)
                   }}
@@ -636,7 +638,7 @@ function MyJobsTab({
 
             {/* ✅ Başvurular Listesi (Expandable) - Scrollable Container */}
             {expandedJobs.has(job.id) && (
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700" onClick={(e: any) => e.stopPropagation()}>
                 {loadingApplications[job.id] ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-5 w-5 animate-spin text-brand-orange" />
@@ -656,7 +658,7 @@ function MyJobsTab({
                     
                     {/* Scrollable Başvurular Container - Sabit Yükseklik */}
                     <div className="max-h-[500px] overflow-y-auto overflow-x-hidden pr-2 space-y-4 applications-scroll">
-                    {applications[job.id]?.map((app) => (
+                    {applications[job.id]?.map((app: any) => (
                       <div
                         key={app.id}
                         className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 p-4"
@@ -795,7 +797,7 @@ function MyJobsTab({
                               {/* ✅ Mesaj At Butonu (Sadece ACCEPTED durumunda ve conversationId varsa) */}
                               {app.status === 'ACCEPTED' && app.conversationId && (
                                 <button
-                                  onClick={(e) => {
+                                  onClick={(e: any) => {
                                     e.stopPropagation()
                                     router.push(`/messages?conversation=${app.conversationId}`)
                                   }}
@@ -883,7 +885,7 @@ function MyJobsTab({
             )}
 
             {/* Sağ alt köşe - Üç nokta menü */}
-            <div className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+            <div className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e: any) => e.stopPropagation()}>
               <div className="relative">
                 <button
                   onClick={() => setOpenMenuId(openMenuId === job.id ? null : job.id)}
@@ -939,10 +941,22 @@ function MyJobsTab({
   )
 }
 
+export default function FellinkPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
+      </div>
+    }>
+      <FellinkPageContent />
+    </Suspense>
+  )
+}
+
 // Dynamic export - prerender'i devre dışı bırak (useSearchParams kullanımı nedeniyle)
 export const dynamic = 'force-dynamic';
 
-export default function FellinkPage() {
+function FellinkPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, capabilities, accessToken } = useAuthStore()
@@ -1005,9 +1019,9 @@ export default function FellinkPage() {
 
     try {
       await api.delete(`/jobs/${selectedJobId}`)
-      setJobs((prev) => prev.filter((job) => job.id !== selectedJobId))
-      setMyJobs((prev) => prev.filter((job) => job.id !== selectedJobId))
-      setApplications((prev) => prev.filter((app) => app.jobListing.id !== selectedJobId))
+      setJobs((prev: any) => prev.filter((job: any) => job.id !== selectedJobId))
+      setMyJobs((prev: any) => prev.filter((job: any) => job.id !== selectedJobId))
+      setApplications((prev: any) => prev.filter((app: any) => app.jobListing.id !== selectedJobId))
       setDeleteModalOpen(false)
       setOpenMenuId(null)
       setSelectedJobId(null)
@@ -1043,7 +1057,7 @@ export default function FellinkPage() {
     async function fetchJobs() {
       try {
         setLoading(true)
-        const response = await api.get<PublicJobListing[]>('/jobs/public')
+        const response = await api.get('/jobs/public')
         if (mounted) {
           setJobs(response.data || [])
         }
@@ -1095,7 +1109,7 @@ export default function FellinkPage() {
     async function fetchApplications() {
       try {
         setApplicationsLoading(true)
-        const response = await api.get<JobApplication[]>('/jobs/me/applications')
+        const response = await api.get('/jobs/me/applications')
         if (mounted) {
           setApplications(response.data || [])
         }
@@ -1127,7 +1141,7 @@ export default function FellinkPage() {
     async function fetchMyJobs() {
       try {
         setMyJobsLoading(true)
-        const response = await api.get<MyJobListing[]>('/jobs/me')
+        const response = await api.get('/jobs/me')
         if (mounted) {
           setMyJobs(response.data || [])
         }
@@ -1241,8 +1255,8 @@ export default function FellinkPage() {
           onApplicationsLoaded={(jobId, count) => {
             // ✅ KRİTİK: Başvurular yüklendiğinde myJobs state'indeki _count değerini güncelle
             console.log(`[FellinkPage] onApplicationsLoaded - JobId: ${jobId}, Count: ${count}`)
-            setMyJobs((prev) => {
-              const updated = prev.map((job) =>
+            setMyJobs((prev: any) => {
+              const updated = prev.map((job: any) =>
                 job.id === jobId
                   ? {
                       ...job,
@@ -1253,7 +1267,7 @@ export default function FellinkPage() {
                     }
                   : job
               )
-              console.log(`[FellinkPage] myJobs state güncellendi:`, updated.find(j => j.id === jobId))
+              console.log(`[FellinkPage] myJobs state güncellendi:`, updated.find((j: any) => j.id === jobId))
               return updated
             })
           }}
@@ -1276,7 +1290,7 @@ export default function FellinkPage() {
           ) : (
             <>
               <div className="grid gap-6 md:grid-cols-2">
-                {jobs.map((job) => {
+                {jobs.map((job: any) => {
                   const hasApplied = appliedJobs.has(job.id)
                   const isOwner = job.createdBy?.id === user?.id
 
@@ -1340,7 +1354,7 @@ export default function FellinkPage() {
 
                         {job.tags.length > 0 && (
                           <div className="flex flex-wrap gap-2 mt-3">
-                            {visibleTags.map((tag, idx) => {
+                            {visibleTags.map((tag: any, idx: any) => {
                               // Etiketlere farklı renkler ver (mavi, gri, turuncu)
                               const colorClasses = [
                                 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20',
@@ -1394,7 +1408,7 @@ export default function FellinkPage() {
                         <div className="flex items-center gap-2">
                           {/* Başvuru Butonu */}
                           {canApply && !isOwner && (
-                            <div onClick={(e) => e.stopPropagation()} className="w-full">
+                            <div onClick={(e: any) => e.stopPropagation()} className="w-full">
                               {hasApplied ? (
                                 <span className="inline-flex items-center justify-center gap-1 w-full rounded-md border border-green-500 bg-green-50 dark:bg-green-500/10 px-3 py-1.5 text-sm font-medium text-green-600 dark:text-green-400">
                                   ✓ Başvurdun
@@ -1413,7 +1427,7 @@ export default function FellinkPage() {
                       </div>
 
                       {(isOwner || user?.isAdmin || user?.superAdmin) && (
-                        <div className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                        <div className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e: any) => e.stopPropagation()}>
                           <div className="relative">
             <button
                               onClick={() => setOpenMenuId(openMenuId === job.id ? null : job.id)}
@@ -1460,7 +1474,7 @@ export default function FellinkPage() {
                     setApplyModalOpen(null)
                   }}
                   onSuccess={() => {
-                    setAppliedJobs((prev) => new Set([...prev, applyModalOpen]))
+                    setAppliedJobs((prev: any) => new Set([...prev, applyModalOpen]))
                     setApplyModalOpen(null)
                   }}
                 />

@@ -42,3 +42,4 @@ echo "🛑 Durdurmak için: pkill -9 -f 'next dev' && pkill -9 -f 'nest start'"
 
 
 
+

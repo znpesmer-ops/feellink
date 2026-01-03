@@ -154,7 +154,7 @@ function EventForm() {
         <input
           type="text"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e: any) => setTitle(e.target.value)}
           className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff7b00] dark:bg-gray-800 dark:text-white transition"
           placeholder="Etkinlik başlığı..."
           required
@@ -170,7 +170,7 @@ function EventForm() {
           <input
             type="date"
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e: any) => setDate(e.target.value)}
             className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff7b00] dark:bg-gray-800 dark:text-white transition"
             required
           />
@@ -182,7 +182,7 @@ function EventForm() {
           <input
             type="time"
             value={time}
-            onChange={(e) => setTime(e.target.value)}
+            onChange={(e: any) => setTime(e.target.value)}
             className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff7b00] dark:bg-gray-800 dark:text-white transition"
           />
         </div>
@@ -196,7 +196,7 @@ function EventForm() {
         <input
           type="text"
           value={location}
-          onChange={(e) => setLocation(e.target.value)}
+          onChange={(e: any) => setLocation(e.target.value)}
           className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#ff7b00] dark:bg-gray-800 dark:text-white transition"
           placeholder="Etkinlik konumu..."
         />
@@ -209,7 +209,7 @@ function EventForm() {
         </label>
         <textarea
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e: any) => setDescription(e.target.value)}
           className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-2.5 h-32 resize-none focus:outline-none focus:ring-2 focus:ring-[#ff7b00] dark:bg-gray-800 dark:text-white transition"
           placeholder="Etkinliğin içeriği hakkında detaylı bilgi..."
         ></textarea>

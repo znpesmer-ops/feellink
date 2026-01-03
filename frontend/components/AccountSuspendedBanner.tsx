@@ -31,9 +31,9 @@ export function AccountSuspendedBanner({ onVisibilityChange }: AccountSuspendedB
     staleTime: 30 * 1000, // 30 saniye cache
   })
 
-  const accountStatus = userData?.accountStatus || user?.accountStatus
-  const suspendedUntil = userData?.suspendedUntil || user?.suspendedUntil
-  const suspensionReason = userData?.suspensionReason || user?.suspensionReason
+  const accountStatus = userData?.accountStatus || (user as any)?.accountStatus
+  const suspendedUntil = userData?.suspendedUntil || (user as any)?.suspendedUntil
+  const suspensionReason = userData?.suspensionReason || (user as any)?.suspensionReason
 
   // ✅ Banner görünürlüğünü hesapla
   const isVisible = !dismissed && 

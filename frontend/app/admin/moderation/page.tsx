@@ -150,7 +150,7 @@ export default function AdminModerationPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {items.map((item) => (
+                {items.map((item: any) => (
                   <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-medium text-gray-900 dark:text-white">

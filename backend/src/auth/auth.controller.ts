@@ -20,7 +20,7 @@ export class AuthController {
 
   @Post('register')
   @UseGuards(ThrottlerGuard)
-  @Throttle(5, 60) // 🔒 Güvenlik: 1 dakikada maksimum 5 kayıt denemesi (brute force koruması)
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 🔒 Güvenlik: 1 dakikada maksimum 5 kayıt denemesi (brute force koruması)
   async register(@Body() registerDto: RegisterDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     // Debug: Gelen raw request body'yi logla
     this.logger.log(`Register RAW request body: ${JSON.stringify(req.body, null, 2)}`);
@@ -44,7 +44,7 @@ export class AuthController {
 
   @Post('register-corporate')
   @UseGuards(ThrottlerGuard)
-  @Throttle(5, 60) // 🔒 Güvenlik: 1 dakikada maksimum 5 kayıt denemesi
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 🔒 Güvenlik: 1 dakikada maksimum 5 kayıt denemesi
   async registerCorporate(@Body() registerDto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.register({ ...registerDto, role: 'corporate' });
     
@@ -64,7 +64,7 @@ export class AuthController {
 
   @Post('login')
   @UseGuards(ThrottlerGuard)
-  @Throttle(5, 60) // 🔒 Güvenlik: 1 dakikada maksimum 5 login denemesi (brute force koruması)
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 🔒 Güvenlik: 1 dakikada maksimum 5 login denemesi (brute force koruması)
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     try {
       this.logger.log('LOGIN HIT - /auth/login endpoint called');
@@ -105,7 +105,7 @@ export class AuthController {
 
   @Post('login-corporate')
   @UseGuards(ThrottlerGuard)
-  @Throttle(5, 60) // 🔒 Güvenlik: 1 dakikada maksimum 5 login denemesi
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 🔒 Güvenlik: 1 dakikada maksimum 5 login denemesi
   async corporateLogin(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.corporateLogin(loginDto);
     
@@ -123,7 +123,7 @@ export class AuthController {
 
   @Post('login-unified')
   @UseGuards(ThrottlerGuard)
-  @Throttle(5, 60) // 🔒 Güvenlik: 1 dakikada maksimum 5 login denemesi
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 🔒 Güvenlik: 1 dakikada maksimum 5 login denemesi
   async loginUnified(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     this.logger.log('LOGIN HIT - loginUnified endpoint called');
     const result = await this.authService.loginUnified(loginDto);
@@ -202,7 +202,7 @@ export class AuthController {
 
   @Post('forgot-password')
   @UseGuards(ThrottlerGuard)
-  @Throttle(3, 60) // 🔒 Güvenlik: 1 dakikada maksimum 3 şifre sıfırlama talebi (abuse önleme)
+  @Throttle({ default: { limit: 3, ttl: 60000 } }) // 🔒 Güvenlik: 1 dakikada maksimum 3 şifre sıfırlama talebi (abuse önleme)
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
   }

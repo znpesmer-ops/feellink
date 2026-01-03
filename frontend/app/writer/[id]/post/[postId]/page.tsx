@@ -80,8 +80,8 @@ export default function PostDetailPage() {
   const id = params?.id as string
   const postId = params?.postId as string
   
-  const writer = WRITERS.find((w) => w.id === id)
-  const post = writer?.posts.find((p) => p.id === postId)
+  const writer = WRITERS.find((w: any) => w.id === id)
+  const post = writer?.posts.find((p: any) => p.id === postId)
 
   const [comments, setComments] = useState([
     { id: 1, user: 'Sude', text: 'Gerçekten etkileyici bir yazı!' },
@@ -104,9 +104,9 @@ export default function PostDetailPage() {
 
     // Yeni yorumları dinle
     socket.on('newComment', (comment: { id: number; user: string; text: string }) => {
-      setComments((prev) => {
+      setComments((prev: any) => {
         // Çift eklemeyi önle
-        if (prev.some((c) => c.id === comment.id)) {
+        if (prev.some((c: any) => c.id === comment.id)) {
           return prev
         }
         return [...prev, comment]
@@ -155,7 +155,7 @@ export default function PostDetailPage() {
     })
 
     // 🟠 Local state'e ekle (optimistic update - anında görünmesi için)
-    setComments((prev) => [...prev, commentData])
+    setComments((prev: any) => [...prev, commentData])
 
     setNewComment('')
   }
@@ -209,7 +209,7 @@ export default function PostDetailPage() {
 
         {/* İçerik */}
         <div className="prose dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed mb-10 space-y-4">
-          {post.content.split('\n\n').map((paragraph, i) => (
+          {post.content.split('\n\n').map((paragraph: any, i: any) => (
             paragraph.trim() && (
               <p key={i} className="text-base leading-relaxed">
                 {paragraph.trim()}
@@ -238,7 +238,7 @@ export default function PostDetailPage() {
                 Henüz yorum yapılmamış. İlk yorumu sen yap!
               </p>
             ) : (
-              comments.map((c) => (
+              comments.map((c: any) => (
                 <div
                   key={c.id}
                   className="bg-gray-50/80 dark:bg-gray-800/60 
@@ -261,7 +261,7 @@ export default function PostDetailPage() {
             <input
               type="text"
               value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
+              onChange={(e: any) => setNewComment(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Yorum yaz..."
               className="flex-1 p-3 rounded-xl border border-gray-300 dark:border-gray-700 

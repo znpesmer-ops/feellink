@@ -145,7 +145,7 @@ export default function EventDetailPage() {
     setSubmitting(true);
     try {
       const res = await api.post(`/events/${id}/comments`, { text: comment });
-      setComments((prev) => [res.data, ...prev]);
+      setComments((prev: any) => [res.data, ...prev]);
       setComment("");
     } catch (error) {
       console.error("Yorum eklenemedi:", error);
@@ -277,7 +277,7 @@ export default function EventDetailPage() {
                       src={resolveImageUrl(event.owner.avatar)}
                       alt={event.owner.username}
                       className="w-7 h-7 rounded-full object-cover border border-gray-200 dark:border-gray-700"
-                      onError={(e) => {
+                      onError={(e: any) => {
                         (e.target as HTMLImageElement).src = '/images/avatar-placeholder.png';
                       }}
                     />
@@ -361,7 +361,7 @@ export default function EventDetailPage() {
               <div className="mb-8">
                 <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">🎟️ Biletler</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {tickets.map((ticket) => (
+                  {tickets.map((ticket: any) => (
                     <div
                       key={ticket.id}
                       className="bg-white dark:bg-[#1a1a1a]/70 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm p-5"
@@ -426,7 +426,7 @@ export default function EventDetailPage() {
                 Katılım Talepleri ({pendingRequests.length})
               </h3>
               <div className="space-y-3">
-                {pendingRequests.map((request) => (
+                {pendingRequests.map((request: any) => (
                   <div
                     key={request.id}
                     className="bg-white dark:bg-[#1a1a1a]/70 border border-gray-200 dark:border-gray-700 rounded-xl p-4 flex items-center justify-between"
@@ -437,7 +437,7 @@ export default function EventDetailPage() {
                           src={resolveImageUrl(request.user.avatar)}
                           alt={request.user.username}
                           className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-700"
-                          onError={(e) => {
+                          onError={(e: any) => {
                             (e.target as HTMLImageElement).src = '/images/avatar-placeholder.png';
                           }}
                         />
@@ -522,7 +522,7 @@ export default function EventDetailPage() {
               <input
                 type="text"
                 value={comment}
-                onChange={(e) => setComment(e.target.value)}
+                onChange={(e: any) => setComment(e.target.value)}
                 className="flex-1 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 focus:ring-2 focus:ring-brand-orange dark:bg-gray-800 dark:text-white transition"
                 placeholder="Yorum yaz..."
                 disabled={submitting}
@@ -542,7 +542,7 @@ export default function EventDetailPage() {
                   Henüz yorum yapılmamış.
                 </p>
               ) : (
-                comments.map((c) => (
+                comments.map((c: any) => (
                   <div
                     key={c.id}
                     className="bg-white dark:bg-[#1a1a1a]/70 backdrop-blur-md border border-gray-200 dark:border-gray-700/40 p-3 rounded-xl"
@@ -584,7 +584,7 @@ export default function EventDetailPage() {
               <p className="text-gray-500 text-sm">Henüz katılım yok.</p>
             ) : (
               <ul className="space-y-3 max-h-80 overflow-y-auto">
-                {participants.map((p) => (
+                {participants.map((p: any) => (
                   <li
                     key={p.id}
                     onClick={() => router.push(`/profile/${p.username}`)}

@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
     // ✅ framer-motion için webpack konfigürasyonu
     if (!isServer) {
       config.resolve.fallback = {
@@ -9,6 +9,13 @@ const nextConfig = {
         fs: false,
       }
     }
+    
+    // ✅ Webpack module resolution sorunlarını önle
+    config.optimization = {
+      ...config.optimization,
+      moduleIds: dev ? 'named' : 'deterministic',
+    }
+    
     return config
   },
   images: {

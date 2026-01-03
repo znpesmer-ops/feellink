@@ -72,7 +72,7 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
     // ✅ Store'dan unreadCount'ı güncelle
     api
       .get('/notifications/unread-count')
-      .then((response) => setUnreadCount(response.data.count))
+      .then((response: { data: { count: number } }) => setUnreadCount(response.data.count))
       .catch(() => {})
 
     const socket = initSocket(accessToken)
@@ -80,7 +80,7 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
       // ✅ Yeni bildirim geldiğinde store'u güncelle
       api
         .get('/notifications/unread-count')
-        .then((response) => setUnreadCount(response.data.count))
+        .then((response: { data: { count: number } }) => setUnreadCount(response.data.count))
         .catch(() => {})
     })
 
@@ -96,7 +96,7 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
     // ✅ İlk yüklemede okunmamış mesaj sayısını çek
     api
       .get('/chat/unread-count')
-      .then((response) => setUnreadMessageCount(response.data.count))
+      .then((response: { data: { count: number } }) => setUnreadMessageCount(response.data.count))
       .catch(() => {})
 
     const chatSocket = initChatSocket(accessToken)
@@ -109,7 +109,7 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
       // Okunmamış mesaj sayısını güncelle
       api
         .get('/chat/unread-count')
-        .then((response) => setUnreadMessageCount(response.data.count))
+        .then((response: { data: { count: number } }) => setUnreadMessageCount(response.data.count))
         .catch(() => {})
     })
 
@@ -117,7 +117,7 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
     chatSocket.on('receive_message', () => {
       api
         .get('/chat/unread-count')
-        .then((response) => setUnreadMessageCount(response.data.count))
+        .then((response: { data: { count: number } }) => setUnreadMessageCount(response.data.count))
         .catch(() => {})
     })
 
@@ -134,7 +134,7 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
       if (accessToken) {
         api
           .get('/chat/unread-count')
-          .then((response) => setUnreadMessageCount(response.data.count))
+          .then((response: { data: { count: number } }) => setUnreadMessageCount(response.data.count))
           .catch(() => {})
       }
     }

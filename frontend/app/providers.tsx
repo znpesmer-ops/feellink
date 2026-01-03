@@ -16,7 +16,7 @@ import { AccountSuspendedModal } from '@/components/AccountSuspendedModal'
 
 // Global error handler for unhandled promise rejections
 if (typeof window !== 'undefined') {
-  window.addEventListener('unhandledrejection', (event) => {
+  window.addEventListener('unhandledrejection', (event: any) => {
     // Suppress network errors
     const error = event.reason
     if (error?.code === 'ERR_NETWORK' || error?.message === 'Network Error') {

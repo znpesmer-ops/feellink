@@ -132,7 +132,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <h1 className="text-xl font-bold text-[var(--accent)]">Feellink Admin</h1>
           </div>
           <nav className="mt-4 flex flex-col space-y-1 px-4">
-            {navItems.map((item) => {
+            {navItems.map((item: any) => {
               const Icon = item.icon
               const active = isActive(item.href)
               return (

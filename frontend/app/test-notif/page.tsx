@@ -13,7 +13,7 @@ export default function TestNotif() {
   return (
     <div className="p-6 space-y-3">
       <h1 className="text-2xl font-bold mb-4">Bildirim Yönlendirme Testi</h1>
-      {notifications.map((n) => (
+      {notifications.map((n: any) => (
         <div
           key={n.id}
           onClick={() => {

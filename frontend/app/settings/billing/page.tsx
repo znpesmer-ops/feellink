@@ -75,7 +75,7 @@ function BillingSettingsContent() {
 
   const handlePlanRequest = (planId: string) => {
     // İleride ödeme entegrasyonu eklendiğinde buraya Stripe/iyzico/Shopier linki gelecek
-    alert(`"${plans.find((p) => p.id === planId)?.name}" planı için ödeme sayfasına yönlendirileceksiniz. (Ödeme entegrasyonu yakında eklenecek)`)
+    alert(`"${plans.find((p: any) => p.id === planId)?.name}" planı için ödeme sayfasına yönlendirileceksiniz. (Ödeme entegrasyonu yakında eklenecek)`)
   }
 
   if (loading) {
@@ -111,7 +111,7 @@ function BillingSettingsContent() {
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Mevcut Rolünüz</p>
             <div className="flex flex-wrap gap-2 mb-3">
               {currentRoles.length > 0 ? (
-                currentRoles.map((role) => (
+                currentRoles.map((role: any) => (
                   <span
                     key={role}
                     className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-brand-orange/10 text-brand-orange border border-brand-orange/20"
@@ -138,7 +138,7 @@ function BillingSettingsContent() {
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {plans.map((plan) => {
+              {plans.map((plan: any) => {
                 const isCurrentRole = currentRoles.includes(plan.role as any)
                 const isCurrentPlan = currentPlan === 'PRO'
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
 import api from '@/lib/api'
@@ -54,9 +54,9 @@ function EditProfileContent() {
   // Load countries data
   useEffect(() => {
     fetch('/data/countries.json')
-      .then((res) => res.json())
-      .then((data) => setCountries(data))
-      .catch((err) => {
+      .then((res: any) => res.json())
+      .then((data: any) => setCountries(data))
+      .catch((err: any) => {
         console.error('Error loading countries:', err)
         toast.error('Ülke listesi yüklenemedi')
       })
@@ -375,7 +375,7 @@ function EditProfileContent() {
                 src={avatarPreview || avatar || 'https://via.placeholder.com/96?text=Avatar'}
                 alt="Avatar preview"
                 className="w-[110px] h-[110px] rounded-full object-cover border border-black/10 dark:border-white/20"
-                onError={(e) => {
+                onError={(e: any) => {
                   ;(e.target as HTMLImageElement).src = 'https://via.placeholder.com/96?text=Avatar'
                 }}
               />
@@ -446,7 +446,7 @@ function EditProfileContent() {
           <input
             type="text"
             value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
+            onChange={(e: any) => setFullName(e.target.value)}
             className="w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400"
             placeholder="Adınız ve soyadınız"
           />
@@ -459,7 +459,7 @@ function EditProfileContent() {
           </label>
           <textarea
             value={bio}
-            onChange={(e) => setBio(e.target.value)}
+            onChange={(e: any) => setBio(e.target.value)}
             className="w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 h-[80px] resize-none placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400"
             placeholder="Kendini kısaca tanıt..."
             maxLength={150}
@@ -475,7 +475,7 @@ function EditProfileContent() {
           <input
             type="url"
             value={website}
-            onChange={(e) => setWebsite(e.target.value)}
+            onChange={(e: any) => setWebsite(e.target.value)}
             className="w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400"
             placeholder="https://example.com"
           />
@@ -489,7 +489,7 @@ function EditProfileContent() {
           <input
             type="date"
             value={dateOfBirth}
-            onChange={(e) => setDateOfBirth(e.target.value)}
+            onChange={(e: any) => setDateOfBirth(e.target.value)}
             max={new Date(new Date().setFullYear(new Date().getFullYear() - 13)).toISOString().split('T')[0]}
             className="w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400"
           />
@@ -505,14 +505,14 @@ function EditProfileContent() {
           </label>
           <select
             value={country ?? ''}
-            onChange={(e) => {
+            onChange={(e: any) => {
               setCountry(e.target.value || null)
               setCity(null) // 🔒 Ülke değişince şehir sıfırlanır
             }}
             className="w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400"
           >
             <option value="">Ülke seçin</option>
-            {countries.map((c) => (
+            {countries.map((c: any) => (
               <option key={c.code} value={c.code}>
                 {c.name}
               </option>
@@ -527,7 +527,7 @@ function EditProfileContent() {
           </label>
           <select
             value={city ?? ''}
-            onChange={(e) => setCity(e.target.value || null)}
+            onChange={(e: any) => setCity(e.target.value || null)}
             disabled={!country}
             className="w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -550,7 +550,7 @@ function EditProfileContent() {
               // Diğer ülkeler için countries.json'dan
               country &&
               countries
-                .find((c) => c.code === country)
+                .find((c: any) => c.code === country)
                 ?.cities.map((cityName) => (
                   <option key={cityName} value={cityName}>
                     {cityName}
@@ -570,7 +570,7 @@ function EditProfileContent() {
               { value: 'FEMALE', label: 'Kadın' },
               { value: 'MALE', label: 'Erkek' },
               { value: 'UNSPECIFIED', label: 'Belirtmek istemiyorum' },
-            ].map((option) => (
+            ].map((option: any) => (
               <label
                 key={option.value}
                 className="flex items-center gap-3 p-3 border border-black/10 dark:border-white/10 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-[#2a2b30] transition-colors"
@@ -580,7 +580,7 @@ function EditProfileContent() {
                   name="gender"
                   value={option.value}
                   checked={gender === option.value}
-                  onChange={(e) => setGender(e.target.value as Gender)}
+                  onChange={(e: any) => setGender(e.target.value as Gender)}
                   className="w-4 h-4 text-brand-orange focus:ring-brand-orange"
                 />
                 <span className="text-sm text-gray-900 dark:text-gray-100">{option.label}</span>
@@ -595,7 +595,7 @@ function EditProfileContent() {
             <input
               type="checkbox"
               checked={isPrivate}
-              onChange={(e) => setIsPrivate(e.target.checked)}
+              onChange={(e: any) => setIsPrivate(e.target.checked)}
               className="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-brand-orange focus:ring-brand-orange focus:ring-offset-0 cursor-pointer bg-white dark:bg-gray-700"
             />
             <div>
@@ -667,7 +667,7 @@ function EditProfileContent() {
                 min={1}
                 max={3}
                 step={0.1}
-                onChange={(e) => setZoom(Number(e.target.value))}
+                onChange={(e: any) => setZoom(Number(e.target.value))}
                 className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
               />
             </div>
@@ -706,7 +706,13 @@ function EditProfileContent() {
 export default function EditProfilePage() {
   return (
     <AuthGuard>
-      <EditProfileContent />
+      <Suspense fallback={
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
+        </div>
+      }>
+        <EditProfileContent />
+      </Suspense>
     </AuthGuard>
   )
 }

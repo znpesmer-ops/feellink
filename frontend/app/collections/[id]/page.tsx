@@ -91,7 +91,7 @@ export default function CollectionDetailPage() {
       try {
         setLoading(true)
         console.log('Fetching collection:', collectionId)
-        const res = await api.get<Collection>(`/collections/${collectionId}`)
+        const res = await api.get(`/collections/${collectionId}`)
         setCollection(res.data)
       } catch (error: any) {
         console.error('Koleksiyon yüklenemedi:', error)
@@ -120,7 +120,7 @@ export default function CollectionDetailPage() {
       if (collection) {
         setCollection({
           ...collection,
-          items: collection.items.filter((item) => item.id !== itemId),
+          items: collection.items.filter((item: any) => item.id !== itemId),
         })
       }
     } catch (error: any) {
@@ -240,7 +240,7 @@ export default function CollectionDetailPage() {
             )
           ) : (
             <AnimatePresence>
-              {collection.items.map((item, index) => (
+              {collection.items.map((item: any, index: any) => (
                 <motion.div
                   key={item.id}
                   initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -279,7 +279,7 @@ export default function CollectionDetailPage() {
                   {/* Remove Button (Owner only) */}
                   {isOwner && (
                     <button
-                      onClick={(e) => {
+                      onClick={(e: any) => {
                         e.stopPropagation()
                         handleRemoveItem(item.id)
                       }}
@@ -332,7 +332,7 @@ export default function CollectionDetailPage() {
         onClose={() => setShowAddModal(false)}
         onSuccess={() => {
           // Refresh collection data with animation
-          api.get<Collection>(`/collections/${collectionId}`).then((res) => {
+          api.get(`/collections/${collectionId}`).then((res: any) => {
             setCollection(res.data)
             toast.success('Eser koleksiyona eklendi', {
               icon: '✨',

@@ -43,7 +43,7 @@ export default function MyApplicationsPage() {
     async function fetchApplications() {
       try {
         setLoading(true)
-        const response = await api.get<JobApplication[]>('/jobs/me/applications')
+        const response = await api.get('/jobs/me/applications')
         setApplications(response.data || [])
       } catch (err: any) {
         setError(err?.response?.data?.message || err?.message || 'Başvurular yüklenirken bir hata oluştu')
@@ -121,7 +121,7 @@ export default function MyApplicationsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {applications.map((application) => (
+          {applications.map((application: any) => (
             <div
               key={application.id}
               className="rounded-3xl border border-gray-200/70 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/5"

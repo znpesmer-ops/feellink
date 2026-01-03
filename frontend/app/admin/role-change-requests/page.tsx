@@ -216,7 +216,7 @@ export default function RoleChangeRequestsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {requests.map((request) => (
+          {requests.map((request: any) => (
             <div
               key={request.id}
               className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6"
@@ -242,14 +242,14 @@ export default function RoleChangeRequestsPage() {
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Mevcut Rol</p>
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
                         {request.user.roles?.[0]
-                          ? ROLE_METADATA[request.user.roles[0]]?.label || request.user.roles[0]
+                          ? ROLE_METADATA[request.user.roles[0] as UserRoleCode]?.label || request.user.roles[0]
                           : 'Belirtilmemiş'}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">İstenen Rol</p>
                       <p className="text-sm font-medium text-[#ff7b00]">
-                        {ROLE_METADATA[request.requestedRole]?.label || request.requestedRole}
+                         {ROLE_METADATA[request.requestedRole as UserRoleCode]?.label || request.requestedRole}
                       </p>
                     </div>
                   </div>
@@ -344,7 +344,7 @@ export default function RoleChangeRequestsPage() {
       {totalPages > 1 && (
         <div className="mt-6 flex items-center justify-center gap-2">
           <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            onClick={() => setPage((p: any) => Math.max(1, p - 1))}
             disabled={page === 1}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -354,7 +354,7 @@ export default function RoleChangeRequestsPage() {
             Sayfa {page} / {totalPages}
           </span>
           <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            onClick={() => setPage((p: any) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -371,7 +371,7 @@ export default function RoleChangeRequestsPage() {
         >
           <div
             className="w-full max-w-md bg-[#0f172a] dark:bg-gray-800 rounded-xl shadow-2xl p-6"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: any) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -397,8 +397,8 @@ export default function RoleChangeRequestsPage() {
                 </label>
                 <textarea
                   value={modalState.reviewNote}
-                  onChange={(e) =>
-                    setModalState((prev) => ({ ...prev, reviewNote: e.target.value }))
+                  onChange={(e: any) =>
+                    setModalState((prev: any) => ({ ...prev, reviewNote: e.target.value }))
                   }
                   placeholder={
                     modalState.type === 'approve'

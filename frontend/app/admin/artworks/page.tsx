@@ -80,7 +80,7 @@ export default function AdminArtworksPage() {
   const handleDelete = async (artworkId: string) => {
     try {
       await api.delete(`/admin/artworks/${artworkId}`)
-      setArtworks(artworks.filter((a) => a.id !== artworkId))
+      setArtworks(artworks.filter((a: any) => a.id !== artworkId))
       setConfirmDelete(null)
     } catch (error) {
       console.error('Error deleting artwork:', error)
@@ -100,7 +100,7 @@ export default function AdminArtworksPage() {
     })
   }
 
-  const filteredArtworks = artworks.filter((artwork) => {
+  const filteredArtworks = artworks.filter((artwork: any) => {
     if (searchQuery.trim() === '') return true
     const query = searchQuery.toLowerCase()
     return (
@@ -142,7 +142,7 @@ export default function AdminArtworksPage() {
             type="text"
             placeholder="Eser ara (başlık, açıklama, kod, kullanıcı)..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e: any) => setSearchQuery(e.target.value)}
             className="w-full pl-12 pr-4 py-3 border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--accent)] bg-[var(--card)] text-[var(--text)]"
           />
         </div>
@@ -152,7 +152,7 @@ export default function AdminArtworksPage() {
             type="text"
             placeholder="Kullanıcı ID"
             value={userFilter}
-            onChange={(e) => setUserFilter(e.target.value)}
+            onChange={(e: any) => setUserFilter(e.target.value)}
             className="w-full sm:w-48 pl-12 pr-4 py-3 border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--accent)] bg-[var(--card)] text-[var(--text)]"
           />
         </div>
@@ -165,7 +165,7 @@ export default function AdminArtworksPage() {
             Eser bulunamadı
           </div>
         ) : (
-          filteredArtworks.map((artwork) => (
+          filteredArtworks.map((artwork: any) => (
             <div
               key={artwork.id}
               className="flex flex-col bg-[var(--card)] rounded-2xl shadow-sm border border-[var(--border)] p-4 transition-all hover:shadow-md hover:border-[var(--accent)]/30"
@@ -189,12 +189,12 @@ export default function AdminArtworksPage() {
                           src={resolvedImageUrl}
                           alt={artwork.title || artwork.caption || 'Eser'}
                           className="object-cover w-full h-full transition-transform duration-300 hover:scale-[1.03]"
-                          onError={(e) => {
+                          onError={(e: any) => {
                             console.error('❌ Artwork image load error:', {
                               artworkId: artwork.id,
                               src: resolvedImageUrl,
                             })
-                            setImageErrors((prev) => new Set(prev).add(artwork.id))
+                             setImageErrors((prev: Set<string>) => new Set<string>(prev).add(artwork.id))
                           }}
                         />
                         {artwork.media && artwork.media.length > 1 && (
@@ -276,7 +276,7 @@ export default function AdminArtworksPage() {
 
                 {artwork.colorPalette && artwork.colorPalette.length > 0 && (
                   <div className="flex items-center gap-1 mb-3">
-                    {artwork.colorPalette.slice(0, 5).map((color, idx) => (
+                     {artwork.colorPalette.slice(0, 5).map((color: any, idx: any) => (
                       <div
                         key={idx}
                         className="w-6 h-6 rounded-full border border-[var(--border)]"
@@ -331,14 +331,14 @@ export default function AdminArtworksPage() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            onClick={() => setPage((p: any) => Math.max(1, p - 1))}
             disabled={page === 1}
             className="px-4 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--text)] text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--muted)] transition-colors"
           >
             Önceki
           </button>
           <button
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() => setPage((p: any) => p + 1)}
             disabled={page * 20 >= total}
             className="px-4 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--text)] text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--muted)] transition-colors"
           >

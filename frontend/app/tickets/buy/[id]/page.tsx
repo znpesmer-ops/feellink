@@ -78,7 +78,7 @@ export default function BuyTicketPage() {
     setPurchasing(true);
     try {
       // Önce event için ticket var mı kontrol et
-      let ticketToPurchase = tickets.find((t) => t.price === event.price);
+      let ticketToPurchase = tickets.find((t: any) => t.price === event.price);
 
       // Eğer ticket yoksa, event sahibi ticket oluşturmalı
       if (!ticketToPurchase) {
@@ -121,7 +121,7 @@ export default function BuyTicketPage() {
   }
 
   const isFree = event.isFree || !event.price || event.price === 0;
-  const hasTicket = tickets.length > 0 && tickets.some((t) => t.price === event.price);
+  const hasTicket = tickets.length > 0 && tickets.some((t: any) => t.price === event.price);
 
   return (
     <div className="flex justify-center gap-10 pt-6 px-6 max-w-7xl mx-auto">

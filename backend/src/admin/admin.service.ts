@@ -15,106 +15,160 @@ export class AdminService {
   ) {}
 
   async getSummary() {
-    const now = new Date();
-    const todayStart = new Date(now.setHours(0, 0, 0, 0));
-    const yesterdayStart = new Date(todayStart);
-    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+    try {
+      const now = new Date();
+      const todayStart = new Date(now.setHours(0, 0, 0, 0));
+      const yesterdayStart = new Date(todayStart);
+      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
 
-    const [
-      totalUsers,
-      newUsers24h,
-      postsToday,
-      commentsToday,
-      ticketsToday,
-      revenuePurchases,
-      totalPosts,
-      totalComments,
-      totalEvents,
-      totalTickets,
-    ] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.user.count({
-        where: { createdAt: { gte: yesterdayStart } },
-      }),
-      this.prisma.post.count({
-        where: { createdAt: { gte: todayStart } },
-      }),
-      this.prisma.comment.count({
-        where: { createdAt: { gte: todayStart } },
-      }),
-      this.prisma.ticketPurchase.count({
-        where: { createdAt: { gte: todayStart } },
-      }),
-      this.prisma.ticketPurchase.findMany({
-        where: { createdAt: { gte: todayStart } },
-        include: {
-          ticket: {
-            select: {
-              price: true,
+      // MongoDB timeout hatalarını graceful handle et
+      const [
+        totalUsers,
+        newUsers24h,
+        postsToday,
+        commentsToday,
+        ticketsToday,
+        revenuePurchases,
+        totalPosts,
+        totalComments,
+        totalEvents,
+        totalTickets,
+      ] = await Promise.allSettled([
+        this.prisma.user.count(),
+        this.prisma.user.count({
+          where: { createdAt: { gte: yesterdayStart } },
+        }),
+        this.prisma.post.count({
+          where: { createdAt: { gte: todayStart } },
+        }),
+        this.prisma.comment.count({
+          where: { createdAt: { gte: todayStart } },
+        }),
+        this.prisma.ticketPurchase.count({
+          where: { createdAt: { gte: todayStart } },
+        }),
+        this.prisma.ticketPurchase.findMany({
+          where: { createdAt: { gte: todayStart } },
+          include: {
+            ticket: {
+              select: {
+                price: true,
+              },
             },
           },
-        },
-      }),
-      this.prisma.post.count(),
-      this.prisma.comment.count(),
-      this.prisma.event.count(),
-      this.prisma.ticketPurchase.count(),
-    ]);
+        }),
+        this.prisma.post.count(),
+        this.prisma.comment.count(),
+        this.prisma.event.count(),
+        this.prisma.ticketPurchase.count(),
+      ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : null));
 
-    // Online users (isOnline = true)
-    const onlineUsers = await this.prisma.user.count({
-      where: { isOnline: true },
-    });
+      // Null değerleri varsayılan değerlerle değiştir (getSummary için)
+      const safeTotalUsers = totalUsers ?? 0;
+      const safeNewUsers24h = newUsers24h ?? 0;
+      const safePostsToday = postsToday ?? 0;
+      const safeCommentsToday = commentsToday ?? 0;
+      const safeTicketsToday = ticketsToday ?? 0;
+      const safeRevenuePurchases = Array.isArray(revenuePurchases) ? revenuePurchases : [];
+      const safeTotalPosts = totalPosts ?? 0;
+      const safeTotalComments = totalComments ?? 0;
+      const safeTotalEvents = totalEvents ?? 0;
+      const safeTotalTickets = totalTickets ?? 0;
 
-    // Revenue calculation
-    const revenue = revenuePurchases.reduce(
-      (sum, purchase) => sum + (purchase.ticket.price || 0),
-      0,
-    );
+      // Online users (isOnline = true) - timeout durumunda 0 döndür
+      let onlineUsers = 0;
+      try {
+        onlineUsers = await this.prisma.user.count({
+          where: { isOnline: true },
+        });
+      } catch (error: any) {
+        // MongoDB timeout hatası - graceful degradation
+        if (error?.message?.includes('timeout') || error?.message?.includes('Connection pool')) {
+          onlineUsers = 0;
+        } else {
+          throw error;
+        }
+      }
 
-    // Last 30 days traffic data (simplified - count users per day)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      // Revenue calculation - safeRevenuePurchases kullan
+      const revenue = safeRevenuePurchases.reduce(
+        (sum, purchase) => sum + (purchase?.ticket?.price || 0),
+        0,
+      );
 
-    // Get all users created in last 30 days
-    const recentUsers = await this.prisma.user.findMany({
-      where: {
-        createdAt: { gte: thirtyDaysAgo },
-      },
-      select: {
-        createdAt: true,
-      },
-    });
+      // Last 30 days traffic data (simplified - count users per day)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // Group by date
-    const dailyStatsMap = new Map<string, number>();
-    recentUsers.forEach((user) => {
-      const dateKey = new Date(user.createdAt).toISOString().split('T')[0];
-      dailyStatsMap.set(dateKey, (dailyStatsMap.get(dateKey) || 0) + 1);
-    });
+      // Get all users created in last 30 days - timeout durumunda boş array
+      let recentUsers: Array<{ createdAt: Date }> = [];
+      try {
+        recentUsers = await this.prisma.user.findMany({
+          where: {
+            createdAt: { gte: thirtyDaysAgo },
+          },
+          select: {
+            createdAt: true,
+          },
+        });
+      } catch (error: any) {
+        // MongoDB timeout hatası - graceful degradation
+        if (error?.message?.includes('timeout') || error?.message?.includes('Connection pool')) {
+          recentUsers = [];
+        } else {
+          throw error;
+        }
+      }
 
-    const dailyStats = Array.from(dailyStatsMap.entries()).map(([date, count]) => ({
-      date: new Date(date),
-      count,
-    }));
+      // Group by date
+      const dailyStatsMap = new Map<string, number>();
+      recentUsers.forEach((user) => {
+        const dateKey = new Date(user.createdAt).toISOString().split('T')[0];
+        dailyStatsMap.set(dateKey, (dailyStatsMap.get(dateKey) || 0) + 1);
+      });
 
-    return {
-      totalUsers,
-      newUsers24h,
-      onlineUsers,
-      postsToday,
-      commentsToday,
-      ticketsToday,
-      revenue,
-      totalPosts,
-      totalComments,
-      totalEvents,
-      totalTickets,
-      traffic30d: dailyStats.map((stat) => ({
-        date: stat.date,
-        count: stat.count,
-      })),
-    };
+      const dailyStats = Array.from(dailyStatsMap.entries()).map(([date, count]) => ({
+        date: new Date(date),
+        count,
+      }));
+
+      return {
+        totalUsers: safeTotalUsers,
+        newUsers24h: safeNewUsers24h,
+        onlineUsers: onlineUsers || 0,
+        postsToday: safePostsToday,
+        commentsToday: safeCommentsToday,
+        ticketsToday: safeTicketsToday,
+        revenue: revenue,
+        totalPosts: safeTotalPosts,
+        totalComments: safeTotalComments,
+        totalEvents: safeTotalEvents,
+        totalTickets: safeTotalTickets,
+        traffic30d: dailyStats.map((stat) => ({
+          date: stat.date,
+          count: stat.count,
+        })),
+      };
+    } catch (error: any) {
+      // MongoDB connection hatası durumunda default değerler döndür
+      if (error?.message?.includes('timeout') || error?.message?.includes('Connection pool') || error?.code === 'P1008') {
+        return {
+          totalUsers: 0,
+          newUsers24h: 0,
+          onlineUsers: 0,
+          postsToday: 0,
+          commentsToday: 0,
+          ticketsToday: 0,
+          revenue: 0,
+          totalPosts: 0,
+          totalComments: 0,
+          totalEvents: 0,
+          totalTickets: 0,
+          traffic30d: [],
+        };
+      }
+      throw error;
+    }
   }
 
   async getUsers(
@@ -981,27 +1035,29 @@ export class AdminService {
   }
 
   async getAnalytics() {
-    const now = new Date();
-    const todayStart = new Date(now.setHours(0, 0, 0, 0));
-    const yesterdayStart = new Date(todayStart);
-    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-    const thirtyDaysAgo = new Date(todayStart);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    try {
+      const now = new Date();
+      const todayStart = new Date(now.setHours(0, 0, 0, 0));
+      const yesterdayStart = new Date(todayStart);
+      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+      const thirtyDaysAgo = new Date(todayStart);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const [
-      totalUsers,
-      activeUsers24h,
-      newUsers24h,
-      postsToday,
-      commentsToday,
-      ticketsToday,
-      revenuePurchases,
-      totalPosts,
-      totalComments,
-      totalEvents,
-      totalTickets,
-      allRevenuePurchases,
-    ] = await Promise.all([
+      // MongoDB timeout hatalarını graceful handle et
+      const [
+        totalUsers,
+        activeUsers24h,
+        newUsers24h,
+        postsToday,
+        commentsToday,
+        ticketsToday,
+        revenuePurchases,
+        totalPosts,
+        totalComments,
+        totalEvents,
+        totalTickets,
+        allRevenuePurchases,
+      ] = await Promise.allSettled([
       this.prisma.user.count(),
       this.prisma.user.count({
         where: {
@@ -1046,29 +1102,44 @@ export class AdminService {
           },
         },
       }),
-    ]);
+    ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : null));
 
-    // Revenue calculations
-    const revenue = revenuePurchases.reduce(
-      (sum, purchase) => sum + (purchase.ticket.price || 0),
-      0,
-    );
-    const totalRevenue = allRevenuePurchases.reduce(
-      (sum, purchase) => sum + (purchase.ticket.price || 0),
-      0,
-    );
+      // Null değerleri varsayılan değerlerle değiştir (getAnalytics için)
+      const safeTotalUsers = totalUsers ?? 0;
+      const safeActiveUsers24h = activeUsers24h ?? 0;
+      const safeNewUsers24h = newUsers24h ?? 0;
+      const safePostsToday = postsToday ?? 0;
+      const safeCommentsToday = commentsToday ?? 0;
+      const safeTicketsToday = ticketsToday ?? 0;
+      const safeRevenuePurchases = Array.isArray(revenuePurchases) ? revenuePurchases : [];
+      const safeTotalPosts = totalPosts ?? 0;
+      const safeTotalComments = totalComments ?? 0;
+      const safeTotalEvents = totalEvents ?? 0;
+      const safeTotalTickets = totalTickets ?? 0;
+      const safeAllRevenuePurchases = Array.isArray(allRevenuePurchases) ? allRevenuePurchases : [];
 
-    // Get last 30 days data for trends
-    const engagementTrend = [];
-    const growthTrend = [];
+      // Revenue calculations
+      const revenue = safeRevenuePurchases.reduce(
+        (sum, purchase) => sum + (purchase?.ticket?.price || 0),
+        0,
+      );
+      const totalRevenue = safeAllRevenuePurchases.reduce(
+        (sum, purchase) => sum + (purchase?.ticket?.price || 0),
+        0,
+      );
 
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(todayStart);
-      date.setDate(date.getDate() - i);
-      const nextDate = new Date(date);
-      nextDate.setDate(nextDate.getDate() + 1);
+      // Get last 30 days data for trends
+      const engagementTrend = [];
+      const growthTrend = [];
 
-      const [posts, comments, users] = await Promise.all([
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(todayStart);
+        date.setDate(date.getDate() - i);
+        const nextDate = new Date(date);
+        nextDate.setDate(nextDate.getDate() + 1);
+
+        try {
+          const trendResults = await Promise.allSettled([
         this.prisma.post.count({
           where: {
             createdAt: {
@@ -1094,40 +1165,75 @@ export class AdminService {
           },
         }),
       ]);
+          
+          const [posts, comments, users] = trendResults.map(r => r.status === 'fulfilled' ? r.value : 0) as [number, number, number];
 
-      engagementTrend.push({
-        date: date.toISOString().split('T')[0],
-        posts,
-        comments,
-      });
+          engagementTrend.push({
+            date: date.toISOString().split('T')[0],
+            posts: posts ?? 0,
+            comments: comments ?? 0,
+          });
 
-      growthTrend.push({
-        date: date.toISOString().split('T')[0],
-        users,
-      });
+          growthTrend.push({
+            date: date.toISOString().split('T')[0],
+            users: users ?? 0,
+          });
+        } catch (error: any) {
+          // MongoDB timeout hatası - bu gün için 0 değer ekle
+          if (error?.message?.includes('timeout') || error?.message?.includes('Connection pool')) {
+            engagementTrend.push({
+              date: date.toISOString().split('T')[0],
+              posts: 0,
+              comments: 0,
+            });
+            growthTrend.push({
+              date: date.toISOString().split('T')[0],
+              users: 0,
+            });
+          } else {
+            throw error;
+          }
+        }
+      }
+
+      // Top countries (dummy data for now - can be extended when country field is added)
+      const userCount = Number(safeTotalUsers) || 0;
+      const topCountries = [
+        { country: 'Türkiye', count: Math.floor(userCount * 0.75) },
+        { country: 'Almanya', count: Math.floor(userCount * 0.1) },
+        { country: 'Fransa', count: Math.floor(userCount * 0.05) },
+        { country: 'İngiltere', count: Math.floor(userCount * 0.04) },
+        { country: 'Diğer', count: userCount - Math.floor(userCount * 0.94) },
+      ].filter((item) => item.count > 0);
+
+      return {
+        totalUsers: safeTotalUsers,
+        activeUsers: safeActiveUsers24h,
+        totalPosts: safeTotalPosts,
+        totalComments: safeTotalComments,
+        totalTickets: safeTotalTickets,
+        totalRevenue: totalRevenue,
+        topCountries,
+        engagementTrend,
+        growthTrend,
+      };
+    } catch (error: any) {
+      // MongoDB connection hatası durumunda default değerler döndür
+      if (error?.message?.includes('timeout') || error?.message?.includes('Connection pool') || error?.code === 'P1008') {
+        return {
+          totalUsers: 0,
+          activeUsers: 0,
+          totalPosts: 0,
+          totalComments: 0,
+          totalTickets: 0,
+          totalRevenue: 0,
+          topCountries: [],
+          engagementTrend: [],
+          growthTrend: [],
+        };
+      }
+      throw error;
     }
-
-    // Top countries (dummy data for now - can be extended when country field is added)
-    // For now, we'll return a placeholder structure
-    const topCountries = [
-      { country: 'Türkiye', count: Math.floor(totalUsers * 0.75) },
-      { country: 'Almanya', count: Math.floor(totalUsers * 0.1) },
-      { country: 'Fransa', count: Math.floor(totalUsers * 0.05) },
-      { country: 'İngiltere', count: Math.floor(totalUsers * 0.04) },
-      { country: 'Diğer', count: totalUsers - Math.floor(totalUsers * 0.94) },
-    ].filter((item) => item.count > 0);
-
-    return {
-      totalUsers,
-      activeUsers: activeUsers24h,
-      totalPosts,
-      totalComments,
-      totalTickets,
-      totalRevenue,
-      topCountries,
-      engagementTrend,
-      growthTrend,
-    };
   }
 
   // 🎨 Tüm gönderiler için renk analizi yeniden hesaplama

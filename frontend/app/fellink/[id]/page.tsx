@@ -97,8 +97,8 @@ export default function JobListingDetailPage() {
       try {
         setLoading(true)
         // İlan detayını al (public endpoint'ten)
-        const jobsResponse = await api.get<JobListing[]>('/jobs/public')
-        const job = jobsResponse.data.find((j) => j.id === jobListingId)
+        const jobsResponse = await api.get('/jobs/public')
+        const job = jobsResponse.data.find((j: any) => j.id === jobListingId)
 
         if (!job) {
           setError('İlan bulunamadı')
@@ -111,7 +111,7 @@ export default function JobListingDetailPage() {
         // Eğer ilan sahibi ise başvuruları al
         if (job.createdBy.id === user?.id) {
           try {
-            const appsResponse = await api.get<JobApplication[]>(`/jobs/${jobListingId}/applications`)
+            const appsResponse = await api.get(`/jobs/${jobListingId}/applications`)
             const apps = appsResponse.data || []
             setApplications(apps)
           } catch (err) {
@@ -168,8 +168,8 @@ export default function JobListingDetailPage() {
       const response = await api.patch(`/jobs/applications/${applicationId}/status`, { status: newStatus })
       
       // Local state'i güncelle (activities dahil)
-      setApplications((prev) =>
-        prev.map((app) => (app.id === applicationId ? { ...app, status: newStatus, activities: response.data.activities || app.activities } : app))
+      setApplications((prev: any) =>
+        prev.map((app: any) => (app.id === applicationId ? { ...app, status: newStatus, activities: response.data.activities || app.activities } : app))
       )
       
       toast.success('Başvuru durumu güncellendi')
@@ -269,7 +269,7 @@ export default function JobListingDetailPage() {
               <div>
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Etiketler</h3>
                 <div className="flex flex-wrap gap-2">
-                  {jobListing.tags.map((tag) => (
+                  {jobListing.tags.map((tag: any) => (
                     <span
                       key={tag}
                       className="rounded-full bg-brand-blue/10 px-3 py-1 text-xs font-medium text-brand-orange dark:bg-brand-blue/20 dark:text-brand-orange"
@@ -301,7 +301,7 @@ export default function JobListingDetailPage() {
             <p className="text-sm text-gray-500 dark:text-gray-400">Bu ilana henüz başvuru yapılmadı.</p>
           ) : (
             <div className="space-y-6">
-              {applications.map((app) => (
+              {applications.map((app: any) => (
                 <div
                   key={app.id}
                   className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900/40 backdrop-blur overflow-hidden"

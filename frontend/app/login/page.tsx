@@ -88,12 +88,8 @@ export default function LoginPage() {
     // 🔒 Askıya alınan hesap hatası varsa, redirect yapma (mesajın kaybolmaması için)
     if (isSuspendedErrorRef.current) {
       console.log('[Login] 🔒 Askıya alınan hesap hatası var - handlePostAuthNavigation engellendi')
-      setIsChecking(false)
       return
     }
-    
-    // 🔥 KRİTİK: Her durumda loading'i kapat
-    setIsChecking(false)
     
     if (!currentUser) {
       return
@@ -573,7 +569,7 @@ export default function LoginPage() {
                     </button>
                   )}
                   <div className={isSuspendedError ? 'pr-6' : ''}>
-                    {error.split('\n').map((line, idx) => (
+                    {error.split('\n').map((line: any, idx: any) => (
                       <div key={idx} className={idx > 0 ? 'mt-1' : ''}>
                         {line}
                       </div>
@@ -801,7 +797,7 @@ export default function LoginPage() {
                     type="checkbox"
                     id="termsAccepted"
                     checked={termsAccepted}
-                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    onChange={(e: any) => setTermsAccepted(e.target.checked)}
                     className={`mt-1 h-4 w-4 text-[#ff7a00] focus:ring-[#ff7a00] border-gray-300 dark:border-gray-600 rounded ${
                       darkMode ? 'bg-[#0d0d0d] border-[#2b2b2b]' : 'bg-white'
                     }`}

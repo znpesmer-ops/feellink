@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
 import { initSocket, initPostsSocket } from '@/lib/socket'
@@ -10,7 +10,7 @@ import PostCard from '@/components/PostCard'
 import { PostModal } from '@/components/post-modal'
 import api from '@/lib/api'
 
-function FeedContent() {
+function FeedContentInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { accessToken, user } = useAuthStore()
@@ -154,7 +154,7 @@ function FeedContent() {
       const socket = initSocket(tokenToUse)
       const postsSocket = initPostsSocket(tokenToUse)
 
-      socket.on('notification', (notification) => {
+      socket.on('notification', (notification: any) => {
         console.log('New notification:', notification)
       })
 
@@ -179,14 +179,14 @@ function FeedContent() {
             likes: post._count?.likes || 0,
           },
         }
-        setFeedPosts((prev) => [transformedPost, ...prev])
+        setFeedPosts((prev: any) => [transformedPost, ...prev])
       })
 
       // 🔔 Socket.IO ile real-time yorum sayısı dinleme
       postsSocket.on('post:comment', (data: { postId: string; comments: number }) => {
         console.log('💬 [Feed] Yorum sayısı güncellendi:', data)
-        setFeedPosts((prev) => 
-          prev.map((p) => 
+        setFeedPosts((prev: any) => 
+          prev.map((p: any) => 
             p.id === data.postId 
               ? { 
                   ...p, 
@@ -257,7 +257,7 @@ function FeedContent() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-              {feedPosts.map((post, index) => (
+              {feedPosts.map((post: any, index: any) => (
                 <PostCard 
                   key={post.id} 
                   post={post} 
@@ -280,6 +280,18 @@ function FeedContent() {
         />
       )}
     </div>
+  )
+}
+
+function FeedContent() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
+      </div>
+    }>
+      <FeedContentInner />
+    </Suspense>
   )
 }
 

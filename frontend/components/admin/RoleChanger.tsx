@@ -93,8 +93,8 @@ export default function RoleChanger({ user, onUpdate, isOwnProfile = false }: Ro
     if (open && !isOwnProfile) {
       setLoadingHistory(true)
       Promise.all([
-        api.get(`/admin/users/${user.id}/role-history`).then(res => res.data),
-        api.get(`/admin/users/${user.id}/role-change-remaining-days`).then(res => res.data.remainingDays),
+         api.get(`/admin/users/${user.id}/role-history`).then((res: any) => res.data),
+         api.get(`/admin/users/${user.id}/role-change-remaining-days`).then((res: any) => res.data.remainingDays),
       ])
         .then(([history, remaining]) => {
           setRoleHistory(history || [])
@@ -118,7 +118,7 @@ export default function RoleChanger({ user, onUpdate, isOwnProfile = false }: Ro
       
       // Admin panelinde rol değiştirme: Sadece user objesi döner (capabilities/sidebar gerekmez)
       // Kendi profilinde rol değiştirme: capabilities ve sidebar döner
-      const response = await api.patch<any>(
+      const response = await api.patch(
         endpoint,
         { roles }
       )

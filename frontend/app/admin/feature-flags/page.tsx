@@ -38,7 +38,7 @@ export default function AdminFeatureFlags() {
         enabled: !currentEnabled,
       })
       setFlags(
-        flags.map((flag) =>
+        flags.map((flag: any) =>
           flag.key === key ? { ...flag, enabled: !currentEnabled } : flag
         )
       )
@@ -61,7 +61,7 @@ export default function AdminFeatureFlags() {
       <h2 className="text-3xl font-bold dark:text-white text-gray-900">Feature Flags</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {flags.map((flag) => (
+        {flags.map((flag: any) => (
           <div
             key={flag.key}
             className="rounded-2xl border border-gray-200 dark:border-gray-700/40 shadow-sm p-6 dark:bg-[#111] bg-white"

@@ -51,7 +51,7 @@ export default function MyJobsPage() {
     async function fetchMyJobs() {
       try {
         setLoading(true)
-        const response = await api.get<MyJobListing[]>('/jobs/me')
+        const response = await api.get('/jobs/me')
         setJobs(response.data || [])
       } catch (err: any) {
         const message =
@@ -75,7 +75,7 @@ export default function MyJobsPage() {
 
     try {
       await api.delete(`/jobs/${selectedJobId}`)
-      setJobs((prev) => prev.filter((job) => job.id !== selectedJobId))
+      setJobs((prev: any) => prev.filter((job: any) => job.id !== selectedJobId))
       setDeleteModalOpen(false)
       setOpenMenuId(null)
       setSelectedJobId(null)
@@ -142,7 +142,7 @@ export default function MyJobsPage() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
-          {jobs.map((job) => {
+          {jobs.map((job: any) => {
             const cleanedDescription = cleanText(job.description)
             const shortDescription = cleanedDescription.length > 100 
               ? cleanedDescription.substring(0, 100) + '...'
@@ -187,7 +187,7 @@ export default function MyJobsPage() {
                   {/* Etiketler */}
                   {job.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
-                      {job.tags.slice(0, 3).map((tag) => (
+                      {job.tags.slice(0, 3).map((tag: any) => (
                         <span
                           key={tag}
                           className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-normal text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50"
@@ -221,7 +221,7 @@ export default function MyJobsPage() {
                   {/* Başvuruları Gör Butonu */}
                   {applicationCount > 0 && (
                     <button
-                      onClick={(e) => {
+                      onClick={(e: any) => {
                         e.stopPropagation()
                         router.push(`/fellink/my-jobs/${job.id}/applications`)
                       }}
@@ -233,7 +233,7 @@ export default function MyJobsPage() {
                 </div>
 
                 {/* Sağ alt köşe - Üç nokta menü */}
-                <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e: any) => e.stopPropagation()}>
                   <div className="relative">
                     <button
                       onClick={() => setOpenMenuId(openMenuId === job.id ? null : job.id)}

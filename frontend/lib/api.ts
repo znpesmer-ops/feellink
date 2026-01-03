@@ -27,8 +27,14 @@ const getBaseURL = (): string => {
   // ENV'den al - öncelik sırası: .env.local > .env > varsayılan
   const envURL = process.env.NEXT_PUBLIC_API_URL
   
-  // Server-side (SSR)
+  // Server-side (SSR) - Vercel production'da envURL zorunlu
   if (typeof window === 'undefined') {
+    // Production'da envURL yoksa hata ver (localhost sadece development için)
+    if (process.env.NODE_ENV === 'production' && !envURL) {
+      console.error('[API] ❌ NEXT_PUBLIC_API_URL is not defined in production!')
+      // Fallback olarak empty string döndür, client-side'da düzeltilecek
+      return ''
+    }
     return envURL || 'http://localhost:3002'
   }
   
@@ -63,12 +69,19 @@ let cachedBaseURL: string | null = null
 const getCachedBaseURL = (): string => {
   if (cachedBaseURL === null) {
     cachedBaseURL = getBaseURL()
-    if (!cachedBaseURL) {
+    if (!cachedBaseURL || cachedBaseURL === '') {
       // 🔥 Server-side'da console.error kullanma
       if (typeof window !== 'undefined') {
-        console.error('NEXT_PUBLIC_API_URL tanımlı değil!')
+        console.error('[API] ❌ NEXT_PUBLIC_API_URL tanımlı değil!')
       }
-      cachedBaseURL = 'http://localhost:3002' // Fallback
+      // Server-side'da boş string döndür, client-side'da fallback kullan
+      if (typeof window === 'undefined') {
+        // Server-side: production'da boş string, development'da localhost
+        cachedBaseURL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3002'
+      } else {
+        // Client-side: fallback localhost
+        cachedBaseURL = 'http://localhost:3002'
+      }
     }
     
     // Debug logging (sadece client-side)
@@ -97,16 +110,29 @@ let apiInstance: ReturnType<typeof axios.create> | null = null
 
 const getApiInstance = () => {
   if (!apiInstance) {
-    apiInstance = axios.create({
-      baseURL: getCachedBaseURL(),
-      withCredentials: true,
-      timeout: 60000, // 60 saniye timeout (MongoDB bağlantı sorunları için)
-      // 🔥 Network error'ları önlemek için retry mekanizması
-      validateStatus: (status) => {
-        // 2xx ve 3xx status kodlarını başarılı kabul et
-        return status >= 200 && status < 400
-      },
-    })
+    const baseURL = getCachedBaseURL()
+    // Server-side'da baseURL boşsa instance oluşturma (sadece client-side'da kullanılacak)
+    if (!baseURL && typeof window === 'undefined') {
+      // Server-side rendering sırasında API çağrısı yapılmamalı
+      // Bu durumda dummy bir instance döndür (asla kullanılmayacak)
+      apiInstance = axios.create({
+        baseURL: 'http://localhost:3002',
+        withCredentials: true,
+        timeout: 60000,
+        validateStatus: (status) => status >= 200 && status < 400,
+      })
+    } else {
+      apiInstance = axios.create({
+        baseURL: baseURL || 'http://localhost:3002',
+        withCredentials: true,
+        timeout: 60000, // 60 saniye timeout (MongoDB bağlantı sorunları için)
+        // 🔥 Network error'ları önlemek için retry mekanizması
+        validateStatus: (status) => {
+          // 2xx ve 3xx status kodlarını başarılı kabul et
+          return status >= 200 && status < 400
+        },
+      })
+    }
   }
   return apiInstance
 }
@@ -231,8 +257,8 @@ const initializeInterceptors = () => {
     }
 
     // 🔒 Hesap askıya alma kontrolü (403 ACCOUNT_SUSPENDED)
-    if (error.response?.status === 403 && error.response?.data?.code === 'ACCOUNT_SUSPENDED') {
-      const suspensionData = error.response.data
+    if (error.response?.status === 403 && (error.response?.data as any)?.code === 'ACCOUNT_SUSPENDED') {
+      const suspensionData = error.response.data as { reason?: string; until?: string | null }
       // Global event dispatch (modal component dinleyecek)
       if (typeof window !== 'undefined') {
         window.dispatchEvent(
@@ -412,7 +438,7 @@ export const getErrorMessage = (error: any, options?: { isLogin?: boolean }): st
   // ⚠️ AMA: Askıya alınmış hesap hatası (403 + ACCOUNT_SUSPENDED) özel olarak handle edilmeli
   if (options?.isLogin) {
     // Askıya alınmış hesap hatası - özel mesaj göster (frontend'de zaten handle ediliyor)
-    if (error.response?.status === 403 && error.response?.data?.code === 'ACCOUNT_SUSPENDED') {
+    if (error.response?.status === 403 && (error.response?.data as any)?.code === 'ACCOUNT_SUSPENDED') {
       // Bu durumda frontend'de özel mesaj gösterilecek, buraya gelmemeli
       // Ama yine de fallback mesaj ver
       return error.response?.data?.message || 'Hesabınız askıya alınmıştır.'

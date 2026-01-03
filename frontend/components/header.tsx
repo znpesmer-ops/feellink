@@ -62,7 +62,7 @@ export function Header({ forceMobile = false }: HeaderProps = {}) {
     const timeoutId = setTimeout(async () => {
       setIsLoading(true)
       try {
-        const response = await api.get<SearchUser[]>('/search/users', {
+        const response = await api.get('/search/users', {
           params: { q: searchQuery.trim(), limit: 10 },
         })
         setSearchResults(response.data)

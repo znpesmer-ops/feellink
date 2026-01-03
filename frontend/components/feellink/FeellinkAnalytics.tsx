@@ -38,7 +38,7 @@ export default function FeellinkAnalytics() {
     async function fetchAnalytics() {
       try {
         setLoading(true)
-        const response = await api.get<AnalyticsResponse>('/jobs/me/analytics')
+        const response = await api.get('/jobs/me/analytics')
         if (mounted) {
           setData(response.data)
         }

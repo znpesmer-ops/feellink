@@ -67,7 +67,7 @@ export default function MyTicketsPage() {
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {tickets.map((t) => (
+            {tickets.map((t: any) => (
               <div
                 key={t.id}
                 className="bg-white dark:bg-[#1a1a1a]/70 backdrop-blur-md border border-gray-200 dark:border-gray-700/40 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"

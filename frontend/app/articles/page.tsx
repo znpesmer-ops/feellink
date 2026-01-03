@@ -70,16 +70,16 @@ function ArticlesPageContent() {
       const postsSocket = initPostsSocket(accessToken)
 
       const handleArticleCreated = (article: Article) => {
-        setArticles((prev) => {
+        setArticles((prev: any) => {
           // Zaten varsa ekleme
-          if (prev.some((a) => a.id === article.id)) return prev
+          if (prev.some((a: any) => a.id === article.id)) return prev
           // Yeni eklenen yazıyı başa ekle
           return [article, ...prev]
         })
       }
 
       const handleArticleDeleted = ({ id }: { id: string }) => {
-        setArticles((prev) => prev.filter((a) => a.id !== id))
+        setArticles((prev: any) => prev.filter((a: any) => a.id !== id))
       }
 
       postsSocket.on('articleCreated', handleArticleCreated)
@@ -121,7 +121,7 @@ function ArticlesPageContent() {
 
       {/* Sekmeler */}
       <div className="flex gap-1 mb-6 border-b border-gray-200 dark:border-gray-700">
-        {tabs.map((tab) => (
+        {tabs.map((tab: any) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
@@ -163,7 +163,7 @@ function ArticlesPageContent() {
         </div>
       ) : (
         <div className="space-y-4">
-          {articles.map((article) => (
+          {articles.map((article: any) => (
             <div
               key={article.id}
               className="border border-gray-200 dark:border-gray-800 rounded-xl p-6 bg-white dark:bg-[#1a1a1a] hover:bg-orange-50 dark:hover:bg-orange-500/10 transition-all duration-200 hover:shadow-md group"

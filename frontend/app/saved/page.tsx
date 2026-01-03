@@ -109,7 +109,7 @@ function SavedContent() {
                       src={post.media[0].url}
                       alt={post.caption || 'Post'}
                       className="w-full h-full object-cover group-hover:opacity-75 transition-opacity"
-                      onError={(e) => {
+                      onError={(e: any) => {
                         (e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
                       }}
                     />
@@ -141,7 +141,7 @@ function SavedContent() {
         >
           <div
             className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: any) => e.stopPropagation()}
           >
             <div className="flex flex-col md:flex-row">
               {/* Media Side */}
