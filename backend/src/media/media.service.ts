@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as MinIO from 'minio';
 import { randomUUID } from 'crypto';
+import * as multer from 'multer';
 
 @Injectable()
 export class MediaService {
@@ -64,7 +65,7 @@ export class MediaService {
     }
   }
 
-  async uploadFile(file: Express.Multer.File, folder: string = 'posts'): Promise<{ url: string; fileName: string; fileType: string }> {
+  async uploadFile(file: multer.File, folder: string = 'posts'): Promise<{ url: string; fileName: string; fileType: string }> {
     const fileName = `${folder}/${randomUUID()}-${file.originalname}`;
 
     if (this.isDisabled || !this.minioClient) {

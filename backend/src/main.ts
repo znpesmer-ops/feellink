@@ -174,7 +174,8 @@ async function bootstrap() {
   );
 
   // 🔒 KRİTİK: Port 3002 ZORUNLU - Frontend bu portu bekliyor!
-  const port = 3002;
+  // Render için: process.env.PORT kullan, yoksa 3002 (local development fallback)
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3002;
   
   // Port meşgulse hata ver (3003'e geçmesin!)
   const isPortFree = await new Promise<boolean>((resolve) => {

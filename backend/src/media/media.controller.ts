@@ -52,7 +52,7 @@ export class MediaController {
         ],
       }),
     )
-    file: Express.Multer.File,
+    file: multer.File,
     @Query('type') type?: string, // 'image' veya 'file'
   ) {
     if (!file) {
