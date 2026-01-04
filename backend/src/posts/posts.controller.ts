@@ -2,7 +2,7 @@ import { Controller, Get, Post, Delete, Patch, Body, Param, UseGuards, Query, Us
 import { containsBadWord } from '../common/utils/containsBadWord';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
-import * as multer from 'multer';
+import { File as MulterFile } from 'multer';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PostsService } from './posts.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -29,7 +29,7 @@ export class PostsController {
   @ApiResponse({ status: 201, description: 'Post created successfully' })
   async createPost(
     @CurrentUser() user: any,
-    @UploadedFiles() files: multer.File[],
+    @UploadedFiles() files: MulterFile[],
     @Body() body: { caption?: string; title?: string; location?: string; type?: string; colorPalette?: string | string[] },
   ) {
     try {
