@@ -50,47 +50,28 @@ function FeedContentInner() {
       const fetchWithRetry = async (): Promise<void> => {
         try {
           setIsLoading(true)
-          console.log('[Feed] 🔄 Fetching feed...')
           const res = await api.get('/feed')
-          console.log('[Feed] ✅ API Response:', {
-            status: res.status,
-            hasData: !!res.data,
-            dataKeys: res.data ? Object.keys(res.data) : [],
-            postsCount: res.data?.posts?.length || 0,
-            fullResponse: res.data
-          })
           
           // Güvenli şekilde posts array'ini al
           let posts: any[] = []
           if (res.data) {
             if (Array.isArray(res.data.posts)) {
               posts = res.data.posts
-              console.log('[Feed] ✅ Found posts in res.data.posts:', posts.length)
             } else if (Array.isArray(res.data)) {
               posts = res.data
-              console.log('[Feed] ✅ Found posts in res.data (array):', posts.length)
             } else if (res.data.posts && Array.isArray(res.data.posts)) {
               posts = res.data.posts
-              console.log('[Feed] ✅ Found posts in res.data.posts (nested):', posts.length)
-            } else {
-              console.warn('[Feed] ⚠️ No posts found in response:', res.data)
             }
-          } else {
-            console.warn('[Feed] ⚠️ No data in response')
           }
           
           // Array kontrolü - eğer posts array değilse boş array kullan
           if (!Array.isArray(posts)) {
-            console.warn('[Feed] ⚠️ Posts is not an array, using empty array')
             posts = []
           }
           
-          console.log('[Feed] 📊 Processing posts:', posts.length)
-          
           // Transform backend post format to PostCard format
-          // Undefined/null post'ları filtrele
           const transformedPosts = posts
-            .filter((post: any) => post && post.id) // Güvenlik kontrolü
+            .filter((post: any) => post && post.id)
             .map((post: any) => ({
               id: post.id,
               title: post.caption || 'Gönderi',
@@ -111,31 +92,16 @@ function FeedContentInner() {
               },
             }))
           
-          console.log('[Feed] ✅ Transformed posts:', transformedPosts.length)
           setFeedPosts(transformedPosts)
         } catch (error: any) {
           // Network error ise retry yap
           if ((error?.code === 'ERR_NETWORK' || !error?.response) && retryCount < maxRetries) {
             retryCount++
             const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 4000)
-            
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`[Feed] Network error, retrying in ${delay}ms... (attempt ${retryCount}/${maxRetries})`)
-            }
-            
             await new Promise(resolve => setTimeout(resolve, delay))
-            return fetchWithRetry() // Retry
+            return fetchWithRetry()
           }
           
-          // Max retry sayısına ulaşıldı veya network error değil
-          console.error('[Feed] ❌ Feed posts alınamadı:', {
-            message: error?.message,
-            status: error?.response?.status,
-            data: error?.response?.data,
-            code: error?.code,
-            url: error?.config?.url,
-            baseURL: error?.config?.baseURL,
-          })
           setFeedPosts([])
         } finally {
           setIsLoading(false)
@@ -145,63 +111,64 @@ function FeedContentInner() {
       await fetchWithRetry()
     }
 
-    fetchFeed()
+    // Fetch feed immediately
+    fetchFeed().catch(() => {
+      setIsLoading(false)
+    })
 
-    // Initialize socket for notifications and new posts
-    // Token'ı accessToken veya localStorage'dan al
+    // Initialize socket for notifications and new posts (skip in production if socket.io not available)
     const tokenToUse = accessToken || tokenFromStorage
+    let socket: ReturnType<typeof initSocket> | null = null
+    let postsSocket: ReturnType<typeof initPostsSocket> | null = null
+    
     if (tokenToUse) {
-      const socket = initSocket(tokenToUse)
-      const postsSocket = initPostsSocket(tokenToUse)
+      try {
+        socket = initSocket(tokenToUse)
+        postsSocket = initPostsSocket(tokenToUse)
 
-      socket.on('notification', (notification: any) => {
-        console.log('New notification:', notification)
-      })
+        socket.on('notification', () => {})
 
-      // Listen for new posts from followed users
-      postsSocket.on('newPost', (post: any) => {
-        console.log('New post received:', post)
-        // Transform and add to feed
-        const transformedPost = {
-          id: post.id,
-          title: post.caption || 'Gönderi',
-          content: post.caption || '',
-          cover: post.media?.[0]?.url || null,
-          author: post.user?.fullName || post.user?.username || 'Kullanıcı',
-          authorUsername: post.user?.username,
-          authorAvatar: post.user?.avatar,
-          likes: post._count?.likes || 0,
-          likedBy: [],
-          date: post.createdAt,
-          createdAt: post.createdAt,
-          _count: {
-            comments: post._count?.comments || 0,
+        postsSocket.on('newPost', (post: any) => {
+          const transformedPost = {
+            id: post.id,
+            title: post.caption || 'Gönderi',
+            content: post.caption || '',
+            cover: post.media?.[0]?.url || null,
+            author: post.user?.fullName || post.user?.username || 'Kullanıcı',
+            authorUsername: post.user?.username,
+            authorAvatar: post.user?.avatar,
             likes: post._count?.likes || 0,
-          },
-        }
-        setFeedPosts((prev: any) => [transformedPost, ...prev])
-      })
+            likedBy: [],
+            date: post.createdAt,
+            createdAt: post.createdAt,
+            _count: {
+              comments: post._count?.comments || 0,
+              likes: post._count?.likes || 0,
+            },
+          }
+          setFeedPosts((prev: any) => [transformedPost, ...prev])
+        })
 
-      // 🔔 Socket.IO ile real-time yorum sayısı dinleme
-      postsSocket.on('post:comment', (data: { postId: string; comments: number }) => {
-        console.log('💬 [Feed] Yorum sayısı güncellendi:', data)
-        setFeedPosts((prev: any) => 
-          prev.map((p: any) => 
-            p.id === data.postId 
-              ? { 
-                  ...p, 
-                  _count: { 
-                    ...p._count, 
-                    comments: data.comments 
-                  } 
-                } 
-              : p
+        postsSocket.on('post:comment', (data: { postId: string; comments: number }) => {
+          setFeedPosts((prev: any) => 
+            prev.map((p: any) => 
+              p.id === data.postId 
+                ? { ...p, _count: { ...p._count, comments: data.comments } } 
+                : p
+            )
           )
-        )
-      })
+        })
+      } catch (error) {
+        // Socket initialization failed, continue without real-time updates
+      }
+    }
 
-      return () => {
+    return () => {
+      if (socket) {
         socket.off('notification')
+        socket.disconnect()
+      }
+      if (postsSocket) {
         postsSocket.off('newPost')
         postsSocket.off('post:comment')
         postsSocket.disconnect()
