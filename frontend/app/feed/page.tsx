@@ -192,7 +192,7 @@ function FeedContentInner() {
   }
 
   return (
-    <div className="w-full feed-content" style={{ minHeight: '100vh' }}>
+    <div className="w-full feed-content">
       {/* 🔸 Ayın Öne Çıkanları — header'ın hemen altından başlıyor, direkt görünür */}
       <div className="w-full mt-4 md:mt-8 mb-6 md:mb-10">
         <HighlightsRow />
@@ -203,39 +203,40 @@ function FeedContentInner() {
         <div className="w-full">
           <h2 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 md:mb-6 tracking-[0.02em]" style={{ fontWeight: 600, letterSpacing: '0.3px' }}>Keşfet</h2>
           
-          <div className="w-full" style={{ minHeight: isLoading || feedPosts.length === 0 ? '400px' : 'auto' }}>
+          <div className="w-full">
             {isLoading ? (
               <div className="flex items-center justify-center py-20">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
               </div>
             ) : feedPosts.length === 0 ? (
-            <div className="text-center py-12 md:py-20 bg-white dark:bg-gray-950 rounded-2xl border border-black/4 dark:border-white/10 px-4 shadow-[0_6px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_12px_32px_rgba(0,0,0,0.35)]">
-              <p className="text-gray-500 dark:text-gray-400 text-base md:text-lg mb-2">
-                Henüz keşfedecek gönderi yok
-              </p>
-              <p className="text-sm text-gray-400 dark:text-gray-500 mb-6">
-                Yeni kişileri takip ederek gönderilerini burada görebilirsin
-              </p>
-              <button
-                onClick={() => router.push('/explore')}
-                className="px-5 py-2.5 bg-brand-orange hover:bg-brand-orange/90 text-white rounded-xl shadow-sm transition-colors font-medium"
-              >
-                Keşfet
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-              {feedPosts.map((post: any, index: any) => (
-                <PostCard 
-                  key={post.id} 
-                  post={post} 
-                  variant="explore"
-                  index={index}
-                  showLike={false} 
-                />
-              ))}
-            </div>
-          )}
+              <div className="text-center py-12 md:py-20 bg-white dark:bg-gray-950 rounded-2xl border border-black/4 dark:border-white/10 px-4 shadow-[0_6px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_12px_32px_rgba(0,0,0,0.35)]">
+                <p className="text-gray-500 dark:text-gray-400 text-base md:text-lg mb-2">
+                  Henüz keşfedecek gönderi yok
+                </p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 mb-6">
+                  Yeni kişileri takip ederek gönderilerini burada görebilirsin
+                </p>
+                <button
+                  onClick={() => router.push('/explore')}
+                  className="px-5 py-2.5 bg-brand-orange hover:bg-brand-orange/90 text-white rounded-xl shadow-sm transition-colors font-medium"
+                >
+                  Keşfet
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+                {feedPosts.map((post: any, index: any) => (
+                  <PostCard 
+                    key={post.id} 
+                    post={post} 
+                    variant="explore"
+                    index={index}
+                    showLike={false} 
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
