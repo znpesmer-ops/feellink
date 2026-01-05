@@ -153,12 +153,12 @@ export default function HighlightsRow({ compactTop = false }: HighlightsRowProps
   )
 
   return (
-    <section className={`w-full ${compactTop ? 'mt-0' : ''}`}>
+    <section className={`w-full ${compactTop ? 'mt-0' : ''}`} style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', minWidth: 0 }}>
       <h2 className="text-lg md:text-xl font-semibold bg-gradient-to-r from-brand-orange to-brand-blue bg-clip-text text-transparent dark:from-orange-400 dark:to-blue-400 mt-0 mb-4 md:mb-6 tracking-wide">
         Ayın Öne Çıkanları
       </h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', minWidth: 0 }}>
         {highlights.map((item) => {
           if (!item.data) {
             return (
