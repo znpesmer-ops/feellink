@@ -749,27 +749,43 @@ body {
   font-size: inherit !important;
 }
 
-/* 🔒 Prevent main container layout shift */
+/* 🔒 Prevent main container layout shift - COMPLETE LOCK */
 main {
   width: 100% !important;
-  max-width: 900px !important; /* Lock max-width to prevent responsive changes */
+  max-width: 900px !important;
   box-sizing: border-box !important;
-  padding-left: 1rem !important; /* Lock padding - prevents md:px-10 from changing */
+  padding-left: 1rem !important;
   padding-right: 1rem !important;
+  min-width: 0 !important; /* Prevent flex grow */
 }
 
-/* 🔒 Lock responsive breakpoints for feed page */
+/* 🔒 Lock responsive breakpoints for feed page - NO HYDRATION SHIFT */
 @media (min-width: 768px) {
   main {
-    padding-left: 2.5rem !important; /* md:px-10 equivalent */
+    padding-left: 2.5rem !important;
     padding-right: 2.5rem !important;
   }
 }
 
 @media (min-width: 1280px) {
   main {
-    max-width: 1100px !important; /* xl:max-w-[1100px] equivalent */
+    max-width: 1100px !important;
   }
+}
+
+/* 🔒 COMPLETE FEED PAGE LOCK - Prevent all layout shifts */
+.feed-content,
+.feed-content > *,
+.feed-content > * > * {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.feed-content .grid {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 /* 🔒 Prevent SVG/Icon layout shift after hydration */
