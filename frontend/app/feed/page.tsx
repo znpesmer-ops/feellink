@@ -190,7 +190,7 @@ function FeedContentInner() {
   }
 
   return (
-    <div className="w-full feed-content" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+    <div className="w-full feed-content" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', contain: 'layout style' }}>
       {/* 🔸 Ayın Öne Çıkanları — header'ın hemen altından başlıyor, direkt görünür */}
       <div className="w-full mt-4 md:mt-8 mb-6 md:mb-10" style={{ width: '100%', boxSizing: 'border-box' }}>
         <HighlightsRow />

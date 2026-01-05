@@ -20,7 +20,7 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning
-        className="font-sans antialiased bg-[#f7f8fa] dark:bg-gray-950 text-[#1f1f1f] dark:text-gray-100 transition-colors min-h-screen"
+        className="font-sans antialiased bg-[#f7f8fa] dark:bg-gray-950 text-[#1f1f1f] dark:text-gray-100 transition-colors"
       >
         <Providers>
           {children}

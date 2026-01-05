@@ -724,14 +724,25 @@ a:hover {
 }
 
 /* 🔒 Prevent hydration layout shift */
-html, body {
+html {
   width: 100%;
   overflow-x: hidden;
+  height: 100%;
 }
 
-/* 🔒 Stabil viewport calculation */
 body {
+  width: 100%;
+  overflow-x: hidden;
   min-height: 100dvh;
+  height: 100%;
+  position: relative;
+}
+
+/* 🔒 Stabil container calculation - prevent layout shift */
+.feed-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 /* Sağ Sidebar - Tipografik Normalizasyon */
