@@ -723,6 +723,17 @@ a:hover {
   line-height: 1.4;
 }
 
+/* 🔒 Prevent hydration layout shift */
+html, body {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* 🔒 Stabil viewport calculation */
+body {
+  min-height: 100dvh;
+}
+
 /* Sağ Sidebar - Tipografik Normalizasyon */
 aside h3,
 aside .section-title {
