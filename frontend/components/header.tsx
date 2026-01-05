@@ -253,11 +253,11 @@ export function Header({ forceMobile = false }: HeaderProps = {}) {
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="flex items-center space-x-2 group hover:opacity-80 transition-opacity focus:outline-none"
             >
-              <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-transparent group-hover:ring-brand-orange/20 transition-all">
+              <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-transparent group-hover:ring-brand-orange/20 transition-all shrink-0">
                 <Avatar
                   src={user?.avatar}
                   alt={user?.username || user?.fullName || 'Kullanıcı'}
-                  className="w-full h-full"
+                  className="w-full h-full object-cover"
                 />
               </div>
               <svg

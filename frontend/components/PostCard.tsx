@@ -378,7 +378,7 @@ export default function PostCard({ post, onLike, onDelete, variant = 'default', 
                   alt={post.author}
                   className="w-4 h-4 rounded-full object-cover flex-shrink-0"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
+                    (e.target as HTMLImageElement).src = '/icons/default-user.svg'
                   }}
                 />
               ) : (
