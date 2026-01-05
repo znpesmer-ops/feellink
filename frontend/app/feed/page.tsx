@@ -52,45 +52,43 @@ function FeedContentInner() {
           setIsLoading(true)
           const res = await api.get('/feed')
           
-          // Güvenli şekilde posts array'ini al
+          // API direkt array döndürüyor (NextResponse.json(posts))
           let posts: any[] = []
-          if (res.data) {
-            if (Array.isArray(res.data.posts)) {
-              posts = res.data.posts
-            } else if (Array.isArray(res.data)) {
-              posts = res.data
-            } else if (res.data.posts && Array.isArray(res.data.posts)) {
-              posts = res.data.posts
-            }
-          }
-          
-          // Array kontrolü - eğer posts array değilse boş array kullan
-          if (!Array.isArray(posts)) {
-            posts = []
+          if (Array.isArray(res.data)) {
+            posts = res.data
+          } else if (res.data && Array.isArray(res.data.posts)) {
+            posts = res.data.posts
+          } else if (res.data && Array.isArray(res.data)) {
+            posts = res.data
           }
           
           // Transform backend post format to PostCard format
           const transformedPosts = posts
             .filter((post: any) => post && post.id)
-            .map((post: any) => ({
-              id: post.id,
-              title: post.caption || 'Gönderi',
-              content: post.caption || '',
-              cover: post.media?.[0]?.url || null,
-              author: post.user?.fullName || post.user?.username || 'Kullanıcı',
-              authorUsername: post.user?.username,
-              authorAvatar: post.user?.avatar,
-              authorId: post.user?.id,
-              userId: post.userId || post.user?.id,
-              likes: post._count?.likes ?? 0,
-              likedBy: post.isLiked ? [user?.id] : [],
-              date: post.createdAt,
-              createdAt: post.createdAt,
-              _count: {
-                comments: post._count?.comments ?? 0,
+            .map((post: any) => {
+              // Check if current user liked this post
+              const isLiked = post.likes?.some((like: any) => like.userId === user?.id) || false
+              
+              return {
+                id: post.id,
+                title: post.caption || 'Gönderi',
+                content: post.caption || '',
+                cover: post.media?.[0]?.url || null,
+                author: post.user?.fullName || post.user?.username || 'Kullanıcı',
+                authorUsername: post.user?.username,
+                authorAvatar: post.user?.avatar,
+                authorId: post.user?.id,
+                userId: post.userId || post.user?.id,
                 likes: post._count?.likes ?? 0,
-              },
-            }))
+                likedBy: isLiked ? [user?.id || ''] : [],
+                date: post.createdAt,
+                createdAt: post.createdAt,
+                _count: {
+                  comments: post._count?.comments ?? 0,
+                  likes: post._count?.likes ?? 0,
+                },
+              }
+            })
           
           setFeedPosts(transformedPosts)
         } catch (error: any) {
