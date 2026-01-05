@@ -745,6 +745,12 @@ body {
   box-sizing: border-box !important;
 }
 
+/* 🔒 Prevent main container layout shift */
+main {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
 /* Sağ Sidebar - Tipografik Normalizasyon */
 aside h3,
 aside .section-title {

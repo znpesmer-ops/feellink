@@ -65,7 +65,7 @@ function LayoutConditionalComponent({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-950">
+    <div className="bg-white dark:bg-gray-950" style={{ minHeight: '100dvh' }}>
       {/* SOL SİDEBAR - Desktop */}
       <div className="hidden lg:block fixed left-0 top-[31px] h-[calc(100vh-31px)] w-64 z-[99999]">
         <SidebarPersistent />
