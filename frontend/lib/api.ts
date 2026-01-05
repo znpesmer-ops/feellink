@@ -23,10 +23,10 @@ const processQueue = (error: any, token: string | null = null) => {
 
 // API base URL - Serverless API (relative URL)
 // 🔥 Backend artık Vercel Serverless API olarak çalışıyor
-// Aynı domain'de, relative URL kullanıyoruz
+// Aynı domain'de, /api prefix'i ile relative URL kullanıyoruz
 const getBaseURL = (): string => {
-  // Empty string = same origin (relative URL)
-  return ''
+  // /api prefix = Next.js API routes
+  return '/api'
 }
 
 // 🔥 Lazy evaluation - sadece gerektiğinde baseURL'i hesapla
