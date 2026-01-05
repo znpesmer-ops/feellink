@@ -309,7 +309,7 @@ export default function PostCard({ post, onLike, onDelete, variant = 'default', 
               }`}
               style={{ objectPosition: 'center top' }}
               onError={(e) => {
-                (e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
+                (e.target as HTMLImageElement).src = '/icons/default-user.svg'
               }}
             />
             {/* Hover Overlay - Blur + Dark + Yorum Döngüsü (Sadece yorum varsa) */}
@@ -633,7 +633,7 @@ export default function PostCard({ post, onLike, onDelete, variant = 'default', 
               alt={post.author}
               className="w-6 h-6 rounded-full object-cover"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
+                (e.target as HTMLImageElement).src = '/icons/default-user.svg'
               }}
             />
           ) : (

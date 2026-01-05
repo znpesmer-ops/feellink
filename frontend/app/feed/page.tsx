@@ -190,18 +190,18 @@ function FeedContentInner() {
   }
 
   return (
-    <div className="w-full feed-content">
+    <div className="w-full feed-content" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
       {/* 🔸 Ayın Öne Çıkanları — header'ın hemen altından başlıyor, direkt görünür */}
-      <div className="w-full mt-4 md:mt-8 mb-6 md:mb-10">
+      <div className="w-full mt-4 md:mt-8 mb-6 md:mb-10" style={{ width: '100%', boxSizing: 'border-box' }}>
         <HighlightsRow />
       </div>
       
-      <div className="space-y-6 md:space-y-10">
+      <div className="space-y-6 md:space-y-10" style={{ width: '100%', boxSizing: 'border-box' }}>
         {/* 🔸 Keşfet */}
-        <div className="w-full">
+        <div className="w-full" style={{ width: '100%', boxSizing: 'border-box' }}>
           <h2 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 md:mb-6 tracking-[0.02em]" style={{ fontWeight: 600, letterSpacing: '0.3px' }}>Keşfet</h2>
           
-          <div className="w-full">
+          <div className="w-full" style={{ width: '100%', boxSizing: 'border-box' }}>
             {isLoading ? (
               <div className="flex items-center justify-center py-20">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
@@ -222,7 +222,7 @@ function FeedContentInner() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8" style={{ width: '100%', boxSizing: 'border-box' }}>
                 {feedPosts.map((post: any, index: any) => (
                   <PostCard 
                     key={post.id} 
