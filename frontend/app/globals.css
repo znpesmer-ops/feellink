@@ -749,56 +749,54 @@ body {
   font-size: inherit !important;
 }
 
-/* 🔒 Prevent main container layout shift - COMPLETE LOCK */
+/* 🔒 ULTIMATE LOCK: Prevent ALL layout shifts - NO responsive changes */
 main {
   width: 100% !important;
   max-width: 900px !important;
   box-sizing: border-box !important;
   padding-left: 1rem !important;
   padding-right: 1rem !important;
-  min-width: 0 !important; /* Prevent flex grow */
+  min-width: 0 !important;
+  position: relative !important;
+  contain: layout style paint !important;
 }
 
-/* 🔒 Lock responsive breakpoints for feed page - NO HYDRATION SHIFT */
-@media (min-width: 768px) {
-  main {
-    padding-left: 2.5rem !important;
-    padding-right: 2.5rem !important;
-  }
-}
-
-@media (min-width: 1280px) {
-  main {
-    max-width: 1100px !important;
-  }
-}
-
-/* 🔒 COMPLETE FEED PAGE LOCK - Prevent all layout shifts */
+/* 🔒 COMPLETE FEED PAGE LOCK - NO HYDRATION SHIFT */
 .feed-content {
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
   min-width: 0 !important;
   position: relative !important;
+  contain: layout style paint !important;
+  isolation: isolate !important;
 }
 
-.feed-content > * {
+.feed-content > *,
+.feed-content > * > *,
+.feed-content > * > * > * {
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
   min-width: 0 !important;
 }
 
-.feed-content .grid {
+.feed-content .grid,
+.feed-content section,
+.feed-content div[class*="grid"] {
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
   min-width: 0 !important;
+  contain: layout style !important;
 }
 
-/* 🔒 Lock all child containers */
-.feed-content div {
+/* 🔒 Lock all child containers - PREVENT ANY SIZE CHANGE */
+.feed-content div,
+.feed-content section,
+.feed-content article {
   box-sizing: border-box !important;
+  max-width: 100% !important;
 }
 
 /* 🔒 Prevent SVG/Icon layout shift after hydration */
