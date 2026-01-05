@@ -772,6 +772,30 @@ main {
   }
 }
 
+/* 🔒 Prevent SVG/Icon layout shift after hydration */
+svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* 🔒 Lock icon container sizes to prevent hydration shift */
+[class*="avatar"], 
+[class*="icon"],
+img[src*="avatar"],
+img[alt*="avatar"] {
+  width: auto !important;
+  height: auto !important;
+  max-width: 100% !important;
+  object-fit: cover !important;
+}
+
+/* 🔒 Prevent icon wrapper from expanding */
+.flex.items-center[class*="avatar"],
+.flex.items-center > svg {
+  flex-shrink: 0 !important;
+}
+
 /* Sağ Sidebar - Tipografik Normalizasyon */
 aside h3,
 aside .section-title {
