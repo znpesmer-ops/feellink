@@ -21,46 +21,12 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = []
 }
 
-// API base URL - dinamik olarak belirle
-// Client-side'da window.location'dan, server-side'da env'den al
+// API base URL - Serverless API (relative URL)
+// 🔥 Backend artık Vercel Serverless API olarak çalışıyor
+// Aynı domain'de, relative URL kullanıyoruz
 const getBaseURL = (): string => {
-  // ENV'den al - öncelik sırası: .env.local > .env > varsayılan
-  const envURL = process.env.NEXT_PUBLIC_API_URL
-  
-  // Server-side (SSR) - Vercel production'da envURL zorunlu
-  if (typeof window === 'undefined') {
-    // Production'da envURL yoksa hata ver (localhost sadece development için)
-    if (process.env.NODE_ENV === 'production' && !envURL) {
-      console.error('[API] ❌ NEXT_PUBLIC_API_URL is not defined in production!')
-      // Fallback olarak empty string döndür, client-side'da düzeltilecek
-      return ''
-    }
-    return envURL || 'http://localhost:3002'
-  }
-  
-  // Client-side - ENV URL'i varsa kullan
-  if (envURL) {
-    return envURL
-  }
-  
-  // 🔥 Client-side'da window.location'dan backend URL'ini tespit et
-  // Eğer frontend localhost:3000'de çalışıyorsa, backend localhost:3002'de olmalı
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname
-    const protocol = window.location.protocol
-    
-    // Localhost veya 127.0.0.1 ise backend'i localhost:3002 olarak ayarla
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:3002'
-    }
-    
-    // Network IP ise backend'i aynı IP'de port 3002 olarak ayarla
-    // Örnek: http://192.168.1.6:3000 -> http://192.168.1.6:3002
-    return `${protocol}//${hostname}:3002`
-  }
-  
-  // Fallback: localhost:3002 (backend şu an burada)
-  return 'http://localhost:3002'
+  // Empty string = same origin (relative URL)
+  return ''
 }
 
 // 🔥 Lazy evaluation - sadece gerektiğinde baseURL'i hesapla
@@ -69,33 +35,7 @@ let cachedBaseURL: string | null = null
 const getCachedBaseURL = (): string => {
   if (cachedBaseURL === null) {
     cachedBaseURL = getBaseURL()
-    if (!cachedBaseURL || cachedBaseURL === '') {
-      // 🔥 Server-side'da console.error kullanma
-      if (typeof window !== 'undefined') {
-        console.error('[API] ❌ NEXT_PUBLIC_API_URL tanımlı değil!')
-      }
-      // Server-side'da boş string döndür, client-side'da fallback kullan
-      if (typeof window === 'undefined') {
-        // Server-side: production'da boş string, development'da localhost
-        cachedBaseURL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3002'
-      } else {
-        // Client-side: fallback localhost
-        cachedBaseURL = 'http://localhost:3002'
-      }
-    }
-    
-    // Debug logging (sadece client-side)
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-      console.info('[api] ✅ base URL (client):', cachedBaseURL, '← Bu URL kullanılıyor!')
-      try {
-        const savedURL = localStorage.getItem('backend_url')
-        if (savedURL && savedURL !== cachedBaseURL) {
-          console.warn('[api] ⚠️ localStorage backend_url:', savedURL, '(kullanılmıyor, baseURL kullanılıyor)')
-        }
-      } catch (err) {
-        // localStorage erişilemezse sessizce devam et
-      }
-    }
+    // Serverless API - empty string (relative URL) kullanıyoruz
   }
   return cachedBaseURL
 }

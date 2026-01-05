@@ -1,0 +1,961 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  ORI
+}
+
+enum UserRole {
+  art_lover
+  corporate
+  collector
+  artist
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model User {
+  id                    String           @id @default(auto()) @map("_id") @db.ObjectId
+  username              String           @unique
+  email                 String           @unique
+  password              String
+  fullName              String?
+  bio                   String?
+  avatar                String?
+  roles                 UserRole[]       @default([])
+  extras                String[]         @default([])
+  plan                  SubscriptionPlan @default(FREE)
+  badges                String[]         @default([])
+  isPrivate             Boolean          @default(false)
+  isVerified            Boolean          @default(false)
+  isAdmin               Boolean          @default(false)
+  superAdmin            Boolean          @default(false)
+  followerCount         Int              @default(0)
+  followingCount        Int              @default(0)
+  isOnline              Boolean          @default(false)
+  lastSeen              DateTime?
+  passwordResetToken    String?          
+  passwordResetExpires  DateTime?
+  usernameLastChangedAt DateTime?
+  nameLastChangedAt     DateTime?
+  website               String?
+  dateOfBirth           DateTime?
+  country               String?
+  city                  String?
+  gender                String?
+  profileCompleted      Boolean          @default(false)
+  phoneNumber           String?
+  phoneVerified         Boolean          @default(false)
+  gdprConsent           Boolean          @default(false)
+  gdprConsentAt         DateTime?
+  analyticsConsent      Boolean          @default(false)
+  showProfileColorSignature Boolean      @default(true)
+  termsAcceptedAt       DateTime?
+  accountStatus         AccountStatus   @default(ACTIVE)
+  suspendedAt           DateTime?
+  suspendedUntil        DateTime?
+  suspensionReason      String?
+  suspensionNote        String?
+  suspendedByAdminId    String?         @db.ObjectId
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  posts                  Post[]
+  articles               Article[]
+  comments               Comment[]
+  likes                  Like[]
+  followers              Follow[]                @relation("Follower")
+  following              Follow[]                @relation("Following")
+  blockedBy              Block[]                 @relation("BlockedUser")
+  blockedUsers           Block[]                 @relation("BlockerUser")
+  followRequestsReceived FollowRequest[]         @relation("RequestedUser")
+  followRequestsSent     FollowRequest[]         @relation("RequesterUser")
+  notificationsReceived  Notification[]          @relation("ReceivedNotifications")
+  notificationsSent      Notification[]          @relation("SentNotifications")
+  stories                Story[]
+  storyViews             StoryView[]
+  refreshTokens          RefreshToken[]
+  savedPosts             SavedPost[]
+  savedArtworks          SavedArtwork[]
+  messages               Message[]
+  conversations          UserConversation[]
+  commentReactions       CommentReaction[]
+  articleComments        ArticleComment[]
+  articleCommentLikes    ArticleCommentLike[]
+  commentLikes           CommentLike[]
+  notificationPreference NotificationPreference?
+  collections            Collection[]            @relation("CollectionOwner")
+  events                 Event[]                 @relation("EventOwner")
+  eventComments          EventComment[]          @relation("EventCommentAuthor")
+  eventParticipants      EventParticipant[]      @relation("EventParticipantUser")
+  ticketPurchases        TicketPurchase[]        @relation("TicketPurchaseUser")
+  auditLogs              AuditLog[]              @relation("AuditLogActor")
+  jobListings            JobListing[]
+  jobApplications        JobApplication[]        @relation("JobApplications")
+  roleChangeRequests     RoleChangeRequest[]     @relation("RoleChangeRequests")
+  reviewedRoleChangeRequests RoleChangeRequest[] @relation("ReviewedRoleChangeRequests")
+  highlights             Highlight[]
+  monthlyHighlightsAsMuseum MonthlyHighlight[]   @relation("MonthlyHighlightMuseum")
+  collectionItems        CollectionItem[]        @relation("CollectionItemAddedBy")
+  reportsMade            UserReport[]            @relation("ReportsMade")
+  reportsReceived        UserReport[]            @relation("ReportsReceived")
+  emailChangeRequests    EmailChangeRequest[]
+  phoneVerifications     PhoneVerification[]
+  roleChangeLogs         RoleChangeLog[]              @relation("RoleChanges")
+
+  @@map("users")
+}
+
+model Post {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String
+  caption      String?
+  title        String?
+  location     String?
+  type         String   @default("post")
+  code         String?
+  colors       String[] @default([])
+  colorPalette String[] @default([])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user            User             @relation(fields: [userId], references: [id])
+  media           PostMedia[]
+  comments        Comment[]
+  likes           Like[]
+  hashtags        PostHashtag[]
+  savedBy         SavedPost[]
+  highlightCover  Highlight[]      @relation("HighlightCoverPost")
+  highlightItems  HighlightItem[]
+  collectionItems CollectionItem[]
+  savedByArtworks SavedArtwork[]   @relation("SavedByArtworks")
+  monthlyHighlightsAsArtwork MonthlyHighlight[] @relation("MonthlyHighlightArtwork")
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("posts")
+}
+
+model PostMedia {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  postId       String
+  type         String
+  url          String
+  thumbnailUrl String?
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id])
+
+  @@index([postId])
+  @@map("post_media")
+}
+
+model Hashtag {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @unique
+  postCount Int      @default(0)
+  createdAt DateTime @default(now())
+
+  posts PostHashtag[]
+
+  @@map("hashtags")
+}
+
+model PostHashtag {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  postId    String
+  hashtagId String
+
+  post    Post    @relation(fields: [postId], references: [id])
+  hashtag Hashtag @relation(fields: [hashtagId], references: [id])
+
+  @@unique([postId, hashtagId])
+  @@index([hashtagId])
+  @@map("post_hashtags")
+}
+
+model Comment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  postId    String
+  userId    String
+  content   String
+  parentId  String?
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post      Post              @relation(fields: [postId], references: [id])
+  user      User              @relation(fields: [userId], references: [id])
+  parent    Comment?          @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies   Comment[]         @relation("CommentReplies")
+  reactions CommentReaction[]
+  likes     CommentLike[]
+  monthlyHighlights MonthlyHighlight[] @relation("MonthlyHighlightComment")
+
+  @@index([postId])
+  @@index([userId])
+  @@index([postId, isPinned])
+  @@map("comments")
+}
+
+model CommentReaction {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  commentId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([commentId, userId, emoji])
+  @@index([commentId])
+  @@index([userId])
+  @@map("comment_reactions")
+}
+
+model Like {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+  @@map("likes")
+}
+
+model Follow {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Follower", fields: [followerId], references: [id])
+  following User @relation("Following", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("follows")
+}
+
+model FollowRequest {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  requesterId String
+  requestedId String
+  createdAt   DateTime @default(now())
+
+  requester User @relation("RequesterUser", fields: [requesterId], references: [id])
+  requested User @relation("RequestedUser", fields: [requestedId], references: [id])
+
+  @@unique([requesterId, requestedId])
+  @@index([requestedId])
+  @@index([requesterId])
+  @@map("follow_requests")
+}
+
+model Block {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("BlockerUser", fields: [blockerId], references: [id])
+  blocked User @relation("BlockedUser", fields: [blockedId], references: [id])
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+  @@map("blocks")
+}
+
+model Notification {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String
+  type       String
+  message    String?
+  fromUserId String?
+  postId     String?
+  articleId  String?
+  commentId  String?
+  targetUrl  String?
+  targetPath String?
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user     User  @relation("ReceivedNotifications", fields: [userId], references: [id])
+  fromUser User? @relation("SentNotifications", fields: [fromUserId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String    @unique
+  mention   Boolean   @default(true)
+  follow    Boolean   @default(true)
+  like      Boolean   @default(true)
+  comment   Boolean   @default(true)
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notification_preferences")
+}
+
+model Story {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String
+  mediaUrl  String
+  mediaType String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user  User        @relation(fields: [userId], references: [id])
+  views StoryView[]
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("stories")
+}
+
+model StoryView {
+  id       String   @id @default(auto()) @map("_id") @db.ObjectId
+  storyId  String
+  userId   String
+  viewedAt DateTime @default(now())
+
+  story Story @relation(fields: [storyId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([storyId, userId])
+  @@index([storyId])
+  @@map("story_views")
+}
+
+model FeedCache {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String
+  postIds   String[]
+  updatedAt DateTime @default(now())
+
+  @@unique([userId])
+  @@map("feed_cache")
+}
+
+model RefreshToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model SavedPost {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  postId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  post Post @relation(fields: [postId], references: [id])
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@map("saved_posts")
+}
+
+model SavedArtwork {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  postId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  post Post @relation("SavedByArtworks", fields: [postId], references: [id])
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@map("saved_artworks")
+}
+
+enum ConversationContext {
+  DIRECT
+  JOB_APPLICATION
+}
+
+model Conversation {
+  id           String              @id @default(auto()) @map("_id") @db.ObjectId
+  lastMessage  String?
+  context      ConversationContext @default(DIRECT)
+  jobId        String?             @db.ObjectId
+  applicationId String?            @db.ObjectId
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  participants UserConversation[]
+  messages     Message[]
+
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([context, jobId])
+  @@index([context, applicationId])
+  @@map("conversations")
+}
+
+model UserConversation {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String
+  conversationId String
+  isDeleted      Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+
+  @@unique([userId, conversationId])
+  @@index([userId])
+  @@index([conversationId])
+  @@index([userId, isDeleted])
+  @@map("user_conversations")
+}
+
+model Message {
+  id             String              @id @default(auto()) @map("_id") @db.ObjectId
+  content        String?
+  imageUrl       String?
+  fileUrl        String?
+  fileName       String?
+  fileType       String?
+  senderId       String
+  conversationId String
+  context        ConversationContext? @default(DIRECT)
+  jobId          String?              @db.ObjectId
+  applicationId  String?              @db.ObjectId
+  read           Boolean              @default(false)
+  isEdited        Boolean              @default(false)
+  isDeleted       Boolean              @default(false)
+  isRequest       Boolean              @default(false)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  sender          User                 @relation(fields: [senderId], references: [id])
+  conversation    Conversation         @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@index([read])
+  @@index([isRequest])
+  @@index([context, jobId])
+  @@index([context, applicationId])
+  @@map("messages")
+}
+
+model Article {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  content     String
+  coverImage  String?
+  excerpt     String?
+  isPublished Boolean   @default(false)
+  scheduledAt DateTime?
+  views       Int       @default(0)
+  authorId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  author   User             @relation(fields: [authorId], references: [id])
+  comments ArticleComment[]
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([isPublished])
+  @@index([scheduledAt])
+  @@map("articles")
+}
+
+model ArticleComment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  articleId String
+  userId    String
+  content   String
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  article Article              @relation(fields: [articleId], references: [id])
+  user    User                 @relation(fields: [userId], references: [id])
+  parent  ArticleComment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies ArticleComment[]     @relation("CommentReplies")
+  likes   ArticleCommentLike[]
+
+  @@index([articleId])
+  @@index([parentId])
+  @@index([userId])
+  @@map("article_comments")
+}
+
+model ArticleCommentLike {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  comment ArticleComment @relation(fields: [commentId], references: [id])
+  user    User           @relation(fields: [userId], references: [id])
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@index([userId])
+  @@map("article_comment_likes")
+}
+
+model JobListing {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  company     String?
+  location    String?
+  salary      String?
+  tags        String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy    User             @relation(fields: [createdById], references: [id])
+  createdById  String
+  applications JobApplication[]
+
+  @@index([createdAt])
+  @@index([createdById])
+  @@map("job_listings")
+}
+
+enum ApplicationStatus {
+  PENDING
+  REVIEWED
+  ACCEPTED
+  REJECTED
+}
+
+model JobApplication {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  jobListingId String
+  jobListing   JobListing @relation(fields: [jobListingId], references: [id])
+
+  applicantId String
+  applicant   User   @relation("JobApplications", fields: [applicantId], references: [id])
+
+  coverLetter      String?
+  portfolioUrl     String?
+  portfolioFileUrl String?
+  cvUrl            String?
+
+  status ApplicationStatus @default(PENDING)
+
+  conversationId String?   @db.ObjectId
+
+  expiresAt      DateTime?
+  reminderSentAt DateTime?
+
+  adminNote String?
+  tags      String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activities ApplicationActivity[]
+
+  @@unique([jobListingId, applicantId])
+  @@index([jobListingId])
+  @@index([applicantId])
+  @@index([status])
+  @@index([conversationId])
+  @@map("job_applications")
+}
+
+model ApplicationActivity {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  applicationId String
+  application   JobApplication @relation(fields: [applicationId], references: [id])
+
+  action  String
+  details String?
+
+  createdAt DateTime @default(now())
+
+  @@index([applicationId])
+  @@index([createdAt])
+  @@map("application_activities")
+}
+
+model CommentLike {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@index([userId])
+  @@map("comment_likes")
+}
+
+model Collection {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  coverImage  String?
+  ownerId     String
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner User             @relation("CollectionOwner", fields: [ownerId], references: [id])
+  items CollectionItem[]
+  monthlyHighlights MonthlyHighlight[] @relation("MonthlyHighlightCollection")
+
+  @@index([ownerId])
+  @@index([createdAt])
+  @@map("collections")
+}
+
+model CollectionItem {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  collectionId String
+  postId       String
+  addedById    String
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  collection Collection @relation(fields: [collectionId], references: [id])
+  post       Post       @relation(fields: [postId], references: [id])
+  addedBy    User       @relation("CollectionItemAddedBy", fields: [addedById], references: [id])
+
+  @@unique([collectionId, postId])
+  @@index([collectionId, order])
+  @@index([postId])
+  @@map("collection_items")
+}
+
+model Event {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  title            String
+  description      String?
+  coverImage       String?
+  date             DateTime
+  participantCount Int       @default(0)
+  ticketUrl        String?
+  price            Float     @default(0)
+  isFree           Boolean   @default(true)
+  location         String?
+  ownerId          String
+  reminderMailSent Boolean   @default(false)
+  isDeleted        Boolean   @default(false)
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  owner        User               @relation("EventOwner", fields: [ownerId], references: [id])
+  comments     EventComment[]
+  participants EventParticipant[] @relation("EventParticipants")
+  tickets      Ticket[]
+
+  @@index([ownerId])
+  @@index([date])
+  @@index([createdAt])
+  @@index([isDeleted])
+  @@map("events")
+}
+
+model EventComment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  text      String
+  createdAt DateTime @default(now())
+  eventId   String
+  authorId  String
+
+  event  Event @relation(fields: [eventId], references: [id])
+  author User  @relation("EventCommentAuthor", fields: [eventId], references: [id])
+
+  @@index([eventId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@map("event_comments")
+}
+
+enum EventParticipantStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model EventParticipant {
+  id                String                 @id @default(auto()) @map("_id") @db.ObjectId
+  eventId           String
+  userId            String
+  status            EventParticipantStatus @default(PENDING)
+  reminderSentAt    DateTime?
+  reminder24hSentAt DateTime?
+  createdAt         DateTime               @default(now())
+
+  event Event @relation("EventParticipants", fields: [eventId], references: [id])
+  user  User  @relation("EventParticipantUser", fields: [userId], references: [id])
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([reminderSentAt])
+  @@index([reminder24hSentAt])
+  @@map("event_participants")
+}
+
+model Ticket {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  eventId   String
+  type      String
+  price     Float
+  capacity  Int
+  sold      Int      @default(0)
+  qrCodeUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event     Event            @relation(fields: [eventId], references: [id])
+  purchases TicketPurchase[]
+
+  @@index([eventId])
+  @@index([createdAt])
+  @@map("tickets")
+}
+
+model TicketPurchase {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  ticketId  String
+  userId    String
+  code      String    @unique
+  qrUrl     String?
+  used      Boolean   @default(false)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  user   User   @relation("TicketPurchaseUser", fields: [userId], references: [id])
+
+  @@index([ticketId])
+  @@index([userId])
+  @@index([used])
+  @@index([createdAt])
+  @@map("ticket_purchases")
+}
+
+model AuditLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  actorId   String
+  action    String
+  target    String?
+  meta      Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  actor User @relation("AuditLogActor", fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([target])
+  @@map("audit_logs")
+}
+
+model FeatureFlag {
+  key       String   @id @map("_id")
+  enabled   Boolean  @default(false)
+  note      String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@map("feature_flags")
+}
+
+model Highlight {
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  coverPostId String?
+  coverPost   Post?           @relation("HighlightCoverPost", fields: [coverPostId], references: [id])
+  userId      String
+  user        User            @relation(fields: [userId], references: [id])
+  items       HighlightItem[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("highlights")
+}
+
+model HighlightItem {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  highlightId String
+  highlight   Highlight @relation(fields: [highlightId], references: [id])
+  postId      String
+  post        Post      @relation(fields: [postId], references: [id])
+  sortOrder   Int       @default(0)
+
+  @@unique([highlightId, postId])
+  @@index([highlightId])
+  @@index([postId])
+  @@map("highlight_items")
+}
+
+enum ReportReason {
+  HARASSMENT
+  SPAM
+  HATE_SPEECH
+  IMPERSONATION
+  INAPPROPRIATE_CONTENT
+}
+
+model UserReport {
+  id             String        @id @default(auto()) @map("_id") @db.ObjectId
+  reporterId     String
+  reportedUserId String
+  conversationId String?
+  messageId      String?
+  reason         ReportReason
+  note           String?
+  status         String        @default("OPEN")
+  createdAt      DateTime      @default(now())
+
+  reporter     User @relation("ReportsMade", fields: [reporterId], references: [id])
+  reportedUser User @relation("ReportsReceived", fields: [reportedUserId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([reportedUserId])
+  @@index([reporterId])
+  @@map("user_reports")
+}
+
+model RoleChangeRequest {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String    @db.ObjectId
+  requestedRole UserRole
+  message       String?
+  status        String    @default("PENDING")
+  reviewedBy    String?   @db.ObjectId
+  reviewedAt    DateTime?
+  reviewNote    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation("RoleChangeRequests", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer      User?     @relation("ReviewedRoleChangeRequests", fields: [reviewedBy], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("role_change_requests")
+}
+
+model EmailChangeRequest {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String
+  newEmail  String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("email_change_requests")
+}
+
+model PhoneVerification {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  phoneNumber String
+  code        String
+  verified    Boolean  @default(false)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([code])
+  @@index([expiresAt])
+  @@map("phone_verifications")
+}
+
+model RoleChangeLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  oldRoles  String[]
+  newRoles  String[]
+  changedBy String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  user User @relation("RoleChanges", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("role_change_logs")
+}
+
+model MonthlyHighlight {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  year          Int
+  month         Int
+  museumId      String?   @db.ObjectId
+  artworkId     String?   @db.ObjectId
+  commentId     String?   @db.ObjectId
+  collectionId String?   @db.ObjectId
+  isAuto        Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  museum      User?      @relation("MonthlyHighlightMuseum", fields: [museumId], references: [id])
+  artwork     Post?      @relation("MonthlyHighlightArtwork", fields: [artworkId], references: [id])
+  comment     Comment?   @relation("MonthlyHighlightComment", fields: [commentId], references: [id])
+  collection  Collection? @relation("MonthlyHighlightCollection", fields: [collectionId], references: [id])
+
+  @@unique([year, month])
+  @@index([museumId])
+  @@index([artworkId])
+  @@index([commentId])
+  @@index([collectionId])
+  @@map("monthly_highlights")
+}
