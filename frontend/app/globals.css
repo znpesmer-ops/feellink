@@ -723,19 +723,22 @@ a:hover {
   line-height: 1.4;
 }
 
-/* 🔒 Prevent hydration layout shift */
+/* 🔒 Prevent hydration layout shift - CRITICAL FIX */
 html {
-  width: 100%;
+  width: 100% !important;
   overflow-x: hidden;
   height: 100%;
+  font-size: 16px; /* Lock font size to prevent rem calculations from changing */
 }
 
 body {
-  width: 100%;
+  width: 100% !important;
   overflow-x: hidden;
   min-height: 100dvh;
   height: 100%;
   position: relative;
+  font-size: 16px !important; /* Lock font size */
+  line-height: 1.5 !important; /* Lock line height */
 }
 
 /* 🔒 Stabil container calculation - prevent layout shift */
@@ -743,12 +746,30 @@ body {
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
+  font-size: inherit !important;
 }
 
 /* 🔒 Prevent main container layout shift */
 main {
   width: 100% !important;
+  max-width: 900px !important; /* Lock max-width to prevent responsive changes */
   box-sizing: border-box !important;
+  padding-left: 1rem !important; /* Lock padding - prevents md:px-10 from changing */
+  padding-right: 1rem !important;
+}
+
+/* 🔒 Lock responsive breakpoints for feed page */
+@media (min-width: 768px) {
+  main {
+    padding-left: 2.5rem !important; /* md:px-10 equivalent */
+    padding-right: 2.5rem !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  main {
+    max-width: 1100px !important; /* xl:max-w-[1100px] equivalent */
+  }
 }
 
 /* Sağ Sidebar - Tipografik Normalizasyon */
