@@ -37,10 +37,15 @@ function FeedContentInner() {
     const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
     const hasToken = accessToken || tokenFromStorage
 
+    console.log('[Feed] useEffect çalıştı:', { hasToken, accessToken: !!accessToken, tokenFromStorage: !!tokenFromStorage })
+
     if (!hasToken) {
+      console.log('[Feed] Token yok, login\'e yönlendiriliyor...')
       router.push('/login')
       return
     }
+
+    console.log('[Feed] Token var, fetchFeed çağrılıyor...')
 
     // Fetch feed posts with retry mechanism
     const fetchFeed = async () => {
