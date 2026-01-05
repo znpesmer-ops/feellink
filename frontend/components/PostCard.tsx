@@ -371,7 +371,7 @@ export default function PostCard({ post, onLike, onDelete, variant = 'default', 
             </div>
 
             {/* Kullanıcı bilgisi overlay - Sol alt köşe */}
-            <div className="absolute bottom-2 left-2 flex items-center gap-1.5 bg-black/40 group-hover:bg-black/60 backdrop-blur-md px-2 py-1 rounded-full z-20 transition-all duration-300">
+            <div className="absolute bottom-2 left-2 flex items-center gap-1.5 bg-black/40 group-hover:bg-black/60 backdrop-blur-md px-2 py-1 rounded-full z-20 transition-all duration-300 shrink-0">
               {post.authorAvatar ? (
                 <img
                   src={resolveImageUrl(post.authorAvatar)}
