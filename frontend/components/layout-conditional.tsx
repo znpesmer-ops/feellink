@@ -85,7 +85,7 @@ function LayoutConditionalComponent({ children }: { children: React.ReactNode })
       {/* ✅ Banner varsa padding'i artır (banner yüksekliği ~60px) */}
       <div className={`pt-[72px] lg:pl-64 ${showBanner ? 'pt-[132px]' : ''}`}>
         <div className="flex">
-          <main className="flex-1 px-4 md:px-10 pb-20 max-w-[900px] xl:max-w-[1100px] mx-auto" style={{ width: '100%', maxWidth: '900px', boxSizing: 'border-box', minWidth: 0, contain: 'layout' }}>
+          <main className="flex-1 px-4 pb-20 max-w-[900px] mx-auto" style={{ width: '100%', maxWidth: '900px', boxSizing: 'border-box', minWidth: 0, contain: 'layout style paint', paddingLeft: '1rem', paddingRight: '1rem' }}>
             {children}
           </main>
           {(isFeed || isExplore) && (

@@ -759,6 +759,22 @@ main {
   min-width: 0 !important;
   position: relative !important;
   contain: layout style paint !important;
+  transform: translateZ(0) !important; /* Force hardware acceleration */
+  will-change: auto !important; /* Prevent browser from optimizing layout */
+}
+
+/* 🔒 REMOVE ALL RESPONSIVE BREAKPOINTS - NO HYDRATION SHIFT */
+@media (min-width: 768px) {
+  main {
+    padding-left: 1rem !important; /* KEEP SAME - no change */
+    padding-right: 1rem !important; /* KEEP SAME - no change */
+  }
+}
+
+@media (min-width: 1280px) {
+  main {
+    max-width: 900px !important; /* KEEP SAME - no change */
+  }
 }
 
 /* 🔒 COMPLETE FEED PAGE LOCK - NO HYDRATION SHIFT */
