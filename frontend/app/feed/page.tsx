@@ -222,7 +222,17 @@ function FeedContentInner() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', contain: 'layout style paint', gap: '1.5rem', gridTemplateColumns: 'repeat(1, minmax(0, 1fr))' }}>
+              <div className="grid grid-cols-1" style={{ 
+                width: '100%', 
+                maxWidth: '100%', 
+                boxSizing: 'border-box', 
+                contain: 'layout style paint', 
+                gap: '1.5rem', 
+                gridTemplateColumns: 'repeat(1, minmax(0, 1fr))',
+                transform: 'translateZ(0)',
+                willChange: 'auto',
+                minWidth: 0
+              }}>
                 {feedPosts.map((post: any, index: any) => (
                   <PostCard 
                     key={post.id} 

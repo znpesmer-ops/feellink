@@ -804,6 +804,8 @@ main {
   position: relative !important;
   contain: layout style paint !important;
   isolation: isolate !important;
+  transform: translateZ(0) !important; /* Force hardware acceleration */
+  will-change: auto !important;
 }
 
 .feed-content > *,
@@ -813,6 +815,7 @@ main {
   max-width: 100% !important;
   box-sizing: border-box !important;
   min-width: 0 !important;
+  transform: translateZ(0) !important;
 }
 
 .feed-content .grid,
@@ -822,7 +825,8 @@ main {
   max-width: 100% !important;
   box-sizing: border-box !important;
   min-width: 0 !important;
-  contain: layout style !important;
+  contain: layout style paint !important;
+  transform: translateZ(0) !important;
 }
 
 /* 🔒 Lock all child containers - PREVENT ANY SIZE CHANGE */
@@ -831,6 +835,31 @@ main {
 .feed-content article {
   box-sizing: border-box !important;
   max-width: 100% !important;
+  transform: translateZ(0) !important;
+}
+
+/* 🔒 LOCK PostCard sizes - NO GROWTH AFTER HYDRATION */
+.explore-card,
+[class*="explore-card"],
+[class*="PostCard"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  contain: layout style paint !important;
+  transform: translateZ(0) !important;
+  will-change: auto !important;
+}
+
+/* 🔒 Lock images - prevent size changes */
+.feed-content img,
+.explore-card img,
+[class*="PostCard"] img {
+  max-width: 100% !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+  object-fit: cover !important;
+  display: block !important;
+  transform: translateZ(0) !important;
 }
 
 /* 🔒 Prevent SVG/Icon layout shift after hydration */

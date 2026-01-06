@@ -296,7 +296,17 @@ export default function PostCard({ post, onLike, onDelete, variant = 'default', 
           setIsHovered(false)
           setActiveCommentIndex(0) // Hover çıkınca başa dön
         }}
-        className="relative w-full max-w-[440px] mx-auto h-[420px] rounded-[16px] overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.35)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)] hover:-translate-y-1 transition-all duration-300 group cursor-pointer flex flex-col explore-card"
+        className="relative w-full mx-auto rounded-[16px] overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.35)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)] hover:-translate-y-1 transition-all duration-300 group cursor-pointer flex flex-col explore-card"
+        style={{ 
+          maxWidth: '440px', 
+          height: '420px',
+          width: '100%',
+          boxSizing: 'border-box',
+          contain: 'layout style paint',
+          transform: 'translateZ(0)',
+          minWidth: 0,
+          flexShrink: 0
+        }}
       >
         {/* Görsel - Kartın en üstünden başlar */}
         {post.cover && (

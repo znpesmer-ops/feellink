@@ -16,7 +16,31 @@ export default function RootLayout({
   return (
     <html lang="tr">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+        <style dangerouslySetInnerHTML={{__html: `
+          /* 🔒 CRITICAL: Lock sizes before any CSS loads */
+          html, body {
+            width: 100% !important;
+            overflow-x: hidden !important;
+            height: 100% !important;
+          }
+          main {
+            width: 100% !important;
+            max-width: 900px !important;
+            box-sizing: border-box !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+            min-width: 0 !important;
+            contain: layout style paint !important;
+          }
+          .feed-content {
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            min-width: 0 !important;
+            contain: layout style paint !important;
+          }
+        `}} />
       </head>
       <body
         suppressHydrationWarning
