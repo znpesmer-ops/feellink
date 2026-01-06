@@ -484,7 +484,8 @@ export default function PostCard({ post, onLike, onDelete, variant = 'default', 
   return (
     <div
       onClick={handleCardClick}
-      className="relative w-full bg-white/80 dark:bg-[#1a1a1a]/70 backdrop-blur-md border border-gray-200 dark:border-gray-700/40 rounded-2xl shadow-sm p-4 md:p-5 transition-all hover:shadow-md cursor-pointer group"
+      className="relative w-full bg-white/80 dark:bg-[#1a1a1a]/70 backdrop-blur-md border border-gray-200 dark:border-gray-700/40 rounded-2xl shadow-sm transition-all hover:shadow-md cursor-pointer group"
+      style={{ padding: '1rem' }}
     >
       {/* Menü butonu - Sadece sahip görür, her zaman görünür (görsel olsun ya da olmasın) - Post z-index */}
       {isOwner && (

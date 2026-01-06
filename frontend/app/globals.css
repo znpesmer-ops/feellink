@@ -761,9 +761,18 @@ main {
   contain: layout style paint !important;
   transform: translateZ(0) !important; /* Force hardware acceleration */
   will-change: auto !important; /* Prevent browser from optimizing layout */
+  font-size: 16px !important; /* Lock font size */
+  line-height: 1.5 !important; /* Lock line height */
 }
 
-/* 🔒 REMOVE ALL RESPONSIVE BREAKPOINTS - NO HYDRATION SHIFT */
+/* 🔒 FORCE SAME VALUES AT ALL BREAKPOINTS - NO HYDRATION SHIFT */
+@media (min-width: 640px) {
+  main {
+    padding-left: 1rem !important; /* KEEP SAME */
+    padding-right: 1rem !important; /* KEEP SAME */
+  }
+}
+
 @media (min-width: 768px) {
   main {
     padding-left: 1rem !important; /* KEEP SAME - no change */
@@ -771,9 +780,18 @@ main {
   }
 }
 
+@media (min-width: 1024px) {
+  main {
+    padding-left: 1rem !important; /* KEEP SAME */
+    padding-right: 1rem !important; /* KEEP SAME */
+  }
+}
+
 @media (min-width: 1280px) {
   main {
     max-width: 900px !important; /* KEEP SAME - no change */
+    padding-left: 1rem !important; /* KEEP SAME */
+    padding-right: 1rem !important; /* KEEP SAME */
   }
 }
 

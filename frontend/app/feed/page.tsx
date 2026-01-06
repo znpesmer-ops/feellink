@@ -192,14 +192,14 @@ function FeedContentInner() {
   return (
     <div className="w-full feed-content" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', contain: 'layout style paint', minWidth: 0, position: 'relative' }}>
       {/* 🔸 Ayın Öne Çıkanları — header'ın hemen altından başlıyor, direkt görünür */}
-      <div className="w-full mt-4 md:mt-8 mb-6 md:mb-10" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', minWidth: 0 }}>
+      <div className="w-full" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', minWidth: 0, marginTop: '1rem', marginBottom: '1.5rem' }}>
         <HighlightsRow />
       </div>
       
-      <div className="space-y-6 md:space-y-10" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', minWidth: 0 }}>
+      <div style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', minWidth: 0 }}>
         {/* 🔸 Keşfet */}
         <div className="w-full" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', minWidth: 0 }}>
-          <h2 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 md:mb-6 tracking-[0.02em]" style={{ fontWeight: 600, letterSpacing: '0.3px' }}>Keşfet</h2>
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100 tracking-[0.02em]" style={{ fontWeight: 600, letterSpacing: '0.3px', fontSize: '18px', lineHeight: '1.5', marginBottom: '1rem' }}>Keşfet</h2>
           
           <div className="w-full" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', minWidth: 0 }}>
             {isLoading ? (
@@ -207,8 +207,8 @@ function FeedContentInner() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
               </div>
             ) : feedPosts.length === 0 ? (
-              <div className="text-center py-12 md:py-20 bg-white dark:bg-gray-950 rounded-2xl border border-black/4 dark:border-white/10 px-4 shadow-[0_6px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_12px_32px_rgba(0,0,0,0.35)]">
-                <p className="text-gray-500 dark:text-gray-400 text-base md:text-lg mb-2">
+              <div className="text-center bg-white dark:bg-gray-950 rounded-2xl border border-black/4 dark:border-white/10 px-4 shadow-[0_6px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_12px_32px_rgba(0,0,0,0.35)]" style={{ paddingTop: '3rem', paddingBottom: '3rem' }}>
+                <p className="text-gray-500 dark:text-gray-400 mb-2" style={{ fontSize: '16px', lineHeight: '1.5' }}>
                   Henüz keşfedecek gönderi yok
                 </p>
                 <p className="text-sm text-gray-400 dark:text-gray-500 mb-6">
@@ -222,7 +222,7 @@ function FeedContentInner() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', contain: 'layout style paint' }}>
+              <div className="grid grid-cols-1" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', contain: 'layout style paint', gap: '1.5rem', gridTemplateColumns: 'repeat(1, minmax(0, 1fr))' }}>
                 {feedPosts.map((post: any, index: any) => (
                   <PostCard 
                     key={post.id} 
