@@ -612,12 +612,12 @@ export default function PostCard({ post, onLike, onDelete, variant = 'default', 
       )}
 
       {/* Başlık */}
-      <h3 className="text-base md:text-lg font-semibold text-[#111] dark:text-white mb-2 line-clamp-2">
+      <h3 className="font-semibold text-[#111] dark:text-white line-clamp-2" style={{ fontSize: '16px', lineHeight: '1.5', marginBottom: '0.5rem' }}>
         {post.title}
       </h3>
 
       {/* İçerik önizleme */}
-      <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300 leading-snug mb-3 md:mb-4 line-clamp-3">
+      <p className="text-gray-700 dark:text-gray-300 leading-snug line-clamp-3" style={{ fontSize: '14px', lineHeight: '1.5', marginBottom: '1rem' }}>
         {post.content}
       </p>
 
