@@ -110,6 +110,17 @@ export function resolveImageUrl(url?: string | null): string {
         return trimmedUrl
       }
       
+      // Production'da (Vercel) eğer URL localhost/local IP içeriyorsa, backend URL ile değiştir
+      if (typeof window !== 'undefined') {
+        const currentHost = window.location.hostname
+        // Production domain'deyse ve URL localhost/local IP içeriyorsa
+        if (currentHost !== 'localhost' && currentHost !== '127.0.0.1' && !currentHost.startsWith('192.168.')) {
+          if (urlHost === 'localhost' || urlHost === '127.0.0.1' || urlHost.startsWith('192.168.')) {
+            return `${BACKEND_URL}${urlObj.pathname}${urlObj.search}`
+          }
+        }
+      }
+      
       // Diğer external URL'ler (örneğin CDN, başka servisler) için olduğu gibi döndür
       return trimmedUrl
     } catch {
