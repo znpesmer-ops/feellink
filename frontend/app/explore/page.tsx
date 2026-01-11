@@ -256,10 +256,6 @@ function ExploreContent() {
               >
                 <PostCard
                   post={postCardData}
-                  variant="explore"
-                  pinnedComment={post.pinnedComment}
-                  recentComments={post.recentComments || []}
-                  index={index}
                 />
               </motion.div>
             )
