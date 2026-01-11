@@ -1,23 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  webpack: (config, { isServer, dev }) => {
-    // ✅ framer-motion için webpack konfigürasyonu
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-      }
-    }
-    
-    // ✅ Webpack module resolution sorunlarını önle
-    config.optimization = {
-      ...config.optimization,
-      moduleIds: dev ? 'named' : 'deterministic',
-    }
-    
-    return config
-  },
   images: {
     domains: [
       'localhost',
@@ -27,6 +10,7 @@ const nextConfig = {
       'indirect-shark-waters-titles.trycloudflare.com',
       'previously-willing-cbs-establishing.trycloudflare.com',
     ],
+    unoptimized: true, // Production'da görseller için
     remotePatterns: [
       {
         protocol: 'http',

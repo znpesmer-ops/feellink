@@ -248,7 +248,7 @@ export default function PostCard({ post, onLike, onDelete }: PostCardProps) {
       
       {/* Kapak görseli - Kare form */}
       {post.cover && (
-        <div className="relative w-full aspect-square mb-4 rounded-2xl overflow-hidden group/image">
+        <div className="relative w-full aspect-square mb-4 rounded-2xl overflow-hidden group/image max-h-[400px]">
           {(() => {
             const imageUrl = resolveImageUrl(post.cover)
             console.log('PostCard IMAGE URL:', imageUrl, 'Original:', post.cover)
