@@ -13,13 +13,19 @@ const getBackendUrl = (): string => {
   // 2. Production'da (Vercel) window.location'dan backend URL'i belirle
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
-    // Production domain'deyse (feellink.io gibi), backend URL'i env'den al veya API URL'i kullan
+    const protocol = window.location.protocol
+    
+    // Production domain'deyse (feellink.io gibi), backend URL'i otomatik belirle
     if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.startsWith('192.168.')) {
       // Production'da NEXT_PUBLIC_API_URL kullan (backend ile aynı domain olmalı)
       const apiUrl = process.env.NEXT_PUBLIC_API_URL
       if (apiUrl) {
         return apiUrl
       }
+      
+      // Eğer env yoksa, aynı domain'de backend olduğunu varsay (örnek: api.feellink.io veya backend.feellink.io)
+      // Veya aynı domain'de farklı path (örnek: feellink.io/api)
+      // Şimdilik getApiBaseURL kullan (o zaten env'den alıyor)
     }
   }
   
