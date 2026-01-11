@@ -283,7 +283,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // İlk initialization sırasında loading göster
   if (isInitializing) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
       </div>
     )
@@ -298,14 +298,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     // Token yoksa login'e yönlendir (zaten useEffect'te yapılıyor ama loading göster)
     if (!hasToken) {
       return (
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
         </div>
       )
     }
     // Token var ama user yok - user yüklenene kadar bekle (sadece feed dışı sayfalar için)
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
       </div>
     )
