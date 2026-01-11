@@ -43,7 +43,7 @@ model User {
   isPrivate             Boolean          @default(false)
   isVerified            Boolean          @default(false)
   isAdmin               Boolean          @default(false)
-  superAdmin            Boolean          @default(false)
+  superAdmin            Boolean          @default(false) // 🔥 GOD-MODE
   followerCount         Int              @default(0)
   followingCount        Int              @default(0)
   isOnline              Boolean          @default(false)
@@ -63,17 +63,18 @@ model User {
   gdprConsent           Boolean          @default(false)
   gdprConsentAt         DateTime?
   analyticsConsent      Boolean          @default(false)
-  showProfileColorSignature Boolean      @default(true)
-  termsAcceptedAt       DateTime?
-  accountStatus         AccountStatus   @default(ACTIVE)
-  suspendedAt           DateTime?
-  suspendedUntil        DateTime?
-  suspensionReason      String?
-  suspensionNote        String?
-  suspendedByAdminId    String?         @db.ObjectId
+  showProfileColorSignature Boolean      @default(true) // 🎨 Profil renk imzasını göster/gizle
+  termsAcceptedAt       DateTime?       // ✅ Kullanıcı sözleşmesi onay tarihi
+  accountStatus         AccountStatus   @default(ACTIVE) // 🔒 Hesap durumu
+  suspendedAt           DateTime?       // 🔒 Askıya alma tarihi
+  suspendedUntil        DateTime?       // 🔒 Askıya alma bitiş tarihi
+  suspensionReason      String?         // 🔒 Askıya alma nedeni
+  suspensionNote        String?         // 🔒 Admin iç notu
+  suspendedByAdminId    String?         @db.ObjectId // 🔒 Askıya alan admin ID
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
 
+  // Relations
   posts                  Post[]
   articles               Article[]
   comments               Comment[]
@@ -124,15 +125,16 @@ model Post {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   userId       String
   caption      String?
-  title        String?
+  title        String? // 🎨 Eser adı (artwork için)
   location     String?
-  type         String   @default("post")
-  code         String?
-  colors       String[] @default([])
-  colorPalette String[] @default([])
+  type         String   @default("post") // "post" | "artwork"
+  code         String? // Artwork için otomatik üretilen kod (PA24-00001 gibi)
+  colors       String[] @default([]) // Artwork için otomatik çıkarılan renkler (HEX formatında) - DEPRECATED
+  colorPalette String[] @default([]) // 🎨 Basit renk paleti: hex string listesi (frontend'den gelir)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Relations
   user            User             @relation(fields: [userId], references: [id])
   media           PostMedia[]
   comments        Comment[]
@@ -153,7 +155,7 @@ model Post {
 model PostMedia {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   postId       String
-  type         String
+  type         String // 'image' | 'video'
   url          String
   thumbnailUrl String?
   order        Int      @default(0)
@@ -194,8 +196,8 @@ model Comment {
   postId    String
   userId    String
   content   String
-  parentId  String?
-  isPinned  Boolean  @default(false)
+  parentId  String? // For nested comments
+  isPinned  Boolean  @default(false) // Sabitlenmiş yorum
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -292,14 +294,14 @@ model Block {
 model Notification {
   id         String   @id @default(auto()) @map("_id") @db.ObjectId
   userId     String
-  type       String
-  message    String?
+  type       String // 'like', 'comment', 'follow', 'follow_request', 'follow_accept', 'message', 'mention', 'reply', 'comment_like', 'job_application_received', 'job_application_status_changed', 'collection_added'
+  message    String? // Bildirim metni (örn: "Ahmet gönderini beğendi")
   fromUserId String?
   postId     String?
   articleId  String?
   commentId  String?
-  targetUrl  String?
-  targetPath String?
+  targetUrl  String? // Eski alan (geriye uyumluluk için)
+  targetPath String? // Yeni alan: bildirime tıklandığında gidilecek Next.js route path
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
 
@@ -330,7 +332,7 @@ model Story {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   userId    String
   mediaUrl  String
-  mediaType String
+  mediaType String // 'image' | 'video'
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -359,7 +361,7 @@ model StoryView {
 model FeedCache {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   userId    String
-  postIds   String[]
+  postIds   String[] // Array of post IDs
   updatedAt DateTime @default(now())
 
   @@unique([userId])
@@ -412,15 +414,15 @@ model SavedArtwork {
 
 enum ConversationContext {
   DIRECT
-  JOB_APPLICATION
+  JOB_APPLICATION // ✅ Başvuruya bağlı sohbet (LinkedIn/Upwork mantığı)
 }
 
 model Conversation {
   id           String              @id @default(auto()) @map("_id") @db.ObjectId
-  lastMessage  String?
-  context      ConversationContext @default(DIRECT)
-  jobId        String?             @db.ObjectId
-  applicationId String?            @db.ObjectId
+  lastMessage  String?             // 🔥 Son mesaj içeriği (sol panel için)
+  context      ConversationContext @default(DIRECT) // "DIRECT" | "JOB_APPLICATION" - mesaj bağlamı
+  jobId        String?             @db.ObjectId // İlan üzerinden mesaj ise ilan ID'si
+  applicationId String?            @db.ObjectId // ✅ Başvuruya bağlı sohbet ise başvuru ID'si (LinkedIn/Upwork mantığı)
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
   participants UserConversation[]
@@ -429,7 +431,7 @@ model Conversation {
   @@index([createdAt])
   @@index([updatedAt])
   @@index([context, jobId])
-  @@index([context, applicationId])
+  @@index([context, applicationId]) // ✅ Başvuruya bağlı sohbetler için index
   @@map("conversations")
 }
 
@@ -437,7 +439,7 @@ model UserConversation {
   id             String       @id @default(auto()) @map("_id") @db.ObjectId
   userId         String
   conversationId String
-  isDeleted      Boolean      @default(false)
+  isDeleted      Boolean      @default(false) // Kullanıcıya özel sohbet silme (soft delete)
   createdAt      DateTime     @default(now())
   user           User         @relation(fields: [userId], references: [id])
   conversation   Conversation @relation(fields: [conversationId], references: [id])
@@ -458,13 +460,13 @@ model Message {
   fileType       String?
   senderId       String
   conversationId String
-  context        ConversationContext? @default(DIRECT)
-  jobId          String?              @db.ObjectId
-  applicationId  String?              @db.ObjectId
+  context        ConversationContext? @default(DIRECT) // "DIRECT" | "JOB_APPLICATION" - mesaj bağlamı (conversation'dan inherit edilir)
+  jobId          String?              @db.ObjectId // İlan üzerinden mesaj ise ilan ID'si (conversation'dan inherit edilir)
+  applicationId  String?              @db.ObjectId // ✅ Başvuruya bağlı sohbet ise başvuru ID'si (conversation'dan inherit edilir)
   read           Boolean              @default(false)
   isEdited        Boolean              @default(false)
   isDeleted       Boolean              @default(false)
-  isRequest       Boolean              @default(false)
+  isRequest       Boolean              @default(false) // 🔥 Instagram tarzı mesaj isteği
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
   sender          User                 @relation(fields: [senderId], references: [id])
@@ -475,7 +477,7 @@ model Message {
   @@index([read])
   @@index([isRequest])
   @@index([context, jobId])
-  @@index([context, applicationId])
+  @@index([context, applicationId]) // ✅ Başvuruya bağlı mesajlar için index
   @@map("messages")
 }
 
@@ -575,29 +577,31 @@ model JobApplication {
 
   coverLetter      String?
   portfolioUrl     String?
-  portfolioFileUrl String?
+  portfolioFileUrl String? // Yüklenen portfolyo dosyası URL'i
   cvUrl            String?
 
   status ApplicationStatus @default(PENDING)
 
-  conversationId String?   @db.ObjectId
+  conversationId String?   @db.ObjectId // ✅ Başvuru onaylandığında oluşturulan sohbet ID'si (LinkedIn/Upwork mantığı)
 
-  expiresAt      DateTime?
-  reminderSentAt DateTime?
+  expiresAt      DateTime? // 30 günlük yanıt süresi (başvuru tarihinden itibaren)
+  reminderSentAt DateTime? // Son hatırlatma bildirimi gönderilme tarihi
 
-  adminNote String?
-  tags      String[] @default([])
+  // Admin özellikleri (sadece ilan sahibi görür)
+  adminNote String? // Admin için özel notlar (aday görmez)
+  tags      String[] @default([]) // Etiketler: ["öncelikli", "portfolyo-güçlü", vb.]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relations
   activities ApplicationActivity[]
 
   @@unique([jobListingId, applicantId])
   @@index([jobListingId])
   @@index([applicantId])
   @@index([status])
-  @@index([conversationId])
+  @@index([conversationId]) // ✅ Conversation ID için index
   @@map("job_applications")
 }
 
@@ -606,8 +610,8 @@ model ApplicationActivity {
   applicationId String
   application   JobApplication @relation(fields: [applicationId], references: [id])
 
-  action  String
-  details String?
+  action  String // "APPROVED" | "REJECTED" | "REVIEWED" | "NOTE_ADDED" | "TAG_ADDED" | "TAG_REMOVED" | "MAIL_SENT"
+  details String? // Ek bilgiler (örn: eklenen etiket, not içeriği özeti)
 
   createdAt DateTime @default(now())
 
@@ -653,7 +657,7 @@ model Collection {
 model CollectionItem {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   collectionId String
-  postId       String
+  postId       String // Post modeli artwork'leri de içeriyor (type="artwork")
   addedById    String
   order        Int      @default(0)
   createdAt    DateTime @default(now())
@@ -680,7 +684,7 @@ model Event {
   isFree           Boolean   @default(true)
   location         String?
   ownerId          String
-  reminderMailSent Boolean   @default(false)
+  reminderMailSent Boolean   @default(false) // 24 saat hatırlatma maili gönderildi mi?
   isDeleted        Boolean   @default(false)
   deletedAt        DateTime?
   createdAt        DateTime  @default(now())
@@ -706,7 +710,7 @@ model EventComment {
   authorId  String
 
   event  Event @relation(fields: [eventId], references: [id])
-  author User  @relation("EventCommentAuthor", fields: [eventId], references: [id])
+  author User  @relation("EventCommentAuthor", fields: [authorId], references: [id])
 
   @@index([eventId])
   @@index([authorId])
@@ -725,8 +729,8 @@ model EventParticipant {
   eventId           String
   userId            String
   status            EventParticipantStatus @default(PENDING)
-  reminderSentAt    DateTime?
-  reminder24hSentAt DateTime?
+  reminderSentAt    DateTime?              // 30 dakika hatırlatma için
+  reminder24hSentAt DateTime?              // 24 saat hatırlatma için
   createdAt         DateTime               @default(now())
 
   event Event @relation("EventParticipants", fields: [eventId], references: [id])
@@ -784,9 +788,9 @@ model TicketPurchase {
 model AuditLog {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   actorId   String
-  action    String
-  target    String?
-  meta      Json?
+  action    String // 'user.ban', 'post.delete', 'role.update', etc.
+  target    String? // 'user:abc123', 'post:xyz789', etc.
+  meta      Json? // Additional context data
   ip        String?
   userAgent String?
   createdAt DateTime @default(now())
@@ -873,10 +877,10 @@ model RoleChangeRequest {
   userId        String    @db.ObjectId
   requestedRole UserRole
   message       String?
-  status        String    @default("PENDING")
-  reviewedBy    String?   @db.ObjectId
+  status        String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  reviewedBy    String?   @db.ObjectId // Admin ID
   reviewedAt    DateTime?
-  reviewNote    String?
+  reviewNote    String?   // Admin notu
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -935,24 +939,26 @@ model RoleChangeLog {
   @@map("role_change_logs")
 }
 
+// ✅ Ayın Öne Çıkanları - Admin kontrollü veya otomatik seçim
 model MonthlyHighlight {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  year          Int
-  month         Int
-  museumId      String?   @db.ObjectId
-  artworkId     String?   @db.ObjectId
-  commentId     String?   @db.ObjectId
-  collectionId String?   @db.ObjectId
-  isAuto        Boolean   @default(false)
+  year          Int       // Yıl (2024, 2025, vb.)
+  month         Int       // Ay (1-12)
+  museumId      String?   @db.ObjectId // Ayın Müzesi (User ID - museum role)
+  artworkId     String?   @db.ObjectId // Ayın Eseri (Post ID - type="artwork")
+  commentId     String?   @db.ObjectId // Ayın Yorumu (Comment ID)
+  collectionId String?   @db.ObjectId // Ayın Koleksiyonu (Collection ID)
+  isAuto        Boolean   @default(false) // Otomatik seçim mi, admin override mi?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  // Relations (optional - nullable)
   museum      User?      @relation("MonthlyHighlightMuseum", fields: [museumId], references: [id])
   artwork     Post?      @relation("MonthlyHighlightArtwork", fields: [artworkId], references: [id])
   comment     Comment?   @relation("MonthlyHighlightComment", fields: [commentId], references: [id])
   collection  Collection? @relation("MonthlyHighlightCollection", fields: [collectionId], references: [id])
 
-  @@unique([year, month])
+  @@unique([year, month]) // Her ay için sadece bir kayıt (bu zaten bir index oluşturur)
   @@index([museumId])
   @@index([artworkId])
   @@index([commentId])

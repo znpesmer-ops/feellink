@@ -1,21 +1,14 @@
 'use client'
 
-import { FormEvent, useState, useEffect, Suspense } from 'react'
+import { FormEvent, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import api from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import toast from 'react-hot-toast'
-import { TR_CITIES } from '@/constants/cities.tr'
 
 type ApplicationMethod = 'internal' | 'link' | 'email'
 
-interface Country {
-  code: string
-  name: string
-  cities: string[]
-}
-
-function NewJobPageContent() {
+export default function NewJobPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user } = useAuthStore()
@@ -25,32 +18,18 @@ function NewJobPageContent() {
   const [error, setError] = useState<string | null>(null)
   const [shortSummary, setShortSummary] = useState('')
   const maxShortSummaryChars = 100
-  const [countries, setCountries] = useState<Country[]>([])
-  const [selectedCountry, setSelectedCountry] = useState<string>('TR') // Default Türkiye
-  const [city, setCity] = useState<string>('')
   
   // ✅ Edit mode kontrolü
   const jobId = searchParams.get('edit')
   const isEditMode = Boolean(jobId)
   const [isLoadingJob, setIsLoadingJob] = useState(false)
 
-  // Load countries data
-  useEffect(() => {
-    fetch('/data/countries.json')
-      .then((res: any) => res.json())
-      .then((data: any) => setCountries(data))
-      .catch((err: any) => {
-        console.error('Error loading countries:', err)
-        toast.error('Ülke listesi yüklenemedi')
-      })
-  }, [])
-
   // ✅ Edit modunda ilan verilerini yükle
   useEffect(() => {
-    if (isEditMode && jobId && countries.length > 0) {
+    if (isEditMode && jobId) {
       setIsLoadingJob(true)
       api.get(`/jobs/${jobId}`)
-        .then((response: any) => {
+        .then((response) => {
           const job = response.data
           // Form alanlarını doldur
           if (job.title) {
@@ -77,16 +56,10 @@ function NewJobPageContent() {
           if (job.location) {
             const parts = job.location.split(', ')
             if (parts.length >= 2) {
-              const cityValue = parts[0]
-              const countryValue = parts.slice(1).join(', ')
-              setCity(cityValue)
-              // Ülke adından code bul
-              const country = countries.find((c: any) => c.name === countryValue)
-              if (country) {
-                setSelectedCountry(country.code)
-              } else if (countryValue === 'Türkiye') {
-                setSelectedCountry('TR')
-              }
+              const cityInput = document.querySelector('input[name="locationCity"]') as HTMLInputElement
+              const countryInput = document.querySelector('input[name="locationCountry"]') as HTMLInputElement
+              if (cityInput) cityInput.value = parts[0]
+              if (countryInput) countryInput.value = parts.slice(1).join(', ')
             }
           }
           // Salary'yi parse et
@@ -102,7 +75,7 @@ function NewJobPageContent() {
             }
           }
         })
-        .catch((err: any) => {
+        .catch((err) => {
           console.error('İlan yüklenirken hata:', err)
           toast.error('İlan yüklenirken bir hata oluştu')
           router.push('/jobs/new')
@@ -111,7 +84,7 @@ function NewJobPageContent() {
           setIsLoadingJob(false)
         })
     }
-  }, [isEditMode, jobId, router, countries])
+  }, [isEditMode, jobId, router])
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -124,9 +97,9 @@ function NewJobPageContent() {
     // Mevcut backend DTO'ya uygun format
     const title = formData.get('title')?.toString().trim()
     const companyName = formData.get('companyName')?.toString().trim() || user?.fullName || ''
-    const locationCity = city || formData.get('locationCity')?.toString().trim() || ''
-    const countryName = countries.find((c: any) => c.code === selectedCountry)?.name || 'Türkiye'
-    const location = [locationCity, countryName].filter(Boolean).join(', ') || undefined
+    const locationCity = formData.get('locationCity')?.toString().trim() || ''
+    const locationCountry = formData.get('locationCountry')?.toString().trim() || 'Türkiye'
+    const location = [locationCity, locationCountry].filter(Boolean).join(', ') || undefined
 
     // Maaş formatı
     const salaryMin = formData.get('salaryMin')?.toString()
@@ -138,8 +111,7 @@ function NewJobPageContent() {
       if (salaryVisible) {
         salary = `${salaryMin || '?'} - ${salaryMax || '?'} ${salaryCurrency}`
       } else {
-        // 🔥 Maaş gizliyse sadece placeholder göster, rakam gösterme
-        salary = undefined // Maaş gizliyse hiç gösterilmez
+        salary = `${salaryMin || '?'} - ${salaryMax || '?'} ${salaryCurrency} (Gizli)`
       }
     }
 
@@ -349,58 +321,26 @@ function NewJobPageContent() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Ülke
+                Şehir
               </label>
-              <select
-                value={selectedCountry}
-                onChange={(e: any) => {
-                  setSelectedCountry(e.target.value)
-                  setCity('') // 🔒 Ülke değişince şehir sıfırlanır
-                }}
+              <input
+                name="locationCity"
+                type="text"
+                placeholder="İstanbul"
                 className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-              >
-                {countries.map((c: any) => (
-                  <option key={c.code} value={c.code}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Şehir
-                {selectedCountry === 'TR' && (
-                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">(Türkiye için zorunlu)</span>
-                )}
+                Ülke
               </label>
-              {selectedCountry === 'TR' ? (
-                <select
-                  value={city}
-                  onChange={(e: any) => setCity(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-                >
-                  <option value="">Şehir seçin</option>
-                  {TR_CITIES.map((cityName) => (
-                    <option key={cityName} value={cityName}>
-                      {cityName}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  name="locationCity"
-                  type="text"
-                  value={city}
-                  onChange={(e: any) => setCity(e.target.value)}
-                  placeholder="Şehir"
-                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-                />
-              )}
-              {selectedCountry === 'TR' && (
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Türkiye için şehir seçimi zorunludur.
-                </p>
-              )}
+              <input
+                name="locationCountry"
+                type="text"
+                placeholder="Türkiye"
+                defaultValue="Türkiye"
+                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -468,7 +408,7 @@ function NewJobPageContent() {
                 rows={2}
                 maxLength={maxShortSummaryChars}
                 value={shortSummary}
-                onChange={(e: any) => setShortSummary(e.target.value.slice(0, maxShortSummaryChars))}
+                onChange={(e) => setShortSummary(e.target.value.slice(0, maxShortSummaryChars))}
                 placeholder="Örn: Bu ilan, sergi sürecinde görev alacak ve sanat üretim süreçlerine destek verecek kişiler içindir."
                 className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm resize-none text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
               />
@@ -665,20 +605,6 @@ function NewJobPageContent() {
       </form>
       )}
     </div>
-  )
-}
-
-export default function NewJobPage() {
-  return (
-    <Suspense fallback={
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
-        </div>
-      </div>
-    }>
-      <NewJobPageContent />
-    </Suspense>
   )
 }
 

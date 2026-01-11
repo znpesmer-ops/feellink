@@ -68,17 +68,11 @@ export default function StoriesRow() {
                      dark:hover:border-[#ff7b00] group"
         >
           <div className="relative mb-2">
-            {user.avatar ? (
-              <img
-                src={user.avatar}
-                alt={user.username}
-                className="w-14 h-14 rounded-full object-cover border-2 border-white dark:border-gray-900 group-hover:border-[#ff7b00] transition-colors"
-              />
-            ) : (
-              <div className="w-14 h-14 rounded-full bg-[#ff7b00] flex items-center justify-center text-white font-semibold text-lg border-2 border-white dark:border-gray-900 group-hover:border-[#ff7b00] transition-colors">
-                {user.username.charAt(0).toUpperCase()}
-              </div>
-            )}
+            <img
+              src={user.avatar || '/default-avatar.png'}
+              alt={user.username}
+              className="w-14 h-14 rounded-full object-cover border-2 border-white dark:border-gray-900 group-hover:border-[#ff7b00] transition-colors"
+            />
             {user.isVerified && (
               <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
                 <svg

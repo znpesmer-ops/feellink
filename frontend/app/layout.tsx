@@ -1,8 +1,21 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
+import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
 import { LayoutConditional } from '@/components/layout-conditional'
-// import { Onboarding } from '@/components/Onboarding' // Kaldırıldı - ürün seviyesi için gereksiz
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+})
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+}
 
 export const metadata: Metadata = {
   title: 'Feellink',
@@ -16,10 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="tr" suppressHydrationWarning>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </head>
-      <body className="font-sans antialiased bg-[#f7f8fa] dark:bg-gray-950 text-[#1f1f1f] dark:text-gray-100 transition-colors">
+      <body className={`${inter.variable} font-sans antialiased bg-[#f7f8fa] dark:bg-gray-950 text-[#1f1f1f] dark:text-gray-100 transition-colors`}>
         <Providers>
           {children}
           {/* <Onboarding /> */}

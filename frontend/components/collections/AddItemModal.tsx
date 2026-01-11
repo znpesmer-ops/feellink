@@ -123,7 +123,7 @@ export function AddItemModal({ collectionId, open, onClose, onSuccess }: AddItem
         if (cursor) params.append('cursor', cursor)
         params.append('take', '20')
 
-        const res = await api.get(`/collections/${collectionId}/search-addable?${params.toString()}`)
+        const res = await api.get<SearchResults>(`/collections/${collectionId}/search-addable?${params.toString()}`)
 
         if (cursor) {
           // Append to existing results

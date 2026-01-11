@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, ValidateIf, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
 
 export class LoginDto {
   @IsOptional()
@@ -13,9 +13,8 @@ export class LoginDto {
   @IsString()
   emailOrUsername?: string;
 
-  @IsNotEmpty({ message: 'Şifre gereklidir' })
-  @IsString({ message: 'Şifre string olmalıdır' })
-  @MinLength(1, { message: 'Şifre boş olamaz' }) // 🔒 Güvenlik: En azından boş string kontrolü
+  @IsNotEmpty()
+  @IsString()
   password: string;
 }
 

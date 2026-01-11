@@ -25,7 +25,7 @@ export default function AdminSettingsPage() {
         setIsLoading(true)
         const res = await api.get('/admin/settings')
         if (res.data?.success && res.data?.data) {
-          setSettings((prev: any) => ({
+          setSettings((prev) => ({
             ...prev,
             ...res.data.data,
           }))
@@ -51,7 +51,7 @@ export default function AdminSettingsPage() {
 
       // ✅ Kesin commit oldu - state güncelle
       const updatedValue = res.data?.data?.value || value
-      setSettings((prev: any) => ({ ...prev, [key]: updatedValue }))
+      setSettings((prev) => ({ ...prev, [key]: updatedValue }))
       
       // ✅ Toast sadece DB yazıldıktan sonra
       toast.success('Ayar başarıyla güncellendi')
@@ -116,7 +116,7 @@ export default function AdminSettingsPage() {
   ]
 
   // 🔒 Gizlenecek bölümleri filtrele (render seviyesinde)
-  const visibleCategories = settingsCategories.filter((category: any) => {
+  const visibleCategories = settingsCategories.filter((category) => {
     if (category.featureFlag) {
       return featureFlags[category.featureFlag as keyof typeof featureFlags] === true
     }
@@ -144,7 +144,6 @@ export default function AdminSettingsPage() {
               <div className="divide-y divide-gray-100 dark:divide-[var(--border)]">
                 {category.items.map((item, itemIndex) => {
                   const ItemIcon = 'icon' in item && item.icon ? (item.icon as React.ComponentType<{ size?: number; className?: string }>) : null
-                  const description = 'description' in item && typeof item.description === 'string' ? item.description : null
                   return (
                     <div
                       key={itemIndex}
@@ -157,10 +156,10 @@ export default function AdminSettingsPage() {
                             <div className="text-sm font-medium text-[var(--text)]">{item.label}</div>
                           </div>
                           <div className="text-xs text-[var(--sub)] mb-1">{item.value}</div>
-                          {description && (
+                          {'description' in item && item.description && (
                             <div className="text-xs text-[var(--sub)] opacity-75 mt-1 flex items-start gap-1">
                               <Info size={12} className="mt-0.5 flex-shrink-0" />
-                              <span>{description}</span>
+                              <span>{item.description}</span>
                             </div>
                           )}
                         </div>
@@ -204,7 +203,7 @@ export default function AdminSettingsPage() {
         <SettingsModal
           title="Site Adı"
           value={settings.siteName}
-          onSave={(value: any) => handleSave('site-name', value)}
+          onSave={(value) => handleSave('site-name', value)}
           onClose={() => setModal(null)}
           placeholder="Site adını girin"
         />
@@ -214,7 +213,7 @@ export default function AdminSettingsPage() {
         <SettingsModal
           title="Site Açıklaması"
           value={settings.siteDescription}
-          onSave={(value: any) => handleSave('site-description', value)}
+          onSave={(value) => handleSave('site-description', value)}
           onClose={() => setModal(null)}
           type="textarea"
           placeholder="Site açıklamasını girin"
@@ -225,7 +224,7 @@ export default function AdminSettingsPage() {
         <SettingsModal
           title="Yönetici Email"
           value={settings.adminEmail}
-          onSave={(value: any) => handleSave('admin-email', value)}
+          onSave={(value) => handleSave('admin-email', value)}
           onClose={() => setModal(null)}
           type="email"
           placeholder="admin@feellink.com"

@@ -2,11 +2,9 @@ import { Controller, Get, Post, Delete, Patch, Body, Param, UseGuards, Query, Us
 import { containsBadWord } from '../common/utils/containsBadWord';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
-import { File as MulterFile } from 'multer';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PostsService } from './posts.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { AccountStatusGuard } from '../auth/guards/account-status.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { MediaService } from '../media/media.service';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -23,13 +21,13 @@ export class PostsController {
   ) {}
 
   @Post('create')
-  @UseGuards(JwtAuthGuard, AccountStatusGuard)
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FilesInterceptor('files', 10))
   @ApiOperation({ summary: 'Create post with file upload' })
   @ApiResponse({ status: 201, description: 'Post created successfully' })
   async createPost(
     @CurrentUser() user: any,
-    @UploadedFiles() files: MulterFile[],
+    @UploadedFiles() files: Express.Multer.File[],
     @Body() body: { caption?: string; title?: string; location?: string; type?: string; colorPalette?: string | string[] },
   ) {
     try {
@@ -92,7 +90,7 @@ export class PostsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, AccountStatusGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Create post with media URLs' })
   @ApiResponse({ status: 201, description: 'Post created successfully' })
   async createPostWithUrls(@CurrentUser() user: any, @Body() dto: CreatePostDto) {
@@ -138,7 +136,7 @@ export class PostsController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, AccountStatusGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Update a post' })
   @ApiResponse({ status: 200, description: 'Post updated successfully' })
   async updatePost(
@@ -150,7 +148,7 @@ export class PostsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, AccountStatusGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Delete post' })
   @ApiResponse({ status: 200, description: 'Post deleted successfully' })
   async deletePost(@Param() params: PostIdDto, @CurrentUser() user: any) {
@@ -158,7 +156,7 @@ export class PostsController {
   }
 
   @Post(':id/like')
-  @UseGuards(JwtAuthGuard, AccountStatusGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Like a post' })
   @ApiResponse({ status: 200, description: 'Post liked successfully' })
   async likePost(@Param() params: PostIdDto, @CurrentUser() user: any) {
@@ -166,7 +164,7 @@ export class PostsController {
   }
 
   @Delete(':id/like')
-  @UseGuards(JwtAuthGuard, AccountStatusGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Unlike a post' })
   @ApiResponse({ status: 200, description: 'Post unliked successfully' })
   async unlikePost(@Param() params: PostIdDto, @CurrentUser() user: any) {
@@ -174,7 +172,7 @@ export class PostsController {
   }
 
   @Post(':id/comments')
-  @UseGuards(JwtAuthGuard, AccountStatusGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Add comment to post' })
   @ApiResponse({ status: 201, description: 'Comment added successfully' })
   async createComment(
@@ -201,12 +199,8 @@ export class PostsController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get user posts' })
   @ApiResponse({ status: 200, description: 'User posts retrieved successfully' })
-  async getUserPosts(
-    @Param('userId') userId: string,
-    @Query('type') type?: 'post' | 'artwork',
-    @CurrentUser() user?: any,
-  ) {
-    return this.postsService.getUserPosts(userId, user?.id, type);
+  async getUserPosts(@Param('userId') userId: string, @CurrentUser() user: any) {
+    return this.postsService.getUserPosts(userId, user.id);
   }
 
   @Get('comments/user/:userId')
@@ -218,7 +212,7 @@ export class PostsController {
   }
 
   @Post(':id/save')
-  @UseGuards(JwtAuthGuard, AccountStatusGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Save a post' })
   @ApiResponse({ status: 200, description: 'Post saved successfully' })
   async savePost(@Param() params: PostIdDto, @CurrentUser() user: any) {
@@ -226,7 +220,7 @@ export class PostsController {
   }
 
   @Delete(':id/save')
-  @UseGuards(JwtAuthGuard, AccountStatusGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Unsave a post' })
   @ApiResponse({ status: 200, description: 'Post unsaved successfully' })
   async unsavePost(@Param() params: PostIdDto, @CurrentUser() user: any) {
@@ -242,7 +236,7 @@ export class PostsController {
   }
 
   @Post(':id/save-artwork')
-  @UseGuards(JwtAuthGuard, AccountStatusGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Save an artwork' })
   @ApiResponse({ status: 200, description: 'Artwork saved successfully' })
   async saveArtwork(@Param() params: PostIdDto, @CurrentUser() user: any) {
@@ -250,7 +244,7 @@ export class PostsController {
   }
 
   @Delete(':id/save-artwork')
-  @UseGuards(JwtAuthGuard, AccountStatusGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Unsave an artwork' })
   @ApiResponse({ status: 200, description: 'Artwork unsaved successfully' })
   async unsaveArtwork(@Param() params: PostIdDto, @CurrentUser() user: any) {
@@ -258,7 +252,7 @@ export class PostsController {
   }
 
   @Patch(':id/comments/:commentId')
-  @UseGuards(JwtAuthGuard, AccountStatusGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Update a comment' })
   @ApiResponse({ status: 200, description: 'Comment updated successfully' })
   async updateComment(
@@ -276,7 +270,7 @@ export class PostsController {
   }
 
   @Delete(':id/comments/:commentId')
-  @UseGuards(JwtAuthGuard, AccountStatusGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Delete a comment' })
   @ApiResponse({ status: 200, description: 'Comment deleted successfully' })
   async deleteComment(
@@ -288,7 +282,7 @@ export class PostsController {
   }
 
   @Post('comments/:commentId/like')
-  @UseGuards(JwtAuthGuard, AccountStatusGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Toggle comment like' })
   @ApiResponse({ status: 200, description: 'Comment like toggled successfully' })
   async toggleCommentLike(
@@ -299,7 +293,7 @@ export class PostsController {
   }
 
   @Post('comments/:commentId/react')
-  @UseGuards(JwtAuthGuard, AccountStatusGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Toggle comment reaction' })
   @ApiResponse({ status: 200, description: 'Reaction toggled successfully' })
   async toggleCommentReaction(
@@ -329,7 +323,7 @@ export class PostsController {
   }
 
   @Post('comments/:commentId/pin')
-  @UseGuards(JwtAuthGuard, AccountStatusGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Pin or unpin a comment' })
   @ApiResponse({ status: 200, description: 'Comment pin status updated successfully' })
   async toggleCommentPin(

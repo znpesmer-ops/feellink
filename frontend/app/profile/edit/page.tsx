@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
 import api from '@/lib/api'
@@ -54,9 +54,9 @@ function EditProfileContent() {
   // Load countries data
   useEffect(() => {
     fetch('/data/countries.json')
-      .then((res: any) => res.json())
-      .then((data: any) => setCountries(data))
-      .catch((err: any) => {
+      .then((res) => res.json())
+      .then((data) => setCountries(data))
+      .catch((err) => {
         console.error('Error loading countries:', err)
         toast.error('Ülke listesi yüklenemedi')
       })
@@ -192,8 +192,8 @@ function EditProfileContent() {
     setMessage('')
 
     try {
-      // Convert empty website string to null (isPrivate kontrolü kaldırıldı - linkler her zaman açık)
-      const websiteValue = !website || website.trim() === '' ? null : website.trim()
+      // Convert empty website string to null, or null if isPrivate is true
+      const websiteValue = isPrivate || !website || website.trim() === '' ? null : website.trim()
 
       // 🔒 KRİTİK: Username'i gönderme - profil URL'ini bozmamak için
       // Username sadece özel bir sayfadan (username değiştirme) güncellenebilir
@@ -220,51 +220,22 @@ function EditProfileContent() {
 
       // 🔒 KRİTİK: User state'ini güncelle - UI'ın eski veriyi göstermesini önle
       if (response.data) {
-        // Backend'den gelen updated user'ı kullan (profileCompleted backend'den geliyor)
+        // Backend'den gelen updated user'ı kullan
         const updatedUser = { ...user, ...response.data }
         setUser(updatedUser, capabilities ?? null)
         
-        // 🔥 Backend'den fresh user data çek (profileCompleted garantili olsun)
-        try {
-          const freshUserResponse = await api.get('/users/me')
-          if (freshUserResponse.data) {
-            setUser(freshUserResponse.data, capabilities ?? null)
-            console.log('[Profile Edit] ✅ User state refreshed with profileCompleted:', freshUserResponse.data.profileCompleted)
-            
-            // 🔔 Sidebar ve diğer component'leri bilgilendir
-            window.dispatchEvent(new CustomEvent('profileUpdated'))
-            
-            // 🔔 Notifications query'leri invalidate et (unread count güncellensin)
-            // Profil tamamlandıysa bildirimler query'sini de invalidate et
-            queryClient.invalidateQueries({ queryKey: ['notifications'] })
-            queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] })
-            
-            // 🔥 Profil tamamlandıysa bildirimleri temizle
-            if (freshUserResponse.data.profileCompleted === true) {
-              // Bildirimler query'sini refetch et
-              queryClient.refetchQueries({ queryKey: ['notifications'] })
-            }
-          }
-        } catch (refreshError) {
-          console.warn('[Profile Edit] Failed to refresh user state:', refreshError)
-          // Fallback: Response data'yı kullan
-          if (response.data) {
-            const updatedUser = { ...user, ...response.data }
-            setUser(updatedUser, capabilities ?? null)
-          }
+        // Zorunlu alanlar doluysa profileCompleted'i true yap
+        if (dateOfBirth && country && city && gender) {
+          const userWithCompletedProfile = { ...updatedUser, profileCompleted: true }
+          setUser(userWithCompletedProfile, capabilities ?? null)
         }
       }
       setMessage('Profil başarıyla güncellendi!')
       toast.success('Profil başarıyla güncellendi!')
       
-      // 🔔 Notifications query'leri invalidate et (unread count güncellensin)
-      // Backend notification'ları isRead: true yaptı, frontend cache'i güncelle
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] })
-      
-      // 🔥 Profil tamamlandıysa bildirimleri refetch et
+      // 🔔 Zorunlu alanlar tamamlandıysa bildirimi sil (backend otomatik silecek, frontend query'i invalidate et)
       if (dateOfBirth && country && city && gender) {
-        queryClient.refetchQueries({ queryKey: ['notifications'] })
+        queryClient.invalidateQueries({ queryKey: ['notifications'] })
       }
       
       // Zorunlu alanlar tamamlandıysa required query param'ini kaldır
@@ -375,7 +346,7 @@ function EditProfileContent() {
                 src={avatarPreview || avatar || 'https://via.placeholder.com/96?text=Avatar'}
                 alt="Avatar preview"
                 className="w-[110px] h-[110px] rounded-full object-cover border border-black/10 dark:border-white/20"
-                onError={(e: any) => {
+                onError={(e) => {
                   ;(e.target as HTMLImageElement).src = 'https://via.placeholder.com/96?text=Avatar'
                 }}
               />
@@ -446,7 +417,7 @@ function EditProfileContent() {
           <input
             type="text"
             value={fullName}
-            onChange={(e: any) => setFullName(e.target.value)}
+            onChange={(e) => setFullName(e.target.value)}
             className="w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400"
             placeholder="Adınız ve soyadınız"
           />
@@ -459,7 +430,7 @@ function EditProfileContent() {
           </label>
           <textarea
             value={bio}
-            onChange={(e: any) => setBio(e.target.value)}
+            onChange={(e) => setBio(e.target.value)}
             className="w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 h-[80px] resize-none placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400"
             placeholder="Kendini kısaca tanıt..."
             maxLength={150}
@@ -475,10 +446,18 @@ function EditProfileContent() {
           <input
             type="url"
             value={website}
-            onChange={(e: any) => setWebsite(e.target.value)}
-            className="w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400"
+            onChange={(e) => setWebsite(e.target.value)}
+            disabled={isPrivate}
+            className={`w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400 ${
+              isPrivate ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
             placeholder="https://example.com"
           />
+          {isPrivate && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Gizli hesaplarda bağlantı alanı devre dışı bırakılmıştır.
+            </p>
+          )}
         </div>
 
         {/* Date of Birth */}
@@ -489,7 +468,7 @@ function EditProfileContent() {
           <input
             type="date"
             value={dateOfBirth}
-            onChange={(e: any) => setDateOfBirth(e.target.value)}
+            onChange={(e) => setDateOfBirth(e.target.value)}
             max={new Date(new Date().setFullYear(new Date().getFullYear() - 13)).toISOString().split('T')[0]}
             className="w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400"
           />
@@ -505,14 +484,14 @@ function EditProfileContent() {
           </label>
           <select
             value={country ?? ''}
-            onChange={(e: any) => {
+            onChange={(e) => {
               setCountry(e.target.value || null)
               setCity(null) // 🔒 Ülke değişince şehir sıfırlanır
             }}
             className="w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400"
           >
             <option value="">Ülke seçin</option>
-            {countries.map((c: any) => (
+            {countries.map((c) => (
               <option key={c.code} value={c.code}>
                 {c.name}
               </option>
@@ -527,7 +506,7 @@ function EditProfileContent() {
           </label>
           <select
             value={city ?? ''}
-            onChange={(e: any) => setCity(e.target.value || null)}
+            onChange={(e) => setCity(e.target.value || null)}
             disabled={!country}
             className="w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -550,7 +529,7 @@ function EditProfileContent() {
               // Diğer ülkeler için countries.json'dan
               country &&
               countries
-                .find((c: any) => c.code === country)
+                .find((c) => c.code === country)
                 ?.cities.map((cityName) => (
                   <option key={cityName} value={cityName}>
                     {cityName}
@@ -570,7 +549,7 @@ function EditProfileContent() {
               { value: 'FEMALE', label: 'Kadın' },
               { value: 'MALE', label: 'Erkek' },
               { value: 'UNSPECIFIED', label: 'Belirtmek istemiyorum' },
-            ].map((option: any) => (
+            ].map((option) => (
               <label
                 key={option.value}
                 className="flex items-center gap-3 p-3 border border-black/10 dark:border-white/10 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-[#2a2b30] transition-colors"
@@ -580,7 +559,7 @@ function EditProfileContent() {
                   name="gender"
                   value={option.value}
                   checked={gender === option.value}
-                  onChange={(e: any) => setGender(e.target.value as Gender)}
+                  onChange={(e) => setGender(e.target.value as Gender)}
                   className="w-4 h-4 text-brand-orange focus:ring-brand-orange"
                 />
                 <span className="text-sm text-gray-900 dark:text-gray-100">{option.label}</span>
@@ -595,7 +574,7 @@ function EditProfileContent() {
             <input
               type="checkbox"
               checked={isPrivate}
-              onChange={(e: any) => setIsPrivate(e.target.checked)}
+              onChange={(e) => setIsPrivate(e.target.checked)}
               className="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-brand-orange focus:ring-brand-orange focus:ring-offset-0 cursor-pointer bg-white dark:bg-gray-700"
             />
             <div>
@@ -667,7 +646,7 @@ function EditProfileContent() {
                 min={1}
                 max={3}
                 step={0.1}
-                onChange={(e: any) => setZoom(Number(e.target.value))}
+                onChange={(e) => setZoom(Number(e.target.value))}
                 className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
               />
             </div>
@@ -706,13 +685,7 @@ function EditProfileContent() {
 export default function EditProfilePage() {
   return (
     <AuthGuard>
-      <Suspense fallback={
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
-        </div>
-      }>
-        <EditProfileContent />
-      </Suspense>
+      <EditProfileContent />
     </AuthGuard>
   )
 }

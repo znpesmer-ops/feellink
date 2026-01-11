@@ -27,29 +27,23 @@ import { ColorMatchesCard } from "@/components/analytics/ColorMatchesCard";
 import { useQuery } from "@tanstack/react-query";
 import { SubscriptionPlanCode, UserRoleCode } from "@/types/capabilities";
 
-// TicketChart ve TopEventsChart kaldırıldı - bilet satışı gösterilmiyor
+// Dynamic import for TicketChart (SSR disabled for Chart.js)
+const TicketChart = dynamic(() => import("@/components/analytics/TicketChart"), {
+  ssr: false,
+});
+
+// Dynamic import for TopEventsChart
+const TopEventsChart = dynamic(() => import("@/components/analytics/TopEventsChart"), {
+  ssr: false,
+});
 
 // Dynamic import for KeywordsChart (SSR disabled for Recharts)
 const KeywordsChart = dynamic(() => import("@/components/analytics/KeywordsChart"), {
   ssr: false,
 });
 
-// ✅ Geçerli avatar URL kontrolü - cinsiyet varsayımı yapan placeholder'ları engeller
-const isValidAvatarUrl = (v: unknown): boolean => {
-  if (typeof v !== "string") return false
-  const s = v.trim()
-  if (!s) return false
-  const lowered = s.toLowerCase()
-  // Geçersiz string değerler
-  if (lowered === "null" || lowered === "undefined") return false
-  // Kadın/erkek placeholder gibi hardcoded şeyler varsa engelle
-  if (lowered.includes("female") || lowered.includes("woman") || lowered.includes("girl") || lowered.includes("avatar-female")) return false
-  // Eski placeholder path'leri
-  if (lowered.includes("default-avatar") && !lowered.includes("default-user")) return false
-  // localhost içeriyorsa geçersiz say
-  if (lowered.includes("localhost:3000")) return false
-  return true
-}
+const DEFAULT_ANALYTICS_AVATAR =
+  "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=320&q=80";
 
 // Register Chart.js components
 ChartJS.register(
@@ -180,7 +174,18 @@ export default function AnalyticsPage() {
   const [comparison, setComparison] = useState<any>(null);
   const [lowEngagement, setLowEngagement] = useState<any>(null);
 
-  // ✅ resolveAvatarUrl fonksiyonu kaldırıldı - isValidAvatarUrl kontrolü ile render'da direkt kullanılacak
+  const resolveAvatarUrl = (avatar?: string | null) => {
+    if (!avatar || avatar.trim() === "") {
+      return DEFAULT_ANALYTICS_AVATAR;
+    }
+    if (avatar.startsWith("http")) {
+      if (avatar.includes("localhost:3000")) {
+        return DEFAULT_ANALYTICS_AVATAR;
+      }
+      return avatar;
+    }
+    return DEFAULT_ANALYTICS_AVATAR;
+  };
 
   // Get user posts with colorPalette data
   const { data: posts } = useQuery({
@@ -232,7 +237,7 @@ export default function AnalyticsPage() {
     }
 
     // Store değişikliklerini dinle - hydration tamamlandığında user/accessToken set edilecek
-    const unsubscribe = useAuthStore.subscribe((state: any) => {
+    const unsubscribe = useAuthStore.subscribe((state) => {
       // Eğer user veya accessToken yüklendiyse hydration tamamlanmıştır
       if (state.user !== null || state.accessToken !== null) {
         setIsHydrated(true);
@@ -393,10 +398,10 @@ export default function AnalyticsPage() {
     // Her etkinlik için listener ekle
     const listeners: Array<() => void> = [];
     
-    eventStats.forEach((event: any) => {
+    eventStats.forEach((event) => {
       const handler = (ticketData: any) => {
-        setEventStats((prev: any) =>
-          prev.map((e: any) => {
+        setEventStats((prev) =>
+          prev.map((e) => {
             if (e.id === ticketData.eventId) {
               // Yeni bilet listesinin başına ekle ve son 5'i tut
               const updatedRecentTickets = [
@@ -425,7 +430,7 @@ export default function AnalyticsPage() {
     });
 
     return () => {
-      listeners.forEach((cleanup: any) => cleanup());
+      listeners.forEach((cleanup) => cleanup());
     };
   }, [user, eventStats]);
 
@@ -571,11 +576,11 @@ export default function AnalyticsPage() {
   };
 
   const wordsChartData = {
-    labels: words.slice(0, 15).map((w: any) => w.word),
+    labels: words.slice(0, 15).map((w) => w.word),
     datasets: [
       {
         label: "Kullanım Sayısı",
-        data: words.slice(0, 15).map((w: any) => w.count),
+        data: words.slice(0, 15).map((w) => w.count),
         backgroundColor: chartColorPrimary, // Mavi bar
         borderRadius: 8,
         borderSkipped: false,
@@ -666,7 +671,7 @@ export default function AnalyticsPage() {
             </h1>
             {/* Zaman Kırılımı Toggle */}
             <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-              {(['today', '7d', '30d'] as const).map((range: any) => (
+              {(['today', '7d', '30d'] as const).map((range) => (
                 <button
                   key={range}
                   onClick={() => setDateRange(range)}
@@ -737,7 +742,7 @@ export default function AnalyticsPage() {
                   Henüz aktif ziyaretçi bulunmuyor
                 </p>
               ) : (
-                topUsers.map((u: any, index: any) => (
+                topUsers.map((u, index) => (
                   <Link
                     key={u.username}
                     href={`/profile/${u.username}`}
@@ -746,17 +751,14 @@ export default function AnalyticsPage() {
                     <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#FF8A00]/10 dark:bg-[#FF8A00]/20 text-[#FF8A00] font-bold text-sm">
                       {index + 1}
                     </div>
-                    {isValidAvatarUrl(u.avatar) ? (
-                      <img
-                        src={u.avatar}
-                        alt={u.username}
-                        className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-[#ff7b00] flex items-center justify-center text-white font-semibold text-sm border-2 border-gray-200 dark:border-gray-700">
-                        {u.username.charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                    <img
+                      src={resolveAvatarUrl(u.avatar)}
+                      alt={u.username}
+                      className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = DEFAULT_ANALYTICS_AVATAR;
+                      }}
+                    />
                     <div className="flex-1">
                       <p className="font-semibold text-gray-900 dark:text-gray-100">
                         {u.fullName || u.username}
@@ -782,27 +784,24 @@ export default function AnalyticsPage() {
             <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/40 shadow-sm">
               <h3 className="text-[#FF8A00] font-semibold mb-4">Etkinlik Katılım Analizi</h3>
               <div className="space-y-4">
-                {eventStats.slice(0, 3).map((event: any) => {
-                  const requestCount = event.recentTickets?.length || 0;
-                  return (
-                    <div
-                      key={event.id}
-                      className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border-t-4 border-[#1E88E5] border-l border-r border-b border-gray-200 dark:border-gray-700/40"
-                    >
-                      <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                        {event.title}
-                      </h4>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">
-                          <span className="font-bold text-[#1E88E5]">{requestCount}</span> katılım talebi
-                        </span>
-                        <span className="text-gray-600 dark:text-gray-400">
-                          <span className="font-semibold">{event.commentCount}</span> yorum
-                        </span>
-                      </div>
+                {eventStats.slice(0, 3).map((event) => (
+                  <div
+                    key={event.id}
+                    className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border-t-4 border-[#1E88E5] border-l border-r border-b border-gray-200 dark:border-gray-700/40"
+                  >
+                    <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                      {event.title}
+                    </h4>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        <span className="font-bold text-[#1E88E5]">{event.ticketCount}</span> / {event.totalCapacity} bilet
+                      </span>
+                      <span className="text-gray-600 dark:text-gray-400">
+                        <span className="font-semibold">{event.commentCount}</span> yorum
+                      </span>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -836,17 +835,14 @@ export default function AnalyticsPage() {
                     className="flex items-center justify-between bg-gray-50 dark:bg-[#161616] p-3 rounded-lg border border-gray-200 dark:border-[#222] hover:bg-gray-100 dark:hover:bg-[#1a1a1a] transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      {isValidAvatarUrl(match.avatar) ? (
-                        <img
-                          src={match.avatar}
-                          alt={match.username}
-                          className="w-10 h-10 rounded-full border border-gray-300 dark:border-[#333] object-cover"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-[#ff7b00] flex items-center justify-center text-white font-semibold text-sm border border-gray-300 dark:border-[#333]">
-                          {match.username.charAt(0).toUpperCase()}
-                        </div>
-                      )}
+                      <img
+                        src={resolveAvatarUrl(match.avatar)}
+                        alt={match.username}
+                        className="w-10 h-10 rounded-full border border-gray-300 dark:border-[#333] object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = DEFAULT_ANALYTICS_AVATAR;
+                        }}
+                      />
                       <div>
                         <div className="font-medium text-gray-900 dark:text-gray-100">
                           @{match.username}
@@ -1066,14 +1062,14 @@ export default function AnalyticsPage() {
             });
 
             // En çok kullanılan renkleri sırala
-            const totalColorUsages = Object.values(colorCount).reduce((sum: any, count: any) => sum + count, 0);
+            const totalColorUsages = Object.values(colorCount).reduce((sum, count) => sum + count, 0);
             const topColors = Object.entries(colorCount)
               .map(([color, count]) => ({
                 color,
                 count,
                 percent: totalColorUsages > 0 ? (count / totalColorUsages) * 100 : 0,
               }))
-              .sort((a: any, b: any) => b.count - a.count)
+              .sort((a, b) => b.count - a.count)
               .slice(0, 12); // En çok kullanılan 12 renk
 
             return (
@@ -1082,7 +1078,7 @@ export default function AnalyticsPage() {
 
                 {topColors.length > 0 ? (
                   <div className="flex flex-wrap gap-4">
-                    {topColors.map((c: any, i: any) => (
+                    {topColors.map((c, i) => (
                       <div key={i} className="flex flex-col items-center gap-1">
                         <div
                           style={{
@@ -1126,14 +1122,14 @@ export default function AnalyticsPage() {
               </h2>
               <div className="h-[2px] w-20 bg-[#1E88E5] rounded-full mb-2" />
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Etkinliklerinizin katılım ve etkileşim istatistikleri
+                Etkinliklerinizin bilet satışları ve yorum istatistikleri
               </p>
             </div>
           </div>
 
           {Array.isArray(eventStats) && eventStats.length > 0 ? (
             <div className="space-y-3">
-              {eventStats.map((event: any) => (
+              {eventStats.map((event) => (
                 <div
                   key={event.id}
                   className="border-t-4 border-[#1E88E5] border-l border-r border-b border-gray-200 dark:border-gray-700/40 rounded-xl overflow-hidden transition-all hover:border-[#FF8A00]/30"
@@ -1149,7 +1145,7 @@ export default function AnalyticsPage() {
                       </h3>
                       <div className="flex items-center gap-4 text-sm">
                         <span className="text-gray-600 dark:text-gray-400">
-                          <span className="font-bold text-[#1E88E5]">{event.recentTickets?.length || 0}</span> katılım talebi
+                          <span className="font-bold text-[#1E88E5]">{event.ticketCount}</span> / {event.totalCapacity} bilet satıldı
                         </span>
                         <span className="text-gray-600 dark:text-gray-400">
                           <span className="font-semibold">{event.commentCount}</span> yorum
@@ -1178,23 +1174,26 @@ export default function AnalyticsPage() {
                       {event.recentTickets.length > 0 && (
                         <div className="mb-6">
                           <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wide">
-                            Son Katılım Talepleri
+                            Son Alınan 5 Bilet
                           </p>
                           <div className="space-y-2">
-                             {event.recentTickets.map((ticket: any, i: any) => (
+                            {event.recentTickets.map((ticket, i) => (
                               <div
                                 key={i}
                                 className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700/40 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                               >
                                 <div className="flex items-center gap-3">
-                                  {isValidAvatarUrl(ticket.avatar) ? (
+                                  {ticket.avatar ? (
                                     <img
-                                      src={ticket.avatar}
+                                      src={resolveAvatarUrl(ticket.avatar)}
                                       alt={ticket.username}
                                       className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-gray-700"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).src = DEFAULT_ANALYTICS_AVATAR;
+                                      }}
                                     />
                                   ) : (
-                                    <div className="w-8 h-8 rounded-full bg-[#ff7b00] flex items-center justify-center text-white font-semibold text-xs border border-gray-200 dark:border-gray-700">
+                                    <div className="w-8 h-8 rounded-full bg-[#ff7b00]/10 dark:bg-[#ff7b00]/20 flex items-center justify-center text-[#ff7b00] font-bold text-xs">
                                       {ticket.username.charAt(0).toUpperCase()}
                                     </div>
                                   )}
@@ -1218,9 +1217,14 @@ export default function AnalyticsPage() {
 
                       {event.recentTickets.length === 0 && (
                         <p className="text-sm text-gray-500 dark:text-gray-400 italic mb-6">
-                          Henüz bu etkinlik için katılım talebi bulunmuyor.
+                          Henüz bu etkinlik için bilet satışı gerçekleşmemiş.
                         </p>
                       )}
+
+                      {/* 🎨 Canlı Bilet Satış Grafiği */}
+                      <div className="mt-6">
+                        <TicketChart eventId={event.id} initialTicketCount={event.ticketCount} />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1230,11 +1234,25 @@ export default function AnalyticsPage() {
             <div className="text-center py-12">
               <Ticket className="w-12 h-12 text-gray-400 mx-auto mb-3" />
               <p className="text-gray-500 dark:text-gray-400">
-                Henüz etkinlik oluşturulmamış veya katılım gerçekleşmemiş.
+                Henüz etkinlik oluşturulmamış veya bilet satışı gerçekleşmemiş.
               </p>
             </div>
           )}
         </div>
+
+        {/* 🎯 Top 5 En Çok Katılım Alan Etkinlikler Grafiği */}
+        {/* 🔥 KRİTİK: Tam genişlik - grid dışında */}
+        {Array.isArray(eventStats) && eventStats.length > 0 && (
+          <div className="w-full mt-6">
+            <TopEventsChart
+              events={eventStats.map((e) => ({
+                id: e.id,
+                title: e.title,
+                ticketCount: e.ticketCount,
+              }))}
+            />
+          </div>
+        )}
         </BlurGuard>
       </div>
     </div>

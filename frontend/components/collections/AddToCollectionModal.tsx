@@ -7,7 +7,6 @@ import toast from 'react-hot-toast'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import { Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import CreateCollectionModal from './CreateCollectionModal'
 
 interface Collection {
   id: string
@@ -29,7 +28,6 @@ export function AddToCollectionModal({ postId, open, onClose, onSuccess }: AddTo
   const [collections, setCollections] = useState<Collection[]>([])
   const [loading, setLoading] = useState(false)
   const [addingToCollectionId, setAddingToCollectionId] = useState<string | null>(null)
-  const [showCreateModal, setShowCreateModal] = useState(false)
 
   useEffect(() => {
     if (!open) {
@@ -40,7 +38,7 @@ export function AddToCollectionModal({ postId, open, onClose, onSuccess }: AddTo
     async function fetchCollections() {
       try {
         setLoading(true)
-        const res = await api.get('/collections/my')
+        const res = await api.get<Collection[]>('/collections/my')
         setCollections(res.data || [])
       } catch (error) {
         console.error('Koleksiyonlar yüklenemedi:', error)
@@ -99,7 +97,10 @@ export function AddToCollectionModal({ postId, open, onClose, onSuccess }: AddTo
             <Sparkles className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
             <p className="text-gray-500 dark:text-gray-400 mb-4">Henüz koleksiyonunuz yok</p>
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                onClose()
+                router.push('/collections')
+              }}
               className="px-4 py-2 rounded-lg bg-[#ff7b00] hover:bg-[#e36f00] text-white font-medium transition shadow-md flex items-center gap-2 mx-auto"
             >
               <Plus size={18} />
@@ -146,24 +147,6 @@ export function AddToCollectionModal({ postId, open, onClose, onSuccess }: AddTo
           </div>
         )}
       </div>
-
-      {/* Create Collection Modal */}
-      {showCreateModal && (
-        <CreateCollectionModal
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          onCreated={async () => {
-            // Refresh collections list
-            try {
-              const res = await api.get('/collections/my')
-              setCollections(res.data || [])
-            } catch (error) {
-              console.error('Koleksiyonlar yüklenemedi:', error)
-            }
-            setShowCreateModal(false)
-          }}
-        />
-      )}
     </div>
   )
 }

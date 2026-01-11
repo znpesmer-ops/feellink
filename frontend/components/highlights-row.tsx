@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { ImageIcon, MessageCircle, Landmark, Palette } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import Link from 'next/link'
@@ -19,69 +18,35 @@ interface FeaturedData {
 }
 
 export default function HighlightsRow({ compactTop = false }: HighlightsRowProps) {
-  // ✅ TEK KAYNAK: Backend'den monthly highlights çek
-  const { data: monthlyHighlights, isLoading } = useQuery({
-    queryKey: ['monthly-highlights'],
-    queryFn: async () => {
-      try {
-        const res = await api.get('/highlights/monthly')
-        return res.data || {
-          museum: null,
-          artwork: null,
-          comment: null,
-          collection: null,
-        }
-      } catch (err: any) {
-        console.error('Monthly highlights alınamadı:', err)
-        // Hata durumunda güvenli fallback döndür
-        return {
-          museum: null,
-          artwork: null,
-          comment: null,
-          collection: null,
-        }
-      }
-    },
-    staleTime: 60 * 60 * 1000, // 1 saat cache
-    refetchOnWindowFocus: false,
-    retry: 1, // Sadece 1 kez retry yap
+  const [featured, setFeatured] = useState<FeaturedData>({
+    museum: null,
+    artwork: null,
+    comment: null,
+    collector: null,
   })
+  const [loading, setLoading] = useState(true)
 
-  // Backward compatibility için format dönüşümü - Güvenli null kontrolü
-  const featured: FeaturedData = {
-    museum: monthlyHighlights?.museum
-      ? {
-          name: monthlyHighlights.museum?.name || '',
-          username: monthlyHighlights.museum?.username || '',
-          imageUrl: monthlyHighlights.museum?.imageUrl || null,
-        }
-      : null,
-    artwork: monthlyHighlights?.artwork
-      ? {
-          title: monthlyHighlights.artwork?.title || '',
-          postId: monthlyHighlights.artwork?.postId || '',
-          imageUrl: monthlyHighlights.artwork?.imageUrl || null,
-        }
-      : null,
-    comment: monthlyHighlights?.comment
-      ? {
-          text: monthlyHighlights.comment?.text || '',
-          commentId: monthlyHighlights.comment?.commentId || '',
-          postId: monthlyHighlights.comment?.postId || '',
-          username: monthlyHighlights.comment?.username || '',
-          fullName: monthlyHighlights.comment?.fullName || '',
-        }
-      : null,
-    collector: monthlyHighlights?.collection
-      ? {
-          name: monthlyHighlights.collection?.title || '',
-          username: monthlyHighlights.collection?.owner?.username || '',
-          imageUrl: monthlyHighlights.collection?.coverImage || monthlyHighlights.collection?.owner?.avatar || null,
-        }
-      : null,
-  }
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      try {
+        const res = await api.get('/sidebar/featured')
+        setFeatured(res.data)
+      } catch (err) {
+        console.error('Featured highlights alınamadı:', err)
+        // Hata durumunda boş veri göster
+        setFeatured({
+          museum: null,
+          artwork: null,
+          comment: null,
+          collector: null,
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  const loading = isLoading
+    fetchFeatured()
+  }, [])
 
   // Her kart için hedef URL'yi hesapla
   const getCardUrl = (item: any) => {
@@ -96,8 +61,8 @@ export default function HighlightsRow({ compactTop = false }: HighlightsRowProps
         return featured.comment?.postId && featured.comment?.commentId
           ? `/feed?post=${featured.comment.postId}&comment=${featured.comment.commentId}`
           : null
-      case 4: // Ayın Koleksiyonu
-        return monthlyHighlights?.collection?.id ? `/collections/${monthlyHighlights.collection.id}` : null
+      case 4: // Ayın Koleksiyoneri
+        return featured.collector?.username ? `/profile/${featured.collector.username}` : null
       default:
         return null
     }
@@ -133,7 +98,7 @@ export default function HighlightsRow({ compactTop = false }: HighlightsRowProps
     },
     {
       id: 4,
-      title: 'Ayın Koleksiyonu',
+      title: 'Ayın Koleksiyoneri',
       subtitle: featured.collector?.name || '—',
       icon: <Palette size={20} strokeWidth={1.8} />,
       data: featured.collector,
@@ -153,12 +118,12 @@ export default function HighlightsRow({ compactTop = false }: HighlightsRowProps
   )
 
   return (
-    <section className={`w-full ${compactTop ? 'mt-0' : ''}`} style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', minWidth: 0 }}>
+    <section className={`w-full ${compactTop ? 'mt-0' : ''}`}>
       <h2 className="text-lg md:text-xl font-semibold bg-gradient-to-r from-brand-orange to-brand-blue bg-clip-text text-transparent dark:from-orange-400 dark:to-blue-400 mt-0 mb-4 md:mb-6 tracking-wide">
         Ayın Öne Çıkanları
       </h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', minWidth: 0 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {highlights.map((item) => {
           if (!item.data) {
             return (
@@ -166,34 +131,8 @@ export default function HighlightsRow({ compactTop = false }: HighlightsRowProps
             )
           }
 
-          // 🔒 Güvenlik: Gerçek imageUrl yoksa hiçbir görsel gösterme (fallback avatar yok)
-          // isUsableImage helper: Tüm placeholder ve fallback path'lerini engeller
-          const isUsableImage = (url?: string | null): boolean => {
-            if (!url || typeof url !== 'string') return false
-            const u = url.trim()
-            if (!u || u === 'null' || u === 'undefined') return false
-
-            // Projedeki placeholder isimlerini burada yakala
-            const blocked = [
-              'default-user',
-              'default-avatar',
-              'female',
-              'woman',
-              'avatar-female',
-              'placeholder-user',
-              'avatar-placeholder',
-            ]
-
-            // local asset path veya url içinde geçiyorsa engelle
-            if (blocked.some((k) => u.toLowerCase().includes(k))) return false
-
-            return true
-          }
-          
-          const hasValidImage = isUsableImage(item.imageUrl)
-          
           // Ayın Yorumu için özel görsel yoksa placeholder
-          const displayImage = hasValidImage ? item.imageUrl : null
+          const displayImage = item.imageUrl || (item.id === 3 ? null : null)
           const fallbackBg = item.id === 1 
             ? 'bg-gradient-to-br from-orange-500/20 to-orange-600/30'
             : item.id === 2
@@ -207,26 +146,14 @@ export default function HighlightsRow({ compactTop = false }: HighlightsRowProps
           // Tüm kartlar aynı yapıyı kullanır (Ayın Yorumu dahil)
           const CardContent = (
             <div className="relative w-full h-[140px] md:h-[160px] rounded-[14px] overflow-hidden bg-gray-900 dark:bg-[#111] border border-[rgba(255,140,0,0.35)] dark:border-[rgba(255,140,0,0.15)] shadow-sm hover:shadow-lg hover:shadow-brand-orange/20 transition-all hover:-translate-y-1 group cursor-pointer">
-              {/* Görsel veya Gradient Background - 🔒 Sadece gerçek imageUrl varsa görsel göster */}
-              {displayImage && isUsableImage(displayImage) ? (() => {
-                const resolvedUrl = resolveImageUrl(displayImage)
-                // 🔒 resolveImageUrl'in döndürdüğü URL fallback avatar ise görsel gösterme
-                if (!isUsableImage(resolvedUrl)) {
-                  return <div className={`absolute inset-0 ${fallbackBg}`} />
-                }
-                
-                return (
-                  <img
-                    src={resolvedUrl}
-                    alt={item.subtitle}
-                    className="absolute inset-0 w-full h-full object-cover object-center"
-                    onError={(e) => {
-                      // 🔒 Görsel yüklenemezse gizle, fallback gösterme
-                      e.currentTarget.style.display = 'none'
-                    }}
-                  />
-                )
-              })() : (
+              {/* Görsel veya Gradient Background */}
+              {displayImage ? (
+                <img
+                  src={resolveImageUrl(displayImage)}
+                  alt={item.subtitle}
+                  className="absolute inset-0 w-full h-full object-cover object-center"
+                />
+              ) : (
                 <div className={`absolute inset-0 ${fallbackBg}`} />
               )}
 

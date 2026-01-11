@@ -93,15 +93,8 @@ export class AdminGateway
     try {
       const summary = await this.adminService.getSummary();
       this.server.emit('admin:metrics', summary);
-    } catch (error: any) {
-      // MongoDB timeout veya connection hatalarını graceful handle et
-      if (error?.message?.includes('timeout') || error?.message?.includes('Connection pool')) {
-        this.logger.warn('⚠️ MongoDB connection timeout during metrics broadcast. Skipping this update.');
-        // Timeout durumunda eski veriyi gönderme veya boş veri gönderme
-        // Bu sayede frontend hata almak yerine hiç veri almaz
-        return;
-      }
-      this.logger.error('Error broadcasting metrics:', error?.message || error);
+    } catch (error) {
+      this.logger.error('Error broadcasting metrics:', error);
     }
   }
 
@@ -111,14 +104,8 @@ export class AdminGateway
     try {
       const analytics = await this.adminService.getAnalytics();
       this.server.emit('admin:analytics', analytics);
-    } catch (error: any) {
-      // MongoDB timeout veya connection hatalarını graceful handle et
-      if (error?.message?.includes('timeout') || error?.message?.includes('Connection pool') || error?.code === 'P1008') {
-        this.logger.warn('⚠️ MongoDB connection timeout during analytics broadcast. Skipping this update.');
-        // Timeout durumunda eski veriyi gönderme veya boş veri gönderme
-        return;
-      }
-      this.logger.error('Error broadcasting analytics:', error?.message || error);
+    } catch (error) {
+      this.logger.error('Error broadcasting analytics:', error);
     }
   }
 

@@ -70,7 +70,7 @@ export default function RoleSelectionModal({
       setSelectedRole(roleKey)
       setIsSubmitting(true)
 
-      const response = await api.patch(
+      const response = await api.patch<{ user: any; capabilities: CapabilitySummary; sidebar?: SidebarVisibility }>(
         '/users/me/roles',
         {
         roles: [roleKey],

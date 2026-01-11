@@ -180,24 +180,18 @@ export default function AdminReportsPage() {
                   </td>
                 </tr>
               ) : (
-                reports.map((report: any) => {
-                  const statusInfo = statusConfig[report.status as keyof typeof statusConfig]
+                reports.map((report) => {
+                  const statusInfo = statusConfig[report.status]
                   const StatusIcon = statusInfo.icon
                   return (
                     <tr key={report.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          {report.reporter.avatar ? (
-                            <img
-                              src={report.reporter.avatar}
-                              alt={report.reporter.username}
-                              className="w-8 h-8 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-[#ff7b00] flex items-center justify-center text-white font-semibold text-xs">
-                              {report.reporter.username.charAt(0).toUpperCase()}
-                            </div>
-                          )}
+                          <img
+                            src={report.reporter.avatar || '/default-avatar.png'}
+                            alt={report.reporter.username}
+                            className="w-8 h-8 rounded-full"
+                          />
                           <div>
                             <div className="text-sm font-medium text-gray-900 dark:text-white">
                               {report.reporter.fullName || report.reporter.username}
@@ -210,17 +204,11 @@ export default function AdminReportsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          {report.reportedUser.avatar ? (
-                            <img
-                              src={report.reportedUser.avatar}
-                              alt={report.reportedUser.username}
-                              className="w-8 h-8 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-[#ff7b00] flex items-center justify-center text-white font-semibold text-xs">
-                              {report.reportedUser.username.charAt(0).toUpperCase()}
-                            </div>
-                          )}
+                          <img
+                            src={report.reportedUser.avatar || '/default-avatar.png'}
+                            alt={report.reportedUser.username}
+                            className="w-8 h-8 rounded-full"
+                          />
                           <div>
                             <div className="text-sm font-medium text-gray-900 dark:text-white">
                               {report.reportedUser.fullName || report.reportedUser.username}
@@ -233,7 +221,7 @@ export default function AdminReportsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm text-gray-900 dark:text-white">
-                          {reasonLabels[report.reason as keyof typeof reasonLabels] || report.reason}
+                          {reasonLabels[report.reason]}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -275,7 +263,7 @@ export default function AdminReportsPage() {
       {total > 20 && (
         <div className="flex justify-center gap-2">
           <button
-            onClick={() => setPage((p: any) => Math.max(1, p - 1))}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
             className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -285,7 +273,7 @@ export default function AdminReportsPage() {
             Sayfa {page} / {Math.ceil(total / 20)}
           </span>
           <button
-            onClick={() => setPage((p: any) => p + 1)}
+            onClick={() => setPage((p) => p + 1)}
             disabled={page >= Math.ceil(total / 20)}
             className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -302,7 +290,7 @@ export default function AdminReportsPage() {
         >
           <div
             className="w-[600px] max-h-[80vh] overflow-y-auto rounded-xl bg-white dark:bg-gray-900 p-6 shadow-xl border border-gray-200 dark:border-gray-800"
-            onClick={(e: any) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Şikayet Detayı</h3>
@@ -318,17 +306,11 @@ export default function AdminReportsPage() {
               <div>
                 <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Şikayet Eden</label>
                 <div className="mt-1 flex items-center gap-2">
-                  {selectedReport.reporter.avatar ? (
-                    <img
-                      src={selectedReport.reporter.avatar}
-                      alt={selectedReport.reporter.username}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-[#ff7b00] flex items-center justify-center text-white font-semibold">
-                      {selectedReport.reporter.username.charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                  <img
+                    src={selectedReport.reporter.avatar || '/default-avatar.png'}
+                    alt={selectedReport.reporter.username}
+                    className="w-10 h-10 rounded-full"
+                  />
                   <div>
                     <div className="text-sm font-medium text-gray-900 dark:text-white">
                       {selectedReport.reporter.fullName || selectedReport.reporter.username}
@@ -343,17 +325,11 @@ export default function AdminReportsPage() {
               <div>
                 <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Şikayet Edilen</label>
                 <div className="mt-1 flex items-center gap-2">
-                  {selectedReport.reportedUser.avatar ? (
-                    <img
-                      src={selectedReport.reportedUser.avatar}
-                      alt={selectedReport.reportedUser.username}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-[#ff7b00] flex items-center justify-center text-white font-semibold">
-                      {selectedReport.reportedUser.username.charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                  <img
+                    src={selectedReport.reportedUser.avatar || '/default-avatar.png'}
+                    alt={selectedReport.reportedUser.username}
+                    className="w-10 h-10 rounded-full"
+                  />
                   <div>
                     <div className="text-sm font-medium text-gray-900 dark:text-white">
                       {selectedReport.reportedUser.fullName || selectedReport.reportedUser.username}

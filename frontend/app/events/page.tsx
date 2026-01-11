@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Calendar, Ticket, Loader2, Edit3, Eye, Trash2, Users } from "lucide-react";
@@ -36,7 +36,7 @@ interface Event {
   }[];
 }
 
-function EventsFeedPageContent() {
+export default function EventsFeedPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"all" | "mine" | "requested" | "approved">("all");
@@ -158,17 +158,17 @@ function EventsFeedPageContent() {
       setFiltered(myEvents);
     } else if (activeTab === "requested" && user) {
       // Talep oluşturduğum etkinlikler (PENDING)
-      const requestedEvents = events.filter((e: any) =>
+      const requestedEvents = events.filter((e) =>
         user?.id && e.participants?.some(
-          (p: any) => p.userId === user.id && p.status === "PENDING"
+          (p) => p.userId === user.id && p.status === "PENDING"
         )
       );
       setFiltered(requestedEvents);
     } else if (activeTab === "approved" && user) {
       // Onaylanan etkinlikler (APPROVED)
-      const approvedEvents = events.filter((e: any) =>
+      const approvedEvents = events.filter((e) =>
         user?.id && e.participants?.some(
-          (p: any) => p.userId === user.id && p.status === "APPROVED"
+          (p) => p.userId === user.id && p.status === "APPROVED"
         )
       );
       setFiltered(approvedEvents);
@@ -206,7 +206,7 @@ function EventsFeedPageContent() {
 
     try {
       await api.delete(`/events/${eventToDelete}`);
-      setMyEvents(myEvents.filter((e: any) => e.id !== eventToDelete));
+      setMyEvents(myEvents.filter((e) => e.id !== eventToDelete));
       toast.success("Etkinlik başarıyla silindi.");
       setEventToDelete(null);
     } catch (error) {
@@ -236,29 +236,28 @@ function EventsFeedPageContent() {
     let canCreate = true;
     let errorMessage = "";
 
-    // ✅ 6 aylık etkinlik limiti kaldırıldı - artık sınırsız
-    // Sanatsever Free: Artık sınırsız
-    // if (primaryRole === "art_lover" && plan === "FREE") {
-    //   if (myEvents.length > 0) {
-    //     const sortedEvents = [...myEvents].sort(
-    //       (a, b) => (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0)
-    //     );
-    //     const lastEvent = sortedEvents[0];
-    //     if (lastEvent && lastEvent.createdAt) {
-    //       const lastEventDate = new Date(lastEvent.createdAt);
-    //       const yearDiff = now.getFullYear() - lastEventDate.getFullYear();
-    //       const monthDiff = now.getMonth() - lastEventDate.getMonth();
-    //       const totalMonths = yearDiff * 12 + monthDiff;
-    //       if (totalMonths < 6) {
-    //         canCreate = false;
-    //         errorMessage = `6 ayda bir etkinlik oluşturabilirsiniz. Son etkinliğinizden ${6 - totalMonths} ay sonra tekrar deneyebilirsiniz.`;
-    //       }
-    //     }
-    //   }
-    // }
+    // Sanatsever Free: 6 ayda 1
+    if (primaryRole === "art_lover" && plan === "FREE") {
+      if (myEvents.length > 0) {
+        const sortedEvents = [...myEvents].sort(
+          (a, b) => (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0)
+        );
+        const lastEvent = sortedEvents[0];
+        if (lastEvent && lastEvent.createdAt) {
+          const lastEventDate = new Date(lastEvent.createdAt);
+          const yearDiff = now.getFullYear() - lastEventDate.getFullYear();
+          const monthDiff = now.getMonth() - lastEventDate.getMonth();
+          const totalMonths = yearDiff * 12 + monthDiff;
+          if (totalMonths < 6) {
+            canCreate = false;
+            errorMessage = `6 ayda bir etkinlik oluşturabilirsiniz. Son etkinliğinizden ${6 - totalMonths} ay sonra tekrar deneyebilirsiniz.`;
+          }
+        }
+      }
+    }
     // Kurumsal Free: Ayda 30
-    if (primaryRole === "corporate" && plan === "FREE") {
-      const thisMonthEvents = myEvents.filter((e: any) => {
+    else if (primaryRole === "corporate" && plan === "FREE") {
+      const thisMonthEvents = myEvents.filter((e) => {
         if (!e.createdAt) return false;
         const eventDate = new Date(e.createdAt);
         return (
@@ -273,7 +272,7 @@ function EventsFeedPageContent() {
     }
     // Koleksiyoner Free ve Sanatçı Free: Ayda 5
     else if ((primaryRole === "collector" || primaryRole === "artist") && plan === "FREE") {
-      const thisMonthEvents = myEvents.filter((e: any) => {
+      const thisMonthEvents = myEvents.filter((e) => {
         if (!e.createdAt) return false;
         const eventDate = new Date(e.createdAt);
         return (
@@ -378,7 +377,7 @@ function EventsFeedPageContent() {
               { key: "past", label: "Geçmiş" },
               { key: "free", label: "Ücretsiz" },
               { key: "paid", label: "Ücretli" },
-            ].map((btn: any) => (
+            ].map((btn) => (
               <button
                 key={btn.key}
                 onClick={() => applyFilter(btn.key)}
@@ -408,7 +407,7 @@ function EventsFeedPageContent() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mt-8" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
-            {filtered.map((ev: any) => {
+            {filtered.map((ev) => {
               // "Etkinliklerim" sekmesinde düzenleme/silme butonları göster
               if (activeTab === "mine") {
                 return (
@@ -441,7 +440,7 @@ function EventsFeedPageContent() {
                                 src={resolveImageUrl(ev.owner.avatar)}
                                 alt={ev.owner.username}
                                 className="w-5 h-5 rounded-full object-cover border border-gray-200 dark:border-gray-700"
-                                onError={(e: any) => {
+                                onError={(e) => {
                                   (e.target as HTMLImageElement).src = '/images/avatar-placeholder.png';
                                 }}
                               />
@@ -522,7 +521,7 @@ function EventsFeedPageContent() {
                         </h2>
                         {ev.owner && (
                           <div
-                            onClick={(e: any) => {
+                            onClick={(e) => {
                               e.stopPropagation();
                               if (ev.owner) router.push(`/profile/${ev.owner.username}`);
                             }}
@@ -533,7 +532,7 @@ function EventsFeedPageContent() {
                                 src={resolveImageUrl(ev.owner.avatar)}
                                 alt={ev.owner.username}
                                 className="w-5 h-5 rounded-full object-cover border border-gray-200 dark:border-gray-700"
-                                onError={(e: any) => {
+                                onError={(e) => {
                                   (e.target as HTMLImageElement).src = '/images/avatar-placeholder.png';
                                 }}
                               />
@@ -576,7 +575,7 @@ function EventsFeedPageContent() {
                           
                           // Diğer sekmelerde bilgilendirici etiket (tıklanamaz)
                           const isApproved = user?.id && ev.participants?.some(
-                            (p: any) => p.userId === user.id && p.status === "APPROVED"
+                            (p) => p.userId === user.id && p.status === "APPROVED"
                           );
                           
                           if (isApproved) {
@@ -653,16 +652,4 @@ function EventsFeedPageContent() {
       />
     </div>
   );
-}
-
-export default function EventsFeedPage() {
-  return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
-      </div>
-    }>
-      <EventsFeedPageContent />
-    </Suspense>
-  )
 }

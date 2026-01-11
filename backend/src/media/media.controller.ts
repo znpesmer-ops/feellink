@@ -1,7 +1,6 @@
 import { Controller, Post, Get, UseGuards, UseInterceptors, UploadedFile, ParseFilePipe, MaxFileSizeValidator, FileTypeValidator, Query, Param, Res, NotFoundException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
-import { File as MulterFile } from 'multer';
 import { MediaService } from './media.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -53,7 +52,7 @@ export class MediaController {
         ],
       }),
     )
-    file: MulterFile,
+    file: Express.Multer.File,
     @Query('type') type?: string, // 'image' veya 'file'
   ) {
     if (!file) {

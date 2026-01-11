@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as MinIO from 'minio';
 import { randomUUID } from 'crypto';
-import { File as MulterFile } from 'multer';
 
 @Injectable()
 export class MediaService {
@@ -27,12 +26,7 @@ export class MediaService {
       secretKey: this.configService.get('MINIO_SECRET_KEY'),
     });
 
-    // 🔥 MinIO bağlantı hatası backend'i crash etmemeli - try-catch ile sarmala
-    void this.ensureBucket().catch((error) => {
-      console.warn('⚠️ [MediaService] MinIO bağlantısı kurulamadı, devam ediliyor:', error.message);
-      console.warn('💡 MinIO çalışmıyorsa MINIO_DISABLED=true ayarını .env dosyasına ekleyin');
-      // Backend'i crash etme, sadece uyarı ver
-    });
+    void this.ensureBucket();
   }
 
   private async ensureBucket() {
@@ -40,32 +34,26 @@ export class MediaService {
       return;
     }
 
-    try {
-      const exists = await this.minioClient.bucketExists(this.bucketName);
-      if (!exists) {
-        await this.minioClient.makeBucket(this.bucketName);
-        // Set bucket policy for public read access
-        const policy = {
-          Version: '2012-10-17',
-          Statement: [
-            {
-              Effect: 'Allow',
-              Principal: { AWS: ['*'] },
-              Action: ['s3:GetObject'],
-              Resource: [`arn:aws:s3:::${this.bucketName}/*`],
-            },
-          ],
-        };
-        await this.minioClient.setBucketPolicy(this.bucketName, JSON.stringify(policy));
-      }
-    } catch (error) {
-      // Hata oluşursa logla ama throw etme (backend crash etmesin)
-      console.error('❌ [MediaService] MinIO bucket kontrolü hatası:', error);
-      throw error; // Yukarıdaki catch bloğu yakalayacak
+    const exists = await this.minioClient.bucketExists(this.bucketName);
+    if (!exists) {
+      await this.minioClient.makeBucket(this.bucketName);
+      // Set bucket policy for public read access
+      const policy = {
+        Version: '2012-10-17',
+        Statement: [
+          {
+            Effect: 'Allow',
+            Principal: { AWS: ['*'] },
+            Action: ['s3:GetObject'],
+            Resource: [`arn:aws:s3:::${this.bucketName}/*`],
+          },
+        ],
+      };
+      await this.minioClient.setBucketPolicy(this.bucketName, JSON.stringify(policy));
     }
   }
 
-  async uploadFile(file: MulterFile, folder: string = 'posts'): Promise<{ url: string; fileName: string; fileType: string }> {
+  async uploadFile(file: Express.Multer.File, folder: string = 'posts'): Promise<{ url: string; fileName: string; fileType: string }> {
     const fileName = `${folder}/${randomUUID()}-${file.originalname}`;
 
     if (this.isDisabled || !this.minioClient) {

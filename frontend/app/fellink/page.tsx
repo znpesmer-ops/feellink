@@ -1,12 +1,11 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, Sparkles, UserCircle2, Eye, Trash2, MoreVertical, Users, Edit, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, MessageCircle, MessageSquare } from 'lucide-react'
+import { Loader2, Sparkles, UserCircle2, Eye, Trash2, MoreVertical, Users, Edit } from 'lucide-react'
 
 import api from '@/lib/api'
-import { Avatar } from '@/components/ui/Avatar'
 import { useAuthStore } from '@/lib/store'
 import { ApplyModal } from '@/components/jobs/ApplyModal'
 import { DeleteConfirmModal } from '@/components/jobs/DeleteConfirmModal'
@@ -56,7 +55,6 @@ interface JobApplication {
   portfolioUrl?: string | null
   cvUrl?: string | null
   status: 'PENDING' | 'REVIEWED' | 'ACCEPTED' | 'REJECTED' | 'INTERVIEW' | 'WAITING'
-  conversationId?: string | null // ✅ Başvuruya bağlı sohbet ID'si (LinkedIn/Upwork mantığı)
   createdAt: string
   expiresAt?: string | null // 30 günlük yanıt süresi
   jobListing: {
@@ -213,7 +211,7 @@ function MyApplicationsTab({
 
   return (
     <div className="grid md:grid-cols-2 gap-5">
-      {applications.map((application: any) => (
+      {applications.map((application) => (
         <div
           key={application.id}
           className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0f1115] p-4 shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all"
@@ -269,24 +267,6 @@ function MyApplicationsTab({
   )
 }
 
-interface ApplicationForJob {
-  id: string
-  coverLetter?: string | null
-  portfolioUrl?: string | null
-  portfolioFileUrl?: string | null
-  cvUrl?: string | null
-  status: 'PENDING' | 'REVIEWED' | 'ACCEPTED' | 'REJECTED' | 'INTERVIEW'
-  conversationId?: string | null
-  createdAt: string
-  applicant: {
-    id: string
-    username: string | null
-    fullName: string | null
-    email: string | null
-    avatar: string | null
-  }
-}
-
 function MyJobsTab({
   jobs,
   loading,
@@ -297,7 +277,6 @@ function MyJobsTab({
   setOpenMenuId,
   user,
   router,
-  onApplicationsLoaded,
 }: {
   jobs: MyJobListing[]
   loading: boolean
@@ -308,163 +287,13 @@ function MyJobsTab({
   setOpenMenuId: (id: string | null) => void
   user: any
   router: any
-  onApplicationsLoaded?: (jobId: string, count: number) => void
 }) {
-  const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set())
-  const [applications, setApplications] = useState<Record<string, ApplicationForJob[]>>({})
-  const [loadingApplications, setLoadingApplications] = useState<Record<string, boolean>>({})
-  const [loadedJobIds, setLoadedJobIds] = useState<Set<string>>(new Set()) // Yüklenen job ID'lerini takip et
-  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
-  
-  // ✅ KRİTİK: İlanlar yüklendiğinde, her ilan için başvuru sayısını hemen yükle (eager loading)
-  // Bu sayede kart üzerinde güncel başvuru sayısı görünür, "Başvuruları Gör" butonuna tıklamaya gerek kalmaz
-  useEffect(() => {
-    if (!jobs || jobs.length === 0 || !onApplicationsLoaded) return
-    
-    // Her ilan için başvuru sayısını paralel olarak yükle
-    const loadApplicationCounts = async () => {
-      // Sadece henüz yüklenmemiş job'ları yükle
-      const jobsToLoad = jobs.filter((job: any) => !loadedJobIds.has(job.id))
-      
-      if (jobsToLoad.length === 0) {
-        console.log('[MyJobsTab] Tüm başvuru sayıları zaten yüklü')
-        return
-      }
-      
-      const promises = jobsToLoad.map(async (job: any) => {
-        try {
-          const response = await api.get(`/jobs/${job.id}/applications`)
-          const loadedApplications = response.data || []
-          
-          // Applications state'ini güncelle
-          setApplications((prev: any) => ({ ...prev, [job.id]: loadedApplications }))
-          
-          // Parent component'e bildir
-          onApplicationsLoaded(job.id, loadedApplications.length)
-          
-          // Yüklenen job ID'sini işaretle
-           setLoadedJobIds((prev: Set<string>) => new Set<string>(prev).add(job.id))
-          
-          console.log(`[MyJobsTab] Başvuru sayısı yüklendi - JobId: ${job.id}, Count: ${loadedApplications.length}`)
-          
-          return { jobId: job.id, count: loadedApplications.length }
-        } catch (err) {
-          console.error(`[MyJobsTab] Başvuru sayısı yüklenemedi - JobId: ${job.id}`, err)
-          // Hata durumunda backend count'u kullan
-          if (job._count?.applications !== undefined) {
-            onApplicationsLoaded(job.id, job._count.applications)
-          }
-          return { jobId: job.id, count: job._count?.applications || 0 }
-        }
-      })
-      
-      await Promise.all(promises)
-      console.log(`[MyJobsTab] ${jobsToLoad.length} ilan için başvuru sayıları yüklendi`)
-    }
-    
-    loadApplicationCounts()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobs.length, jobs.map(j => j.id).join(',')]) // jobs değiştiğinde çalış
-  
-  const [inlineConfirm, setInlineConfirm] = useState<{
-    applicationId: string
-    action: 'approve' | 'reject'
-  } | null>(null)
   const cleanText = (text: string) => {
     if (!text) return ''
     return text
       .replace(/\*\*/g, '')
       .replace(/[_#>-]/g, '')
       .trim()
-  }
-
-  const toggleJobExpanded = async (jobId: string) => {
-    if (expandedJobs.has(jobId)) {
-      // Kapat
-       setExpandedJobs((prev: Set<string>) => {
-         const next = new Set<string>(prev)
-         next.delete(jobId)
-         return next
-       })
-    } else {
-      // Aç ve başvuruları yükle
-      setExpandedJobs((prev: Set<string>) => new Set<string>(prev).add(jobId))
-      
-      if (!applications[jobId]) {
-        setLoadingApplications((prev: any) => ({ ...prev, [jobId]: true }))
-        try {
-          const response = await api.get(`/jobs/${jobId}/applications`)
-          const loadedApplications = response.data || []
-          setApplications((prev: any) => ({ ...prev, [jobId]: loadedApplications }))
-          
-          // ✅ KRİTİK: Başvuru sayısını parent component'e bildir (myJobs state'ini güncellemek için)
-          if (onApplicationsLoaded) {
-            onApplicationsLoaded(jobId, loadedApplications.length)
-          }
-        } catch (err) {
-          console.error('Başvurular yüklenemedi:', err)
-          toast.error('Başvurular yüklenirken bir hata oluştu')
-        } finally {
-          setLoadingApplications((prev: any) => ({ ...prev, [jobId]: false }))
-        }
-      }
-    }
-  }
-
-  const handleStatusUpdate = async (applicationId: string, newStatus: 'ACCEPTED' | 'REJECTED', jobId: string) => {
-    try {
-      setUpdatingStatus(applicationId)
-      await api.patch(`/jobs/applications/${applicationId}/status`, { status: newStatus })
-      
-      // Local state'i güncelle
-      setApplications((prev: any) => ({
-        ...prev,
-        [jobId]: prev[jobId]?.map((app: any) => 
-          app.id === applicationId ? { ...app, status: newStatus } : app
-        ) || []
-      }))
-      
-      toast.success('Başvuru durumu güncellendi')
-    } catch (err: any) {
-      const message = err?.response?.data?.message ?? err?.message ?? 'Durum güncellenemedi'
-      toast.error(message)
-    } finally {
-      setUpdatingStatus(null)
-      setInlineConfirm(null)
-    }
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'ACCEPTED':
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-green-50 dark:bg-green-900/30 dark:border dark:border-green-800/50 px-2 py-0.5 text-xs font-medium text-green-600 dark:text-green-300">
-            <CheckCircle className="h-3 w-3" />
-            Olumlu
-          </span>
-        )
-      case 'REJECTED':
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 dark:bg-red-900/30 dark:border dark:border-red-800/50 px-2 py-0.5 text-xs font-medium text-red-600 dark:text-red-300">
-            <XCircle className="h-3 w-3" />
-            Olumsuz
-          </span>
-        )
-      case 'REVIEWED':
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-900/30 dark:border dark:border-blue-800/50 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-300">
-            <Clock className="h-3 w-3" />
-            İnceleniyor
-          </span>
-        )
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 dark:bg-orange-900/30 dark:border dark:border-orange-800/50 px-2 py-0.5 text-xs font-medium text-orange-600 dark:text-orange-300">
-            <Clock className="h-3 w-3" />
-            Beklemede
-          </span>
-        )
-    }
   }
 
   if (loading) {
@@ -499,7 +328,7 @@ function MyJobsTab({
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
-      {jobs.map((job: any) => {
+      {jobs.map((job) => {
         const cleanedDescription = cleanText(job.description)
         const shortDescription = cleanedDescription.length > 100 
           ? cleanedDescription.substring(0, 100) + '...'
@@ -513,379 +342,84 @@ function MyJobsTab({
           year: 'numeric'
         })
 
-        // ✅ KRİTİK: TEK KAYNAK KURALI - Başvuru sayısı her yerde aynı kaynaktan hesaplanmalı
-        // Öncelik sırası: 1) Frontend'de fetch edilen array (en güncel), 2) Job içindeki array, 3) Backend count, 4) 0
-        // UI'da array varsa her zaman length esas alınır, backend count asla tek başına kullanılmaz
-        const loadedApplicationsArray = applications[job.id]
-        
-        // 🔥 KRİTİK: applications state'i varsa MUTLAKA onu kullan (en güncel veri)
-        // Bu state başvurular açıldığında güncelleniyor, bu yüzden her zaman öncelikli olmalı
-        let realApplicationCount = 0
-        
-        if (loadedApplicationsArray && Array.isArray(loadedApplicationsArray)) {
-          // 1. Öncelik: Frontend'de fetch edilen array (en güncel)
-          realApplicationCount = loadedApplicationsArray.length
-        } else if ((job as any).applications && Array.isArray((job as any).applications)) {
-          // 2. Fallback: Job içindeki array
-          realApplicationCount = (job as any).applications.length
-        } else if (job._count?.applications !== undefined) {
-          // 3. Fallback: Backend count
-          realApplicationCount = job._count.applications
-        }
-        
-        // 🔍 DEBUG: Başvuru sayısı hesaplamasını logla
-        console.log(`[Job ${job.id}] Başvuru sayısı hesaplama:`, {
-          loadedApplicationsArray: loadedApplicationsArray?.length,
-          jobApplications: (job as any).applications?.length,
-          backendCount: job._count?.applications,
-          finalCount: realApplicationCount,
-          hasLoadedApplications: !!loadedApplicationsArray,
-        })
-        
-        // ✅ UX: Başvuru sayısı metni (çoğul uyumlu ve kullanıcı dostu)
-        const applicationCountText = realApplicationCount === 0 
-          ? 'Henüz başvuru yok' 
-          : `${realApplicationCount} ${realApplicationCount === 1 ? 'Başvuru' : 'Başvuru'}`
+        const applicationCount = job._count?.applications || 0
 
         return (
           <article
             key={job.id}
             onClick={() => onJobClick(job)}
-            className="group relative flex flex-col rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm transition-all hover:shadow-md hover:border-gray-300 dark:border-white/10 dark:bg-white/5 dark:hover:border-gray-600 cursor-pointer"
+            className="group relative flex h-full flex-col rounded-xl border border-gray-200 bg-white min-h-[260px] px-5 py-4 shadow-sm transition-all hover:shadow-md hover:border-gray-300 dark:border-white/10 dark:bg-white/5 dark:hover:border-gray-600 cursor-pointer"
           >
-            {/* ✅ Kart Header - Sabit min-height ile eşit görünüm */}
-            <div className="job-card-header min-h-[220px] flex flex-col justify-between">
-              <div className="space-y-3 flex-1">
-                {/* Başlık */}
-                <h2 className="text-base font-semibold text-gray-900 dark:text-white leading-tight mb-2">
-                  {job.title}
-                </h2>
+            <div className="space-y-3 flex-1">
+              {/* Başlık */}
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white leading-tight mb-2">
+                {job.title}
+              </h2>
 
-                {/* Şirket ve Konum */}
-                {companyLocation && (
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {companyLocation}
-                  </p>
-                )}
+              {/* Şirket ve Konum */}
+              {companyLocation && (
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {companyLocation}
+                </p>
+              )}
 
-                {/* Kısa Açıklama */}
-                {shortDescription && (
-                  <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-1">
-                    {shortDescription}
-                  </p>
-                )}
+              {/* Kısa Açıklama */}
+              {shortDescription && (
+                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-1">
+                  {shortDescription}
+                </p>
+              )}
 
-                {/* Etiketler */}
-                {job.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-3">
-                    {job.tags.slice(0, 3).map((tag: any) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-normal text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                    {job.tags.length > 3 && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-normal text-gray-500 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50">
-                        +{job.tags.length - 3}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* ✅ Kart Footer - Başvuru sayısı & Tarih */}
-              <div className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {applicationCountText}
+              {/* Etiketler */}
+              {job.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {job.tags.slice(0, 3).map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-normal text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50"
+                    >
+                      {tag}
                     </span>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {dateText}
-                  </p>
-                </div>
-
-                {/* Başvuruları Gör Butonu - Her zaman göster */}
-                <button
-                  onClick={(e: any) => {
-                    e.stopPropagation()
-                    toggleJobExpanded(job.id)
-                  }}
-                  className="mt-3 w-full rounded-lg border border-orange-500 px-4 py-1.5 text-sm font-medium text-orange-500 hover:bg-orange-500 hover:text-white transition flex items-center justify-center gap-2"
-                >
-                  {expandedJobs.has(job.id) ? (
-                    <>
-                      <ChevronUp className="h-4 w-4" />
-                      Başvuruları Gizle
-                    </>
-                  ) : (
-                    <>
-                      <ChevronDown className="h-4 w-4" />
-                      {realApplicationCount > 0 ? (
-                        <>Başvuruları Gör ({realApplicationCount})</>
-                      ) : (
-                        <>Başvuruları Gör</>
-                      )}
-                    </>
+                  ))}
+                  {job.tags.length > 3 && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-normal text-gray-500 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50">
+                      +{job.tags.length - 3}
+                    </span>
                   )}
-                </button>
-              </div>
+                </div>
+              )}
             </div>
 
-            {/* ✅ Başvurular Listesi (Expandable) - Scrollable Container */}
-            {expandedJobs.has(job.id) && (
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700" onClick={(e: any) => e.stopPropagation()}>
-                {loadingApplications[job.id] ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-5 w-5 animate-spin text-brand-orange" />
-                  </div>
-                ) : applications[job.id]?.length === 0 ? (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                    Bu ilana henüz başvuru yapılmadı.
-                  </p>
-                ) : (
-                  <>
-                    {/* Başvurular Başlığı */}
-                    <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                        Başvurular ({realApplicationCount})
-                      </h3>
-                    </div>
-                    
-                    {/* Scrollable Başvurular Container - Sabit Yükseklik */}
-                    <div className="max-h-[500px] overflow-y-auto overflow-x-hidden pr-2 space-y-4 applications-scroll">
-                    {applications[job.id]?.map((app: any) => (
-                      <div
-                        key={app.id}
-                        className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 p-4"
-                      >
-                        {/* Aday Bilgileri */}
-                        <div className="flex items-start gap-3 mb-3">
-                          <Avatar
-                            src={app.applicant.avatar}
-                            alt={app.applicant.fullName || app.applicant.username || 'Kullanıcı'}
-                            className="h-10 w-10 border-2 border-gray-200 dark:border-gray-700"
-                          />
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                              {app.applicant.fullName || app.applicant.username || 'İsimsiz Kullanıcı'}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{app.applicant.email}</p>
-                          </div>
-                          <div>
-                            {getStatusBadge(app.status)}
-                          </div>
-                        </div>
-
-                        {/* Ön Yazı */}
-                        {app.coverLetter && (
-                          <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">
-                            {app.coverLetter}
-                          </p>
-                        )}
-
-                        {/* Portfolyo/CV Linkleri */}
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          {app.portfolioUrl && (
-                            <a
-                              href={app.portfolioUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-brand-orange hover:text-orange-600 hover:underline"
-                            >
-                              📎 Portfolyo
-                            </a>
-                          )}
-                          {app.portfolioFileUrl && (
-                            <a
-                              href={app.portfolioFileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-brand-orange hover:text-orange-600 hover:underline"
-                            >
-                              📄 Portfolyo Dosyası
-                            </a>
-                          )}
-                          {app.cvUrl && (
-                            <a
-                              href={app.cvUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-brand-orange hover:text-orange-600 hover:underline"
-                            >
-                              📄 CV
-                            </a>
-                          )}
-                        </div>
-
-                        {/* Başvuru Tarihi */}
-                        <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
-                          Başvuru Tarihi: {new Date(app.createdAt).toLocaleDateString('tr-TR', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                          })}
-                        </p>
-
-                        {/* Ayırıcı Çizgi */}
-                        <div className="border-t border-gray-200 dark:border-gray-700 my-3"></div>
-
-                        {/* BAŞVURU DEĞERLENDİRME Bölümü */}
-                        <div className="p-3 bg-gray-50/50 dark:bg-gray-900/30 rounded-lg">
-                          <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">
-                            Başvuru Değerlendirme
-                          </h3>
-                          
-                          {/* Durum ve Tarih Bilgisi */}
-                          <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400 mb-4">
-                            <div>
-                              <span className="font-medium">Durum:</span>{' '}
-                              <span className="capitalize">
-                                {app.status === 'PENDING' ? 'Beklemede' : 
-                                 app.status === 'REVIEWED' ? 'İnceleniyor' :
-                                 app.status === 'ACCEPTED' ? 'Olumlu Yanıt' :
-                                 app.status === 'REJECTED' ? 'Olumsuz Yanıt' : app.status}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="font-medium">Başvuru Tarihi:</span>{' '}
-                              {new Date(app.createdAt).toLocaleDateString('tr-TR', {
-                                day: 'numeric',
-                                month: 'long',
-                                year: 'numeric',
-                              })}
-                            </div>
-                          </div>
-
-                          {/* Karar Verildikten Sonra: Kilitli Durum Bandı */}
-                          {(app.status === 'ACCEPTED' || app.status === 'REJECTED') ? (
-                            <div className="space-y-3">
-                              <div className={`rounded-lg p-3 border ${
-                                app.status === 'ACCEPTED'
-                                  ? 'bg-green-50/80 dark:bg-green-900/20 border-green-200 dark:border-green-800/50'
-                                  : 'bg-red-50/80 dark:bg-red-900/20 border-red-200 dark:border-red-800/50'
-                              }`}>
-                                <div className="flex items-start gap-2">
-                                  {app.status === 'ACCEPTED' ? (
-                                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-                                  ) : (
-                                    <XCircle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-                                  )}
-                                  <div className="flex-1">
-                                    <p className={`text-xs font-medium ${
-                                      app.status === 'ACCEPTED'
-                                        ? 'text-green-700 dark:text-green-300'
-                                        : 'text-red-700 dark:text-red-300'
-                                    }`}>
-                                      {app.status === 'ACCEPTED'
-                                        ? 'Bu başvuru olumlu değerlendirildi'
-                                        : 'Bu başvuru olumsuz değerlendirildi'}
-                                    </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                      {app.status === 'ACCEPTED'
-                                        ? 'Adaya bilgilendirme maili gönderildi.'
-                                        : 'Aday bilgilendirildi.'}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              {/* ✅ Mesaj At Butonu (Sadece ACCEPTED durumunda ve conversationId varsa) */}
-                              {app.status === 'ACCEPTED' && app.conversationId && (
-                                <button
-                                  onClick={(e: any) => {
-                                    e.stopPropagation()
-                                    router.push(`/messages?conversation=${app.conversationId}`)
-                                  }}
-                                  className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-brand-orange bg-brand-orange/10 dark:bg-brand-orange/20 px-3 py-2 text-sm font-medium text-brand-orange hover:bg-brand-orange hover:text-white transition-colors"
-                                >
-                                  <MessageSquare className="h-4 w-4" />
-                                  Mesaj At
-                                </button>
-                              )}
-                            </div>
-                          ) : (
-                            /* Karar Verilmemiş: Aksiyon Alanı */
-                            <>
-                              {/* Mini Inline Confirmation */}
-                              {inlineConfirm && inlineConfirm.applicationId === app.id ? (
-                                <div className="rounded-lg border border-blue-200 dark:border-blue-800/50 bg-blue-50/80 dark:bg-blue-900/20 p-3 mb-3">
-                                  <p className="text-xs font-medium text-blue-900 dark:text-blue-200 mb-2">
-                                    {inlineConfirm.action === 'approve'
-                                      ? 'Bu başvuruyu olumlu değerlendirmek üzeresiniz.'
-                                      : 'Bu başvuruyu olumsuz değerlendirmek üzeresiniz.'}
-                                  </p>
-                                  <p className="text-xs text-blue-700 dark:text-blue-300 mb-3">
-                                    Adaya bilgilendirme maili gönderilecektir.
-                                  </p>
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={async () => {
-                                        if (inlineConfirm.action === 'approve') {
-                                          await handleStatusUpdate(inlineConfirm.applicationId, 'ACCEPTED', job.id)
-                                        } else {
-                                          await handleStatusUpdate(inlineConfirm.applicationId, 'REJECTED', job.id)
-                                        }
-                                      }}
-                                      disabled={updatingStatus === inlineConfirm.applicationId}
-                                      className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition disabled:opacity-50 disabled:cursor-not-allowed ${
-                                        inlineConfirm.action === 'approve'
-                                          ? 'bg-green-600 text-white hover:bg-green-700'
-                                          : 'bg-red-600 text-white hover:bg-red-700'
-                                      }`}
-                                    >
-                                      {updatingStatus === inlineConfirm.applicationId ? (
-                                        <Loader2 className="h-3 w-3 animate-spin mx-auto" />
-                                      ) : (
-                                        'Onayla'
-                                      )}
-                                    </button>
-                                    <button
-                                      onClick={() => setInlineConfirm(null)}
-                                      className="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition"
-                                    >
-                                      Vazgeç
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                /* Karar Butonları */
-                                <div className="flex gap-3">
-                                  <button
-                                    onClick={() => setInlineConfirm({ applicationId: app.id, action: 'approve' })}
-                                    disabled={updatingStatus === app.id}
-                                    className="flex-1 px-4 py-2.5 text-sm font-semibold bg-brand-orange text-white rounded-lg hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
-                                  >
-                                    <CheckCircle className="h-4 w-4" />
-                                    Olumlu Değerlendir
-                                  </button>
-                                  <button
-                                    onClick={() => setInlineConfirm({ applicationId: app.id, action: 'reject' })}
-                                    disabled={updatingStatus === app.id}
-                                    className="flex-1 px-4 py-2.5 text-sm font-medium bg-transparent border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                  >
-                                    <XCircle className="h-4 w-4" />
-                                    Olumsuz Değerlendir
-                                  </button>
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    </div>
-                  </>
-                )}
+            {/* Alt kısım - Başvuru sayısı & Tarih */}
+            <div className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-gray-400" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {applicationCount} Başvuru
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {dateText}
+                </p>
               </div>
-            )}
+
+              {/* Başvuruları Gör Butonu */}
+              {applicationCount > 0 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    router.push(`/fellink/${job.id}?tab=applications`)
+                  }}
+                  className="mt-3 w-full rounded-lg border border-orange-500 px-4 py-1.5 text-sm font-medium text-orange-500 hover:bg-orange-500 hover:text-white transition"
+                >
+                  Başvuruları Gör
+                </button>
+              )}
+            </div>
 
             {/* Sağ alt köşe - Üç nokta menü */}
-            <div className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e: any) => e.stopPropagation()}>
+            <div className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
               <div className="relative">
                 <button
                   onClick={() => setOpenMenuId(openMenuId === job.id ? null : job.id)}
@@ -941,22 +475,10 @@ function MyJobsTab({
   )
 }
 
-export default function FellinkPage() {
-  return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
-      </div>
-    }>
-      <FellinkPageContent />
-    </Suspense>
-  )
-}
-
 // Dynamic export - prerender'i devre dışı bırak (useSearchParams kullanımı nedeniyle)
 export const dynamic = 'force-dynamic';
 
-function FellinkPageContent() {
+export default function FellinkPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, capabilities, accessToken } = useAuthStore()
@@ -1019,9 +541,9 @@ function FellinkPageContent() {
 
     try {
       await api.delete(`/jobs/${selectedJobId}`)
-      setJobs((prev: any) => prev.filter((job: any) => job.id !== selectedJobId))
-      setMyJobs((prev: any) => prev.filter((job: any) => job.id !== selectedJobId))
-      setApplications((prev: any) => prev.filter((app: any) => app.jobListing.id !== selectedJobId))
+      setJobs((prev) => prev.filter((job) => job.id !== selectedJobId))
+      setMyJobs((prev) => prev.filter((job) => job.id !== selectedJobId))
+      setApplications((prev) => prev.filter((app) => app.jobListing.id !== selectedJobId))
       setDeleteModalOpen(false)
       setOpenMenuId(null)
       setSelectedJobId(null)
@@ -1057,7 +579,7 @@ function FellinkPageContent() {
     async function fetchJobs() {
       try {
         setLoading(true)
-        const response = await api.get('/jobs/public')
+        const response = await api.get<PublicJobListing[]>('/jobs/public')
         if (mounted) {
           setJobs(response.data || [])
         }
@@ -1109,7 +631,7 @@ function FellinkPageContent() {
     async function fetchApplications() {
       try {
         setApplicationsLoading(true)
-        const response = await api.get('/jobs/me/applications')
+        const response = await api.get<JobApplication[]>('/jobs/me/applications')
         if (mounted) {
           setApplications(response.data || [])
         }
@@ -1141,7 +663,7 @@ function FellinkPageContent() {
     async function fetchMyJobs() {
       try {
         setMyJobsLoading(true)
-        const response = await api.get('/jobs/me')
+        const response = await api.get<MyJobListing[]>('/jobs/me')
         if (mounted) {
           setMyJobs(response.data || [])
         }
@@ -1168,18 +690,15 @@ function FellinkPageContent() {
     <div className="mx-auto w-full max-w-5xl px-6 py-12 text-gray-900 dark:text-gray-100">
       <header className="mb-10 flex flex-col gap-3 rounded-3xl border border-transparent bg-white/80 px-6 py-5 shadow-sm md:flex-row md:items-center md:justify-between dark:border-white/5 dark:bg-white/5 dark:text-gray-100">
             <div>
-          {/* Feellink İş İlanları başlığı ve ikonu kaldırıldı */}
-          {false && (
-            <div className="inline-flex items-center gap-2 rounded-full bg-brand-blue/10 px-3 py-1 text-sm font-medium text-brand-orange dark:bg-brand-blue/20">
-              <Sparkles className="h-4 w-4" />
-              Feellink İş İlanları
-            </div>
-          )}
+          <div className="inline-flex items-center gap-2 rounded-full bg-brand-blue/10 px-3 py-1 text-sm font-medium text-brand-orange dark:bg-brand-blue/20">
+            <Sparkles className="h-4 w-4" />
+            Feellink İş İlanları
+          </div>
           <h1 className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
             Topluluk ilanlarını keşfet
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Feellinkte bulunan kullanıcıların paylaştığı güncel iş & proje fırsatları burada.
+            Feellink ekosistemindeki kurum ve koleksiyonerlerin paylaştığı güncel iş & proje fırsatları burada.
           </p>
         </div>
       </header>
@@ -1223,8 +742,8 @@ function FellinkPageContent() {
           )}
         </div>
 
-        {/* Sağ: İlan Oluştur Butonu - Tüm kullanıcılar için görünür */}
-        {accessToken && (
+        {/* Sağ: İlan Oluştur Butonu */}
+        {canCreateJob && (
           <Link
             href="/jobs/new"
             className="text-sm px-3 py-1 bg-brand-orange text-white rounded-md hover:bg-brand-orange/80 shadow-sm transition -mt-1"
@@ -1252,25 +771,6 @@ function FellinkPageContent() {
           setOpenMenuId={setOpenMenuId}
           user={user}
           router={router}
-          onApplicationsLoaded={(jobId, count) => {
-            // ✅ KRİTİK: Başvurular yüklendiğinde myJobs state'indeki _count değerini güncelle
-            console.log(`[FellinkPage] onApplicationsLoaded - JobId: ${jobId}, Count: ${count}`)
-            setMyJobs((prev: any) => {
-              const updated = prev.map((job: any) =>
-                job.id === jobId
-                  ? {
-                      ...job,
-                      _count: {
-                        ...job._count,
-                        applications: count,
-                      },
-                    }
-                  : job
-              )
-              console.log(`[FellinkPage] myJobs state güncellendi:`, updated.find((j: any) => j.id === jobId))
-              return updated
-            })
-          }}
         />
       ) : (
         <>
@@ -1290,7 +790,7 @@ function FellinkPageContent() {
           ) : (
             <>
               <div className="grid gap-6 md:grid-cols-2">
-                {jobs.map((job: any) => {
+                {jobs.map((job) => {
                   const hasApplied = appliedJobs.has(job.id)
                   const isOwner = job.createdBy?.id === user?.id
 
@@ -1304,9 +804,7 @@ function FellinkPageContent() {
 
                   const companyLocation = [job.company, job.location].filter(Boolean).join(' · ')
 
-                  // 🔥 Backend'den gelen salary string'inde "(Gizli)" varsa temizle
-                  const isSalaryHidden = job.salary?.includes('(Gizli)') || !job.salary
-                  const salaryText = isSalaryHidden ? null : (job.salary?.replace(/\s*\(Gizli\)/g, '').trim() || null)
+                  const salaryText = job.salary || ''
 
                   const dateText = new Date(job.createdAt).toLocaleDateString('tr-TR', {
                     day: 'numeric',
@@ -1323,13 +821,19 @@ function FellinkPageContent() {
                       {/* Sağ üst köşe - Avatar */}
                       {job.createdBy && (
                         <div className="absolute top-5 right-5">
-                          <Avatar
-                            src={job.createdBy.avatar}
-                            alt={job.createdBy.username ?? job.createdBy.fullName ?? 'Profil'}
-                            className="h-8 w-8 border border-gray-200 dark:border-gray-700"
-                          />
-                        </div>
-                      )}
+                          {job.createdBy.avatar ? (
+                            <img
+                              src={job.createdBy.avatar}
+                              alt={job.createdBy.username ?? 'Profil'}
+                              className="h-8 w-8 rounded-full object-cover border border-gray-200 dark:border-gray-700"
+                            />
+                          ) : (
+                            <div className="h-8 w-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                              <UserCircle2 className="h-5 w-5 text-gray-400" />
+          </div>
+                          )}
+            </div>
+          )}
 
                       {/* ÜST İÇERİK ALANI */}
                       <div className="space-y-3 pr-10 flex-1">
@@ -1354,7 +858,7 @@ function FellinkPageContent() {
 
                         {job.tags.length > 0 && (
                           <div className="flex flex-wrap gap-2 mt-3">
-                            {visibleTags.map((tag: any, idx: any) => {
+                            {visibleTags.map((tag, idx) => {
                               // Etiketlere farklı renkler ver (mavi, gri, turuncu)
                               const colorClasses = [
                                 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20',
@@ -1383,51 +887,43 @@ function FellinkPageContent() {
 
                       {/* ALT ALAN - mt-auto ile aşağı sabitlenmiş */}
                       <div className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800">
-                        <div className="flex items-center justify-between text-xs mb-3">
+                        <div className="flex items-center justify-between text-xs">
                           {/* Sol: Tarih */}
                           <span className="text-gray-400 dark:text-gray-500">
                             {dateText}
                           </span>
                           
-                          {/* Sağ: Maaş (varsa) */}
+                          {/* Sağ: Maaş (varsa) veya Başvuru Butonu */}
                           <div className="flex items-center gap-3">
-                            {salaryText ? (
+                            {salaryText && (
                               <span className="font-medium text-gray-700 dark:text-gray-300">
                                 {salaryText}
                               </span>
-                            ) : (
-                              // 🔥 Maaş gizliyse anlamlı placeholder göster
-                              <span className="text-xs text-gray-400 dark:text-gray-500 italic">
-                                Ücret görüşmede paylaşılacaktır
-                              </span>
+                            )}
+                            
+                            {/* Başvuru Butonu */}
+                            {canApply && !isOwner && (
+                              <div onClick={(e) => e.stopPropagation()}>
+                                {hasApplied ? (
+                                  <span className="inline-flex items-center gap-1 rounded-md border border-green-500 bg-green-50 dark:bg-green-500/10 px-4 py-1.5 text-sm font-medium text-green-600 dark:text-green-400">
+                                    ✓ Başvurdun
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => setApplyModalOpen(job.id)}
+                                    className="rounded-md border-2 border-orange-500 px-4 py-1.5 text-sm font-medium text-orange-500 hover:bg-orange-500 hover:text-white transition-colors"
+                                  >
+                                    İlana Başvur
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
-                        </div>
-                        
-                        {/* Butonlar: Başvuru */}
-                        <div className="flex items-center gap-2">
-                          {/* Başvuru Butonu */}
-                          {canApply && !isOwner && (
-                            <div onClick={(e: any) => e.stopPropagation()} className="w-full">
-                              {hasApplied ? (
-                                <span className="inline-flex items-center justify-center gap-1 w-full rounded-md border border-green-500 bg-green-50 dark:bg-green-500/10 px-3 py-1.5 text-sm font-medium text-green-600 dark:text-green-400">
-                                  ✓ Başvurdun
-                                </span>
-                              ) : (
-                                <button
-                                  onClick={() => setApplyModalOpen(job.id)}
-                                  className="w-full rounded-md border-2 border-orange-500 px-3 py-1.5 text-sm font-medium text-orange-500 hover:bg-orange-500 hover:text-white transition-colors"
-                                >
-                                  İlana Başvur
-                                </button>
-                              )}
-                            </div>
-                          )}
                         </div>
                       </div>
 
                       {(isOwner || user?.isAdmin || user?.superAdmin) && (
-                        <div className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e: any) => e.stopPropagation()}>
+                        <div className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                           <div className="relative">
             <button
                               onClick={() => setOpenMenuId(openMenuId === job.id ? null : job.id)}
@@ -1474,7 +970,7 @@ function FellinkPageContent() {
                     setApplyModalOpen(null)
                   }}
                   onSuccess={() => {
-                    setAppliedJobs((prev: any) => new Set([...prev, applyModalOpen]))
+                    setAppliedJobs((prev) => new Set([...prev, applyModalOpen]))
                     setApplyModalOpen(null)
                   }}
                 />

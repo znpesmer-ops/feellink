@@ -14,65 +14,9 @@ import { ProRoleBadge } from '@/components/ProRoleBadge'
 
 function NotificationsContent() {
   const router = useRouter()
-  const { accessToken, user, unreadCount, setUnreadCount, refreshUser } = useAuthStore()
+  const { accessToken, user, unreadCount, setUnreadCount } = useAuthStore()
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<'all' | 'unread' | 'comment' | 'reply'>('all')
-  
-  // 🔥 Profil güncellemesi sonrası user state'ini yenile
-  useEffect(() => {
-    const handleProfileUpdate = () => {
-      if (accessToken) {
-        refreshUser().catch(() => {})
-      }
-    }
-    
-    window.addEventListener('profileUpdated', handleProfileUpdate)
-    return () => {
-      window.removeEventListener('profileUpdated', handleProfileUpdate)
-    }
-  }, [accessToken, refreshUser])
-
-  // 🔥 Bildirimler sayfasına girildiğinde tüm bildirimleri okundu olarak işaretle
-  // Kullanıcı bildirime bakana kadar dot gitmesin - sayfa açıldığında okundu olarak işaretle
-  useEffect(() => {
-    if (!accessToken) return
-
-    let hasMarkedAsRead = false // Sadece bir kez çalışması için flag
-
-    // Sayfa mount olduğunda tüm okunmamış bildirimleri okundu olarak işaretle
-    const markAllAsReadOnMount = async () => {
-      if (hasMarkedAsRead) return // Zaten işaretlendiyse tekrar çalıştırma
-      
-      try {
-        // Okunmamış bildirim sayısını kontrol et
-        const unreadResponse = await api.get('/notifications/unread-count')
-        const currentUnreadCount = unreadResponse.data.count || 0
-        
-        // Sadece okunmamış bildirimler varsa işaretle
-        if (currentUnreadCount > 0) {
-          await api.put('/notifications/read-all')
-          // Store'dan unreadCount'ı güncelle
-          setUnreadCount(0)
-          // Query'yi invalidate et
-          queryClient.invalidateQueries({ queryKey: ['notifications'] })
-          queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] })
-          hasMarkedAsRead = true
-          console.log('[Notifications] ✅ Tüm bildirimler okundu olarak işaretlendi')
-        }
-      } catch (error) {
-        console.warn('[Notifications] Failed to mark all as read on mount:', error)
-      }
-    }
-
-    // Kısa bir gecikme ile çalıştır (sayfa yüklenmesini bekle)
-    const timer = setTimeout(() => {
-      markAllAsReadOnMount()
-    }, 1000) // 1 saniye bekle (sayfa tam yüklensin)
-
-    return () => {
-      clearTimeout(timer)
-    }
-  }, [accessToken, queryClient, setUnreadCount]) // Sadece sayfa mount olduğunda bir kez çalış
 
   // Infinite scroll notifications query
   const {
@@ -106,9 +50,6 @@ function NotificationsContent() {
       return allPages.length * 20
     },
     enabled: !!accessToken,
-    staleTime: 0, // Her zaman fresh data çek
-    refetchOnMount: true, // Mount olduğunda refetch et
-    refetchOnWindowFocus: true, // Window focus'ta refetch et
   })
 
   // ✅ Bildirimler yüklendiğinde unreadCount'ı güncelle
@@ -120,7 +61,7 @@ function NotificationsContent() {
         setUnreadCount(firstPage.unreadCount)
       } else {
         // Fallback: API'den çek
-        api.get('/notifications/unread-count').then((response: any) => {
+        api.get('/notifications/unread-count').then((response) => {
           setUnreadCount(response.data.count)
         })
       }
@@ -136,7 +77,7 @@ function NotificationsContent() {
 
     const socket = initSocket(accessToken)
 
-    socket.on('notification', (notification: any) => {
+    socket.on('notification', (notification) => {
       // If it's a follow_request_cancelled event, remove the notification from the list
       if (notification.type === 'follow_request_cancelled') {
         queryClient.setQueryData(['notifications'], (old: any) => {
@@ -256,20 +197,15 @@ function NotificationsContent() {
   }
 
   // Backend artık { notifications, unreadCount } döndürüyor
-  const notifications = data?.pages.flatMap((page: any) => {
+  const notifications = data?.pages.flatMap((page) => {
     // Eski format için geriye uyumluluk
     return page.notifications || page
   }) || []
 
-  // 🔥 KRİTİK: profile_incomplete bildirimini bul (en üstte sabit gösterilecek)
-  const profileIncompleteNotification = notifications.find((n: any) => n.type === 'profile_incomplete')
-
   // Filter notifications (profile_incomplete bildirimini normal listeden çıkar - en üstte sabit gösterilecek)
   const filteredNotifications = notifications.filter((n: any) => {
-    // profile_incomplete bildirimini normal listeden çıkar (en üstte gösterilecek)
-    if (n.type === 'profile_incomplete') {
-      return false // Normal listeden çıkar, en üstte gösterilecek
-    }
+    // profile_incomplete bildirimini normal listeden çıkar
+    if (n.type === 'profile_incomplete') return false
     
     if (filter === 'all') return true
     if (filter === 'unread') return !n.isRead
@@ -443,7 +379,7 @@ function NotificationsContent() {
       case 'job_application_status_changed':
         return notification.message || 'başvuru durumu güncellendi'
       case 'profile_incomplete':
-        return notification.message || 'Profil bilgilerini tamamladığında Feellink deneyimin çok daha güçlü hale gelir.'
+        return notification.message || 'Feellink\'i tam kullanabilmek için bazı bilgilerin eksik.'
       default:
         return notification.message || 'yeni bildirim gönderdi'
     }
@@ -488,7 +424,7 @@ function NotificationsContent() {
           { key: 'unread', label: 'Okunmamış' },
           { key: 'comment', label: 'Yorumlar' },
           { key: 'reply', label: 'Yanıtlar' },
-        ].map((tab: any) => (
+        ].map((tab) => (
           <button
             key={tab.key}
             onClick={() => setFilter(tab.key as any)}
@@ -504,8 +440,7 @@ function NotificationsContent() {
       </div>
 
       {/* Profil Eksikliği Bildirimi (En Üstte, Sabit) */}
-      {/* 🔥 KRİTİK: Backend'den gelen profile_incomplete bildirimi varsa göster */}
-      {profileIncompleteNotification && (
+      {user && (!user.dateOfBirth || !user.country || !user.city || !user.gender) && (
         <div className="mb-6 p-4 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center">
@@ -513,16 +448,16 @@ function NotificationsContent() {
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="text-base font-semibold text-orange-900 dark:text-orange-200 mb-1">
-                Profilini tamamla
+                🔔 Profilini Tamamla
               </h3>
               <p className="text-sm text-orange-800 dark:text-orange-300 mb-3">
-                {profileIncompleteNotification.message || 'Profil bilgilerini tamamladığında Feellink deneyimin çok daha güçlü hale gelir.'}
+                Feellink'i tam kullanabilmek için bazı zorunlu bilgiler eksik.
               </p>
               <button
-                onClick={() => router.push(profileIncompleteNotification.targetPath || profileIncompleteNotification.targetUrl || '/settings')}
+                onClick={() => router.push('/profile/edit?required=true')}
                 className="px-4 py-2 text-sm font-medium bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
               >
-                Profili Düzenle
+                🧡 Profili Düzenle
               </button>
             </div>
           </div>
@@ -549,14 +484,8 @@ function NotificationsContent() {
                         await markAsRead(notification.id)
                       }
                       
-                      // 🔥 KRİTİK: Yönlendirme - öncelik sırası: rol bildirimleri > type-specific > targetPath > targetUrl > type-based fallback
-                      // 0) Rol değişikliği bildirimleri → /settings (EN ÖNCELİKLİ - targetPath'den önce kontrol edilmeli)
-                      if (notification.type === 'ROLE_CHANGE_APPROVED' || notification.type === 'ROLE_CHANGE_REJECTED') {
-                        router.push('/settings')
-                        return
-                      }
-                      
-                      // 1) Eğer bildirimde targetPath varsa → direkt oraya git (rol bildirimlerinden sonra)
+                      // 🔥 KRİTİK: Yönlendirme - öncelik sırası: targetPath > targetUrl > type-based fallback
+                      // 1) Eğer bildirimde targetPath varsa → direkt oraya git (EN ÖNCELİKLİ)
                       if (notification.targetPath) {
                         router.push(notification.targetPath)
                         return
@@ -568,8 +497,9 @@ function NotificationsContent() {
                         return
                       }
                       
-                      // 3) Type-specific bildirimler
+                      // 3) Fallback - job application bildirimleri için
                       if (notification.type === 'job_application_received') {
+                        // targetPath yoksa fallback: public sayfasına git (404 vermez)
                         router.push('/fellink/public')
                         return
                       }
@@ -596,9 +526,8 @@ function NotificationsContent() {
                         return
                       }
                       
-                      // 5) Fallback - rol bildirimleri buraya düşmemeli (yukarıda yakalandı)
-                      // Eğer hiçbir yönlendirme yoksa, hiçbir şey yapma (sayfa değişmez)
-                      // router.push('/fellink/public') // ❌ KALDIRILDI - rol bildirimleri buraya düşmemeli
+                      // 5) En kötü fallback (404 asla vermez)
+                      router.push('/fellink/public')
                     }}
                   >
                     <div className="flex items-start gap-3">
@@ -606,7 +535,7 @@ function NotificationsContent() {
                       {notification.sender?.username ? (
                         <Link
                           href={`/profile/${notification.sender.username}`}
-                          onClick={(e: any) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
                           className="relative flex-shrink-0 hover:opacity-80 transition cursor-pointer"
                         >
                           <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
@@ -652,7 +581,7 @@ function NotificationsContent() {
                             // Sistem bildirimi - sender yok
                             <>
                               <span className="font-semibold text-orange-500 dark:text-orange-400">
-                                Profilini tamamla
+                                Profilini Tamamla
                               </span>
                               <span>{getNotificationText(notification)}</span>
                             </>
@@ -662,7 +591,7 @@ function NotificationsContent() {
                               {notification.sender?.username ? (
                                 <Link
                                   href={`/profile/${notification.sender.username}`}
-                                  onClick={(e: any) => e.stopPropagation()}
+                                  onClick={(e) => e.stopPropagation()}
                                   className="font-semibold text-brand-orange dark:text-brand-orange hover:opacity-80 transition cursor-pointer"
                                 >
                                   {notification.sender?.fullName || notification.sender?.username || 'Sistem'}
@@ -684,9 +613,9 @@ function NotificationsContent() {
                         {/* Profil Tamamlama Butonu */}
                         {notification.type === 'profile_incomplete' && (
                           <button
-                            onClick={(e: any) => {
+                            onClick={(e) => {
                               e.stopPropagation()
-                              router.push('/settings')
+                              router.push('/profile/edit?required=true')
                             }}
                             className="mt-2 px-4 py-1.5 text-xs font-medium bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
                           >
@@ -699,7 +628,7 @@ function NotificationsContent() {
                       {notification.type === 'follow_request' && (
                         <div className="flex gap-2 flex-shrink-0">
                           <button
-                            onClick={(e: any) => {
+                            onClick={(e) => {
                               e.stopPropagation()
                               handleAcceptFollowRequest(notification.fromUserId)
                             }}
@@ -708,7 +637,7 @@ function NotificationsContent() {
                             Kabul Et
                           </button>
                           <button
-                            onClick={(e: any) => {
+                            onClick={(e) => {
                               e.stopPropagation()
                               handleRejectFollowRequest(notification.fromUserId)
                             }}
