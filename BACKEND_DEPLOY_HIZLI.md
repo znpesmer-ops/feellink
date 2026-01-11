@@ -32,10 +32,27 @@ FRONTEND_URL=https://www.feellink.io
 openssl rand -base64 32
 ```
 
-### Adım 5: URL'i Al
-1. Railway → Service → Settings
-2. "Generate Domain" tıkla
-3. URL'i kopyala (örn: `https://feellink-backend.up.railway.app`)
+### Adım 5: URL'i Al (Detaylı)
+
+1. **Railway Dashboard'a git**
+   - https://railway.app/dashboard
+   - Backend service'ine tıkla
+
+2. **Settings sekmesine git**
+   - Sol menüden "Settings" tıkla
+
+3. **Domain oluştur**
+   - "Generate Domain" butonuna tıkla
+   - Railway otomatik bir domain oluşturur
+   - Örnek: `https://feellink-backend-production.up.railway.app`
+
+4. **URL'i kopyala**
+   - Oluşturulan URL'i kopyala
+   - Bu URL backend'in URL'i!
+
+**Alternatif:** Service'in ana sayfasında (Overview) URL görünür, oradan da kopyalayabilirsin.
+
+**Test et:** Tarayıcıda `https://your-url.railway.app/api` aç - Swagger UI görünmeli ✅
 
 ### Adım 6: Vercel'de Kullan
 Frontend projesinde (Vercel):
