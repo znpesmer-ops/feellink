@@ -155,7 +155,7 @@ function AllPostsContent() {
   }
 
   return (
-    <main className="flex flex-col items-center pt-24 pb-16 px-6 min-h-screen bg-white dark:bg-[#0a0a0a]">
+    <main className="flex flex-col items-center pt-24 pb-16 px-6 bg-white dark:bg-[#0a0a0a]">
       <div className="w-full max-w-[750px]">
         {/* Başlık, Arama ve Filtre */}
         <div className="flex flex-col gap-4 mb-8">
@@ -271,7 +271,7 @@ function AllPostsContent() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {sortedPosts.map((post: any) => (
-              <PostCard key={post.id} post={post} onLike={handleLike} showLike={false} />
+              <PostCard key={post.id} post={post} onLike={handleLike} />
             ))}
           </div>
         )}
