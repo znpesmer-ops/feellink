@@ -300,7 +300,7 @@ export class AdminService {
         await this.prisma.roleChangeLog.create({
           data: {
             userId,
-            changedById: actorId,
+            changedBy: actorId,
             oldRoles: (oldUser.roles || []) as string[],
             newRoles: normalizedRoles as string[],
           },
@@ -364,7 +364,7 @@ export class AdminService {
     });
 
     // ChangedBy bilgisini almak için admin kullanıcıları çek
-    const changedByIds = [...new Set(logs.map(log => log.changedById))] as string[];
+    const changedByIds = [...new Set(logs.map(log => log.changedBy))] as string[];
     const changers = await this.prisma.user.findMany({
       where: { id: { in: changedByIds } },
       select: {
@@ -378,9 +378,9 @@ export class AdminService {
 
     return logs.map(log => ({
       id: log.id,
-      oldRoles: (Array.isArray(log.oldRoles) ? log.oldRoles : JSON.parse(log.oldRoles as any)) as UserRole[],
-      newRoles: (Array.isArray(log.newRoles) ? log.newRoles : JSON.parse(log.newRoles as any)) as UserRole[],
-      changedBy: changersMap.get(log.changedById) || 'Bilinmeyen',
+      oldRoles: log.oldRoles as UserRole[],
+      newRoles: log.newRoles as UserRole[],
+      changedBy: changersMap.get(log.changedBy) || 'Bilinmeyen',
       createdAt: log.createdAt,
     }));
   }
@@ -1124,9 +1124,9 @@ export class AdminService {
       where: { id: userId },
       data: {
         suspendedUntil: data.until,
-        suspendedReason: data.reason,
-        suspendedNote: data.note,
-        suspendedById: actorId,
+        suspensionReason: data.reason,
+        suspensionNote: data.note,
+        suspendedByAdminId: actorId,
       },
     });
 
@@ -1139,9 +1139,9 @@ export class AdminService {
       where: { id: userId },
       data: {
         suspendedUntil: null,
-        suspendedReason: null,
-        suspendedNote: null,
-        suspendedById: null,
+        suspensionReason: null,
+        suspensionNote: null,
+        suspendedByAdminId: null,
       },
     });
 
