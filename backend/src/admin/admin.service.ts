@@ -301,8 +301,8 @@ export class AdminService {
           data: {
             userId,
             changedById: actorId,
-            oldRoles: JSON.stringify(oldUser.roles || []),
-            newRoles: JSON.stringify(normalizedRoles),
+            oldRoles: (oldUser.roles || []) as string[],
+            newRoles: normalizedRoles as string[],
           },
         });
 
@@ -378,8 +378,8 @@ export class AdminService {
 
     return logs.map(log => ({
       id: log.id,
-      oldRoles: JSON.parse(log.oldRoles) as UserRole[],
-      newRoles: JSON.parse(log.newRoles) as UserRole[],
+      oldRoles: (Array.isArray(log.oldRoles) ? log.oldRoles : JSON.parse(log.oldRoles as any)) as UserRole[],
+      newRoles: (Array.isArray(log.newRoles) ? log.newRoles : JSON.parse(log.newRoles as any)) as UserRole[],
       changedBy: changersMap.get(log.changedById) || 'Bilinmeyen',
       createdAt: log.createdAt,
     }));
@@ -1113,6 +1113,126 @@ export class AdminService {
     } catch (error) {
       throw new Error(`Ayarlar alınamadı: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  // Suspend user
+  async suspendUser(userId: string, actorId: string, data: { until?: Date | null; reason: string; note?: string }) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        suspendedUntil: data.until,
+        suspendedReason: data.reason,
+        suspendedNote: data.note,
+        suspendedById: actorId,
+      },
+    });
+
+    return { success: true, message: 'User suspended' };
+  }
+
+  // Unsuspend user
+  async unsuspendUser(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        suspendedUntil: null,
+        suspendedReason: null,
+        suspendedNote: null,
+        suspendedById: null,
+      },
+    });
+
+    return { success: true, message: 'User unsuspended' };
+  }
+
+  // Get role change requests
+  async getRoleChangeRequests(status?: string, page: number = 1, limit: number = 20) {
+    const where: any = {};
+    if (status) {
+      where.status = status;
+    }
+
+    const [requests, total] = await Promise.all([
+      this.prisma.roleChangeRequest.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              email: true,
+              fullName: true,
+            },
+          },
+        },
+      }),
+      this.prisma.roleChangeRequest.count({ where }),
+    ]);
+
+    return {
+      requests,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  // Approve role change request
+  async approveRoleChangeRequest(requestId: string, adminId: string, reviewNote?: string) {
+    const request = await this.prisma.roleChangeRequest.findUnique({
+      where: { id: requestId },
+      include: { user: true },
+    });
+
+    if (!request) throw new NotFoundException('Request not found');
+    if (request.status !== 'PENDING') throw new BadRequestException('Request is not pending');
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: request.userId },
+        data: { roles: request.requestedRoles },
+      }),
+      this.prisma.roleChangeRequest.update({
+        where: { id: requestId },
+        data: {
+          status: 'APPROVED',
+          reviewedById: adminId,
+          reviewedAt: new Date(),
+          reviewNote,
+        },
+      }),
+    ]);
+
+    return { success: true, message: 'Request approved' };
+  }
+
+  // Reject role change request
+  async rejectRoleChangeRequest(requestId: string, adminId: string, reviewNote?: string) {
+    const request = await this.prisma.roleChangeRequest.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!request) throw new NotFoundException('Request not found');
+    if (request.status !== 'PENDING') throw new BadRequestException('Request is not pending');
+
+    await this.prisma.roleChangeRequest.update({
+      where: { id: requestId },
+      data: {
+        status: 'REJECTED',
+        reviewedById: adminId,
+        reviewedAt: new Date(),
+        reviewNote,
+      },
+    });
+
+    return { success: true, message: 'Request rejected' };
   }
 }
 
