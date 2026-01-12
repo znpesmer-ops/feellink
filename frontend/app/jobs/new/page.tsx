@@ -1,6 +1,7 @@
 'use client'
 
-import { FormEvent, useState, useEffect } from 'react'
+import { FormEvent, useState, useEffect, Suspense } from 'react'
+import { Loader2 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import api from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
@@ -8,7 +9,7 @@ import toast from 'react-hot-toast'
 
 type ApplicationMethod = 'internal' | 'link' | 'email'
 
-export default function NewJobPage() {
+function NewJobContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user } = useAuthStore()
@@ -18,7 +19,7 @@ export default function NewJobPage() {
   const [error, setError] = useState<string | null>(null)
   const [shortSummary, setShortSummary] = useState('')
   const maxShortSummaryChars = 100
-  
+
   // ✅ Edit mode kontrolü
   const jobId = searchParams.get('edit')
   const isEditMode = Boolean(jobId)
@@ -161,7 +162,7 @@ export default function NewJobPage() {
     if (!saveAsDraft) {
       const maxApplications = formData.get('maxApplications')?.toString().trim()
       const autoCloseOnDeadline = formData.get('autoCloseOnDeadline') === 'on'
-      
+
       if (!deadline && !maxApplications && !autoCloseOnDeadline) {
         setError('İlanı yayınlamak için "Yayınlama Ayarları" bölümünden en az bir alanı doldurmalısınız (Son Başvuru Tarihi, Maks. Başvuru Sayısı veya Otomatik Kapatma).')
         setIsSubmitting(false)
@@ -176,7 +177,7 @@ export default function NewJobPage() {
         // ✅ Edit modunda PATCH kullan
         const maxApplications = formData.get('maxApplications')?.toString().trim()
         const autoCloseOnDeadline = formData.get('autoCloseOnDeadline') === 'on'
-        
+
         await api.patch(`/jobs/${jobId}`, {
           title,
           description: fullDescription,
@@ -193,7 +194,7 @@ export default function NewJobPage() {
         // ✅ Yeni ilan oluşturma
         const maxApplications = formData.get('maxApplications')?.toString().trim()
         const autoCloseOnDeadline = formData.get('autoCloseOnDeadline') === 'on'
-        
+
         await api.post('/jobs/create', {
           title,
           description: fullDescription,
@@ -220,7 +221,7 @@ export default function NewJobPage() {
   }
 
   return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1">
@@ -230,7 +231,7 @@ export default function NewJobPage() {
             {isEditMode ? 'İlanı düzenle' : 'Yeni ilan oluştur'}
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {isEditMode 
+            {isEditMode
               ? 'İlan bilgilerini güncelleyebilirsiniz. Bu değişiklikler mevcut başvuruları etkilemez.'
               : 'Kurumun veya koleksiyonun için detaylı ve anlaşılır bir ilan yayınla.'}
           </p>
@@ -280,331 +281,342 @@ export default function NewJobPage() {
       </div>
 
       {!isLoadingJob && (
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* İlan Temel Bilgileri */}
-        <section className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 space-y-4">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            Temel bilgiler
-          </h2>
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* İlan Temel Bilgileri */}
+          <section className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 space-y-4">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+              Temel bilgiler
+            </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                İlan Başlığı *
-              </label>
-              <input
-                name="title"
-                type="text"
-                required
-                placeholder="Örn: Sergi Asistanı, Çağdaş Sanat Projesi için Sanatçı Aranıyor"
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-              />
-              <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                İlan başlığı, aranan rolü veya iş birliği biçimini net şekilde ifade etmelidir.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Kurum / Koleksiyon Adı
-              </label>
-              <input
-                name="companyName"
-                type="text"
-                defaultValue={user?.fullName || ''}
-                placeholder="Örn: Lale Müzesi, Bağımsız Sanat İnisiyatifi"
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Şehir
-              </label>
-              <input
-                name="locationCity"
-                type="text"
-                placeholder="İstanbul"
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Ülke
-              </label>
-              <input
-                name="locationCountry"
-                type="text"
-                placeholder="Türkiye"
-                defaultValue="Türkiye"
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Çalışma Şekli
-              </label>
-              <select
-                name="workMode"
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-                defaultValue="onsite"
-              >
-                <option value="onsite">Fiziksel (Atölye / Müze / Galeri)</option>
-                <option value="hybrid">Hibrit</option>
-                <option value="remote">Uzaktan</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                İş Birliği Türü
-              </label>
-              <select
-                name="jobType"
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-                defaultValue="full-time"
-              >
-                <option value="full-time">Tam Zamanlı</option>
-                <option value="part-time">Yarı Zamanlı</option>
-                <option value="freelance">Proje Bazlı</option>
-                <option value="internship">Gönüllü</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Deneyim Düzeyi
-              </label>
-              <select
-                name="seniority"
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-                defaultValue="junior"
-              >
-                <option value="intern">Öğrenci / Yeni Mezun</option>
-                <option value="junior">Gelişmekte Olan Sanatçı</option>
-                <option value="mid">Deneyimli</option>
-                <option value="senior">Açık (Tüm seviyeler)</option>
-              </select>
-            </div>
-          </div>
-        </section>
-
-        {/* Açıklama ve İçerik */}
-        <section className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 space-y-4">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            İlan içeriği
-          </h2>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Kısa Özet (Opsiyonel)
-            </label>
-            <div className="flex flex-col gap-1">
-              <textarea
-                name="shortSummary"
-                rows={2}
-                maxLength={maxShortSummaryChars}
-                value={shortSummary}
-                onChange={(e) => setShortSummary(e.target.value.slice(0, maxShortSummaryChars))}
-                placeholder="Örn: Bu ilan, sergi sürecinde görev alacak ve sanat üretim süreçlerine destek verecek kişiler içindir."
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm resize-none text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-              />
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-400 dark:text-gray-500">
-                  Listeleme kartlarında ve ön izlemelerde kullanılacak kısa açıklama.
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  İlan Başlığı *
+                </label>
+                <input
+                  name="title"
+                  type="text"
+                  required
+                  placeholder="Örn: Sergi Asistanı, Çağdaş Sanat Projesi için Sanatçı Aranıyor"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
+                />
+                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                  İlan başlığı, aranan rolü veya iş birliği biçimini net şekilde ifade etmelidir.
                 </p>
-                <span
-                  className={`text-xs font-medium ${
-                    maxShortSummaryChars - shortSummary.length < 10
-                      ? 'text-red-500 dark:text-red-400'
-                      : 'text-gray-500 dark:text-gray-400'
-                  }`}
-                >
-                  {maxShortSummaryChars - shortSummary.length} karakter kaldı
-                </span>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Kurum / Koleksiyon Adı
+                </label>
+                <input
+                  name="companyName"
+                  type="text"
+                  defaultValue={user?.fullName || ''}
+                  placeholder="Örn: Lale Müzesi, Bağımsız Sanat İnisiyatifi"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
+                />
               </div>
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Detaylı Açıklama *
-            </label>
-            <textarea
-              name="description"
-              rows={8}
-              required
-              placeholder="Kurumu, projeyi ve bu iş birliğinden beklentilerinizi detaylı olarak anlatın. Sergi, üretim süreci, program kapsamı veya iş birliği biçimine dair bilgileri ekleyebilirsiniz."
-              className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm resize-y text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-            />
-          </div>
-        </section>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Şehir
+                </label>
+                <input
+                  name="locationCity"
+                  type="text"
+                  placeholder="İstanbul"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Ülke
+                </label>
+                <input
+                  name="locationCountry"
+                  type="text"
+                  placeholder="Türkiye"
+                  defaultValue="Türkiye"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Çalışma Şekli
+                </label>
+                <select
+                  name="workMode"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
+                  defaultValue="onsite"
+                >
+                  <option value="onsite">Fiziksel (Atölye / Müze / Galeri)</option>
+                  <option value="hybrid">Hibrit</option>
+                  <option value="remote">Uzaktan</option>
+                </select>
+              </div>
+            </div>
 
-        {/* Maaş */}
-        <section className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 space-y-4">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            Maaş
-          </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  İş Birliği Türü
+                </label>
+                <select
+                  name="jobType"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
+                  defaultValue="full-time"
+                >
+                  <option value="full-time">Tam Zamanlı</option>
+                  <option value="part-time">Yarı Zamanlı</option>
+                  <option value="freelance">Proje Bazlı</option>
+                  <option value="internship">Gönüllü</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Deneyim Düzeyi
+                </label>
+                <select
+                  name="seniority"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
+                  defaultValue="junior"
+                >
+                  <option value="intern">Öğrenci / Yeni Mezun</option>
+                  <option value="junior">Gelişmekte Olan Sanatçı</option>
+                  <option value="mid">Deneyimli</option>
+                  <option value="senior">Açık (Tüm seviyeler)</option>
+                </select>
+              </div>
+            </div>
+          </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Min. Maaş
-              </label>
-              <input
-                name="salaryMin"
-                type="number"
-                min={0}
-                placeholder="Örn: 25000"
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Maks. Maaş
-              </label>
-              <input
-                name="salaryMax"
-                type="number"
-                min={0}
-                placeholder="Örn: 35000"
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Para Birimi
-              </label>
-              <select
-                name="salaryCurrency"
-                defaultValue="TRY"
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-              >
-                <option value="TRY">TRY</option>
-                <option value="EUR">EUR</option>
-                <option value="USD">USD</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2 pt-6">
-              <input
-                id="salaryVisible"
-                name="salaryVisible"
-                type="checkbox"
-                className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-brand-orange focus:ring-brand-orange bg-white dark:bg-gray-800"
-              />
-              <label
-                htmlFor="salaryVisible"
-                className="text-sm text-gray-700 dark:text-gray-300 select-none"
-              >
-                Maaş aralığını ilanda göster
-              </label>
-            </div>
-          </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            Bu alan isteğe bağlıdır. Sanat ve kültür alanında proje bazlı veya gönüllü ilanlar yayınlayabilirsiniz.
-          </p>
-          
-          {/* ✅ Başvuru Yöntemi bölümü bilinçli olarak kaldırıldı - tüm başvurular Feellink üzerinden alınacak */}
-        </section>
-
-        {/* Yayınlama Ayarları */}
-        <section className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 space-y-4">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            Yayınlama ayarları
-            {!isEditMode && (
-              <span className="text-xs font-normal text-orange-500 dark:text-orange-400">
-                (Yayınlamak için zorunlu)
-              </span>
-            )}
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Son Başvuru Tarihi
-              </label>
-              <input
-                name="deadline"
-                type="date"
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-              />
-            </div>
+          {/* Açıklama ve İçerik */}
+          <section className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 space-y-4">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+              İlan içeriği
+            </h2>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Maks. Başvuru Sayısı
+                Kısa Özet (Opsiyonel)
               </label>
-              <input
-                name="maxApplications"
-                type="number"
-                min={1}
-                placeholder="Örn: 50"
-                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
-              />
+              <div className="flex flex-col gap-1">
+                <textarea
+                  name="shortSummary"
+                  rows={2}
+                  maxLength={maxShortSummaryChars}
+                  value={shortSummary}
+                  onChange={(e) => setShortSummary(e.target.value.slice(0, maxShortSummaryChars))}
+                  placeholder="Örn: Bu ilan, sergi sürecinde görev alacak ve sanat üretim süreçlerine destek verecek kişiler içindir."
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm resize-none text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
+                />
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    Listeleme kartlarında ve ön izlemelerde kullanılacak kısa açıklama.
+                  </p>
+                  <span
+                    className={`text-xs font-medium ${maxShortSummaryChars - shortSummary.length < 10
+                        ? 'text-red-500 dark:text-red-400'
+                        : 'text-gray-500 dark:text-gray-400'
+                      }`}
+                  >
+                    {maxShortSummaryChars - shortSummary.length} karakter kaldı
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-6">
-              <input
-                id="autoCloseOnDeadline"
-                name="autoCloseOnDeadline"
-                type="checkbox"
-                className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-brand-orange focus:ring-brand-orange bg-white dark:bg-gray-800"
-              />
-              <label
-                htmlFor="autoCloseOnDeadline"
-                className="text-sm text-gray-700 dark:text-gray-300 select-none"
-              >
-                Tarih geldiğinde ilanı otomatik kapat
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Detaylı Açıklama *
               </label>
+              <textarea
+                name="description"
+                rows={8}
+                required
+                placeholder="Kurumu, projeyi ve bu iş birliğinden beklentilerinizi detaylı olarak anlatın. Sergi, üretim süreci, program kapsamı veya iş birliği biçimine dair bilgileri ekleyebilirsiniz."
+                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm resize-y text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
+              />
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* Hata Mesajı */}
-        {error && (
-          <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">
-            {error}
-          </div>
-        )}
+          {/* Maaş */}
+          <section className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 space-y-4">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+              Maaş
+            </h2>
 
-        {/* Alt Butonlar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-          <div className="flex flex-col gap-1 text-xs text-gray-400 dark:text-gray-500">
-            <span>• Taslak olarak kaydedersen ilan sadece senin için görünür.</span>
-            <span>• İlan yayınlandıktan sonra düzenlenebilir.</span>
-          </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Min. Maaş
+                </label>
+                <input
+                  name="salaryMin"
+                  type="number"
+                  min={0}
+                  placeholder="Örn: 25000"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Maks. Maaş
+                </label>
+                <input
+                  name="salaryMax"
+                  type="number"
+                  min={0}
+                  placeholder="Örn: 35000"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Para Birimi
+                </label>
+                <select
+                  name="salaryCurrency"
+                  defaultValue="TRY"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
+                >
+                  <option value="TRY">TRY</option>
+                  <option value="EUR">EUR</option>
+                  <option value="USD">USD</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2 pt-6">
+                <input
+                  id="salaryVisible"
+                  name="salaryVisible"
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-brand-orange focus:ring-brand-orange bg-white dark:bg-gray-800"
+                />
+                <label
+                  htmlFor="salaryVisible"
+                  className="text-sm text-gray-700 dark:text-gray-300 select-none"
+                >
+                  Maaş aralığını ilanda göster
+                </label>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              Bu alan isteğe bağlıdır. Sanat ve kültür alanında proje bazlı veya gönüllü ilanlar yayınlayabilirsiniz.
+            </p>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-            {!isEditMode && (
+            {/* ✅ Başvuru Yöntemi bölümü bilinçli olarak kaldırıldı - tüm başvurular Feellink üzerinden alınacak */}
+          </section>
+
+          {/* Yayınlama Ayarları */}
+          <section className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 space-y-4">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              Yayınlama ayarları
+              {!isEditMode && (
+                <span className="text-xs font-normal text-orange-500 dark:text-orange-400">
+                  (Yayınlamak için zorunlu)
+                </span>
+              )}
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Son Başvuru Tarihi
+                </label>
+                <input
+                  name="deadline"
+                  type="date"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Maks. Başvuru Sayısı
+                </label>
+                <input
+                  name="maxApplications"
+                  type="number"
+                  min={1}
+                  placeholder="Örn: 50"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange/70 focus:border-brand-orange/70"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-6">
+                <input
+                  id="autoCloseOnDeadline"
+                  name="autoCloseOnDeadline"
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-brand-orange focus:ring-brand-orange bg-white dark:bg-gray-800"
+                />
+                <label
+                  htmlFor="autoCloseOnDeadline"
+                  className="text-sm text-gray-700 dark:text-gray-300 select-none"
+                >
+                  Tarih geldiğinde ilanı otomatik kapat
+                </label>
+              </div>
+            </div>
+          </section>
+
+          {/* Hata Mesajı */}
+          {error && (
+            <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+              {error}
+            </div>
+          )}
+
+          {/* Alt Butonlar */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+            <div className="flex flex-col gap-1 text-xs text-gray-400 dark:text-gray-500">
+              <span>• Taslak olarak kaydedersen ilan sadece senin için görünür.</span>
+              <span>• İlan yayınlandıktan sonra düzenlenebilir.</span>
+            </div>
+
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+              {!isEditMode && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSaveAsDraft(true)
+                    const form = document.querySelector('form') as HTMLFormElement
+                    form?.requestSubmit()
+                  }}
+                  disabled={isSubmitting}
+                  className="inline-flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-60 transition"
+                >
+                  Taslak Olarak Kaydet
+                </button>
+              )}
               <button
-                type="button"
-                onClick={() => {
-                  setSaveAsDraft(true)
-                  const form = document.querySelector('form') as HTMLFormElement
-                  form?.requestSubmit()
-                }}
-                disabled={isSubmitting}
-                className="inline-flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-60 transition"
+                type="submit"
+                onClick={() => setSaveAsDraft(false)}
+                disabled={isSubmitting || isLoadingJob}
+                className="inline-flex items-center justify-center rounded-lg bg-brand-orange px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-orange/90 disabled:opacity-60 transition"
               >
-                Taslak Olarak Kaydet
+                {isSubmitting ? (isEditMode ? 'Güncelleniyor…' : 'Kaydediliyor…') : (isEditMode ? 'Değişiklikleri Kaydet' : 'İlanı Yayınla')}
               </button>
-            )}
-            <button
-              type="submit"
-              onClick={() => setSaveAsDraft(false)}
-              disabled={isSubmitting || isLoadingJob}
-              className="inline-flex items-center justify-center rounded-lg bg-brand-orange px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-orange/90 disabled:opacity-60 transition"
-            >
-              {isSubmitting ? (isEditMode ? 'Güncelleniyor…' : 'Kaydediliyor…') : (isEditMode ? 'Değişiklikleri Kaydet' : 'İlanı Yayınla')}
-            </button>
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
       )}
     </div>
+  )
+}
+
+export default function NewJobPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-brand-orange" />
+      </div>
+    }>
+      <NewJobContent />
+    </Suspense>
   )
 }
 

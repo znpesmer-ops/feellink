@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, Sparkles, UserCircle2, Eye, Trash2, MoreVertical, Users, Edit } from 'lucide-react'
@@ -71,11 +71,11 @@ interface JobApplication {
   }
 }
 
-function MyApplicationsTab({ 
-  applications, 
+function MyApplicationsTab({
+  applications,
   loading,
-  onExploreClick 
-}: { 
+  onExploreClick
+}: {
   applications: JobApplication[]
   loading: boolean
   onExploreClick: () => void
@@ -330,7 +330,7 @@ function MyJobsTab({
     <div className="grid gap-6 md:grid-cols-2">
       {jobs.map((job) => {
         const cleanedDescription = cleanText(job.description)
-        const shortDescription = cleanedDescription.length > 100 
+        const shortDescription = cleanedDescription.length > 100
           ? cleanedDescription.substring(0, 100) + '...'
           : cleanedDescription
 
@@ -358,7 +358,7 @@ function MyJobsTab({
 
               {/* Şirket ve Konum */}
               {companyLocation && (
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {companyLocation}
                 </p>
               )}
@@ -478,7 +478,8 @@ function MyJobsTab({
 // Dynamic export - prerender'i devre dışı bırak (useSearchParams kullanımı nedeniyle)
 export const dynamic = 'force-dynamic';
 
-export default function FellinkPage() {
+
+function FellinkContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, capabilities, accessToken } = useAuthStore()
@@ -491,14 +492,13 @@ export default function FellinkPage() {
   const [error, setError] = useState<string | null>(null)
   const [applyModalOpen, setApplyModalOpen] = useState<string | null>(null)
   const [appliedJobs, setAppliedJobs] = useState<Set<string>>(new Set())
-  
-  // Tab state - URL'den veya default 'explore'
+
+  // Tab state
   const tabFromUrl = searchParams?.get('tab')
   const [activeTab, setActiveTab] = useState<'explore' | 'applications' | 'my-jobs'>(
     tabFromUrl === 'applications' ? 'applications' : tabFromUrl === 'my-jobs' ? 'my-jobs' : 'explore'
   )
 
-  // URL'den tab değişikliğini dinle
   useEffect(() => {
     const tab = searchParams?.get('tab')
     if (tab === 'applications' || tab === 'my-jobs') {
@@ -507,35 +507,27 @@ export default function FellinkPage() {
       setActiveTab('explore')
     }
   }, [searchParams])
-  
+
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
   const [selectedJob, setSelectedJob] = useState<PublicJobListing | MyJobListing | null>(null)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
 
-  // Markdown işaretlerini temizleme fonksiyonu
   const cleanText = (text: string) => {
     if (!text) return ''
-    return text
-      .replace(/\*\*/g, '')
-      .replace(/[_#>-]/g, '')
-      .replace(/\n/g, ' ')
-      .trim()
+    return text.replace(/\*\*/g, '').replace(/[_#>-]/g, '').replace(/\n/g, ' ').trim()
   }
 
-  // İlan detay modalını aç
   const handleJobClick = (job: PublicJobListing | MyJobListing) => {
     setSelectedJob(job)
     setDetailModalOpen(true)
   }
 
-  // Rol bazlı kontrol: sadece corporate, collector ve admin ilan oluşturabilir
   const roles = capabilities?.roles ?? user?.roles ?? []
   const canCreateJob = roles.includes('corporate') || roles.includes('collector') || user?.isAdmin || user?.superAdmin
   const canApply = !!accessToken
 
-  // İlan silme fonksiyonu
   const handleDeleteJob = async () => {
     if (!selectedJobId) return
 
@@ -555,14 +547,12 @@ export default function FellinkPage() {
     }
   }
 
-  // Silme modal'ını aç
   const openDeleteModal = (jobId: string) => {
     setSelectedJobId(jobId)
     setDeleteModalOpen(true)
     setOpenMenuId(null)
   }
 
-  // Tab değiştirme
   const handleTabChange = (tab: 'explore' | 'applications' | 'my-jobs') => {
     setActiveTab(tab)
     if (tab === 'explore') {
@@ -572,7 +562,6 @@ export default function FellinkPage() {
     }
   }
 
-  // İlanları yükle (Keşfet tab'ı için)
   useEffect(() => {
     let mounted = true
 
@@ -585,10 +574,7 @@ export default function FellinkPage() {
         }
       } catch (err: any) {
         if (mounted) {
-          const message =
-            err?.response?.data?.message ??
-            err?.message ??
-            'İlanlar yüklenirken bir sorun oluştu.'
+          const message = err?.response?.data?.message ?? err?.message ?? 'İlanlar yüklenirken bir sorun oluştu.'
           setError(Array.isArray(message) ? message.join(' ') : message)
         }
       } finally {
@@ -600,7 +586,7 @@ export default function FellinkPage() {
 
     async function checkApplications() {
       if (!accessToken) return
-      
+
       try {
         const applied = await api.get('/jobs/me/applications')
         if (mounted && applied.data) {
@@ -622,7 +608,6 @@ export default function FellinkPage() {
     }
   }, [accessToken])
 
-  // Başvuruları yükle
   useEffect(() => {
     if (activeTab !== 'applications' || !accessToken) return
 
@@ -654,7 +639,6 @@ export default function FellinkPage() {
     }
   }, [activeTab, accessToken])
 
-  // İşlerim tab'ı için ilanları yükle
   useEffect(() => {
     if (activeTab !== 'my-jobs' || !accessToken) return
 
@@ -689,7 +673,7 @@ export default function FellinkPage() {
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-12 text-gray-900 dark:text-gray-100">
       <header className="mb-10 flex flex-col gap-3 rounded-3xl border border-transparent bg-white/80 px-6 py-5 shadow-sm md:flex-row md:items-center md:justify-between dark:border-white/5 dark:bg-white/5 dark:text-gray-100">
-            <div>
+        <div>
           <div className="inline-flex items-center gap-2 rounded-full bg-brand-blue/10 px-3 py-1 text-sm font-medium text-brand-orange dark:bg-brand-blue/20">
             <Sparkles className="h-4 w-4" />
             Feellink İş İlanları
@@ -703,16 +687,14 @@ export default function FellinkPage() {
         </div>
       </header>
 
-      {/* Sekmeler */}
       <div className="mb-6 flex items-center justify-between border-b border-gray-200 dark:border-gray-800/40">
         <div className="flex gap-6">
           <button
             onClick={() => handleTabChange('explore')}
-            className={`pb-3 text-sm font-medium transition ${
-              activeTab === 'explore'
-                ? 'text-brand-orange border-b-2 border-brand-orange'
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-            }`}
+            className={`pb-3 text-sm font-medium transition ${activeTab === 'explore'
+              ? 'text-brand-orange border-b-2 border-brand-orange'
+              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
           >
             Keşfet
           </button>
@@ -720,21 +702,19 @@ export default function FellinkPage() {
             <>
               <button
                 onClick={() => handleTabChange('applications')}
-                className={`pb-3 text-sm font-medium transition ${
-                  activeTab === 'applications'
-                    ? 'text-brand-orange border-b-2 border-brand-orange'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                }`}
+                className={`pb-3 text-sm font-medium transition ${activeTab === 'applications'
+                  ? 'text-brand-orange border-b-2 border-brand-orange'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                  }`}
               >
                 Başvurularım
               </button>
               <button
                 onClick={() => handleTabChange('my-jobs')}
-                className={`pb-3 text-sm font-medium transition ${
-                  activeTab === 'my-jobs'
-                    ? 'text-brand-orange border-b-2 border-brand-orange'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                }`}
+                className={`pb-3 text-sm font-medium transition ${activeTab === 'my-jobs'
+                  ? 'text-brand-orange border-b-2 border-brand-orange'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                  }`}
               >
                 İş İlanlarım
               </button>
@@ -742,7 +722,6 @@ export default function FellinkPage() {
           )}
         </div>
 
-        {/* Sağ: İlan Oluştur Butonu */}
         {canCreateJob && (
           <Link
             href="/jobs/new"
@@ -753,7 +732,6 @@ export default function FellinkPage() {
         )}
       </div>
 
-      {/* İçerik */}
       {activeTab === 'applications' ? (
         <MyApplicationsTab
           applications={applications}
@@ -786,70 +764,76 @@ export default function FellinkPage() {
             <div className="rounded-3xl border border-dashed border-gray-300/70 bg-white/90 px-6 py-16 text-center text-gray-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
               <p className="text-lg font-medium">Şu anda yayınlanan ilan bulunmuyor.</p>
               <p className="mt-2 text-sm">Kurumsal veya koleksiyoner hesap ile giriş yaparak ilk ilanı oluşturabilirsiniz.</p>
-          </div>
+            </div>
           ) : (
             <>
               <div className="grid gap-6 md:grid-cols-2">
                 {jobs.map((job) => {
                   const hasApplied = appliedJobs.has(job.id)
                   const isOwner = job.createdBy?.id === user?.id
-
                   const cleanedDescription = cleanText(job.description)
-                  const shortDescription = cleanedDescription.length > 100 
+                  const shortDescription = cleanedDescription.length > 100
                     ? cleanedDescription.substring(0, 100) + '...'
                     : cleanedDescription
-
-                  const visibleTags = job.tags.slice(0, 3)
-                  const remainingTags = job.tags.length - 3
-
-                  const companyLocation = [job.company, job.location].filter(Boolean).join(' · ')
-
-                  const salaryText = job.salary || ''
-
-                  const dateText = new Date(job.createdAt).toLocaleDateString('tr-TR', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  })
 
                   return (
                     <article
                       key={job.id}
                       onClick={() => handleJobClick(job)}
-                      className="group relative flex h-full flex-col rounded-xl border border-gray-200 bg-white min-h-[260px] px-5 py-4 shadow-sm transition-all hover:shadow-md hover:border-blue-200 dark:border-white/10 dark:bg-white/5 dark:hover:border-blue-500/30 cursor-pointer"
+                      className="group relative flex h-full flex-col rounded-xl border border-gray-200 bg-white min-h-[260px] px-5 py-4 shadow-sm transition-all hover:shadow-md hover:border-gray-300 dark:border-white/10 dark:bg-white/5 dark:hover:border-gray-600 cursor-pointer"
                     >
-                      {/* Sağ üst köşe - Avatar */}
-                      {job.createdBy && (
-                        <div className="absolute top-5 right-5">
-                          {job.createdBy.avatar ? (
-                            <img
-                              src={job.createdBy.avatar}
-                              alt={job.createdBy.username ?? 'Profil'}
-                              className="h-8 w-8 rounded-full object-cover border border-gray-200 dark:border-gray-700"
-                            />
-                          ) : (
-                            <div className="h-8 w-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                              <UserCircle2 className="h-5 w-5 text-gray-400" />
-          </div>
+                      <div className="space-y-3 flex-1">
+                        <div className="flex justify-between items-start gap-2">
+                          <h2 className="text-base font-semibold text-[#1E3A8A] dark:text-blue-400 leading-tight">
+                            {job.title}
+                          </h2>
+                          {isOwner && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded-full font-medium">
+                                İlanın
+                              </span>
+                            </div>
                           )}
-            </div>
-          )}
+                          {!isOwner && hasApplied && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 px-2 py-0.5 rounded-full font-medium">
+                                Başvurdun
+                              </span>
+                            </div>
+                          )}
+                        </div>
 
-                      {/* ÜST İÇERİK ALANI */}
-                      <div className="space-y-3 pr-10 flex-1">
-                        {/* Başlık - Soft koyu mavi */}
-                        <h2 className="text-base font-semibold text-[#1E3A8A] dark:text-blue-400 leading-tight mb-2">
-                          {job.title}
-                        </h2>
+                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                          {job.company && (
+                            <span className="flex items-center gap-1">
+                              <span className="font-medium text-gray-700 dark:text-gray-300">{job.company}</span>
+                            </span>
+                          )}
+                          {job.company && job.location && <span>·</span>}
+                          {job.location && (
+                            <span>{job.location}</span>
+                          )}
+                        </div>
 
-                        {/* Kurum + Lokasyon */}
-                        {companyLocation && (
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {companyLocation}
-                          </p>
+                        {job.createdBy && (
+                          <div className="flex items-center gap-2 mt-1 mb-2">
+                            {job.createdBy.avatar ? (
+                              <img
+                                src={job.createdBy.avatar}
+                                alt={job.createdBy.username || ''}
+                                className="w-5 h-5 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                                <UserCircle2 className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+                              </div>
+                            )}
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {job.createdBy.fullName || job.createdBy.username}
+                            </span>
+                          </div>
                         )}
 
-                        {/* Açıklama - Max 2 satır */}
                         {shortDescription && (
                           <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-2">
                             {shortDescription}
@@ -857,81 +841,53 @@ export default function FellinkPage() {
                         )}
 
                         {job.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-3">
-                            {visibleTags.map((tag, idx) => {
-                              // Etiketlere farklı renkler ver (mavi, gri, turuncu)
-                              const colorClasses = [
-                                'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20',
-                                'bg-gray-50 text-gray-700 border-gray-100 dark:bg-gray-800/50 dark:text-gray-400 dark:border-gray-700/50',
-                                'bg-orange-50 text-orange-700 border-orange-100 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20',
-                              ]
-                              const colorIndex = idx % 3
-                              
-                              return (
-                                <span
-                                  key={tag}
-                                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${colorClasses[colorIndex]}`}
-                                >
-                                  {tag}
-                                </span>
-                              )
-                            })}
-                            {remainingTags > 0 && (
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium text-gray-500 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-                                +{remainingTags}
+                          <div className="flex flex-wrap gap-1.5 mt-3">
+                            {job.tags.slice(0, 3).map((tag) => (
+                              <span
+                                key={tag}
+                                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-normal text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {job.tags.length > 3 && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-normal text-gray-500 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50">
+                                +{job.tags.length - 3}
                               </span>
                             )}
                           </div>
                         )}
                       </div>
 
-                      {/* ALT ALAN - mt-auto ile aşağı sabitlenmiş */}
                       <div className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800">
-                        <div className="flex items-center justify-between text-xs">
-                          {/* Sol: Tarih */}
-                          <span className="text-gray-400 dark:text-gray-500">
-                            {dateText}
-                          </span>
-                          
-                          {/* Sağ: Maaş (varsa) veya Başvuru Butonu */}
-                          <div className="flex items-center gap-3">
-                            {salaryText && (
-                              <span className="font-medium text-gray-700 dark:text-gray-300">
-                                {salaryText}
-                              </span>
-                            )}
-                            
-                            {/* Başvuru Butonu */}
-                            {canApply && !isOwner && (
-                              <div onClick={(e) => e.stopPropagation()}>
-                                {hasApplied ? (
-                                  <span className="inline-flex items-center gap-1 rounded-md border border-green-500 bg-green-50 dark:bg-green-500/10 px-4 py-1.5 text-sm font-medium text-green-600 dark:text-green-400">
-                                    ✓ Başvurdun
-                                  </span>
-                                ) : (
-                                  <button
-                                    onClick={() => setApplyModalOpen(job.id)}
-                                    className="rounded-md border-2 border-orange-500 px-4 py-1.5 text-sm font-medium text-orange-500 hover:bg-orange-500 hover:text-white transition-colors"
-                                  >
-                                    İlana Başvur
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {new Date(job.createdAt).toLocaleDateString('tr-TR', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric'
+                            })}
+                          </p>
+
+                          <button
+                            className="text-xs font-medium text-brand-orange hover:text-brand-orange/80 transition flex items-center gap-1"
+                          >
+                            İlanı İncele
+                            <span className="text-lg leading-3">›</span>
+                          </button>
                         </div>
                       </div>
 
                       {(isOwner || user?.isAdmin || user?.superAdmin) && (
                         <div className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                           <div className="relative">
-            <button
+                            <button
                               onClick={() => setOpenMenuId(openMenuId === job.id ? null : job.id)}
                               className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                               title="Menü"
                             >
                               <MoreVertical className="h-4 w-4 text-gray-400 dark:text-gray-500" />
-            </button>
+                            </button>
 
                             {openMenuId === job.id && (
                               <>
@@ -941,7 +897,7 @@ export default function FellinkPage() {
                                 />
                                 <div className="absolute right-0 bottom-full mb-2 w-40 origin-bottom-right bg-white dark:bg-gray-800 shadow-lg rounded-lg border border-gray-200 dark:border-gray-700 z-20">
                                   <div className="py-1">
-            <button
+                                    <button
                                       onClick={() => openDeleteModal(job.id)}
                                       className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                                     >
@@ -949,8 +905,8 @@ export default function FellinkPage() {
                                         <Trash2 className="h-4 w-4" />
                                         İlanı Sil
                                       </div>
-            </button>
-          </div>
+                                    </button>
+                                  </div>
                                 </div>
                               </>
                             )}
@@ -960,45 +916,45 @@ export default function FellinkPage() {
                     </article>
                   )
                 })}
-      </div>
-
-              {applyModalOpen && (
-                <ApplyModal
-                  jobListingId={applyModalOpen}
-                  open={!!applyModalOpen}
-                  onClose={() => {
-                    setApplyModalOpen(null)
-                  }}
-                  onSuccess={() => {
-                    setAppliedJobs((prev) => new Set([...prev, applyModalOpen]))
-                    setApplyModalOpen(null)
-                  }}
-                />
-              )}
-
-              <DeleteConfirmModal
-                open={deleteModalOpen}
-                onClose={() => {
-                  setDeleteModalOpen(false)
-                  setSelectedJobId(null)
-                }}
-                onConfirm={handleDeleteJob}
-              />
-
-              <JobDetailModal
-                open={detailModalOpen}
-                onClose={() => {
-                  setDetailModalOpen(false)
-                  setSelectedJob(null)
-                }}
-                job={selectedJob}
-              />
+              </div>
             </>
           )}
+
+          {applyModalOpen && (
+            <ApplyModal
+              jobListingId={applyModalOpen}
+              open={!!applyModalOpen}
+              onClose={() => setApplyModalOpen(null)}
+              onSuccess={() => {
+                setAppliedJobs((prev) => new Set(prev).add(applyModalOpen))
+                setApplyModalOpen(null)
+              }}
+            />
+          )}
+
+          <DeleteConfirmModal
+            open={deleteModalOpen}
+            onClose={() => {
+              setDeleteModalOpen(false)
+              setOpenMenuId(null)
+              setSelectedJobId(null)
+            }}
+            onConfirm={handleDeleteJob}
+            title="İlanı Silmek Üzeresiniz"
+            message="Bu iş ilanını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve ilana yapılan tüm başvurular da silinecektir."
+          />
+
+          <JobDetailModal
+            open={detailModalOpen}
+            onClose={() => {
+              setDetailModalOpen(false)
+              setSelectedJob(null)
+            }}
+            job={selectedJob}
+          />
         </>
       )}
 
-      {/* İşlerim tab'ı için modaller */}
       {activeTab === 'my-jobs' && (
         <>
           <JobDetailModal
@@ -1014,12 +970,29 @@ export default function FellinkPage() {
             open={deleteModalOpen}
             onClose={() => {
               setDeleteModalOpen(false)
+              setOpenMenuId(null)
               setSelectedJobId(null)
             }}
             onConfirm={handleDeleteJob}
+            title="İlanı Silmek Üzeresiniz"
+            message="Bu iş ilanını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve ilana yapılan tüm başvurular da silinecektir."
           />
         </>
       )}
     </div>
+  )
+}
+
+export default function FellinkPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-brand-orange" />
+        </div>
+      }
+    >
+      <FellinkContent />
+    </Suspense>
   )
 }

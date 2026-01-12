@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
+import { Loader2 } from 'lucide-react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import api from '@/lib/api'
 import toast from 'react-hot-toast'
@@ -26,7 +27,7 @@ function EmailChangeConfirmContent() {
         setStatus('success')
         setMessage(response.data.message || 'E-posta adresiniz başarıyla değiştirildi.')
         toast.success('E-posta adresiniz başarıyla değiştirildi.')
-        
+
         // 3 saniye sonra ayarlar sayfasına yönlendir
         setTimeout(() => {
           router.push('/settings')
@@ -104,7 +105,13 @@ function EmailChangeConfirmContent() {
 export default function EmailChangeConfirmPage() {
   return (
     <AuthGuard>
-      <EmailChangeConfirmContent />
+      <Suspense fallback={
+        <div className="flex h-screen w-full items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-brand-orange" />
+        </div>
+      }>
+        <EmailChangeConfirmContent />
+      </Suspense>
     </AuthGuard>
   )
 }

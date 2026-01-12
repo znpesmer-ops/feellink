@@ -62,7 +62,7 @@ export default function AdminArtworksPage() {
       if (userFilter) {
         params.append('userId', userFilter)
       }
-      
+
       const response = await api.get(`/admin/artworks?${params.toString()}`)
       const artworksWithMedia = response.data.artworks.map((a: Artwork) => ({
         ...a,
@@ -276,7 +276,7 @@ export default function AdminArtworksPage() {
 
                 {artwork.colorPalette && artwork.colorPalette.length > 0 && (
                   <div className="flex items-center gap-1 mb-3">
-                    {artwork.colorPalette.slice(0, 5).map((color, idx) => (
+                    {artwork.colorPalette.slice(0, 5).map((color: string, idx: number) => (
                       <div
                         key={idx}
                         className="w-6 h-6 rounded-full border border-[var(--border)]"

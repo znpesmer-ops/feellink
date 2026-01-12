@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Calendar, Ticket, Loader2, Edit3, Eye, Trash2, Users } from "lucide-react";
@@ -36,7 +36,9 @@ interface Event {
   }[];
 }
 
-export default function EventsFeedPage() {
+// ... imports remain the same, but moving component logic
+
+function EventsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"all" | "mine" | "requested" | "approved">("all");
@@ -67,40 +69,40 @@ export default function EventsFeedPage() {
       try {
         // Genel etkinlikleri çek
         const res = await api.get("/events/all");
-        
+
         // 🔒 GÜVENLİ VERİ NORMALİZASYONU - Backend response format'larını handle et
         // Backend ne dönerse dönsün, UI asla patlamaz
         const safeEventsData = (() => {
           // Response data kontrolü
           if (!res.data) return [];
-          
+
           // Array ise direkt döndür
           if (Array.isArray(res.data)) {
             return res.data;
           }
-          
+
           // { events: [...] } formatında gelebilir
           if (res.data.events && Array.isArray(res.data.events)) {
             return res.data.events;
           }
-          
+
           // { data: [...] } formatında gelebilir
           if (res.data.data && Array.isArray(res.data.data)) {
             return res.data.data;
           }
-          
+
           // Hiçbiri değilse boş array
           return [];
         })();
-        
+
         setEvents(safeEventsData);
         setFiltered(safeEventsData);
-        
+
         // Kullanıcının etkinliklerini çek (giriş yapmışsa)
         if (user) {
           try {
             const myRes = await api.get("/events/my");
-            
+
             // 🔒 GÜVENLİ VERİ NORMALİZASYONU - Kendi etkinliklerim için de
             const safeMyEventsData = (() => {
               if (!myRes.data) return [];
@@ -109,13 +111,13 @@ export default function EventsFeedPage() {
               if (myRes.data.data && Array.isArray(myRes.data.data)) return myRes.data.data;
               return [];
             })();
-            
+
             setMyEvents(safeMyEventsData);
           } catch (err: any) {
             console.error("Kendi etkinliklerim alınamadı:", err);
             // 500 hatası durumunda sessizce devam et, boş array kullan
             setMyEvents([]);
-            
+
             // Sadece kritik olmayan hatalarda kullanıcıya bilgi ver
             if (err?.response?.status !== 500) {
               toast.error("Etkinlikleriniz yüklenemedi. Lütfen sayfayı yenileyin.");
@@ -124,11 +126,11 @@ export default function EventsFeedPage() {
         }
       } catch (err: any) {
         console.error("Etkinlikler alınamadı:", err);
-        
+
         // 🔒 Hata durumunda boş array ile devam et
         setEvents([]);
         setFiltered([]);
-        
+
         // Sadece network hatası veya kritik hatalarda kullanıcıya bilgi ver
         // 500 hatası backend'de handle edildi, boş array döner
         if (err?.code === 'ERR_NETWORK' || err?.message?.includes('Network Error')) {
@@ -179,13 +181,13 @@ export default function EventsFeedPage() {
     setFilter(type);
     const now = new Date();
     const sourceData = activeTab === "all" ? events : myEvents;
-    
+
     // 🔒 PROFESYONEL FİLTRELEME - "Tümü" filtresinde filtreyi bypass et
     if (type === "all") {
       setFiltered(sourceData);
       return;
     }
-    
+
     let filteredData = [...sourceData];
 
     if (type === "upcoming") filteredData = sourceData.filter(e => new Date(e.date) >= now);
@@ -323,11 +325,10 @@ export default function EventsFeedPage() {
         {/* TAB BAR */}
         <div className="flex gap-4 md:gap-6 border-b border-gray-200 dark:border-gray-700 pb-3 mb-6 overflow-x-auto">
           <button
-            className={`text-sm font-medium transition-colors whitespace-nowrap ${
-              activeTab === "all"
-                ? "text-brand-orange border-b-2 border-brand-orange pb-3 -mb-3"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-            }`}
+            className={`text-sm font-medium transition-colors whitespace-nowrap ${activeTab === "all"
+              ? "text-brand-orange border-b-2 border-brand-orange pb-3 -mb-3"
+              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+              }`}
             onClick={() => setActiveTab("all")}
           >
             Etkinlikler
@@ -335,31 +336,28 @@ export default function EventsFeedPage() {
           {user && (
             <>
               <button
-                className={`text-sm font-medium transition-colors whitespace-nowrap ${
-                  activeTab === "mine"
-                    ? "text-brand-orange border-b-2 border-brand-orange pb-3 -mb-3"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                }`}
+                className={`text-sm font-medium transition-colors whitespace-nowrap ${activeTab === "mine"
+                  ? "text-brand-orange border-b-2 border-brand-orange pb-3 -mb-3"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                  }`}
                 onClick={() => setActiveTab("mine")}
               >
                 Etkinliklerim
               </button>
               <button
-                className={`text-sm font-medium transition-colors whitespace-nowrap ${
-                  activeTab === "requested"
-                    ? "text-brand-orange border-b-2 border-brand-orange pb-3 -mb-3"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                }`}
+                className={`text-sm font-medium transition-colors whitespace-nowrap ${activeTab === "requested"
+                  ? "text-brand-orange border-b-2 border-brand-orange pb-3 -mb-3"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                  }`}
                 onClick={() => setActiveTab("requested")}
               >
                 Talep Oluşturduklarım
               </button>
               <button
-                className={`text-sm font-medium transition-colors whitespace-nowrap ${
-                  activeTab === "approved"
-                    ? "text-brand-orange border-b-2 border-brand-orange pb-3 -mb-3"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                }`}
+                className={`text-sm font-medium transition-colors whitespace-nowrap ${activeTab === "approved"
+                  ? "text-brand-orange border-b-2 border-brand-orange pb-3 -mb-3"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                  }`}
                 onClick={() => setActiveTab("approved")}
               >
                 Onaylanan Etkinlikler
@@ -381,11 +379,10 @@ export default function EventsFeedPage() {
               <button
                 key={btn.key}
                 onClick={() => applyFilter(btn.key)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
-                  filter === btn.key
-                    ? "bg-brand-orange text-white"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-brand-blue/10 dark:hover:bg-brand-blue/20 hover:text-brand-orange"
-                }`}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition ${filter === btn.key
+                  ? "bg-brand-orange text-white"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-brand-blue/10 dark:hover:bg-brand-blue/20 hover:text-brand-orange"
+                  }`}
               >
                 {btn.label}
               </button>
@@ -395,15 +392,15 @@ export default function EventsFeedPage() {
 
         {filtered.length === 0 ? (
           <div className="text-center mt-20 text-gray-500 dark:text-gray-400 text-lg">
-            {activeTab === "all" 
+            {activeTab === "all"
               ? "Filtreye uygun etkinlik bulunamadı."
               : activeTab === "mine"
-              ? "Henüz etkinlik oluşturmadınız."
-              : activeTab === "requested"
-              ? "Henüz talep oluşturduğun bir etkinlik yok."
-              : activeTab === "approved"
-              ? "Henüz onaylanan bir etkinliğin bulunmuyor."
-              : "Etkinlik bulunamadı."}
+                ? "Henüz etkinlik oluşturmadınız."
+                : activeTab === "requested"
+                  ? "Henüz talep oluşturduğun bir etkinlik yok."
+                  : activeTab === "approved"
+                    ? "Henüz onaylanan bir etkinliğin bulunmuyor."
+                    : "Etkinlik bulunamadı."}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mt-8" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
@@ -435,6 +432,7 @@ export default function EventsFeedPage() {
                             onClick={() => router.push(`/profile/${ev.owner?.username || ''}`)}
                             className="flex items-center gap-1.5 hover:opacity-80 transition-opacity flex-shrink-0 cursor-pointer"
                           >
+                            {/* Avatar logic kept same */}
                             {ev.owner.avatar ? (
                               <img
                                 src={resolveImageUrl(ev.owner.avatar)}
@@ -527,6 +525,7 @@ export default function EventsFeedPage() {
                             }}
                             className="flex items-center gap-1.5 hover:opacity-80 transition-opacity flex-shrink-0 cursor-pointer"
                           >
+                            {/* Avatar logic same as above */}
                             {ev.owner.avatar ? (
                               <img
                                 src={resolveImageUrl(ev.owner.avatar)}
@@ -572,16 +571,16 @@ export default function EventsFeedPage() {
                           if (activeTab === "approved") {
                             return null;
                           }
-                          
+
                           // Diğer sekmelerde bilgilendirici etiket (tıklanamaz)
                           const isApproved = user?.id && ev.participants?.some(
                             (p) => p.userId === user.id && p.status === "APPROVED"
                           );
-                          
+
                           if (isApproved) {
                             return null; // Onaylanmış etkinliklerde gösterme
                           }
-                          
+
                           return (
                             <span className="text-sm text-brand-orange cursor-default select-none flex items-center gap-1">
                               <Ticket size={14} /> Talep Oluştur
@@ -615,7 +614,7 @@ export default function EventsFeedPage() {
             // Etkinlik listesini yenile
             try {
               const res = await api.get("/events/my");
-              
+
               // 🔒 GÜVENLİ VERİ NORMALİZASYONU
               const safeMyEventsData = (() => {
                 if (!res.data) return [];
@@ -624,7 +623,7 @@ export default function EventsFeedPage() {
                 if (res.data.data && Array.isArray(res.data.data)) return res.data.data;
                 return [];
               })();
-              
+
               setMyEvents(safeMyEventsData);
             } catch (error: any) {
               console.error("Etkinlikler alınamadı:", error);
@@ -651,5 +650,21 @@ export default function EventsFeedPage() {
         cancelText="İptal"
       />
     </div>
+  );
+}
+
+// 🔒 GÜVENLİ EXPORT - Build hatasını önlemek için Suspense boundary ekle
+// Build hatası: useSearchParams() should be wrapped in a suspense boundary
+export default function EventsFeedPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-orange" />
+        </div>
+      }
+    >
+      <EventsContent />
+    </Suspense>
   );
 }

@@ -14,7 +14,7 @@ function EditArticleContent() {
   const router = useRouter()
   const { accessToken } = useAuthStore()
   const articleId = Array.isArray(params.id) ? params.id[0] : params.id
-  
+
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [coverImage, setCoverImage] = useState<File | null>(null)
@@ -40,12 +40,12 @@ function EditArticleContent() {
       try {
         const response = await api.get(`/articles/${articleId}`)
         const article = response.data
-        
+
         setTitle(article.title || '')
         setContent(article.content || '')
         setExcerpt(article.excerpt || '')
         setScheduledAt(article.scheduledAt || '')
-        
+
         if (article.coverImage) {
           setOriginalCoverImage(article.coverImage)
           setCoverPreview(article.coverImage)
@@ -78,16 +78,16 @@ function EditArticleContent() {
   const handleCropDone = (croppedBlob: Blob) => {
     const file = new File([croppedBlob], 'cover-image.jpg', { type: 'image/jpeg' })
     setCoverImage(file)
-    
+
     const reader = new FileReader()
     reader.onload = (e: any) => {
       setCoverPreview(e.target?.result as string)
     }
     reader.readAsDataURL(croppedBlob)
-    
+
     setShowCropper(false)
     setTempImage(null)
-    
+
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -154,7 +154,7 @@ function EditArticleContent() {
       }
       if (coverImageUrl) updatePayload.coverImage = coverImageUrl
       if (scheduledAt) updatePayload.scheduledAt = scheduledAt
-      
+
       await api.put(`/articles/${articleId}`, updatePayload)
 
       const { useAuthStore } = await import('@/lib/store')
@@ -164,7 +164,7 @@ function EditArticleContent() {
       console.error('Failed to update article:', error)
       const errorMessage = error?.response?.data?.message || error?.message || 'Yazı güncellenirken bir hata oluştu'
       setError(errorMessage)
-      
+
       if (error?.response?.status === 401) {
         console.error('Authentication error, token may be expired')
       }
@@ -280,7 +280,7 @@ function EditArticleContent() {
               İçerik *
             </label>
             <RichTextEditor
-              value={content}
+              content={content}
               onChange={setContent}
               placeholder="Yazının içeriğini buraya yaz..."
             />
@@ -301,12 +301,12 @@ function EditArticleContent() {
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
               {scheduledAt
                 ? `Yazı ${new Date(scheduledAt).toLocaleString('tr-TR', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })} tarihinde otomatik yayınlanacak`
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })} tarihinde otomatik yayınlanacak`
                 : 'Belirli bir tarih ve saatte otomatik yayınlamak için seçin'}
             </p>
           </div>

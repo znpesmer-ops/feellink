@@ -42,17 +42,17 @@ function NewArticleContent() {
     // Cropped blob'u File'a çevir
     const file = new File([croppedBlob], 'cover-image.jpg', { type: 'image/jpeg' })
     setCoverImage(file)
-    
+
     // Preview oluştur
     const reader = new FileReader()
     reader.onload = (e: any) => {
       setCoverPreview(e.target?.result as string)
     }
     reader.readAsDataURL(croppedBlob)
-    
+
     setShowCropper(false)
     setTempImage(null)
-    
+
     // File input'u temizle
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -126,7 +126,7 @@ function NewArticleContent() {
       console.error('Failed to create article:', error)
       const errorMessage = error?.response?.data?.message || error?.message || 'Yazı oluşturulurken bir hata oluştu'
       setError(errorMessage)
-      
+
       // 401 Unauthorized hatası için refresh token dene veya login sayfasına yönlendir
       if (error?.response?.status === 401) {
         console.error('Authentication error, token may be expired')
@@ -233,7 +233,7 @@ function NewArticleContent() {
               İçerik *
             </label>
             <RichTextEditor
-              value={content}
+              content={content}
               onChange={setContent}
               placeholder="Yazının içeriğini buraya yaz..."
             />
@@ -247,7 +247,7 @@ function NewArticleContent() {
             <div className="relative flex items-center bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2.5 shadow-sm hover:shadow-md hover:border-[#ff7b00]/50 transition-all focus-within:ring-2 focus-within:ring-[#ff7b00] focus-within:border-[#ff7b00]">
               {/* Takvim ikonu */}
               <Calendar className="h-5 w-5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-              
+
               {/* Tarih-saat inputu */}
               <input
                 type="datetime-local"
@@ -261,12 +261,12 @@ function NewArticleContent() {
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
               {scheduledAt
                 ? `Yazı ${new Date(scheduledAt).toLocaleString('tr-TR', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })} tarihinde otomatik yayınlanacak`
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })} tarihinde otomatik yayınlanacak`
                 : 'Belirli bir tarih ve saatte otomatik yayınlanması için seçin'}
             </p>
           </div>

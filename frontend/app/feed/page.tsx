@@ -27,7 +27,7 @@ function FeedContent() {
         setIsLoading(true)
         const res = await api.get('/feed')
         const posts = res.data.posts || res.data || []
-        
+
         // Transform backend post format to PostCard format
         const transformedPosts = posts.map((post: any) => ({
           id: post.id,
@@ -44,7 +44,7 @@ function FeedContent() {
           date: post.createdAt,
           createdAt: post.createdAt,
         }))
-        
+
         setFeedPosts(transformedPosts)
       } catch (error) {
         console.error('Feed posts alınamadı:', error)
@@ -96,17 +96,17 @@ function FeedContent() {
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full max-w-5xl mx-auto px-4">
       {/* 🔸 Ayın Öne Çıkanları — header'ın hemen altından başlıyor, direkt görünür */}
       <div className="w-full mt-4 md:mt-8 mb-6 md:mb-10">
         <HighlightsRow />
       </div>
-      
+
       <div className="space-y-6 md:space-y-10">
         {/* 🔸 Keşfet */}
         <div className="w-full">
           <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-gray-100 mb-4 md:mb-6">Keşfet</h2>
-          
+
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>

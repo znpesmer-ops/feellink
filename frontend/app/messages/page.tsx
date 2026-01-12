@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import api from '@/lib/api'
 import { initChatSocket } from '@/lib/socket'
 import { useAuthStore } from '@/lib/store'
 import { ProRoleBadge } from '@/components/ProRoleBadge'
-import { Send, Search, Image as ImageIcon, X, Edit, Trash2, MoreVertical, Paperclip, Download, FileText } from 'lucide-react'
+import { Send, Search, Image as ImageIcon, X, Edit, Trash2, MoreVertical, Paperclip, Download, FileText, Loader2 } from 'lucide-react'
 import { NewMessageModal } from '@/components/new-message-modal'
 
 const formatTimeAgo = (date: string | Date) => {
@@ -18,7 +18,7 @@ const formatTimeAgo = (date: string | Date) => {
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} dk önce`
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} sa önce`
   if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} gün önce`
-  
+
   return messageDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })
 }
 
@@ -32,7 +32,7 @@ const formatLastSeen = (date: string | Date | null | undefined) => {
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} dakika önce görüldü`
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} saat önce görüldü`
   if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} gün önce görüldü`
-  
+
   return lastSeenDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
@@ -75,7 +75,7 @@ interface Conversation {
   unreadCount?: number
 }
 
-export default function MessagesPage() {
+function MessagesContent() {
   const { user, accessToken } = useAuthStore()
   const searchParams = useSearchParams()
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -137,14 +137,14 @@ export default function MessagesPage() {
     // Receive message handler - aktif konuşma için
     const handleReceiveMessage = (message: Message) => {
       console.log('📨 Received message:', message)
-      
+
       // Aktif konuşmaya ait mesajsa ekle
       if (message.conversationId === activeConversationRef.current?.id) {
         setMessages((prev) => {
           // Duplicate kontrolü - aynı ID'ye sahip mesaj varsa ekleme
           const exists = prev.find((m) => m.id === message.id)
           if (exists) return prev
-          
+
           // Normal mesaj ekleme
           return [...prev, message]
         })
@@ -157,12 +157,12 @@ export default function MessagesPage() {
             messageId: message.id,
             conversationId: message.conversationId,
           })
-          
+
           // REST API ile de işaretle (kalıcılık için)
           api.put(`/chat/conversations/${message.conversationId}/read`).catch(console.error)
         }
       }
-      
+
       // Konuşma listesini güncelle
       loadConversations()
     }
@@ -170,7 +170,7 @@ export default function MessagesPage() {
     // New message notification - başka bir konuşmadan
     const handleNewMessage = (data: { conversationId: string; message: Message }) => {
       console.log('📬 New message notification:', data)
-      
+
       // Eğer aktif konuşma değilse, konuşma listesini güncelle
       if (data.conversationId !== activeConversationRef.current?.id) {
         loadConversations()
@@ -205,7 +205,7 @@ export default function MessagesPage() {
         ...prev,
         [data.userId]: data.isOnline,
       }))
-      
+
       if (!data.isOnline && data.lastSeen) {
         const lastSeenString = typeof data.lastSeen === 'string' ? data.lastSeen : data.lastSeen.toISOString()
         setUserLastSeen((prev) => ({
@@ -403,7 +403,7 @@ export default function MessagesPage() {
       const response = await api.get('/chat/conversations')
       const conversations = response.data
       setConversations(conversations)
-      
+
       // İlk yüklemede kullanıcıların çevrim içi durumlarını set et
       conversations.forEach((conv: Conversation) => {
         const otherUser = getOtherParticipant(conv)
@@ -444,7 +444,7 @@ export default function MessagesPage() {
         const response = await api.get('/jobs/me/applications')
         const applications = response.data || []
         const acceptedMap: Record<string, { listingTitle: string; company?: string }> = {}
-        
+
         applications.forEach((app: any) => {
           if (app.status === 'ACCEPTED' && app.jobListing?.createdBy?.id) {
             // İlan sahibinin ID'si ile eşleştir
@@ -454,7 +454,7 @@ export default function MessagesPage() {
             }
           }
         })
-        
+
         setJobApplications(acceptedMap)
       } catch (error) {
         console.error('Failed to load accepted applications:', error)
@@ -484,7 +484,7 @@ export default function MessagesPage() {
         const response = await api.get(`/jobs/public`)
         const jobs = response.data || []
         const job = jobs.find((j: any) => j.id === jobId)
-        
+
         if (job) {
           setJobContext({
             id: job.id,
@@ -514,7 +514,7 @@ export default function MessagesPage() {
   // URL'den gelen user ID ile otomatik konuşma açma/başlatma
   useEffect(() => {
     const userId = searchParams?.get('user')
-    
+
     // ✅ KRİTİK KORUMA: Bu useEffect sadece bir kez çalışmalı (redirect sonrası)
     // Eğer aynı userId için zaten işlem yapıldıysa tekrar yapma
     if (!userId || hasInitializedConversationRef.current === userId || !user?.id || loading) {
@@ -543,7 +543,7 @@ export default function MessagesPage() {
           participantIds: [userId],
         })
         const conversation = response.data
-        
+
         // Backend duplicate kontrolü yaptığı için, dönen conversation zaten mevcut olabilir
         // Tekrar kontrol et (state güncellemesi sırasında race condition önleme)
         const stillExists = conversations.some((conv) => conv.id === conversation.id)
@@ -555,7 +555,7 @@ export default function MessagesPage() {
             return existsInPrev ? prev : [conversation, ...prev]
           })
         }
-        
+
         // Konuşmayı aç
         openConversation(conversation)
       } catch (error: any) {
@@ -585,10 +585,10 @@ export default function MessagesPage() {
 
     if (activeConversation && chatSocketRef.current?.connected) {
       loadMessages(activeConversation.id)
-      
+
       // Konuşmaya join ol
-      chatSocketRef.current.emit('join_conversation', { 
-        conversationId: activeConversation.id 
+      chatSocketRef.current.emit('join_conversation', {
+        conversationId: activeConversation.id
       }, (response: any) => {
         if (response?.error) {
           console.error('Failed to join conversation:', response.error)
@@ -596,7 +596,7 @@ export default function MessagesPage() {
           console.log('✅ Joined conversation:', activeConversation.id)
         }
       })
-      
+
       // Mesajları okundu olarak işaretle
       api.put(`/chat/conversations/${activeConversation.id}/read`).catch(console.error)
     }
@@ -662,10 +662,10 @@ export default function MessagesPage() {
   const handleDeleteConversation = async (conversationId: string) => {
     try {
       await api.delete(`/chat/conversations/${conversationId}`)
-      
+
       // State'ten kaldır
       setConversations((prev) => prev.filter((c) => c.id !== conversationId))
-      
+
       // Eğer silinen sohbet aktif sohbetse, aktif sohbeti temizle
       if (activeConversation?.id === conversationId) {
         setActiveConversation(null)
@@ -684,7 +684,7 @@ export default function MessagesPage() {
       const response = await api.get(`/chat/conversations/${conversationId}`)
       const conversation = response.data
       openConversation(conversation)
-      
+
       // Konuşmaları yeniden yükle (listeyi güncellemek için)
       loadConversations()
     } catch (error) {
@@ -1013,9 +1013,8 @@ export default function MessagesPage() {
                 <div
                   key={conversation.id}
                   onClick={() => openConversation(conversation)}
-                  className={`group p-4 cursor-pointer border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-                    isActive ? 'bg-brand-orange/10 dark:bg-brand-orange/20' : ''
-                  }`}
+                  className={`group p-4 cursor-pointer border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${isActive ? 'bg-brand-orange/10 dark:bg-brand-orange/20' : ''
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     <div className="relative w-12 h-12">
@@ -1035,7 +1034,7 @@ export default function MessagesPage() {
                         </span>
                       ) : null}
                     </div>
-                      <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-gray-900 dark:text-white truncate flex items-center gap-1">
@@ -1124,12 +1123,12 @@ export default function MessagesPage() {
               {(() => {
                 const otherUser = getOtherParticipant(activeConversation)
                 if (!otherUser?.user) return null
-                
+
                 // Online durumunu kontrol et - önce state'ten, sonra backend'den gelen veriden
                 const userWithExtras = otherUser?.user as typeof otherUser.user & { isOnline?: boolean; lastSeen?: string | Date }
                 const isOnline = onlineUsers[otherUser?.user?.id] ?? userWithExtras?.isOnline ?? false
                 const lastSeenDate = userLastSeen[otherUser?.user?.id] || userWithExtras?.lastSeen
-                
+
                 return (
                   <div className="flex items-center gap-3">
                     <div className="relative">
@@ -1176,147 +1175,142 @@ export default function MessagesPage() {
 
             {/* Mesajlar Listesi */}
             {activeTab === 'chat' && (
-            <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950 p-4 space-y-3">
-              {messages.map((message, index) => {
-                const isOwn = message.senderId === user?.id
-                const isLastMessage = index === messages.length - 1
-                const showReadReceipt = isOwn && isLastMessage && message.read
-                
-                return (
-                  <div
-                    key={message.id}
-                    className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`flex items-start gap-2 max-w-[70%] ${isOwn ? 'flex-row-reverse' : ''}`}>
-                      {!isOwn && (
-                        <img
-                          src={message.sender.avatar || '/default-avatar.png'}
-                          alt={message.sender.username}
-                          className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                        />
-                      )}
-                      <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} relative`}>
-                        <div
-                          className={`px-3 py-2 rounded-2xl max-w-[400px] relative group ${
-                            isOwn
+              <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950 p-4 space-y-3">
+                {messages.map((message, index) => {
+                  const isOwn = message.senderId === user?.id
+                  const isLastMessage = index === messages.length - 1
+                  const showReadReceipt = isOwn && isLastMessage && message.read
+
+                  return (
+                    <div
+                      key={message.id}
+                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`flex items-start gap-2 max-w-[70%] ${isOwn ? 'flex-row-reverse' : ''}`}>
+                        {!isOwn && (
+                          <img
+                            src={message.sender.avatar || '/default-avatar.png'}
+                            alt={message.sender.username}
+                            className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                          />
+                        )}
+                        <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} relative`}>
+                          <div
+                            className={`px-3 py-2 rounded-2xl max-w-[400px] relative group ${isOwn
                               ? 'bg-brand-orange text-white'
                               : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700'
-                          }`}
-                        >
-                          {/* Silinen mesaj */}
-                          {message.isDeleted ? (
-                            <p className="text-sm italic text-gray-400 dark:text-gray-500">
-                              Bu mesaj silindi
-                            </p>
-                          ) : (
-                            <>
-                              {/* Görsel mesaj */}
-                              {message.imageUrl && (
-                                <div className="mb-2 rounded-xl overflow-hidden">
-                                  <img
-                                    src={message.imageUrl}
-                                    alt="Mesaj görseli"
-                                    className="max-w-full max-h-64 object-cover w-full"
-                                  />
-                                </div>
-                              )}
-                              {/* Dosya mesaj */}
-                              {message.fileUrl && (
-                                <a
-                                  href={message.fileUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className={`flex items-center gap-2 mt-1 mb-2 rounded-lg px-3 py-2 border transition-colors ${
-                                    isOwn
-                                      ? 'bg-white/20 border-white/30 hover:bg-white/30'
-                                      : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                  }`}
-                                >
-                                  <div className={`p-1.5 rounded-lg ${
-                                    isOwn ? 'bg-white/20' : 'bg-brand-orange/10'
-                                  }`}>
-                                    <FileText size={16} className={isOwn ? 'text-white' : 'text-brand-orange'} />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className={`text-xs font-medium truncate ${
-                                      isOwn ? 'text-white' : 'text-gray-900 dark:text-white'
-                                    }`}>
-                                      {message.fileName || 'Dosya'}
-                                    </p>
-                                    <p className={`text-[10px] ${
-                                      isOwn ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
-                                    }`}>
-                                      {message.fileType ? message.fileType.split('/')[1]?.toUpperCase() || 'DOSYA' : 'DOSYA'}
-                                    </p>
-                                  </div>
-                                  <Download size={14} className={isOwn ? 'text-white/70' : 'text-gray-400'} />
-                                </a>
-                              )}
-                              {/* Metin mesaj */}
-                              {message.content && (
-                                <p className="text-sm whitespace-pre-wrap break-words">
-                                  {message.content}
-                                  {message.isEdited && (
-                                    <span className="ml-1 text-xs opacity-70">
-                                      (düzenlendi)
-                                    </span>
-                                  )}
-                                </p>
-                              )}
-                            </>
-                          )}
-
-                          {/* Menü sadece kendi mesajlarında ve silinmemiş mesajlarda */}
-                          {isOwn && !message.isDeleted && (
-                            <div className="absolute -right-8 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <div className="relative" ref={menuRef}>
-                                <button
-                                  onClick={() => setShowMenuForId(showMenuForId === message.id ? null : message.id)}
-                                  className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                >
-                                  <MoreVertical size={16} className="text-gray-500 dark:text-gray-400" />
-                                </button>
-
-                                {/* Menü dropdown */}
-                                {showMenuForId === message.id && (
-                                  <div className="absolute right-0 top-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 min-w-[120px]">
-                                    <button
-                                      onClick={() => handleEditMessage(message.id, message.content || null)}
-                                      className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                                    >
-                                      <Edit size={14} />
-                                      Düzenle
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteMessage(message.id)}
-                                      className="w-full px-3 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                                    >
-                                      <Trash2 size={14} />
-                                      Sil
-                                    </button>
+                              }`}
+                          >
+                            {/* Silinen mesaj */}
+                            {message.isDeleted ? (
+                              <p className="text-sm italic text-gray-400 dark:text-gray-500">
+                                Bu mesaj silindi
+                              </p>
+                            ) : (
+                              <>
+                                {/* Görsel mesaj */}
+                                {message.imageUrl && (
+                                  <div className="mb-2 rounded-xl overflow-hidden">
+                                    <img
+                                      src={message.imageUrl}
+                                      alt="Mesaj görseli"
+                                      className="max-w-full max-h-64 object-cover w-full"
+                                    />
                                   </div>
                                 )}
+                                {/* Dosya mesaj */}
+                                {message.fileUrl && (
+                                  <a
+                                    href={message.fileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`flex items-center gap-2 mt-1 mb-2 rounded-lg px-3 py-2 border transition-colors ${isOwn
+                                      ? 'bg-white/20 border-white/30 hover:bg-white/30'
+                                      : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                      }`}
+                                  >
+                                    <div className={`p-1.5 rounded-lg ${isOwn ? 'bg-white/20' : 'bg-brand-orange/10'
+                                      }`}>
+                                      <FileText size={16} className={isOwn ? 'text-white' : 'text-brand-orange'} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className={`text-xs font-medium truncate ${isOwn ? 'text-white' : 'text-gray-900 dark:text-white'
+                                        }`}>
+                                        {message.fileName || 'Dosya'}
+                                      </p>
+                                      <p className={`text-[10px] ${isOwn ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
+                                        }`}>
+                                        {message.fileType ? message.fileType.split('/')[1]?.toUpperCase() || 'DOSYA' : 'DOSYA'}
+                                      </p>
+                                    </div>
+                                    <Download size={14} className={isOwn ? 'text-white/70' : 'text-gray-400'} />
+                                  </a>
+                                )}
+                                {/* Metin mesaj */}
+                                {message.content && (
+                                  <p className="text-sm whitespace-pre-wrap break-words">
+                                    {message.content}
+                                    {message.isEdited && (
+                                      <span className="ml-1 text-xs opacity-70">
+                                        (düzenlendi)
+                                      </span>
+                                    )}
+                                  </p>
+                                )}
+                              </>
+                            )}
+
+                            {/* Menü sadece kendi mesajlarında ve silinmemiş mesajlarda */}
+                            {isOwn && !message.isDeleted && (
+                              <div className="absolute -right-8 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="relative" ref={menuRef}>
+                                  <button
+                                    onClick={() => setShowMenuForId(showMenuForId === message.id ? null : message.id)}
+                                    className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                  >
+                                    <MoreVertical size={16} className="text-gray-500 dark:text-gray-400" />
+                                  </button>
+
+                                  {/* Menü dropdown */}
+                                  {showMenuForId === message.id && (
+                                    <div className="absolute right-0 top-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 min-w-[120px]">
+                                      <button
+                                        onClick={() => handleEditMessage(message.id, message.content || null)}
+                                        className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                      >
+                                        <Edit size={14} />
+                                        Düzenle
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteMessage(message.id)}
+                                        className="w-full px-3 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                      >
+                                        <Trash2 size={14} />
+                                        Sil
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          )}
-                        </div>
-                        <div className={`flex items-center gap-2 mt-1 ${isOwn ? 'flex-row-reverse' : ''}`}>
-                          {showReadReceipt ? (
-                            <span className={`text-[11px] font-medium ${isOwn ? 'text-gray-300 dark:text-gray-400' : 'text-gray-400 dark:text-gray-500'}`}>
-                              Görüldü
-                            </span>
-                          ) : null}
-                          <p className={`text-xs ${isOwn ? 'text-gray-300 dark:text-gray-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                            {formatTimeAgo(message.createdAt)}
-                          </p>
+                            )}
+                          </div>
+                          <div className={`flex items-center gap-2 mt-1 ${isOwn ? 'flex-row-reverse' : ''}`}>
+                            {showReadReceipt ? (
+                              <span className={`text-[11px] font-medium ${isOwn ? 'text-gray-300 dark:text-gray-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                                Görüldü
+                              </span>
+                            ) : null}
+                            <p className={`text-xs ${isOwn ? 'text-gray-300 dark:text-gray-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                              {formatTimeAgo(message.createdAt)}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
-              <div ref={messagesEndRef} />
-            </div>
+                  )
+                })}
+                <div ref={messagesEndRef} />
+              </div>
             )}
 
             {/* Yazıyor... göstergesi */}
@@ -1374,66 +1368,66 @@ export default function MessagesPage() {
 
             {/* Mesaj Input - Sadece chat sekmesinde */}
             {activeTab === 'chat' && (
-            <div className="p-4 border-t border-gray-200 dark:border-gray-800">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  sendMessage()
-                }}
-                className="flex gap-2"
-              >
-                {/* Görsel Yükleme Butonu */}
-                <label className="cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-                  <ImageIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageSelect}
-                    ref={fileInputRef}
-                    className="hidden"
-                  />
-                </label>
-                {/* Dosya Yükleme Butonu */}
-                <label className="cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-                  <Paperclip className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                  <input
-                    type="file"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                </label>
-                <input
-                  type="text"
-                  value={messageText}
-                  onChange={handleChange}
-                  onKeyDown={(e) => {
-                    // ✅ Enter tuşu form submit'i tetikleyecek, ayrıca sendMessage çağırmaya gerek yok
-                    // Form submit zaten sendMessage'ı çağırıyor, çift göndermeyi önlemek için burada çağırmıyoruz
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      // Form submit'i manuel tetikle (sendMessage onSubmit'te zaten çağrılacak)
-                      const form = e.currentTarget.closest('form')
-                      if (form) {
-                        form.requestSubmit()
-                      }
-                    }
+              <div className="p-4 border-t border-gray-200 dark:border-gray-800">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    sendMessage()
                   }}
-                  placeholder="Mesaj yaz..."
-                  className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-brand-orange dark:text-white"
-                />
-                <button
-                  type="submit"
-                  disabled={(!messageText.trim() && !selectedImage && !selectedFile) || isUploading}
-                  className="bg-brand-orange text-white p-2 rounded-full hover:bg-brand-orange/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex gap-2"
                 >
-                  {isUploading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <Send className="w-5 h-5" />
-                  )}
-                </button>
-              </form>
-            </div>
+                  {/* Görsel Yükleme Butonu */}
+                  <label className="cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                    <ImageIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      ref={fileInputRef}
+                      className="hidden"
+                    />
+                  </label>
+                  {/* Dosya Yükleme Butonu */}
+                  <label className="cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                    <Paperclip className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    <input
+                      type="file"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                  </label>
+                  <input
+                    type="text"
+                    value={messageText}
+                    onChange={handleChange}
+                    onKeyDown={(e) => {
+                      // ✅ Enter tuşu form submit'i tetikleyecek, ayrıca sendMessage çağırmaya gerek yok
+                      // Form submit zaten sendMessage'ı çağırıyor, çift göndermeyi önlemek için burada çağırmıyoruz
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        // Form submit'i manuel tetikle (sendMessage onSubmit'te zaten çağrılacak)
+                        const form = e.currentTarget.closest('form')
+                        if (form) {
+                          form.requestSubmit()
+                        }
+                      }
+                    }}
+                    placeholder="Mesaj yaz..."
+                    className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-brand-orange dark:text-white"
+                  />
+                  <button
+                    type="submit"
+                    disabled={(!messageText.trim() && !selectedImage && !selectedFile) || isUploading}
+                    className="bg-brand-orange text-white p-2 rounded-full hover:bg-brand-orange/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUploading ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Send className="w-5 h-5" />
+                    )}
+                  </button>
+                </form>
+              </div>
             )}
           </>
         ) : (
@@ -1463,12 +1457,12 @@ export default function MessagesPage() {
               {(() => {
                 const otherUser = getOtherParticipant(activeConversation)
                 if (!otherUser?.user) return null
-                
+
                 // Online durumunu kontrol et - önce state'ten, sonra backend'den gelen veriden
                 const userWithExtras = otherUser?.user as typeof otherUser.user & { isOnline?: boolean; lastSeen?: string | Date }
                 const isOnline = onlineUsers[otherUser?.user?.id] ?? userWithExtras?.isOnline ?? false
                 const lastSeenDate = userLastSeen[otherUser?.user?.id] || userWithExtras?.lastSeen
-                
+
                 return (
                   <>
                     <div className="flex items-center gap-3 flex-1">
@@ -1523,31 +1517,28 @@ export default function MessagesPage() {
             {/* Tab Bar (Mobil) */}
             <div className="flex items-center justify-around border-b border-gray-200 dark:border-gray-800 text-sm font-medium bg-white dark:bg-[#1a1a1a]">
               <button
-                className={`py-3 w-1/3 transition-colors ${
-                  activeTab === 'chat'
-                    ? 'text-brand-orange border-b-2 border-brand-orange'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                }`}
+                className={`py-3 w-1/3 transition-colors ${activeTab === 'chat'
+                  ? 'text-brand-orange border-b-2 border-brand-orange'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
                 onClick={() => setActiveTab('chat')}
               >
                 Mesajlar
               </button>
               <button
-                className={`py-3 w-1/3 transition-colors ${
-                  activeTab === 'media'
-                    ? 'text-brand-orange border-b-2 border-brand-orange'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                }`}
+                className={`py-3 w-1/3 transition-colors ${activeTab === 'media'
+                  ? 'text-brand-orange border-b-2 border-brand-orange'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
                 onClick={() => setActiveTab('media')}
               >
                 Medya
               </button>
               <button
-                className={`py-3 w-1/3 transition-colors ${
-                  activeTab === 'files'
-                    ? 'text-brand-orange border-b-2 border-brand-orange'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                }`}
+                className={`py-3 w-1/3 transition-colors ${activeTab === 'files'
+                  ? 'text-brand-orange border-b-2 border-brand-orange'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
                 onClick={() => setActiveTab('files')}
               >
                 Dosyalar
@@ -1644,24 +1635,23 @@ export default function MessagesPage() {
 
             {/* Mesajlar (mobil) */}
             {activeTab === 'chat' && (
-            <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950 p-4 space-y-3">
-              {messages.map((message, index) => {
-                const isOwn = message.senderId === user?.id
-                const isLastMessage = index === messages.length - 1
-                const showReadReceipt = isOwn && isLastMessage && message.read
-                
-                return (
-                  <div
-                    key={message.id}
-                    className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
-                  >
+              <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950 p-4 space-y-3">
+                {messages.map((message, index) => {
+                  const isOwn = message.senderId === user?.id
+                  const isLastMessage = index === messages.length - 1
+                  const showReadReceipt = isOwn && isLastMessage && message.read
+
+                  return (
+                    <div
+                      key={message.id}
+                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                    >
                       <div className="flex flex-col items-end relative">
                         <div
-                          className={`px-3 py-2 rounded-2xl max-w-[80%] relative group ${
-                            isOwn
-                              ? 'bg-brand-orange text-white'
-                              : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700'
-                          }`}
+                          className={`px-3 py-2 rounded-2xl max-w-[80%] relative group ${isOwn
+                            ? 'bg-brand-orange text-white'
+                            : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700'
+                            }`}
                         >
                           {/* Silinen mesaj */}
                           {message.isDeleted ? (
@@ -1686,26 +1676,22 @@ export default function MessagesPage() {
                                   href={message.fileUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className={`flex items-center gap-2 mt-1 mb-2 rounded-lg px-3 py-2 border transition-colors ${
-                                    isOwn
-                                      ? 'bg-white/20 border-white/30 hover:bg-white/30'
-                                      : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                  }`}
+                                  className={`flex items-center gap-2 mt-1 mb-2 rounded-lg px-3 py-2 border transition-colors ${isOwn
+                                    ? 'bg-white/20 border-white/30 hover:bg-white/30'
+                                    : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                    }`}
                                 >
-                                  <div className={`p-1.5 rounded-lg ${
-                                    isOwn ? 'bg-white/20' : 'bg-brand-orange/10'
-                                  }`}>
+                                  <div className={`p-1.5 rounded-lg ${isOwn ? 'bg-white/20' : 'bg-brand-orange/10'
+                                    }`}>
                                     <FileText size={16} className={isOwn ? 'text-white' : 'text-brand-orange'} />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className={`text-xs font-medium truncate ${
-                                      isOwn ? 'text-white' : 'text-gray-900 dark:text-white'
-                                    }`}>
+                                    <p className={`text-xs font-medium truncate ${isOwn ? 'text-white' : 'text-gray-900 dark:text-white'
+                                      }`}>
                                       {message.fileName || 'Dosya'}
                                     </p>
-                                    <p className={`text-[10px] ${
-                                      isOwn ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
-                                    }`}>
+                                    <p className={`text-[10px] ${isOwn ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
+                                      }`}>
                                       {message.fileType ? message.fileType.split('/')[1]?.toUpperCase() || 'DOSYA' : 'DOSYA'}
                                     </p>
                                   </div>
@@ -1766,11 +1752,11 @@ export default function MessagesPage() {
                           </span>
                         )}
                       </div>
-                  </div>
-                )
-              })}
-              <div ref={messagesEndRef} />
-            </div>
+                    </div>
+                  )
+                })}
+                <div ref={messagesEndRef} />
+              </div>
             )}
 
             {/* Yazıyor... göstergesi (mobil) */}
@@ -1828,54 +1814,54 @@ export default function MessagesPage() {
 
             {/* Mesaj Input (mobil) - Sadece chat sekmesinde */}
             {activeTab === 'chat' && (
-            <div className="p-4 border-t border-gray-200 dark:border-gray-800">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  sendMessage()
-                }}
-                className="flex gap-2"
-              >
-                {/* Görsel Yükleme Butonu */}
-                <label className="cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-                  <ImageIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageSelect}
-                    ref={fileInputRef}
-                    className="hidden"
-                  />
-                </label>
-                {/* Dosya Yükleme Butonu */}
-                <label className="cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-                  <Paperclip className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                  <input
-                    type="file"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                </label>
-                <input
-                  type="text"
-                  value={messageText}
-                  onChange={handleChange}
-                  placeholder="Mesaj yaz..."
-                  className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-brand-orange dark:text-white"
-                />
-                <button
-                  type="submit"
-                  disabled={(!messageText.trim() && !selectedImage && !selectedFile) || isUploading}
-                  className="bg-brand-orange text-white p-2 rounded-full hover:bg-brand-orange/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              <div className="p-4 border-t border-gray-200 dark:border-gray-800">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    sendMessage()
+                  }}
+                  className="flex gap-2"
                 >
-                  {isUploading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <Send className="w-5 h-5" />
-                  )}
-                </button>
-              </form>
-            </div>
+                  {/* Görsel Yükleme Butonu */}
+                  <label className="cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                    <ImageIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      ref={fileInputRef}
+                      className="hidden"
+                    />
+                  </label>
+                  {/* Dosya Yükleme Butonu */}
+                  <label className="cursor-pointer p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                    <Paperclip className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                    <input
+                      type="file"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                  </label>
+                  <input
+                    type="text"
+                    value={messageText}
+                    onChange={handleChange}
+                    placeholder="Mesaj yaz..."
+                    className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-brand-orange dark:text-white"
+                  />
+                  <button
+                    type="submit"
+                    disabled={(!messageText.trim() && !selectedImage && !selectedFile) || isUploading}
+                    className="bg-brand-orange text-white p-2 rounded-full hover:bg-brand-orange/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUploading ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Send className="w-5 h-5" />
+                    )}
+                  </button>
+                </form>
+              </div>
             )}
           </>
         ) : (
@@ -1895,11 +1881,11 @@ export default function MessagesPage() {
 
       {/* ✅ Sohbet Silme Onay Modalı */}
       {deleteConversationId && (
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/70"
           onClick={() => setDeleteConversationId(null)}
         >
-          <div 
+          <div
             className="w-[400px] rounded-xl bg-white dark:bg-gray-900 p-6 shadow-xl border border-gray-200 dark:border-gray-800"
             onClick={(e) => e.stopPropagation()}
           >
@@ -1940,4 +1926,16 @@ export default function MessagesPage() {
 
 // Dynamic export - prerender'i devre dışı bırak (useSearchParams ve socket kullanımı nedeniyle)
 export const dynamic = 'force-dynamic';
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-brand-orange" />
+      </div>
+    }>
+      <MessagesContent />
+    </Suspense>
+  )
+}
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
 import api from '@/lib/api'
@@ -10,7 +10,7 @@ import getCroppedImg from '@/utils/cropImage'
 import type { Area } from 'react-easy-crop'
 import toast from 'react-hot-toast'
 import { TR_CITIES } from '@/constants/cities.tr'
-import { Lock, BarChart3 } from 'lucide-react'
+import { Lock, BarChart3, Loader2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 
 type Gender = 'FEMALE' | 'MALE' | 'UNSPECIFIED'
@@ -43,7 +43,7 @@ function EditProfileContent() {
   const [message, setMessage] = useState('')
   const [avatarPreview, setAvatarPreview] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
-  
+
   // Crop modal states
   const [cropModalOpen, setCropModalOpen] = useState(false)
   const [imageSrc, setImageSrc] = useState<string | null>(null)
@@ -131,7 +131,7 @@ function EditProfileContent() {
     try {
       // Crop image
       const croppedImageBlob = await getCroppedImg(imageSrc, croppedAreaPixels)
-      
+
       // Create preview
       const previewUrl = URL.createObjectURL(croppedImageBlob)
       setAvatarPreview(previewUrl)
@@ -149,13 +149,13 @@ function EditProfileContent() {
       setAvatar(response.data.url)
       setMessage('')
       setCropModalOpen(false)
-      
+
       // Cleanup
       setImageSrc(null)
       setCrop({ x: 0, y: 0 })
       setZoom(1)
       setCroppedAreaPixels(null)
-      
+
       // Cleanup preview URL
       URL.revokeObjectURL(previewUrl)
     } catch (error: any) {
@@ -223,7 +223,7 @@ function EditProfileContent() {
         // Backend'den gelen updated user'ı kullan
         const updatedUser = { ...user, ...response.data }
         setUser(updatedUser, capabilities ?? null)
-        
+
         // Zorunlu alanlar doluysa profileCompleted'i true yap
         if (dateOfBirth && country && city && gender) {
           const userWithCompletedProfile = { ...updatedUser, profileCompleted: true }
@@ -232,12 +232,12 @@ function EditProfileContent() {
       }
       setMessage('Profil başarıyla güncellendi!')
       toast.success('Profil başarıyla güncellendi!')
-      
+
       // 🔔 Zorunlu alanlar tamamlandıysa bildirimi sil (backend otomatik silecek, frontend query'i invalidate et)
       if (dateOfBirth && country && city && gender) {
         queryClient.invalidateQueries({ queryKey: ['notifications'] })
       }
-      
+
       // Zorunlu alanlar tamamlandıysa required query param'ini kaldır
       if (isRequired && dateOfBirth && country && city && gender) {
         router.replace('/profile/edit')
@@ -246,7 +246,7 @@ function EditProfileContent() {
       // 🔒 KRİTİK: Backend'den FRESH username al - case-sensitive sorununu kesin çöz
       // Backend response'unda username varsa onu kullan, yoksa /users/me'den al
       let finalUsername: string | null = null
-      
+
       if (response.data?.username) {
         // Backend update response'unda username varsa onu kullan
         finalUsername = response.data.username
@@ -265,13 +265,13 @@ function EditProfileContent() {
           console.warn('Failed to refresh user data for redirect:', refreshError)
         }
       }
-      
+
       // Fallback: user store'dan username al
       if (!finalUsername) {
         finalUsername = user?.username || null
         console.log('[Profile Edit] Username from store (fallback):', finalUsername)
       }
-      
+
       // Redirect yap (sadece required değilse)
       if (!isRequired && finalUsername) {
         setTimeout(() => {
@@ -316,7 +316,7 @@ function EditProfileContent() {
               Profilini Tamamla
             </h3>
             <p className="text-sm text-orange-800 dark:text-orange-300 mb-3">
-              {isRequired 
+              {isRequired
                 ? 'Feellink\'i tam kullanabilmek için aşağıdaki bilgileri doldurman gerekiyor.'
                 : 'Bazı zorunlu bilgiler eksik. Lütfen aşağıdaki alanları doldur.'}
             </p>
@@ -338,7 +338,7 @@ function EditProfileContent() {
           <label className="block text-sm text-gray-700 dark:text-white/70 mb-3">
             Profil Fotoğrafı
           </label>
-          
+
           {/* Avatar Preview with Change Button */}
           <div className="flex items-center gap-5">
             <div className="relative">
@@ -347,7 +347,7 @@ function EditProfileContent() {
                 alt="Avatar preview"
                 className="w-[110px] h-[110px] rounded-full object-cover border border-black/10 dark:border-white/20"
                 onError={(e) => {
-                  ;(e.target as HTMLImageElement).src = 'https://via.placeholder.com/96?text=Avatar'
+                  ; (e.target as HTMLImageElement).src = 'https://via.placeholder.com/96?text=Avatar'
                 }}
               />
               {isUploading && (
@@ -369,9 +369,8 @@ function EditProfileContent() {
               />
               <label
                 htmlFor="avatar-upload"
-                className={`inline-flex items-center justify-center px-4 py-1.5 bg-brand-orange hover:bg-[#ff8a1d] text-white text-sm font-medium rounded-md transition cursor-pointer ${
-                  isUploading ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
+                className={`inline-flex items-center justify-center px-4 py-1.5 bg-brand-orange hover:bg-[#ff8a1d] text-white text-sm font-medium rounded-md transition cursor-pointer ${isUploading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
               >
                 {isUploading ? (
                   <>
@@ -382,7 +381,7 @@ function EditProfileContent() {
                   avatar || avatarPreview ? 'Fotoğraf Değiştir' : 'Fotoğraf Yükle'
                 )}
               </label>
-              
+
               {(avatarPreview || avatar) && (
                 <button
                   type="button"
@@ -448,9 +447,8 @@ function EditProfileContent() {
             value={website}
             onChange={(e) => setWebsite(e.target.value)}
             disabled={isPrivate}
-            className={`w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400 ${
-              isPrivate ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
+            className={`w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400 ${isPrivate ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             placeholder="https://example.com"
           />
           {isPrivate && (
@@ -607,11 +605,10 @@ function EditProfileContent() {
         {/* Message */}
         {message && (
           <div
-            className={`mt-4 p-3 rounded-xl text-sm ${
-              message.includes('başarıyla')
+            className={`mt-4 p-3 rounded-xl text-sm ${message.includes('başarıyla')
                 ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
                 : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
-            }`}
+              }`}
           >
             {message}
           </div>
@@ -634,7 +631,7 @@ function EditProfileContent() {
                 onCropComplete={onCropComplete}
               />
             </div>
-            
+
             {/* Zoom Control */}
             <div className="p-4 bg-white dark:bg-[#111111] border-t border-gray-200 dark:border-gray-800">
               <label className="block text-sm text-gray-700 dark:text-gray-300 mb-2">
@@ -685,7 +682,13 @@ function EditProfileContent() {
 export default function EditProfilePage() {
   return (
     <AuthGuard>
-      <EditProfileContent />
+      <Suspense fallback={
+        <div className="flex h-[50vh] w-full items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-brand-orange" />
+        </div>
+      }>
+        <EditProfileContent />
+      </Suspense>
     </AuthGuard>
   )
 }

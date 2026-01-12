@@ -5,7 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 
-export default function ResetPasswordPage() {
+import { Suspense } from 'react';
+
+function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') || '';
@@ -57,7 +59,7 @@ export default function ResetPasswordPage() {
       console.error(err);
       setError(
         err?.response?.data?.message ||
-          'Bağlantınız geçersiz veya süresi dolmuş olabilir. Lütfen yeniden şifre sıfırlama talebi oluşturun.'
+        'Bağlantınız geçersiz veya süresi dolmuş olabilir. Lütfen yeniden şifre sıfırlama talebi oluşturun.'
       );
     } finally {
       setIsLoading(false);
@@ -111,5 +113,13 @@ export default function ResetPasswordPage() {
       </div>
     </div>
   );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#0d0d0d] text-white">Yükleniyor...</div>}>
+      <ResetPasswordContent />
+    </Suspense>
+  )
 }
 

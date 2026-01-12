@@ -43,7 +43,7 @@ export default function AdminSettingsPage() {
     try {
       // 🔒 KRİTİK: Response kontrolü - success flag olmadan toast gösterme
       const res = await api.patch(`/admin/settings/${key}`, { value })
-      
+
       // ✅ DB yazıldı mı kontrol et
       if (!res.data?.success) {
         throw new Error('Güncelleme başarısız - backend success flag false')
@@ -52,7 +52,7 @@ export default function AdminSettingsPage() {
       // ✅ Kesin commit oldu - state güncelle
       const updatedValue = res.data?.data?.value || value
       setSettings((prev) => ({ ...prev, [key]: updatedValue }))
-      
+
       // ✅ Toast sadece DB yazıldıktan sonra
       toast.success('Ayar başarıyla güncellendi')
     } catch (error: any) {
@@ -142,8 +142,8 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
               <div className="divide-y divide-gray-100 dark:divide-[var(--border)]">
-                {category.items.map((item, itemIndex) => {
-                  const ItemIcon = 'icon' in item && item.icon ? (item.icon as React.ComponentType<{ size?: number; className?: string }>) : null
+                {category.items.map((item: any, itemIndex) => {
+                  const ItemIcon = item.icon ? (item.icon as React.ComponentType<{ size?: number; className?: string }>) : null
                   return (
                     <div
                       key={itemIndex}
