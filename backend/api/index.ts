@@ -3,18 +3,54 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { json, raw, urlencoded } from 'express';
 import * as cookieParser from 'cookie-parser';
-import { AppModule } from '../src/app.module';
-import { AllExceptionsFilter } from '../src/common/filters/http-exception.filter';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+// Dynamic import to handle both dev and production builds
+let AppModule: any;
+let AllExceptionsFilter: any;
+
 let cachedApp: any = null;
+
+async function loadModules() {
+  if (AppModule && AllExceptionsFilter) {
+    return;
+  }
+
+  try {
+    // Try dist first (production build)
+    const appModulePath = require.resolve('../dist/app.module');
+    const filterPath = require.resolve('../dist/common/filters/http-exception.filter');
+    AppModule = require(appModulePath).AppModule;
+    AllExceptionsFilter = require(filterPath).AllExceptionsFilter;
+  } catch (error) {
+    // Fallback to src (development)
+    try {
+      const appModulePath = require.resolve('../src/app.module');
+      const filterPath = require.resolve('../src/common/filters/http-exception.filter');
+      AppModule = require(appModulePath).AppModule;
+      AllExceptionsFilter = require(filterPath).AllExceptionsFilter;
+    } catch (err) {
+      console.error('Failed to load modules:', err);
+      throw err;
+    }
+  }
+}
 
 async function createApp() {
   if (cachedApp) {
     return cachedApp;
   }
 
-  const app = await NestFactory.create(AppModule);
+  try {
+    await loadModules();
+  } catch (error) {
+    console.error('Error loading modules:', error);
+    throw error;
+  }
+
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log'],
+  });
   const logger = new Logger('Bootstrap');
 
   // Cookie parser for refreshToken cookies
@@ -43,30 +79,36 @@ async function createApp() {
         return callback(null, true);
       }
       // Vercel preview URLs
-      if (origin.includes('.vercel.app')) {
+      if (origin.includes('.vercel.app') || origin.includes('feellink.io')) {
         return callback(null, true);
       }
       callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   });
 
   // Swagger setup (only in development)
   if (process.env.NODE_ENV !== 'production') {
-    const config = new DocumentBuilder()
-      .setTitle('Instagram Clone API')
-      .setDescription('A full-featured Instagram clone API documentation')
-      .setVersion('1.0')
-      .addBearerAuth()
-      .build();
-    const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api', app, document);
+    try {
+      const config = new DocumentBuilder()
+        .setTitle('Instagram Clone API')
+        .setDescription('A full-featured Instagram clone API documentation')
+        .setVersion('1.0')
+        .addBearerAuth()
+        .build();
+      const document = SwaggerModule.createDocument(app, config);
+      SwaggerModule.setup('api', app, document);
+    } catch (error) {
+      logger.warn('Swagger setup failed:', error);
+    }
   }
 
   // Global exception filter
-  app.useGlobalFilters(new AllExceptionsFilter());
+  if (AllExceptionsFilter) {
+    app.useGlobalFilters(new AllExceptionsFilter());
+  }
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -74,7 +116,7 @@ async function createApp() {
       whitelist: true,
       forbidNonWhitelisted: false,
       transform: true,
-      enableDebugMessages: true,
+      enableDebugMessages: process.env.NODE_ENV !== 'production',
       transformOptions: {
         enableImplicitConversion: true,
       },
@@ -91,9 +133,18 @@ async function createApp() {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const app = await createApp();
-  const expressApp = app.getHttpAdapter().getInstance();
-  
-  // Handle the request with Express app
-  expressApp(req, res);
+  try {
+    const app = await createApp();
+    const expressApp = app.getHttpAdapter().getInstance();
+    
+    // Handle the request with Express app
+    expressApp(req, res);
+  } catch (error: any) {
+    console.error('Vercel handler error:', error);
+    res.status(500).json({
+      statusCode: 500,
+      message: error?.message || 'Internal server error',
+      error: 'Internal Server Error',
+    });
+  }
 }

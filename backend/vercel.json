@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "buildCommand": "pnpm install && pnpm build",
+  "outputDirectory": "dist",
+  "installCommand": "pnpm install",
   "builds": [
     {
       "src": "api/index.ts",
