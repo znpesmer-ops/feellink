@@ -1,10 +1,9 @@
 import { UserRoleCode } from '../../roles/roles.types';
-import { IsNotEmpty, IsOptional, IsString, MinLength, Matches, IsBoolean } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MinLength, Matches, IsBoolean, IsEmail } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { IsUnicodeEmail } from '../../common/validators/is-unicode-email.decorator';
 
 export class RegisterDto {
-  @IsUnicodeEmail({ message: 'Lütfen geçerli bir e-posta adresi girin.' })
+  @IsEmail({}, { message: 'Lütfen geçerli bir e-posta adresi girin.' })
   @IsNotEmpty({ message: 'E-posta adresi gereklidir' })
   email: string;
 
