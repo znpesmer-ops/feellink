@@ -63,30 +63,50 @@ async function createApp() {
   app.use(json({ limit: '2mb' }));
   app.use(urlencoded({ limit: '2mb', extended: true }));
 
-  // Enable CORS for Vercel
+  // Enable CORS for Vercel - TÜM VERCEL DOMAIN'LERİNE İZİN VER
   const allowedOrigins = [
-    process.env.FRONTEND_URL || 'https://www.feellink.io',
-    'https://feellink.io',
+    process.env.FRONTEND_URL || 'https://feellink.vercel.app',
+    'https://feellink.vercel.app',
     'https://www.feellink.io',
+    'https://feellink.io',
     'http://localhost:3000',
     'http://localhost:3001',
   ];
 
   app.enableCors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
+      // No origin (mobile apps, Postman, etc.)
+      if (!origin) {
+        return callback(null, true);
+      }
+      
+      // Exact match in allowed origins
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-      // Vercel preview URLs
-      if (origin.includes('.vercel.app') || origin.includes('feellink.io')) {
+      
+      // Vercel domains (ALL .vercel.app domains)
+      if (origin.includes('.vercel.app')) {
         return callback(null, true);
       }
-      callback(new Error('Not allowed by CORS'));
+      
+      // Feellink domains
+      if (origin.includes('feellink.io')) {
+        return callback(null, true);
+      }
+      
+      // Local development
+      if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        return callback(null, true);
+      }
+      
+      // Default: allow (for debugging - production'da kısıtlanabilir)
+      console.warn('CORS: Unknown origin allowed:', origin);
+      return callback(null, true);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   });
 
   // Swagger setup (only in development)
@@ -140,11 +160,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Handle the request with Express app
     expressApp(req, res);
   } catch (error: any) {
-    console.error('Vercel handler error:', error);
-    res.status(500).json({
+    console.error('Vercel handler error:', {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+    });
+    
+    // Detailed error response for debugging
+    const errorResponse = {
       statusCode: 500,
       message: error?.message || 'Internal server error',
       error: 'Internal Server Error',
-    });
+      ...(process.env.NODE_ENV !== 'production' && {
+        stack: error?.stack,
+        details: error,
+      }),
+    };
+    
+    res.status(500).json(errorResponse);
   }
 }
