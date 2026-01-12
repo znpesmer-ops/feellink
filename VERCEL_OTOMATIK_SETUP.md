@@ -28,7 +28,7 @@ Vercel Dashboard → `feellink-backend` → Settings → Environment Variables
    - Environment: ✅ Production
 
 4. **FRONTEND_URL**
-   - Value: `https://www.feellink.io`
+   - Value: `https://feellink.vercel.app` (veya `https://www.feellink.io` eğer custom domain kullanıyorsan)
    - Environment: ✅ Production
 
 ### 2. Redeploy
