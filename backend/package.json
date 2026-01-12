@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "vercel:build": "pnpm install && pnpm prisma generate && pnpm build",
     "prisma:studio": "prisma studio",
     "index:users": "ts-node -r tsconfig-paths/register src/scripts/index-all-users.ts",
     "sync:counts": "ts-node -r tsconfig-paths/register src/scripts/sync-follower-counts.ts",
