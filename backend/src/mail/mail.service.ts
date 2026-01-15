@@ -14,55 +14,63 @@ export class MailService {
   private readonly logoUrl = 'https://feellink.io/logo.png';
 
   constructor() {
-    // SMTP ayarları: MAIL_* veya SMTP_* (geriye uyumluluk için)
-    const mailHost = process.env.MAIL_HOST || process.env.SMTP_HOST || 'smtp.gmail.com';
-    const mailPort = Number(process.env.MAIL_PORT || process.env.SMTP_PORT) || 587;
-    const mailUser = process.env.MAIL_USER || process.env.SMTP_USER;
-    const mailPass = process.env.MAIL_PASS || process.env.SMTP_PASS;
+    try {
+      // SMTP ayarları: MAIL_* veya SMTP_* (geriye uyumluluk için)
+      const mailHost = process.env.MAIL_HOST || process.env.SMTP_HOST || 'smtp.gmail.com';
+      const mailPort = Number(process.env.MAIL_PORT || process.env.SMTP_PORT) || 587;
+      const mailUser = process.env.MAIL_USER || process.env.SMTP_USER;
+      const mailPass = process.env.MAIL_PASS || process.env.SMTP_PASS;
 
-    if (!mailUser || !mailPass) {
-      this.logger.warn('Mail credentials not configured. Email sending will be disabled.');
-      return;
-    }
-
-    // Gmail için özel ayarlar
-    const isGmail = mailHost.includes('gmail.com');
-    
-    this.transporter = nodemailer.createTransport({
-      host: mailHost,
-      port: mailPort,
-      secure: mailPort === 465, // true for 465, false for other ports
-      auth: {
-        user: mailUser,
-        pass: mailPass,
-      },
-      // Gmail için ek ayarlar
-      ...(isGmail && {
-        service: 'gmail',
-        tls: {
-          rejectUnauthorized: false,
-        },
-      }),
-    });
-
-    // 👉 SMTP bağlantısını doğrula (async, bloklamaz)
-    this.transporter.verify((error, success) => {
-      if (error) {
-        this.logger.error('SMTP bağlantı hatası:', error.message || error);
-        this.logger.error('SMTP Detayları:', {
-          host: mailHost,
-          port: mailPort,
-          user: mailUser,
-          passLength: mailPass?.length || 0,
-        });
-        this.logger.warn('Email gönderimi çalışmayabilir. Lütfen SMTP ayarlarını kontrol edin:');
-        this.logger.warn('- Gmail kullanıyorsanız, App Password kullanmalısınız (2FA açık olmalı)');
-        this.logger.warn('- SMTP_USER tam e-posta adresi olmalı (örn: info@feellink.io)');
-        this.logger.warn('- SMTP_PASS App Password olmalı (normal şifre değil)');
-      } else {
-        this.logger.log('✅ SMTP bağlantısı başarılı');
+      if (!mailUser || !mailPass) {
+        this.logger.warn('Mail credentials not configured. Email sending will be disabled.');
+        this.transporter = null;
+        return;
       }
-    });
+
+      // Gmail için özel ayarlar
+      const isGmail = mailHost.includes('gmail.com');
+      
+      this.transporter = nodemailer.createTransport({
+        host: mailHost,
+        port: mailPort,
+        secure: mailPort === 465, // true for 465, false for other ports
+        auth: {
+          user: mailUser,
+          pass: mailPass,
+        },
+        // Gmail için ek ayarlar
+        ...(isGmail && {
+          service: 'gmail',
+          tls: {
+            rejectUnauthorized: false,
+          },
+        }),
+      });
+
+      // 👉 SMTP bağlantısını doğrula (async, bloklamaz, hata durumunda throw etmez)
+      this.transporter.verify((error, success) => {
+        if (error) {
+          this.logger.error('SMTP bağlantı hatası:', error.message || error);
+          this.logger.error('SMTP Detayları:', {
+            host: mailHost,
+            port: mailPort,
+            user: mailUser,
+            passLength: mailPass?.length || 0,
+          });
+          this.logger.warn('Email gönderimi çalışmayabilir. Lütfen SMTP ayarlarını kontrol edin:');
+          this.logger.warn('- Gmail kullanıyorsanız, App Password kullanmalısınız (2FA açık olmalı)');
+          this.logger.warn('- SMTP_USER tam e-posta adresi olmalı (örn: info@feellink.io)');
+          this.logger.warn('- SMTP_PASS App Password olmalı (normal şifre değil)');
+        } else {
+          this.logger.log('✅ SMTP bağlantısı başarılı');
+        }
+      });
+    } catch (error: any) {
+      // Constructor'da hata olursa sessizce devam et
+      this.logger.error('MailService constructor error:', error?.message || error);
+      this.logger.warn('Email sending will be disabled due to initialization error.');
+      this.transporter = null;
+    }
   }
 
   async sendPasswordResetMail(to: string, resetUrl: string) {
