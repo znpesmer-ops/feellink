@@ -100,8 +100,8 @@ async function createApp() {
     }
   }
 
-  // Global exception filter
-  app.useGlobalFilters(new AllExceptionsFilter());
+  // Global exception filter - DEBUG: Geçici olarak kapatıldı
+  // app.useGlobalFilters(new AllExceptionsFilter());
 
   // Global validation pipe
   app.useGlobalPipes(

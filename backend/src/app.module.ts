@@ -73,10 +73,11 @@ import { EmailChangeModule } from './email-change/email-change.module';
     EmailChangeModule,
   ],
   providers: [
-    {
-      provide: APP_GUARD,
-      useClass: AccountStatusGuard,
-    },
+    // DEBUG: Geçici olarak kapatıldı
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: AccountStatusGuard,
+    // },
   ],
 })
 export class AppModule {}
