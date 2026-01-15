@@ -9,9 +9,9 @@ coverage/
 
 # Production
 build/
-dist/
 .next/
 out/
+# dist/ - NOT IGNORED: Vercel needs backend/dist in git
 
 # Environment variables
 .env
