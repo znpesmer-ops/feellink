@@ -12,13 +12,17 @@ async function bootstrapServer() {
     return cachedServer;
   }
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log'],
+  });
   const logger = new Logger('Bootstrap');
 
   app.use(cookieParser());
 
   // Favicon handler - yoksay (204 No Content)
-  app.use('/favicon.ico', (_, res) => res.status(204).end());
+  app.use('/favicon.ico', (_, res) => {
+    res.status(204).end();
+  });
 
   // Stripe webhook FIRST - raw body needed
   app.use('/payments/webhook', raw({ type: 'application/json' }));
@@ -32,9 +36,6 @@ async function bootstrapServer() {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   });
-
-  // 🚨 GLOBAL FILTER ŞİMDİLİK KAPALI - gerçek hatayı görmek için
-  // app.useGlobalFilters(new AllExceptionsFilter());
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -76,17 +77,15 @@ async function bootstrapServer() {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const server = await bootstrapServer();
-
-    await new Promise<void>((resolve, reject) => {
-      server(req, res, (err: any) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+    
+    // Express server'ı direkt çağır - Vercel için optimize edilmiş
+    server(req, res);
   } catch (err: any) {
-    console.error('🔥 VERCEL UNHANDLED ERROR:', err);
-    console.error('🔥 Error stack:', err?.stack);
-    console.error('🔥 Error name:', err?.name);
+    console.error('🔥 VERCEL UNHANDLED ERROR:', {
+      message: err?.message,
+      stack: err?.stack,
+      name: err?.name,
+    });
 
     if (!res.headersSent) {
       res.status(500).json({
