@@ -16,12 +16,18 @@ import { MailModule } from '../mail/mail.module';
     JwtModule.registerAsync({
       global: true,
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get('JWT_SECRET'),
-        signOptions: {
-          expiresIn: '15m', // Access token expires in 15 minutes
-        },
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const jwtSecret = configService.get('JWT_SECRET') || 'default-secret-change-in-production';
+        if (!configService.get('JWT_SECRET')) {
+          console.warn('⚠️ JWT_SECRET not set, using default secret. This is insecure for production!');
+        }
+        return {
+          secret: jwtSecret,
+          signOptions: {
+            expiresIn: '15m', // Access token expires in 15 minutes
+          },
+        };
+      },
       inject: [ConfigService],
     }),
     PrismaModule,
