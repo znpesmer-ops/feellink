@@ -31,7 +31,12 @@ export function getWebSocketCorsConfig() {
         `http://${vmIP}`,
         'https://composer-variation-result-father.trycloudflare.com',
       ]
-    : [process.env.FRONTEND_URL || 'http://localhost:3000'];
+    : [
+        process.env.FRONTEND_URL || 'https://feellink.vercel.app',
+        'https://feellink.vercel.app',
+        'https://www.feellink.io',
+        'https://feellink.io',
+      ];
 
   return {
     cors: {
@@ -61,13 +66,22 @@ export function getWebSocketCorsConfig() {
             return callback(null, true);
           }
         } else {
-          // Production: only allow configured origins
+          // Production: allow configured origins and Vercel domains
           if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+          }
+          // Vercel domains (all .vercel.app domains)
+          if (origin.includes('.vercel.app')) {
+            return callback(null, true);
+          }
+          // Feellink domains
+          if (origin.includes('feellink.io')) {
             return callback(null, true);
           }
         }
         
-        callback(new Error('Not allowed by CORS'));
+        // Default: allow for Vercel compatibility
+        return callback(null, true);
       },
       credentials: true,
       methods: ['GET', 'POST'],

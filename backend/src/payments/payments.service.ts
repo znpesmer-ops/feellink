@@ -17,7 +17,7 @@ type ExtraCode = 'koleksiyoner-extra' | 'sanatci-extra';
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
-  private readonly stripe: Stripe;
+  private readonly stripe: Stripe | null;
   private readonly webhookSecret: string | null;
 
   private static readonly PLAN_PRICES_TRY: Record<PlanCode, number> = {
@@ -49,16 +49,26 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
   ) {
-    const secretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
+    try {
+      const secretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
 
-    if (!secretKey) {
-      throw new Error('STRIPE_SECRET_KEY is not configured');
+      if (!secretKey) {
+        this.logger.warn('STRIPE_SECRET_KEY is not configured. Payment features will be disabled.');
+        this.stripe = null as any;
+        this.webhookSecret = null;
+        return;
+      }
+
+      this.stripe = new Stripe(secretKey, {
+        apiVersion: '2024-04-10',
+      });
+      this.webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET') ?? null;
+    } catch (error: any) {
+      this.logger.error('PaymentsService constructor error:', error?.message || error);
+      this.logger.warn('Payment features will be disabled due to initialization error.');
+      this.stripe = null as any;
+      this.webhookSecret = null;
     }
-
-    this.stripe = new Stripe(secretKey, {
-      apiVersion: '2024-04-10',
-    });
-    this.webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET') ?? null;
   }
 
   private async getUserEmail(userId: string): Promise<string> {
@@ -75,6 +85,10 @@ export class PaymentsService {
   }
 
   async createCheckoutSession(dto: CreateCheckoutSessionDto) {
+    if (!this.stripe) {
+      throw new BadRequestException('Payment service is not configured. Please contact support.');
+    }
+
     const { userId, plan, extras = [] } = dto;
     const extrasList = Array.isArray(extras) ? extras : [];
 
@@ -227,9 +241,9 @@ export class PaymentsService {
   }
 
   async handleWebhook(rawBody: Buffer, signature: string | string[] | undefined) {
-    if (!this.webhookSecret) {
+    if (!this.stripe || !this.webhookSecret) {
       this.logger.error('Stripe webhook secret yapılandırılmamış.');
-      throw new InternalServerErrorException('Webhook yapılandırması eksik');
+      throw new InternalServerErrorException('Payment service is not configured. Webhook processing is disabled.');
     }
 
     let event: Stripe.Event;

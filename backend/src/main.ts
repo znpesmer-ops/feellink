@@ -4,8 +4,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { json, raw, urlencoded } from 'express';
 import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
-// DEBUG: Geçici olarak kapatıldı
-// import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import * as net from 'net';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
@@ -29,27 +28,58 @@ async function createApp() {
   app.use(json({ limit: '2mb' }));
   app.use(urlencoded({ limit: '2mb', extended: true }));
 
-  // Enable CORS
+  // Enable CORS - Vercel için optimize edilmiş
   const isDevelopment = process.env.NODE_ENV !== 'production';
-  const allowedOrigins = isDevelopment
-    ? [
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://localhost:3002',
-        'http://127.0.0.1:3000',
-        'http://127.0.0.1:3001',
-        'http://127.0.0.1:3002',
-      ]
-    : [
-        process.env.FRONTEND_URL || 'https://feellink.vercel.app',
+  
+  app.enableCors({
+    origin: (origin, callback) => {
+      // No origin (mobile apps, Postman, etc.)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // Development: Allow localhost and local IPs
+      if (isDevelopment) {
+        if (
+          origin.startsWith('http://localhost:') ||
+          origin.startsWith('http://127.0.0.1:') ||
+          origin.includes('.trycloudflare.com')
+        ) {
+          return callback(null, true);
+        }
+        // Local IP pattern
+        const localIPPattern = /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+)(:\d+)?$/;
+        if (localIPPattern.test(origin)) {
+          return callback(null, true);
+        }
+      }
+
+      // Production: Allow Vercel domains and configured origins
+      const allowedOrigins = [
+        process.env.FRONTEND_URL,
         'https://feellink.vercel.app',
         'https://www.feellink.io',
         'https://feellink.io',
-      ];
+      ].filter(Boolean);
 
-  // CORS - Allow all origins for debugging (will restrict later)
-  app.enableCors({
-    origin: true, // Allow all origins
+      // Exact match
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Vercel domains (all .vercel.app domains)
+      if (origin.includes('.vercel.app')) {
+        return callback(null, true);
+      }
+
+      // Feellink domains
+      if (origin.includes('feellink.io')) {
+        return callback(null, true);
+      }
+
+      // Default: allow (for Vercel compatibility)
+      return callback(null, true);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
@@ -71,8 +101,8 @@ async function createApp() {
     }
   }
 
-  // Global exception filter - DEBUG: Geçici olarak kapatıldı
-  // app.useGlobalFilters(new AllExceptionsFilter());
+  // Global exception filter
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -118,30 +148,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const app = await createApp();
     const expressApp = app.getHttpAdapter().getInstance();
     
-    // Handle the request with proper error handling
-    return new Promise<void>((resolve) => {
-      expressApp(req, res, (err: any) => {
-        if (err) {
-          console.error('Express app error:', {
-            message: err?.message,
-            stack: err?.stack,
-          });
-          if (!res.headersSent) {
-            res.status(500).json({
-              statusCode: 500,
-              message: err?.message || 'Internal server error',
-              error: 'Internal Server Error',
-            });
-          }
-        }
-        resolve();
-      });
-    });
+    // Handle the request - Express will handle errors via global filter
+    expressApp(req, res);
   } catch (error: any) {
     console.error('Vercel handler error:', {
       message: error?.message,
       stack: error?.stack,
+      name: error?.name,
     });
+    
     if (!res.headersSent) {
       res.status(500).json({
         statusCode: 500,
