@@ -17,6 +17,9 @@ async function bootstrapServer() {
 
   app.use(cookieParser());
 
+  // Favicon handler - yoksay (204 No Content)
+  app.use('/favicon.ico', (_, res) => res.status(204).end());
+
   // Stripe webhook FIRST - raw body needed
   app.use('/payments/webhook', raw({ type: 'application/json' }));
 
