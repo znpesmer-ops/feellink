@@ -4,7 +4,8 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { json, raw, urlencoded } from 'express';
 import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
-import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+// DEBUG: Geçici olarak kapatıldı
+// import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import * as net from 'net';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
@@ -46,39 +47,9 @@ async function createApp() {
         'https://feellink.io',
       ];
 
+  // CORS - Allow all origins for debugging (will restrict later)
   app.enableCors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      
-      if (isDevelopment) {
-        if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
-          return callback(null, true);
-        }
-        if (origin.includes('.trycloudflare.com')) {
-          return callback(null, true);
-        }
-        const localIPPattern = /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+)(:\d+)?$/;
-        if (localIPPattern.test(origin)) {
-          return callback(null, true);
-        }
-        if (allowedOrigins.includes(origin)) {
-          return callback(null, true);
-        }
-      } else {
-        // Production: allow Vercel domains and configured origins
-        if (allowedOrigins.includes(origin)) {
-          return callback(null, true);
-        }
-        if (origin.includes('.vercel.app')) {
-          return callback(null, true);
-        }
-        if (origin.includes('feellink.io')) {
-          return callback(null, true);
-        }
-      }
-      
-      callback(new Error('Not allowed by CORS'));
-    },
+    origin: true, // Allow all origins
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
@@ -146,7 +117,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const app = await createApp();
     const expressApp = app.getHttpAdapter().getInstance();
-    expressApp(req, res);
+    
+    // Handle the request with proper error handling
+    return new Promise<void>((resolve) => {
+      expressApp(req, res, (err: any) => {
+        if (err) {
+          console.error('Express app error:', {
+            message: err?.message,
+            stack: err?.stack,
+          });
+          if (!res.headersSent) {
+            res.status(500).json({
+              statusCode: 500,
+              message: err?.message || 'Internal server error',
+              error: 'Internal Server Error',
+            });
+          }
+        }
+        resolve();
+      });
+    });
   } catch (error: any) {
     console.error('Vercel handler error:', {
       message: error?.message,
