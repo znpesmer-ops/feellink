@@ -10,23 +10,34 @@ export class MediaService {
   private bucketName: string;
 
   constructor(private configService: ConfigService) {
-    this.isDisabled = this.configService.get('MINIO_DISABLED') === 'true';
-    this.bucketName = this.configService.get('MINIO_BUCKET_NAME') ?? 'feellink-dev';
+    try {
+      this.isDisabled = this.configService.get('MINIO_DISABLED') === 'true';
+      this.bucketName = this.configService.get('MINIO_BUCKET_NAME') ?? 'feellink-dev';
 
-    if (this.isDisabled) {
-      // Lokal geliştirmede MinIO bağlantısı gerekli değilse servisi mock'la
-      return;
+      if (this.isDisabled) {
+        // Lokal geliştirmede MinIO bağlantısı gerekli değilse servisi mock'la
+        this.minioClient = null;
+        return;
+      }
+
+      const minioPort = this.configService.get('MINIO_PORT');
+      const port = minioPort ? parseInt(minioPort, 10) : 9000;
+      
+      this.minioClient = new MinIO.Client({
+        endPoint: this.configService.get('MINIO_ENDPOINT') || 'localhost',
+        port: isNaN(port) ? 9000 : port,
+        useSSL: this.configService.get('MINIO_USE_SSL') === 'true',
+        accessKey: this.configService.get('MINIO_ACCESS_KEY') || '',
+        secretKey: this.configService.get('MINIO_SECRET_KEY') || '',
+      });
+
+      void this.ensureBucket();
+    } catch (error: any) {
+      // Constructor'da hata olursa sessizce devam et
+      console.warn('[MediaService] MinIO initialization failed:', error?.message || error);
+      this.minioClient = null;
+      this.isDisabled = true;
     }
-
-    this.minioClient = new MinIO.Client({
-      endPoint: this.configService.get('MINIO_ENDPOINT'),
-      port: parseInt(this.configService.get('MINIO_PORT'), 10),
-      useSSL: this.configService.get('MINIO_USE_SSL') === 'true',
-      accessKey: this.configService.get('MINIO_ACCESS_KEY'),
-      secretKey: this.configService.get('MINIO_SECRET_KEY'),
-    });
-
-    void this.ensureBucket();
   }
 
   private async ensureBucket() {
