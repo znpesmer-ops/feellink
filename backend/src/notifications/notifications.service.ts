@@ -1,4 +1,4 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -23,15 +23,25 @@ type NotifType = 'mention' | 'follow' | 'follow_request' | 'follow_accept' | 'li
 export class NotificationsService {
   constructor(
     private prisma: PrismaService,
-    @InjectQueue('notifications') private notificationsQueue: Queue,
+    @Optional() @InjectQueue('notifications') private notificationsQueue: Queue | null,
     @Inject(forwardRef(() => NotificationsGateway)) private notificationsGateway: NotificationsGateway,
   ) {}
 
   async createNotification(data: CreateNotificationDto) {
-    // Add to queue for processing
-    await this.notificationsQueue.add('create-notification', data);
+    // Redis/Queue yoksa direkt sync çalıştır (Vercel serverless için)
+    if (!this.notificationsQueue) {
+      return await this.createNotificationSync(data);
+    }
 
-    return { queued: true };
+    // Add to queue for processing
+    try {
+      await this.notificationsQueue.add('create-notification', data);
+      return { queued: true };
+    } catch (error) {
+      // Queue hatası varsa direkt sync çalıştır
+      console.warn('[NotificationsService] Queue error, using sync:', error);
+      return await this.createNotificationSync(data);
+    }
   }
 
   async createNotificationSync(data: CreateNotificationDto) {
