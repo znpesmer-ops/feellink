@@ -1,19 +1,16 @@
-// Vercel serverless function handler for NestJS
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+// Vercel serverless function - JavaScript for maximum compatibility
+const { NestFactory } = require('@nestjs/core');
+const { ValidationPipe, Logger, HttpException } = require('@nestjs/common');
+const { json, raw, urlencoded } = require('express');
+const cookieParser = require('cookie-parser');
+const { AppModule } = require('../dist/app.module');
 
-let cachedApp: any;
+let cachedServer = null;
 
-async function bootstrapApp() {
-  if (cachedApp) {
-    return cachedApp;
+async function bootstrapServer() {
+  if (cachedServer) {
+    return cachedServer;
   }
-
-  // Dynamic import to avoid issues with build order
-  const { NestFactory } = await import('@nestjs/core');
-  const { ValidationPipe, Logger, HttpException } = await import('@nestjs/common');
-  const { json, raw, urlencoded } = await import('express');
-  const cookieParser = await import('cookie-parser');
-  const { AppModule } = await import('../src/app.module');
 
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],
@@ -21,14 +18,12 @@ async function bootstrapApp() {
 
   const logger = new Logger('Bootstrap');
 
-  app.use(cookieParser.default());
+  app.use(cookieParser());
 
-  // Favicon handler
   app.use('/favicon.ico', (_, res) => {
     res.status(204).end();
   });
 
-  // Stripe webhook FIRST - raw body needed
   app.use('/payments/webhook', raw({ type: 'application/json' }));
 
   app.use(json({ limit: '2mb' }));
@@ -72,17 +67,17 @@ async function bootstrapApp() {
   await app.init();
 
   const server = app.getHttpAdapter().getInstance();
-  cachedApp = server;
+  cachedServer = server;
 
   logger.log('✅ NestJS initialized for Vercel');
   return server;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+module.exports = async function handler(req, res) {
   try {
-    const server = await bootstrapApp();
+    const server = await bootstrapServer();
     server(req, res);
-  } catch (err: any) {
+  } catch (err) {
     console.error('🔥 VERCEL UNHANDLED ERROR:', {
       message: err?.message,
       stack: err?.stack,
@@ -97,4 +92,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
   }
-}
+};
