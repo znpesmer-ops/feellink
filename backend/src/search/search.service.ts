@@ -19,6 +19,15 @@ export class SearchService implements OnModuleInit {
     private configService: ConfigService,
     private prisma: PrismaService,
   ) {
+    // ⛔️ SERVERLESS / PRODUCTION KESİN KAPALI
+    const isServerless = process.env.VERCEL === '1';
+    const isProd = process.env.NODE_ENV === 'production';
+
+    if (isServerless || isProd) {
+      this.disableSearch('Meilisearch devre dışı bırakıldı (serverless-safe).');
+      return;
+    }
+
     const host = this.configService.get<string>('MEILISEARCH_HOST');
     const apiKey = this.configService.get<string>('MEILISEARCH_API_KEY');
 
