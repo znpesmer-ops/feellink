@@ -90,11 +90,20 @@ module.exports = async function handler(req, res) {
     const server = await bootstrapServer();
     server(req, res);
   } catch (err) {
-    console.error('🔥 VERCEL RUNTIME ERROR:', {
+    // Detailed error logging for debugging
+    const errorDetails = {
       message: err?.message,
       stack: err?.stack,
       name: err?.name,
       code: err?.code,
+      cause: err?.cause,
+    };
+    
+    console.error('🔥 VERCEL RUNTIME ERROR:', JSON.stringify(errorDetails, null, 2));
+    console.error('Environment check:', {
+      NODE_ENV: process.env.NODE_ENV,
+      DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'MISSING',
+      JWT_SECRET: process.env.JWT_SECRET ? 'SET' : 'MISSING',
     });
 
     if (!res.headersSent) {
@@ -104,6 +113,7 @@ module.exports = async function handler(req, res) {
           ? 'Internal Server Error' 
           : err?.message || 'Internal Server Error',
         error: 'Internal Server Error',
+        ...(process.env.NODE_ENV !== 'production' && { details: errorDetails }),
       });
     }
   }
