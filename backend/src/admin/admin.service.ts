@@ -1,14 +1,13 @@
 import { Injectable, Inject, forwardRef, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Prisma, UserRole } from '@prisma/client';
-import { getPrismaInstance } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { ColorAnalysisService } from '../posts/color-analysis.service';
 import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AdminService {
-  private prisma = getPrismaInstance();
-
   constructor(
+    private prisma: PrismaService,
     @Inject(forwardRef(() => ColorAnalysisService))
     private colorAnalysisService: ColorAnalysisService,
     private mailService: MailService,

@@ -1,8 +1,10 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { getPrismaInstance } from '../../prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class AccountStatusGuard implements CanActivate {
+  constructor(private prisma: PrismaService) {}
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     try {
       const request = context.switchToHttp().getRequest();
@@ -16,7 +18,7 @@ export class AccountStatusGuard implements CanActivate {
       }
 
       try {
-        const prisma = getPrismaInstance();
+        const prisma = this.prisma;
 
         // ✅ Kullanıcıyı veritabanından çek (güncel accountStatus için)
         const dbUser = await prisma.user.findUnique({
