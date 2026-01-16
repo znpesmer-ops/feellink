@@ -24,11 +24,19 @@ async function bootstrapServer() {
     return cachedServer;
   }
 
-  const app = await NestFactory.create(AppModule, {
-    logger: ['error', 'warn', 'log'],
-  });
+  try {
+    console.log('🚀 Starting NestJS bootstrap...');
+    console.log('Environment check:', {
+      NODE_ENV: process.env.NODE_ENV,
+      DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'MISSING',
+      JWT_SECRET: process.env.JWT_SECRET ? 'SET' : 'MISSING',
+    });
 
-  const logger = new Logger('Bootstrap');
+    const app = await NestFactory.create(AppModule, {
+      logger: ['error', 'warn', 'log'],
+    });
+
+    const logger = new Logger('Bootstrap');
 
   app.use(cookieParser());
 
@@ -76,13 +84,21 @@ async function bootstrapServer() {
     }),
   );
 
-  await app.init();
+    await app.init();
 
-  const server = app.getHttpAdapter().getInstance();
-  cachedServer = server;
+    const server = app.getHttpAdapter().getInstance();
+    cachedServer = server;
 
-  logger.log('✅ NestJS initialized for Vercel');
-  return server;
+    logger.log('✅ NestJS initialized for Vercel');
+    return server;
+  } catch (bootstrapError) {
+    console.error('🔥 BOOTSTRAP ERROR:', {
+      message: bootstrapError?.message,
+      stack: bootstrapError?.stack,
+      name: bootstrapError?.name,
+    });
+    throw bootstrapError;
+  }
 }
 
 module.exports = async function handler(req, res) {
