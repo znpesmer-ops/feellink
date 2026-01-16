@@ -1,16 +1,10 @@
 {
   "version": 2,
-  "buildCommand": "pnpm prisma generate && pnpm build",
-  "builds": [
+  "buildCommand": "pnpm install && pnpm prisma generate && pnpm build",
+  "rewrites": [
     {
-      "src": "dist/main.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "dist/main.js"
+      "source": "/(.*)",
+      "destination": "/api"
     }
   ]
 }
