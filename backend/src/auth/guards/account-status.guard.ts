@@ -8,6 +8,13 @@ export class AccountStatusGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     try {
       const request = context.switchToHttp().getRequest();
+
+      // ⛔️ Public routes - guard'ı bypass et
+      const publicPaths = ['/', '/health'];
+      if (publicPaths.includes(request.path)) {
+        return true;
+      }
+
       const user = request.user;
 
       // ✅ Auth guard'dan geçmemişse veya user yoksa, bu guard devreye girmesin

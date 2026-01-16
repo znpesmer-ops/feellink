@@ -2,11 +2,12 @@ import { Controller, Get } from '@nestjs/common';
 
 @Controller()
 export class AppController {
-  @Get()
+  @Get('/')
   root() {
     return {
       status: 'ok',
       service: 'feellink-backend',
+      env: process.env.NODE_ENV,
       timestamp: new Date().toISOString(),
     };
   }
