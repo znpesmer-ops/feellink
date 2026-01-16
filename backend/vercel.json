@@ -1,11 +1,6 @@
 {
   "version": 2,
   "buildCommand": "npm install --include=dev && npm run build",
-  "functions": {
-    "api/index.ts": {
-      "runtime": "@vercel/node"
-    }
-  },
   "rewrites": [
     {
       "source": "/(.*)",
