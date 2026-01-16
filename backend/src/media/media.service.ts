@@ -10,19 +10,30 @@ export class MediaService {
   private bucketName: string;
 
   constructor(private configService: ConfigService) {
+    // ⛔️ SERVERLESS / PRODUCTION KESİN KAPALI
+    const isServerless = process.env.VERCEL === '1';
+    const isProd = process.env.NODE_ENV === 'production';
+
+    this.isDisabled =
+      isServerless ||
+      isProd ||
+      this.configService.get('MINIO_DISABLED') === 'true';
+
+    this.bucketName =
+      this.configService.get('MINIO_BUCKET_NAME') ?? 'feellink-dev';
+
+    if (this.isDisabled) {
+      console.warn('[MediaService] MinIO DISABLED (serverless-safe)');
+      this.minioClient = null;
+      return;
+    }
+
+    // ⛔️ Constructor'da ASLA async işlem yok
+    // ⛔️ ensureBucket() ASLA çağrılmaz (serverless'ta yasak)
     try {
-      this.isDisabled = this.configService.get('MINIO_DISABLED') === 'true';
-      this.bucketName = this.configService.get('MINIO_BUCKET_NAME') ?? 'feellink-dev';
-
-      if (this.isDisabled) {
-        // Lokal geliştirmede MinIO bağlantısı gerekli değilse servisi mock'la
-        this.minioClient = null;
-        return;
-      }
-
       const minioPort = this.configService.get('MINIO_PORT');
       const port = minioPort ? parseInt(minioPort, 10) : 9000;
-      
+
       this.minioClient = new MinIO.Client({
         endPoint: this.configService.get('MINIO_ENDPOINT') || 'localhost',
         port: isNaN(port) ? 9000 : port,
@@ -30,8 +41,6 @@ export class MediaService {
         accessKey: this.configService.get('MINIO_ACCESS_KEY') || '',
         secretKey: this.configService.get('MINIO_SECRET_KEY') || '',
       });
-
-      void this.ensureBucket();
     } catch (error: any) {
       // Constructor'da hata olursa sessizce devam et
       console.warn('[MediaService] MinIO initialization failed:', error?.message || error);
@@ -40,29 +49,9 @@ export class MediaService {
     }
   }
 
-  private async ensureBucket() {
-    if (!this.minioClient) {
-      return;
-    }
-
-    const exists = await this.minioClient.bucketExists(this.bucketName);
-    if (!exists) {
-      await this.minioClient.makeBucket(this.bucketName);
-      // Set bucket policy for public read access
-      const policy = {
-        Version: '2012-10-17',
-        Statement: [
-          {
-            Effect: 'Allow',
-            Principal: { AWS: ['*'] },
-            Action: ['s3:GetObject'],
-            Resource: [`arn:aws:s3:::${this.bucketName}/*`],
-          },
-        ],
-      };
-      await this.minioClient.setBucketPolicy(this.bucketName, JSON.stringify(policy));
-    }
-  }
+  // ❌ ensureBucket() TAMAMEN KALDIRILDI
+  // Bucket deployment sırasında veya CI/CD'de hazırlanır
+  // Runtime'da ASLA çağrılmaz (serverless'ta yasak)
 
   async uploadFile(file: Express.Multer.File, folder: string = 'posts'): Promise<{ url: string; fileName: string; fileType: string }> {
     const fileName = `${folder}/${randomUUID()}-${file.originalname}`;
