@@ -1,5 +1,5 @@
 // Vercel serverless function handler
-// This file routes all requests to the NestJS handler in main.ts
-import handler from '../src/main';
+// This file routes all requests to the NestJS handler
+import handler from '../dist/main';
 
 export default handler;
