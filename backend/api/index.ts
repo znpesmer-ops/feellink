@@ -95,8 +95,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log(`📥 Request: ${req.method} ${req.url}`);
     const server = await bootstrapServer();
     
-    // Direct server call - Express handles errors internally
-    server(req, res);
+    // Wrap in promise to handle async errors
+    return new Promise<void>((resolve) => {
+      // Handle response finish
+      res.on('finish', () => resolve());
+      res.on('close', () => resolve());
+      
+      // Handle server errors
+      const errorHandler = (err: Error) => {
+        console.error('🔥 SERVER ERROR:', err);
+        if (!res.headersSent) {
+          res.status(500).json({
+            statusCode: 500,
+            message: 'Internal Server Error',
+            error: 'Internal Server Error',
+          });
+        }
+        resolve();
+      };
+
+      // Set timeout
+      const timeout = setTimeout(() => {
+        if (!res.headersSent) {
+          res.status(504).json({
+            statusCode: 504,
+            message: 'Request Timeout',
+            error: 'Gateway Timeout',
+          });
+        }
+        resolve();
+      }, 29000); // 29 seconds (Vercel limit is 30s)
+
+      // Call server
+      try {
+        server(req, res);
+        
+        // Clear timeout when response finishes
+        res.once('finish', () => clearTimeout(timeout));
+        res.once('close', () => clearTimeout(timeout));
+      } catch (syncError: any) {
+        clearTimeout(timeout);
+        errorHandler(syncError);
+      }
+    });
   } catch (err: any) {
     // Detailed error logging for debugging
     const errorDetails = {
