@@ -1197,13 +1197,13 @@ export class AdminService {
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: request.userId },
-        data: { roles: request.requestedRoles },
+        data: { roles: [request.requestedRole] },
       }),
       this.prisma.roleChangeRequest.update({
         where: { id: requestId },
         data: {
           status: 'APPROVED',
-          reviewedById: adminId,
+          reviewedBy: adminId,
           reviewedAt: new Date(),
           reviewNote,
         },
@@ -1226,7 +1226,7 @@ export class AdminService {
       where: { id: requestId },
       data: {
         status: 'REJECTED',
-        reviewedById: adminId,
+        reviewedBy: adminId,
         reviewedAt: new Date(),
         reviewNote,
       },

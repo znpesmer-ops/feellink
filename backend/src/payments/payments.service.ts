@@ -59,9 +59,7 @@ export class PaymentsService {
         return;
       }
 
-      this.stripe = new Stripe(secretKey, {
-        apiVersion: '2024-04-10',
-      });
+      this.stripe = new Stripe(secretKey);
       this.webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET') ?? null;
     } catch (error: any) {
       this.logger.error('PaymentsService constructor error:', error?.message || error);
