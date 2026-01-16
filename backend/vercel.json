@@ -7,5 +7,10 @@
       "source": "/(.*)",
       "destination": "/api"
     }
-  ]
+  ],
+  "functions": {
+    "api/**/*.ts": {
+      "includeFiles": "dist/**"
+    }
+  }
 }
