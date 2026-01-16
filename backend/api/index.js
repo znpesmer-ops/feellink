@@ -3,7 +3,19 @@ const { NestFactory } = require('@nestjs/core');
 const { ValidationPipe, Logger, HttpException } = require('@nestjs/common');
 const { json, raw, urlencoded } = require('express');
 const cookieParser = require('cookie-parser');
-const { AppModule } = require('../dist/app.module');
+
+// Import AppModule - handle both default and named export
+let AppModule;
+try {
+  const appModuleModule = require('../dist/app.module');
+  AppModule = appModuleModule.AppModule || appModuleModule.default || appModuleModule;
+  if (!AppModule) {
+    throw new Error('AppModule not found in dist/app.module');
+  }
+} catch (err) {
+  console.error('Failed to import AppModule:', err);
+  throw err;
+}
 
 let cachedServer = null;
 
@@ -78,16 +90,19 @@ module.exports = async function handler(req, res) {
     const server = await bootstrapServer();
     server(req, res);
   } catch (err) {
-    console.error('🔥 VERCEL UNHANDLED ERROR:', {
+    console.error('🔥 VERCEL RUNTIME ERROR:', {
       message: err?.message,
       stack: err?.stack,
       name: err?.name,
+      code: err?.code,
     });
 
     if (!res.headersSent) {
       res.status(500).json({
         statusCode: 500,
-        message: err?.message || 'Internal Server Error',
+        message: process.env.NODE_ENV === 'production' 
+          ? 'Internal Server Error' 
+          : err?.message || 'Internal Server Error',
         error: 'Internal Server Error',
       });
     }
