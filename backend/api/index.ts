@@ -92,46 +92,11 @@ async function bootstrapServer() {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
+    console.log(`📥 Request: ${req.method} ${req.url}`);
     const server = await bootstrapServer();
     
-    // Wrap server call in promise to catch async errors
-    await new Promise<void>((resolve, reject) => {
-      const originalEnd = res.end.bind(res);
-      let resolved = false;
-
-      res.end = function (chunk?: any, encoding?: any) {
-        if (!resolved) {
-          resolved = true;
-          resolve();
-        }
-        return originalEnd(chunk, encoding);
-      };
-
-      // Handle server errors
-      server.on('error', (err: Error) => {
-        if (!resolved) {
-          resolved = true;
-          reject(err);
-        }
-      });
-
-      try {
-        server(req, res);
-      } catch (syncError: any) {
-        if (!resolved) {
-          resolved = true;
-          reject(syncError);
-        }
-      }
-
-      // Timeout fallback
-      setTimeout(() => {
-        if (!resolved) {
-          resolved = true;
-          resolve();
-        }
-      }, 30000); // 30 second timeout
-    });
+    // Direct server call - Express handles errors internally
+    server(req, res);
   } catch (err: any) {
     // Detailed error logging for debugging
     const errorDetails = {
@@ -161,13 +126,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         error: 'Internal Server Error',
         ...(process.env.NODE_ENV !== 'production' && { details: errorDetails }),
       });
-    } else {
-      // Headers already sent, try to end response
-      try {
-        res.end();
-      } catch (endError) {
-        // Ignore
-      }
     }
   }
 }
