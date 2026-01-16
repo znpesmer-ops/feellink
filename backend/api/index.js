@@ -1,5 +1,6 @@
 // Vercel serverless function - JavaScript for maximum compatibility
 const path = require('path');
+const fs = require('fs');
 const { NestFactory } = require('@nestjs/core');
 const { ValidationPipe, Logger, HttpException } = require('@nestjs/common');
 const { json, raw, urlencoded } = require('express');
@@ -42,7 +43,13 @@ try {
   console.error('Failed to import AppModule:', err);
   console.error('Current working directory:', process.cwd());
   console.error('__dirname:', __dirname);
-  console.error('Available files in dist:', require('fs').readdirSync(path.join(__dirname, '../dist')).catch(() => 'Cannot read dist directory'));
+  try {
+    const distPath = path.join(__dirname, '../dist');
+    const distFiles = fs.existsSync(distPath) ? fs.readdirSync(distPath) : 'dist directory does not exist';
+    console.error('Available files in dist:', distFiles);
+  } catch (e) {
+    console.error('Cannot read dist directory:', e.message);
+  }
   throw err;
 }
 
