@@ -15,12 +15,14 @@ export default function Home() {
     }
 
     // ✅ Backend doğrulaması tamamlandıktan sonra yönlendir
+    // Sadece bir kez redirect yap
     if (isAuthenticated) {
       router.replace('/feed')
     } else {
       router.replace('/login')
     }
-  }, [isAuthenticated, loading, router])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // ✅ Sadece mount'ta bir kez çalış - loading ve isAuthenticated değişse bile tekrar redirect yapma
 
   // ⛔️ Loading state EKLENMEDEN redirect YAPILMAYACAK
   if (loading) {
