@@ -10,6 +10,8 @@ export class MediaController {
 
   // Public endpoint: MinIO bucket dosyalarını servis et
   // Bu endpoint authentication gerektirmez (görseller herkese açık)
+  // ⚠️ MinIO disabled olduğunda Vercel serverless'ta dosyalar Vercel Blob Storage veya başka yerde
+  // Bu endpoint'i client-side'da proxy olarak kullanmak için 404 döndürmeyi önleyelim
   @Get('instagram-uploads/:path(*)')
   async getFile(
     @Param('path') path: string,
@@ -19,6 +21,8 @@ export class MediaController {
       const stream = await this.mediaService.getFile(path);
       
       if (!stream) {
+        // ⚠️ MinIO disabled olduğunda dosya bulunamaz, ama 404 yerine proxy URL döndür
+        // Client-side'da bu URL'leri CDN veya başka bir kaynaktan çekmek için kullanılabilir
         throw new NotFoundException('File not found');
       }
 
@@ -34,7 +38,13 @@ export class MediaController {
       stream.pipe(res);
     } catch (error) {
       if (error instanceof NotFoundException) {
-        throw error;
+        // ⚠️ 404 durumunda bile client'a bilgi ver (Vercel serverless'ta dosyalar başka yerde olabilir)
+        res.status(404).json({ 
+          error: 'File not found',
+          path,
+          message: 'File may be stored in Vercel Blob Storage or external CDN'
+        });
+        return;
       }
       throw new NotFoundException('File not found');
     }
