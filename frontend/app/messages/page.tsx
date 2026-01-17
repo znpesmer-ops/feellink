@@ -780,7 +780,22 @@ function MessagesContent() {
     }
 
     // ✅ Active conversation kontrolü - Socket kontrolü kaldırıldı (REST API fallback var)
-    if ((!messageText.trim() && !selectedImage && !selectedFile) || !activeConversation) return
+    if ((!messageText.trim() && !selectedImage && !selectedFile) || !activeConversation) {
+      console.log('⚠️ [sendMessage] Validation failed:', {
+        hasText: !!messageText.trim(),
+        hasImage: !!selectedImage,
+        hasFile: !!selectedFile,
+        hasConversation: !!activeConversation,
+      })
+      return
+    }
+
+    console.log('📤 [sendMessage] Starting to send message:', {
+      conversationId: activeConversation.id,
+      hasContent: !!messageText.trim(),
+      hasImage: !!selectedImage,
+      hasFile: !!selectedFile,
+    })
 
     // Kilit açıldı
     isSendingRef.current = true
@@ -890,70 +905,46 @@ function MessagesContent() {
     setMessages((prev) => [...prev, tempMessage])
     setTimeout(() => scrollToBottom(), 0)
 
-    // ✅ Mesaj gönderme - Socket varsa socket, yoksa REST API
+    // ✅ Mesaj gönderme - Önce REST API dene (Vercel uyumlu), socket opsiyonel
     try {
-      let savedMessage: Message | null = null
+      console.log('📡 [sendMessage] Sending via REST API...')
+      
+      const response = await api.post('/chat/messages', {
+        conversationId: activeConversation.id,
+        content: content || undefined,
+        imageUrl: imageUrl || undefined,
+        fileUrl: fileUrl || undefined,
+        fileName: fileName || undefined,
+        fileType: fileType || undefined,
+      })
 
-      // Socket bağlıysa socket ile gönder
-      if (chatSocketRef.current?.connected) {
-        chatSocketRef.current.emit('send_message', {
-          conversationId: activeConversation.id,
-          content: content || undefined,
-          imageUrl: imageUrl || undefined,
-          fileUrl: fileUrl || undefined,
-          fileName: fileName || undefined,
-          fileType: fileType || undefined,
-        }, (response: any) => {
-          if (response?.error) {
-            console.error('Failed to send message via socket:', response.error)
-            // Socket başarısız olursa REST API'ye fallback
-            sendViaRestAPI()
-          } else if (response?.message) {
-            // Socket başarılı - temp mesajı gerçek mesajla değiştir
-            setMessages((prev) =>
-              prev.map((m) => (m.id === tempMessageId ? response.message : m))
-            )
-          }
-        })
-      } else {
-        // Socket yoksa direkt REST API ile gönder
-        await sendViaRestAPI()
-      }
+      console.log('✅ [sendMessage] Message sent successfully:', response.data)
 
-      // REST API fallback fonksiyonu
-      async function sendViaRestAPI() {
-        try {
-          const response = await api.post('/chat/messages', {
-            conversationId: activeConversation.id,
-            content: content || undefined,
-            imageUrl: imageUrl || undefined,
-            fileUrl: fileUrl || undefined,
-            fileName: fileName || undefined,
-            fileType: fileType || undefined,
-          })
+      // Temp mesajı gerçek mesajla değiştir
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempMessageId ? response.data : m))
+      )
 
-          savedMessage = response.data
-          
-          // Temp mesajı gerçek mesajla değiştir
-          setMessages((prev) =>
-            prev.map((m) => (m.id === tempMessageId ? savedMessage! : m))
-          )
-
-          // Konuşma listesini güncelle
-          loadConversations()
-          setTimeout(() => scrollToBottom(), 0)
-        } catch (error: any) {
-          console.error('Failed to send message via REST API:', error)
-          
-          // Hata durumunda temp mesajı kaldır
-          setMessages((prev) => prev.filter((m) => m.id !== tempMessageId))
-          
-          // Input'u geri yükle
-          setMessageText(content || '')
-          
-          alert(error.response?.data?.message || 'Mesaj gönderilirken bir hata oluştu')
-        }
-      }
+      // Konuşma listesini güncelle
+      loadConversations()
+      setTimeout(() => scrollToBottom(), 0)
+    } catch (error: any) {
+      console.error('❌ [sendMessage] Failed to send message:', error)
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      })
+      
+      // Hata durumunda temp mesajı kaldır
+      setMessages((prev) => prev.filter((m) => m.id !== tempMessageId))
+      
+      // Input'u geri yükle
+      setMessageText(content || '')
+      
+      const errorMessage = error.response?.data?.message || error.message || 'Mesaj gönderilirken bir hata oluştu'
+      alert(errorMessage)
+    }
     } finally {
       // ✅ Kilit kaldırıldı (başarılı veya hatalı olsun)
       isSendingRef.current = false
