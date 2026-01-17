@@ -44,22 +44,21 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return
     }
 
-    const verifyAuth = async () => {
-
-      // Token kontrolü
-      const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
-      const hasToken = accessToken || tokenFromStorage
-
-      // Token yoksa direkt authenticated = false
-      if (!hasToken) {
-        setAuthenticated(false)
-        setHasInitialized(true)
-        return
-      }
-
-      // ✅ Backend /me endpoint'i ile doğrulama
+    const initAuth = async () => {
       try {
         setLoading(true)
+
+        // Token kontrolü
+        const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+        const hasToken = accessToken || tokenFromStorage
+
+        // Token yoksa direkt authenticated = false
+        if (!hasToken) {
+          setAuthenticated(false)
+          return // ✅ finally bloğu çalışacak
+        }
+
+        // ✅ Backend /me endpoint'i ile doğrulama
         const response = await api.get('/auth/me')
         const { user: currentUser, capabilities, sidebar } = response.data
         
@@ -73,9 +72,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           sidebar ?? null
         )
         setAuthenticated(true)
-      } catch (error: any) {
+
+      } catch (err: any) {
         // ✅ Backend Response 401/403 → token sil, isAuthenticated = false
-        if (error?.response?.status === 401 || error?.response?.status === 403) {
+        if (err?.response?.status === 401 || err?.response?.status === 403) {
           if (typeof window !== 'undefined') {
             localStorage.removeItem('access_token')
             localStorage.removeItem('refresh_token')
@@ -87,14 +87,15 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           setAuthenticated(false)
         }
       } finally {
+        // ✅ KRİTİK: HER SENARYODA loading false ve hasInitialized true
         setLoading(false)
         setHasInitialized(true)
       }
     }
 
-    verifyAuth()
+    initAuth()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // ✅ Sadece mount'ta bir kez çalış - hasInitialized store'da kontrol ediliyor
+  }, []) // ✅ Sadece mount'ta bir kez çalış
 
   // ✅ Redirect kuralları - loading ve initialization tamamlandıktan sonra
   useEffect(() => {
