@@ -113,9 +113,8 @@ export default function AdminAnalyticsPage() {
     )
   }
 
-  if (!data) return null
-
-  const statCards = [
+  // ✅ Optimistic render - UI hemen görünsün, data yüklenirken skeleton göster
+  const statCards = data ? [
     {
       label: 'Toplam Kullanıcılar',
       value: data.totalUsers.toLocaleString('tr-TR'),
@@ -151,15 +150,15 @@ export default function AdminAnalyticsPage() {
       color: 'text-[#ff7a00] dark:text-[#ff7a00]',
       bgColor: 'bg-orange-50 dark:bg-orange-900/20',
     },
-  ]
+  ] : []
 
-  // Format dates for charts (show only day/month)
-  const formattedEngagementTrend = data.engagementTrend.map((item: any) => ({
+  // Format dates for charts (show only day/month) - Optional chaining ile safe
+  const formattedEngagementTrend = (data?.engagementTrend || []).map((item: any) => ({
     ...item,
     date: new Date(item.date).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }),
   }))
 
-  const formattedGrowthTrend = data.growthTrend.map((item: any) => ({
+  const formattedGrowthTrend = (data?.growthTrend || []).map((item: any) => ({
     ...item,
     date: new Date(item.date).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }),
   }))
@@ -181,25 +180,43 @@ export default function AdminAnalyticsPage() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {statCards.map((stat: any, index: any) => {
-          const Icon = stat.icon
-          return (
+        {loading && !data ? (
+          // Skeleton loader
+          Array.from({ length: 5 }).map((_, index) => (
             <div
               key={index}
-              className="rounded-2xl border border-gray-200 dark:border-gray-700/40 shadow-sm p-6 dark:bg-[#111] bg-white hover:scale-105 transition-transform duration-200"
+              className="rounded-2xl border border-gray-200 dark:border-gray-700/40 shadow-sm p-6 dark:bg-[#111] bg-white animate-pulse"
             >
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{stat.label}</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-2"></div>
+                  <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
                 </div>
-                <div className={`${stat.bgColor} p-3 rounded-lg`}>
-                  <Icon className={`w-6 h-6 ${stat.color}`} />
-                </div>
+                <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
               </div>
             </div>
-          )
-        })}
+          ))
+        ) : (
+          statCards.map((stat: any, index: any) => {
+            const Icon = stat.icon
+            return (
+              <div
+                key={index}
+                className="rounded-2xl border border-gray-200 dark:border-gray-700/40 shadow-sm p-6 dark:bg-[#111] bg-white hover:scale-105 transition-transform duration-200"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{stat.label}</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
+                  </div>
+                  <div className={`${stat.bgColor} p-3 rounded-lg`}>
+                    <Icon className={`w-6 h-6 ${stat.color}`} />
+                  </div>
+                </div>
+              </div>
+            )
+          })
+        )}
       </div>
 
       {/* Charts */}
@@ -211,7 +228,8 @@ export default function AdminAnalyticsPage() {
             30 Günlük Etkileşim Trendi
           </h2>
           <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={formattedEngagementTrend}>
+            {data ? (
+              <AreaChart data={formattedEngagementTrend}>
               <defs>
                 <linearGradient id="colorPosts" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#ff7a00" stopOpacity={0.8} />
@@ -254,6 +272,9 @@ export default function AdminAnalyticsPage() {
                 name="Yorumlar"
               />
             </AreaChart>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-400">Yükleniyor...</div>
+            )}
           </ResponsiveContainer>
         </div>
 
@@ -264,7 +285,8 @@ export default function AdminAnalyticsPage() {
             30 Günlük Kullanıcı Artışı
           </h2>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={formattedGrowthTrend}>
+            {data ? (
+              <LineChart data={formattedGrowthTrend}>
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
               <XAxis
                 dataKey="date"
@@ -290,6 +312,9 @@ export default function AdminAnalyticsPage() {
                 name="Yeni Kullanıcılar"
               />
             </LineChart>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-400">Yükleniyor...</div>
+            )}
           </ResponsiveContainer>
         </div>
       </div>
@@ -321,8 +346,8 @@ export default function AdminAnalyticsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {data.topCountries.map((item: any, index: any) => {
-                const percentage = ((item.count / data.totalUsers) * 100).toFixed(1)
+              {(data?.topCountries || []).map((item: any, index: any) => {
+                const percentage = data ? ((item.count / data.totalUsers) * 100).toFixed(1) : '0'
                 return (
                   <tr
                     key={index}

@@ -227,6 +227,7 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
               <li key={item.key}>
                 <Link
                   href={item.href}
+                  prefetch={true}
                   onClick={onLinkClick}
                   className={`${baseClasses} ${
                     isActive ? 'bg-brand-blue/10 text-brand-orange' : inactiveClasses

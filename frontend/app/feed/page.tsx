@@ -100,10 +100,7 @@ function FeedContent() {
     // Yeni post'lar için feed'i manuel refresh etmek gerekir
   }, [accessToken, router, user?.id])
 
-  if (!accessToken) {
-    return null
-  }
-
+  // ✅ Optimistic render - UI hemen görünsün, fetch arkada devam etsin
   return (
     <div className="w-full max-w-5xl mx-auto px-4">
       {/* 🔸 Ayın Öne Çıkanları — header'ın hemen altından başlıyor, direkt görünür */}
