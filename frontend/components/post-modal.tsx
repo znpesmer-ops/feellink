@@ -232,7 +232,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       return response.data
     },
     onSuccess: () => {
-      // Optimistic update - Socket.IO'dan gelen güncelleme gerçek veriyi ayarlayacak
+      // ✅ REST API başarılı - Query invalidation ile state güncelleniyor
       queryClient.invalidateQueries({ queryKey: ['post', postId] })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       setCommentText('')
