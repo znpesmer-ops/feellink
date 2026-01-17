@@ -1493,8 +1493,18 @@ function MessagesContent() {
                     className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-brand-orange dark:text-white"
                   />
                   <button
-                    type="submit"
+                    type="button"
                     disabled={(!messageText.trim() && !selectedImage && !selectedFile) || isUploading}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      console.log('🔵 [BUTTON] Send button clicked directly', {
+                        messageText: messageText?.substring(0, 20),
+                        hasActiveConversation: !!activeConversation,
+                        activeConversationId: activeConversation?.id,
+                      })
+                      sendMessage()
+                    }}
                     className="bg-brand-orange text-white p-2 rounded-full hover:bg-brand-orange/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isUploading ? (
@@ -1927,8 +1937,18 @@ function MessagesContent() {
                     className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-brand-orange dark:text-white"
                   />
                   <button
-                    type="submit"
+                    type="button"
                     disabled={(!messageText.trim() && !selectedImage && !selectedFile) || isUploading}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      console.log('🔵 [BUTTON] Send button clicked directly', {
+                        messageText: messageText?.substring(0, 20),
+                        hasActiveConversation: !!activeConversation,
+                        activeConversationId: activeConversation?.id,
+                      })
+                      sendMessage()
+                    }}
                     className="bg-brand-orange text-white p-2 rounded-full hover:bg-brand-orange/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isUploading ? (
