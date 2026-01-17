@@ -29,6 +29,14 @@ function FeedContent() {
         const res = await api.get('/feed')
         const posts = res.data.posts || res.data || []
 
+        // 🔍 DEBUG: Feed response'u logla
+        console.log('[FEED] Feed API response:', {
+          hasPosts: posts.length > 0,
+          postsCount: posts.length,
+          responseData: res.data,
+          firstPost: posts[0] || null,
+        })
+
         // 🔍 DEBUG: İlk post'un media yapısını logla
         if (posts.length > 0 && posts[0].media) {
           console.log('[FEED] First post media structure:', {
