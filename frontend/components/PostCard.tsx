@@ -7,7 +7,6 @@ import Link from 'next/link'
 import { useAuthStore } from '@/lib/store'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
-import { initPostsSocket } from '@/lib/socket'
 import { ProRoleBadge } from './ProRoleBadge'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import toast from 'react-hot-toast'
@@ -49,47 +48,8 @@ export default function PostCard({ post, onLike, onDelete }: PostCardProps) {
   // Check if current user is the post owner
   const isOwner = user?.id === post.userId || user?.id === post.authorId || user?.username === post.authorUsername
 
-  // 🔔 Socket.IO ile real-time beğeni dinleme
-  useEffect(() => {
-    if (!accessToken) return
-
-    const postsSocket = initPostsSocket(accessToken)
-
-    postsSocket.on('postLikeUpdated', (data: { postId: string; change: number; likeCount: number; isLiked: boolean; userId: string }) => {
-      if (data.postId === post.id) {
-        setLikesCount(data.likeCount)
-        // Eğer kullanıcı kendisi beğeniyorsa state'i güncelle
-        if (data.userId === user?.id) {
-          setIsLiked(data.isLiked)
-        } else {
-          // Başkası beğeniyorsa ping animasyonu göster
-          if (data.change > 0) {
-            setPingAnimating(true)
-            setTimeout(() => setPingAnimating(false), 600)
-          }
-        }
-        // LocalStorage'ı da güncelle (fallback için)
-        const posts = JSON.parse(localStorage.getItem('published-posts-feellink') || '[]')
-        const updatedPosts = posts.map((p: any) => {
-          if (p.id === post.id) {
-            const likedBy = p.likedBy || []
-            if (data.isLiked && !likedBy.includes(data.userId)) {
-              return { ...p, likes: data.likeCount, likedBy: [...likedBy, data.userId] }
-            } else if (!data.isLiked) {
-              return { ...p, likes: data.likeCount, likedBy: likedBy.filter((id: string) => id !== data.userId) }
-            }
-          }
-          return p
-        })
-        localStorage.setItem('published-posts-feellink', JSON.stringify(updatedPosts))
-        window.dispatchEvent(new CustomEvent('localPostsUpdated'))
-      }
-    })
-
-    return () => {
-      postsSocket.off('postLikeUpdated')
-    }
-  }, [accessToken, post.id, user?.id])
+  // ⚠️ Socket.IO devre dışı - Vercel serverless'ta çalışmaz
+  // Like işlemleri REST API üzerinden çalışıyor (likeMutation)
 
   // Like mutation - Backend API
   const likeMutation = useMutation({

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
-import { initSocket, initPostsSocket } from '@/lib/socket'
+// ⚠️ Socket.IO devre dışı - Vercel serverless'ta çalışmaz
 import { AuthGuard } from '@/lib/auth-guard'
 import HighlightsRow from '@/components/highlights-row'
 import PostCard from '@/components/PostCard'
@@ -96,51 +96,8 @@ function FeedContent() {
 
     fetchFeed()
 
-    // Initialize socket for notifications and new posts
-    const socket = initSocket(accessToken)
-    const postsSocket = initPostsSocket(accessToken)
-
-    socket.on('notification', (notification) => {
-      console.log('New notification:', notification)
-    })
-
-    // Listen for new posts from followed users
-    postsSocket.on('newPost', (post: any) => {
-      console.log('New post received:', post)
-      // Transform and add to feed
-      // ✅ Backend'den gelen media URL'ini resolve et
-      let mediaUrl: string | null = null
-      if (post.media && post.media.length > 0) {
-        const firstMedia = post.media[0]
-        mediaUrl = firstMedia.url || firstMedia.path || firstMedia.fileName || null
-        if (mediaUrl && !mediaUrl.startsWith('http')) {
-          mediaUrl = resolveImageUrl(mediaUrl)
-        } else if (mediaUrl) {
-          mediaUrl = resolveImageUrl(mediaUrl)
-        }
-      }
-
-      const transformedPost = {
-        id: post.id,
-        title: post.caption || 'Gönderi',
-        content: post.caption || '',
-        cover: mediaUrl, // ✅ Resolved URL kullan
-        author: post.user?.fullName || post.user?.username || 'Kullanıcı',
-        authorUsername: post.user?.username,
-        authorAvatar: post.user?.avatar ? resolveImageUrl(post.user.avatar) : null,
-        likes: post._count?.likes || 0,
-        likedBy: [],
-        date: post.createdAt,
-        createdAt: post.createdAt,
-      }
-      setFeedPosts((prev) => [transformedPost, ...prev])
-    })
-
-    return () => {
-      socket.off('notification')
-      postsSocket.off('newPost')
-      postsSocket.disconnect()
-    }
+    // ⚠️ Socket.IO devre dışı - Vercel serverless'ta çalışmaz
+    // Yeni post'lar için feed'i manuel refresh etmek gerekir
   }, [accessToken, router, user?.id])
 
   if (!accessToken) {

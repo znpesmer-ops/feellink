@@ -9,7 +9,7 @@ import { useAuthStore } from '@/lib/store'
 import { Heart, MessageCircle, Bookmark, X, Send, Trash2, CornerUpRight, Pin, PinIcon, FolderPlus, MoreVertical } from 'lucide-react'
 import MentionInput from './MentionInput'
 import { useRouter } from 'next/navigation'
-import { initPostsSocket, initCommentsSocket } from '@/lib/socket'
+// ⚠️ Socket.IO devre dışı - Vercel serverless'ta çalışmaz
 import UserBadge from './UserBadge'
 import { ProRoleBadge } from './ProRoleBadge'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
@@ -319,120 +319,9 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
     }
   }
 
-  // 🔔 Socket.IO ile real-time beğeni dinleme
-  useEffect(() => {
-    if (!accessToken || !postId) return
-
-    const postsSocket = initPostsSocket(accessToken)
-
-    postsSocket.on('postLikeUpdated', (data: { postId: string; change: number; likeCount: number; isLiked: boolean; userId: string }) => {
-      if (data.postId === postId) {
-        // Query'yi invalidate et ki güncel veriyi çeksin
-        queryClient.invalidateQueries({ queryKey: ['post', postId] })
-        // Ping animasyonu göster
-        if (data.change > 0 && data.userId !== user?.id) {
-          setPingAnimating(true)
-          setTimeout(() => setPingAnimating(false), 600)
-        }
-      }
-    })
-
-    postsSocket.on('connect', () => {
-      console.log('✅ Posts socket connected for post modal')
-    })
-
-    return () => {
-      postsSocket.off('postLikeUpdated')
-      postsSocket.off('connect')
-    }
-  }, [accessToken, postId, user?.id, queryClient])
-
-  // 🔔 Socket.IO ile real-time yorum dinleme
-  useEffect(() => {
-    if (!accessToken || !postId) return
-
-    const commentsSocket = initCommentsSocket(accessToken)
-
-    // Post odasına katıl
-    commentsSocket.emit('joinPostRoom', postId)
-
-    // Yeni yorum dinleme
-    commentsSocket.on('newComment', (newComment: any) => {
-      if (newComment.postId === postId) {
-        // Query'yi invalidate et ki güncel yorumları çeksin (nested replies dahil)
-        queryClient.invalidateQueries({ queryKey: ['post', postId] })
-      }
-    })
-
-    commentsSocket.on('commentCreated', (data: any) => {
-      if (data.postId === postId) {
-        // Yorum sayısını güncelle (yanıtlar dahil)
-        queryClient.invalidateQueries({ queryKey: ['post', postId] })
-      }
-    })
-
-    // Yorum silme dinleme
-    commentsSocket.on('commentDeleted', (data: { id: string; postId: string; change?: number }) => {
-      if (data.postId === postId) {
-        // Query'yi invalidate et ki güncel yorumları çeksin
-        queryClient.invalidateQueries({ queryKey: ['post', postId] })
-      }
-    })
-
-    // Yorum güncelleme dinleme
-    commentsSocket.on('commentUpdated', (data: { id: string; postId: string; content: string; updatedAt: string }) => {
-      if (data.postId === postId) {
-        queryClient.invalidateQueries({ queryKey: ['post', postId] })
-      }
-    })
-
-    // Yorum sabitleme dinleme
-    commentsSocket.on('commentPinned', (data: { id: string; postId: string; isPinned: boolean }) => {
-      if (data.postId === postId) {
-        // ✅ Optimistic Update - Socket event'inden gelen güncelleme
-        queryClient.setQueryData<Post>(['post', postId], (oldData) => {
-          if (!oldData) return oldData
-          
-          return {
-            ...oldData,
-            comments: oldData.comments?.map((comment: any) => {
-              // Eğer bu yorum sabitleniyorsa
-              if (data.isPinned && comment.id === data.id) {
-                return { ...comment, isPinned: true }
-              }
-              // Eğer bu yorum sabitleniyorsa, diğer yorumların isPinned'ini false yap
-              if (data.isPinned && comment.id !== data.id) {
-                return { ...comment, isPinned: false }
-              }
-              // Eğer bu yorum sabitlenmesi kaldırılıyorsa
-              if (!data.isPinned && comment.id === data.id) {
-                return { ...comment, isPinned: false }
-              }
-              return comment
-            }) || [],
-          }
-        })
-        
-        // Query'yi invalidate et ki backend'den güncel veriyi çeksin
-        queryClient.invalidateQueries({ queryKey: ['post', postId] })
-      }
-    })
-
-    commentsSocket.on('connect', () => {
-      console.log('✅ Comments socket connected for post modal')
-      // Bağlandıktan sonra odaya tekrar katıl
-      commentsSocket.emit('joinPostRoom', postId)
-    })
-
-    return () => {
-      commentsSocket.emit('leavePostRoom', postId)
-      commentsSocket.off('newComment')
-      commentsSocket.off('commentCreated')
-      commentsSocket.off('commentDeleted')
-      commentsSocket.off('commentPinned')
-      commentsSocket.off('connect')
-    }
-  }, [accessToken, postId, queryClient])
+  // ⚠️ Socket.IO devre dışı - Vercel serverless'ta çalışmaz
+  // Like/Comment işlemleri REST API üzerinden çalışıyor
+  // Query invalidation ile state güncelleniyor
 
   // Close on Escape key
   useEffect(() => {
