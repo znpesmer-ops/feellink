@@ -69,7 +69,7 @@ export const useAuthStore = create<AuthState>()(
       unreadCount: 0,
       unreadMessageCount: 0,
       isAuthenticated: false, // ✅ Backend doğrulaması ile set edilir - persist edilmez
-      loading: true, // ✅ İlk mount'ta true - persist edilmez
+      loading: false, // ✅ AuthGuard başladığında true olacak - persist edilmez
       hasInitialized: false, // ✅ Backend doğrulaması yapıldı mı? - persist edilmez
       setAuth: (user, accessToken, refreshToken, capabilities = null, sidebar = null) => {
         // Token'ı localStorage'a kaydet (middleware ve diğer kontroller için)

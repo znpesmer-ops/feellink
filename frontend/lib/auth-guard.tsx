@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from './store'
 import api from './api'
@@ -19,6 +19,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     setHasInitialized,
     clearAuth
   } = useAuthStore()
+  const hasRunRef = useRef(false) // ⛔️ Component-level guard - her mount'ta reset
 
   // ✅ Public routes
   const publicRoutes = [
@@ -41,10 +42,28 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // ⛔️ Zaten global olarak initialize olduysa tekrar çalışma
     if (hasInitialized) {
+      // ⛔️ Ama loading hala true ise force false yap
+      if (loading) {
+        setLoading(false)
+      }
       return
     }
 
+    // ⛔️ Bu component'te zaten çalıştıysa tekrar çalışma
+    if (hasRunRef.current) {
+      return
+    }
+    hasRunRef.current = true
+
     const initAuth = async () => {
+      // ⛔️ Timeout guard - 10 saniye içinde bitmezse force false
+      const timeoutId = setTimeout(() => {
+        console.warn('[AuthGuard] Timeout - forcing loading to false')
+        setLoading(false)
+        setHasInitialized(true)
+        setAuthenticated(false)
+      }, 10000) // 10 saniye timeout
+
       try {
         setLoading(true)
 
@@ -55,7 +74,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         // Token yoksa direkt authenticated = false
         if (!hasToken) {
           setAuthenticated(false)
-          return // ✅ finally bloğu çalışacak
+          clearTimeout(timeoutId)
+          setLoading(false)
+          setHasInitialized(true)
+          return
         }
 
         // ✅ Backend /me endpoint'i ile doğrulama
@@ -72,6 +94,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           sidebar ?? null
         )
         setAuthenticated(true)
+        clearTimeout(timeoutId)
 
       } catch (err: any) {
         // ✅ Backend Response 401/403 → token sil, isAuthenticated = false
@@ -86,6 +109,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           // Network error vs - authenticated = false ama token'ı silme
           setAuthenticated(false)
         }
+        clearTimeout(timeoutId)
       } finally {
         // ✅ KRİTİK: HER SENARYODA loading false ve hasInitialized true
         setLoading(false)
