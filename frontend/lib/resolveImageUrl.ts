@@ -101,7 +101,14 @@ export function resolveImageUrl(url?: string | null): string {
 
   // ✅ KRİTİK: Relative path ise (/, /static/, vs.) mutlaka backend URL ile birleştir
   // Backend'den gelen URL'ler genellikle şu formattadır: /static/posts/xxx.jpg, /static/avatars/xxx.jpg
-  const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`
+  // Eğer /instagram-uploads/ path'i varsa /static/ ile değiştir (Vercel serverless için)
+  let cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`
+  
+  // ⚠️ BACKEND PATH DÜZELTME: /instagram-uploads/ → /static/ (Vercel'de backend /static/ servis ediyor)
+  if (cleanPath.startsWith('/instagram-uploads/')) {
+    cleanPath = cleanPath.replace('/instagram-uploads/', '/static/')
+  }
+  
   return `${BACKEND_URL}${cleanPath}`
 }
 
@@ -140,7 +147,13 @@ export function resolveMediaUrl(url?: string | null): string | null {
   }
 
   // ✅ KRİTİK: Relative path ise backend URL ile birleştir
-  const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`
+  let cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`
+  
+  // ⚠️ BACKEND PATH DÜZELTME: /instagram-uploads/ → /static/ (Vercel'de backend /static/ servis ediyor)
+  if (cleanPath.startsWith('/instagram-uploads/')) {
+    cleanPath = cleanPath.replace('/instagram-uploads/', '/static/')
+  }
+  
   return `${BACKEND_URL}${cleanPath}`
 }
 
