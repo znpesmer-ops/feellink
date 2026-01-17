@@ -6,12 +6,12 @@ import { useAuthStore } from '@/lib/store'
 
 export default function Home() {
   const router = useRouter()
-  const { isAuthenticated, loading } = useAuthStore()
+  const { isAuthenticated, loading, hasInitialized } = useAuthStore()
   const [hasRedirected, setHasRedirected] = useState(false)
 
   useEffect(() => {
-    // ⛔️ Loading === true ise hiçbir redirect YAPMA
-    if (loading) {
+    // ⛔️ Loading === true veya henüz initialize olmadıysa hiçbir redirect YAPMA
+    if (loading || !hasInitialized) {
       return
     }
 
@@ -28,10 +28,10 @@ export default function Home() {
     } else {
       router.replace('/login')
     }
-  }, [loading, isAuthenticated, router, hasRedirected])
+  }, [loading, isAuthenticated, hasInitialized, router, hasRedirected])
 
   // ⛔️ Loading state EKLENMEDEN redirect YAPILMAYACAK
-  if (loading || !hasRedirected) {
+  if (loading || !hasInitialized) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
