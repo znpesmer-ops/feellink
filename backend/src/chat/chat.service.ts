@@ -327,9 +327,15 @@ export class ChatService {
       },
     });
 
-    // Socket event gönder (eğer gateway varsa)
-    if (this.chatGateway) {
-      this.chatGateway.broadcastMessageImmediately(message, conversation, userId, conversationId);
+    // Socket event gönder (eğer gateway varsa ve çalışıyorsa)
+    // ⚠️ Vercel'de socket çalışmaz, bu yüzden opsiyonel
+    if (this.chatGateway && typeof (this.chatGateway as any).broadcastMessageImmediately === 'function') {
+      try {
+        (this.chatGateway as any).broadcastMessageImmediately(message, conversation, userId, conversationId);
+      } catch (error) {
+        // Socket event gönderilemezse sessizce devam et (REST API fallback var)
+        console.warn('[ChatService] Failed to broadcast message via socket:', error);
+      }
     }
 
     return message;
