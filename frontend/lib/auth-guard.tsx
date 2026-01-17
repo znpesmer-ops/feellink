@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from './store'
 import api from './api'
@@ -10,15 +10,16 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { 
     accessToken, 
-    user, 
     isAuthenticated, 
     loading,
+    hasInitialized,
     setAuth,
     setAuthenticated,
     setLoading,
+    setHasInitialized,
     clearAuth
   } = useAuthStore()
-  const [hasInitialized, setHasInitialized] = useState(false)
+  const hasVerifiedRef = useRef(false) // ⛔️ Component-level ref - her mount'ta reset
 
   // ✅ Public routes
   const publicRoutes = [
@@ -37,14 +38,20 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     pathname?.startsWith(route)
   )
 
-  // ✅ İlk mount'ta backend doğrulaması - sadece bir kez
+  // ✅ Global bir kez backend doğrulaması - store'daki hasInitialized kontrolü ile
   useEffect(() => {
-    // Zaten initialize olduysa tekrar çalışma
-    if (hasInitialized) {
+    // ⛔️ Zaten global olarak initialize olduysa tekrar çalışma
+    if (hasInitialized || hasVerifiedRef.current) {
       return
     }
 
     const verifyAuth = async () => {
+      // ⛔️ Zaten verify ediliyorsa tekrar çalışma
+      if (hasVerifiedRef.current) {
+        return
+      }
+      hasVerifiedRef.current = true
+
       // Token kontrolü
       const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
       const hasToken = accessToken || tokenFromStorage
@@ -92,17 +99,16 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
 
     verifyAuth()
-  }, []) // ✅ Sadece mount'ta bir kez çalış
+  }, [hasInitialized, accessToken, setAuth, setAuthenticated, setLoading, setHasInitialized, clearAuth])
 
   // ✅ Redirect kuralları - loading ve initialization tamamlandıktan sonra
-  // ⛔️ Sadece auth state değiştiğinde çalışır, pathname değiştiğinde değil
   useEffect(() => {
     // ⛔️ Loading === true veya henüz initialize olmadıysa hiçbir redirect YAPMA
     if (loading || !hasInitialized) {
       return
     }
 
-    // Pathname'i useEffect içinde kontrol et (dependency'ye ekleme - sonsuz döngüyü önlemek için)
+    // Pathname'i useEffect içinde kontrol et
     const currentPathname = pathname
     const currentIsPublicRoute = publicRoutes.some((route) =>
       currentPathname?.startsWith(route)

@@ -37,6 +37,7 @@ interface AuthState {
   unreadMessageCount: number
   isAuthenticated: boolean // ✅ Backend doğrulaması ile set edilir
   loading: boolean // ✅ Auth kontrolü yapılırken true
+  hasInitialized: boolean // ✅ Backend doğrulaması yapıldı mı?
   setAuth: (
     user: User,
     accessToken: string,
@@ -54,6 +55,7 @@ interface AuthState {
   setUnreadMessageCount: (count: number) => void // Mesaj okunmamış sayısını güncelle
   setLoading: (loading: boolean) => void // ✅ Loading state kontrolü
   setAuthenticated: (isAuthenticated: boolean) => void // ✅ Auth state kontrolü
+  setHasInitialized: (hasInitialized: boolean) => void // ✅ Initialization state kontrolü
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -68,6 +70,7 @@ export const useAuthStore = create<AuthState>()(
       unreadMessageCount: 0,
       isAuthenticated: false, // ✅ Backend doğrulaması ile set edilir - persist edilmez
       loading: true, // ✅ İlk mount'ta true - persist edilmez
+      hasInitialized: false, // ✅ Backend doğrulaması yapıldı mı? - persist edilmez
       setAuth: (user, accessToken, refreshToken, capabilities = null, sidebar = null) => {
         // Token'ı localStorage'a kaydet (middleware ve diğer kontroller için)
         if (typeof window !== 'undefined' && accessToken) {
@@ -100,7 +103,7 @@ export const useAuthStore = create<AuthState>()(
         }))
       },
       clearAuth: () => {
-        set({ user: null, capabilities: null, sidebar: null, accessToken: null, refreshToken: null, unreadCount: 0, unreadMessageCount: 0, isAuthenticated: false, loading: false })
+        set({ user: null, capabilities: null, sidebar: null, accessToken: null, refreshToken: null, unreadCount: 0, unreadMessageCount: 0, isAuthenticated: false, loading: false, hasInitialized: false })
         // 🔥 Logout durumunda localStorage'dan rolleri ve token'ı temizle
         if (typeof window !== 'undefined') {
           localStorage.removeItem('feellink_roles')
@@ -113,6 +116,9 @@ export const useAuthStore = create<AuthState>()(
       },
       setAuthenticated: (isAuthenticated: boolean) => {
         set({ isAuthenticated, loading: false })
+      },
+      setHasInitialized: (hasInitialized: boolean) => {
+        set({ hasInitialized })
       },
       refreshUser: async () => {
         try {
