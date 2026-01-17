@@ -8,6 +8,7 @@ import { AuthGuard } from '@/lib/auth-guard'
 import HighlightsRow from '@/components/highlights-row'
 import PostCard from '@/components/PostCard'
 import api from '@/lib/api'
+import { resolveImageUrl } from '@/lib/resolveImageUrl'
 
 function FeedContent() {
   const router = useRouter()
@@ -28,22 +29,53 @@ function FeedContent() {
         const res = await api.get('/feed')
         const posts = res.data.posts || res.data || []
 
+        // 🔍 DEBUG: İlk post'un media yapısını logla
+        if (posts.length > 0 && posts[0].media) {
+          console.log('[FEED] First post media structure:', {
+            postId: posts[0].id,
+            hasMedia: !!posts[0].media,
+            mediaLength: posts[0].media?.length || 0,
+            media: posts[0].media,
+            firstMediaUrl: posts[0].media?.[0]?.url,
+            firstMediaPath: posts[0].media?.[0]?.path,
+            firstMediaFileName: posts[0].media?.[0]?.fileName,
+          })
+        }
+
         // Transform backend post format to PostCard format
-        const transformedPosts = posts.map((post: any) => ({
-          id: post.id,
-          title: post.caption || 'Gönderi',
-          content: post.caption || '',
-          cover: post.media?.[0]?.url || null,
-          author: post.user?.fullName || post.user?.username || 'Kullanıcı',
-          authorUsername: post.user?.username,
-          authorAvatar: post.user?.avatar,
-          authorId: post.user?.id,
-          userId: post.userId || post.user?.id,
-          likes: post._count?.likes || 0,
-          likedBy: post.isLiked ? [user?.id] : [],
-          date: post.createdAt,
-          createdAt: post.createdAt,
-        }))
+        const transformedPosts = posts.map((post: any) => {
+          // ✅ Backend'den gelen media URL'ini resolve et
+          // Backend şu alanları döndürebilir: url, path, fileName
+          let mediaUrl: string | null = null
+          if (post.media && post.media.length > 0) {
+            const firstMedia = post.media[0]
+            // Önce url field'ını kontrol et, yoksa path veya fileName kullan
+            mediaUrl = firstMedia.url || firstMedia.path || firstMedia.fileName || null
+            // Relative path ise resolveImageUrl ile absolute URL'e çevir
+            if (mediaUrl && !mediaUrl.startsWith('http')) {
+              mediaUrl = resolveImageUrl(mediaUrl)
+            } else if (mediaUrl) {
+              // Zaten absolute URL ise resolveImageUrl ile normalize et
+              mediaUrl = resolveImageUrl(mediaUrl)
+            }
+          }
+
+          return {
+            id: post.id,
+            title: post.caption || 'Gönderi',
+            content: post.caption || '',
+            cover: mediaUrl, // ✅ Resolved URL kullan
+            author: post.user?.fullName || post.user?.username || 'Kullanıcı',
+            authorUsername: post.user?.username,
+            authorAvatar: post.user?.avatar ? resolveImageUrl(post.user.avatar) : null,
+            authorId: post.user?.id,
+            userId: post.userId || post.user?.id,
+            likes: post._count?.likes || 0,
+            likedBy: post.isLiked ? [user?.id] : [],
+            date: post.createdAt,
+            createdAt: post.createdAt,
+          }
+        })
 
         setFeedPosts(transformedPosts)
       } catch (error) {
@@ -68,14 +100,26 @@ function FeedContent() {
     postsSocket.on('newPost', (post: any) => {
       console.log('New post received:', post)
       // Transform and add to feed
+      // ✅ Backend'den gelen media URL'ini resolve et
+      let mediaUrl: string | null = null
+      if (post.media && post.media.length > 0) {
+        const firstMedia = post.media[0]
+        mediaUrl = firstMedia.url || firstMedia.path || firstMedia.fileName || null
+        if (mediaUrl && !mediaUrl.startsWith('http')) {
+          mediaUrl = resolveImageUrl(mediaUrl)
+        } else if (mediaUrl) {
+          mediaUrl = resolveImageUrl(mediaUrl)
+        }
+      }
+
       const transformedPost = {
         id: post.id,
         title: post.caption || 'Gönderi',
         content: post.caption || '',
-        cover: post.media?.[0]?.url || null,
+        cover: mediaUrl, // ✅ Resolved URL kullan
         author: post.user?.fullName || post.user?.username || 'Kullanıcı',
         authorUsername: post.user?.username,
-        authorAvatar: post.user?.avatar,
+        authorAvatar: post.user?.avatar ? resolveImageUrl(post.user.avatar) : null,
         likes: post._count?.likes || 0,
         likedBy: [],
         date: post.createdAt,
