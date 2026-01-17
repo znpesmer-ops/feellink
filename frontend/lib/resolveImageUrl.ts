@@ -55,8 +55,14 @@ export function resolveImageUrl(url?: string | null): string {
       const urlObj = new URL(trimmedUrl)
       const backendHost = new URL(BACKEND_URL).hostname
       
-      // ✅ Eğer URL zaten doğru backend domain'inde ise olduğu gibi döndür
+      // ✅ Eğer URL zaten doğru backend domain'inde ise path'i kontrol et
       if (urlObj.hostname === backendHost) {
+        // ⚠️ KRİTİK: /instagram-uploads/ path'ini /static/ ile değiştir (Vercel serverless için)
+        let path = urlObj.pathname
+        if (path.startsWith('/instagram-uploads/')) {
+          path = path.replace('/instagram-uploads/', '/static/')
+          return `${urlObj.protocol}//${urlObj.hostname}${path}${urlObj.search}`
+        }
         return trimmedUrl
       }
       
@@ -127,8 +133,14 @@ export function resolveMediaUrl(url?: string | null): string | null {
     try {
       const urlObj = new URL(trimmedUrl)
       const backendHost = new URL(BACKEND_URL).hostname
-      // Zaten doğru domain'de ise olduğu gibi döndür
+      // Zaten doğru domain'de ise path'i kontrol et
       if (urlObj.hostname === backendHost) {
+        // ⚠️ KRİTİK: /instagram-uploads/ path'ini /static/ ile değiştir (Vercel serverless için)
+        let path = urlObj.pathname
+        if (path.startsWith('/instagram-uploads/')) {
+          path = path.replace('/instagram-uploads/', '/static/')
+          return `${urlObj.protocol}//${urlObj.hostname}${path}${urlObj.search}`
+        }
         return trimmedUrl
       }
       // Localhost/local IP ise path'i çıkar ve backend URL ile birleştir
