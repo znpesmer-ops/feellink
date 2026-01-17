@@ -14,14 +14,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     isAuthenticated, 
     loading,
     setAuth,
-    setUser,
     setAuthenticated,
     setLoading,
     clearAuth
   } = useAuthStore()
-  const [hasCheckedAuth, setHasCheckedAuth] = useState(false)
+  const [hasInitialized, setHasInitialized] = useState(false)
 
-  // ✅ Public routes - logout sonrası bu sayfalarda kalınabilir
+  // ✅ Public routes
   const publicRoutes = [
     '/',
     '/login',
@@ -38,14 +37,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     pathname?.startsWith(route)
   )
 
-  // ✅ İlk mount'ta backend doğrulaması
+  // ✅ İlk mount'ta backend doğrulaması - sadece bir kez
   useEffect(() => {
-    const verifyAuth = async () => {
-      // ⛔️ Loading === true ise hiçbir redirect YAPMA
-      if (loading && !hasCheckedAuth) {
-        return
-      }
+    // Zaten initialize olduysa tekrar çalışma
+    if (hasInitialized) {
+      return
+    }
 
+    const verifyAuth = async () => {
       // Token kontrolü
       const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
       const hasToken = accessToken || tokenFromStorage
@@ -53,7 +52,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       // Token yoksa direkt authenticated = false
       if (!hasToken) {
         setAuthenticated(false)
-        setHasCheckedAuth(true)
+        setHasInitialized(true)
         return
       }
 
@@ -64,15 +63,15 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         const { user: currentUser, capabilities, sidebar } = response.data
         
         // ✅ Backend Response 200 OK → isAuthenticated = true
+        const currentRefreshToken = useAuthStore.getState().refreshToken
         setAuth(
           currentUser,
           tokenFromStorage || accessToken || '',
-          useAuthStore.getState().refreshToken || '',
+          currentRefreshToken || '',
           capabilities ?? null,
           sidebar ?? null
         )
         setAuthenticated(true)
-        setHasCheckedAuth(true)
       } catch (error: any) {
         // ✅ Backend Response 401/403 → token sil, isAuthenticated = false
         if (error?.response?.status === 401 || error?.response?.status === 403) {
@@ -82,27 +81,23 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           }
           clearAuth()
           setAuthenticated(false)
-          setHasCheckedAuth(true)
         } else {
           // Network error vs - authenticated = false ama token'ı silme
           setAuthenticated(false)
-          setHasCheckedAuth(true)
         }
       } finally {
         setLoading(false)
+        setHasInitialized(true)
       }
     }
 
-    // İlk mount'ta bir kez çalış
-    if (!hasCheckedAuth) {
-      verifyAuth()
-    }
-  }, [hasCheckedAuth, accessToken, setAuth, setAuthenticated, setLoading, clearAuth])
+    verifyAuth()
+  }, []) // ✅ Sadece mount'ta bir kez çalış
 
-  // ✅ Redirect kuralları
+  // ✅ Redirect kuralları - loading ve initialization tamamlandıktan sonra
   useEffect(() => {
-    // ⛔️ Loading === true ise hiçbir redirect YAPMA
-    if (loading || !hasCheckedAuth) {
+    // ⛔️ Loading === true veya henüz initialize olmadıysa hiçbir redirect YAPMA
+    if (loading || !hasInitialized) {
       return
     }
 
@@ -123,10 +118,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         return
       }
     }
-  }, [loading, isAuthenticated, isPublicRoute, pathname, router, hasCheckedAuth])
+  }, [loading, isAuthenticated, isPublicRoute, pathname, router, hasInitialized])
 
   // ⛔️ Loading state EKLENMEDEN redirect YAPILMAYACAK
-  if (loading || !hasCheckedAuth) {
+  if (loading || !hasInitialized) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>

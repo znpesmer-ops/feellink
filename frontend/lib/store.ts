@@ -66,8 +66,8 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       unreadCount: 0,
       unreadMessageCount: 0,
-      isAuthenticated: false, // ✅ Backend doğrulaması ile set edilir
-      loading: true, // ✅ İlk mount'ta true
+      isAuthenticated: false, // ✅ Backend doğrulaması ile set edilir - persist edilmez
+      loading: true, // ✅ İlk mount'ta true - persist edilmez
       setAuth: (user, accessToken, refreshToken, capabilities = null, sidebar = null) => {
         // Token'ı localStorage'a kaydet (middleware ve diğer kontroller için)
         if (typeof window !== 'undefined' && accessToken) {
@@ -141,6 +141,16 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
+      partialize: (state) => ({
+        // ⛔️ loading ve isAuthenticated persist edilmez - her mount'ta backend doğrulaması yapılır
+        user: state.user,
+        capabilities: state.capabilities,
+        sidebar: state.sidebar,
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        unreadCount: state.unreadCount,
+        unreadMessageCount: state.unreadMessageCount,
+      }),
     }
   )
 )
