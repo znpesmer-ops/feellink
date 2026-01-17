@@ -51,6 +51,7 @@
     "@types/nodemailer": "^7.0.3",
     "@types/pdfkit": "^0.17.3",
     "@types/qrcode": "^1.5.6",
+    "@vercel/blob": "^0.25.0",
     "@vercel/node": "^3.0.7",
     "bcrypt": "^5.1.1",
     "bullmq": "^5.4.0",
