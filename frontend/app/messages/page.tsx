@@ -779,7 +779,8 @@ function MessagesContent() {
       return
     }
 
-    if ((!messageText.trim() && !selectedImage && !selectedFile) || !activeConversation || !chatSocketRef.current?.connected) return
+    // ✅ Active conversation kontrolü - Socket kontrolü kaldırıldı (REST API fallback var)
+    if ((!messageText.trim() && !selectedImage && !selectedFile) || !activeConversation) return
 
     // Kilit açıldı
     isSendingRef.current = true
