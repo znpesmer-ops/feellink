@@ -21,21 +21,15 @@ async function bootstrapServer() {
 
   app.use(cookieParser());
 
-  // 🔴 KRİTİK: instagram-uploads klasörünü public serve et
-  // Vercel serverless'ta dosyalar farklı yerde olabilir, birden fazla path dene
+  // ⚠️ NOT: Vercel Blob Storage kullanıldığında express.static gerekmez
+  // Dosyalar Vercel Blob'da tutulur ve public URL'ler direkt kullanılır
+  // Local development için static serving korunur
   const isVercel = process.env.VERCEL === '1';
-  const staticPaths = isVercel 
-    ? [
-        join('/var/task', 'instagram-uploads'), // Vercel serverless path
-        join(process.cwd(), 'instagram-uploads'), // Fallback path
-      ]
-    : [
-        join(process.cwd(), 'instagram-uploads'), // Local development path
-      ];
-
-  // Express static middleware - instagram-uploads klasörünü public yap
-  // Vercel serverless'ta dosyalar mevcut olmayabilir, bu durumda 404 normaldir
-  staticPaths.forEach((staticPath) => {
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+  
+  // Sadece Vercel'de DEĞİLSE ve BLOB token YOKSA static serving kullan
+  if (!isVercel || !blobToken) {
+    const staticPath = join(process.cwd(), 'instagram-uploads');
     app.use(
       '/instagram-uploads',
       express.static(staticPath, {
@@ -44,7 +38,7 @@ async function bootstrapServer() {
         },
       }),
     );
-  });
+  }
 
   // Favicon handler - yoksay (204 No Content)
   app.use('/favicon.ico', (_, res) => {
