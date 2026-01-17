@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from './store'
 import api from './api'
@@ -19,7 +19,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     setHasInitialized,
     clearAuth
   } = useAuthStore()
-  const hasVerifiedRef = useRef(false) // ⛔️ Component-level ref - her mount'ta reset
 
   // ✅ Public routes
   const publicRoutes = [
@@ -41,16 +40,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // ✅ Global bir kez backend doğrulaması - store'daki hasInitialized kontrolü ile
   useEffect(() => {
     // ⛔️ Zaten global olarak initialize olduysa tekrar çalışma
-    if (hasInitialized || hasVerifiedRef.current) {
+    if (hasInitialized) {
       return
     }
 
     const verifyAuth = async () => {
-      // ⛔️ Zaten verify ediliyorsa tekrar çalışma
-      if (hasVerifiedRef.current) {
-        return
-      }
-      hasVerifiedRef.current = true
 
       // Token kontrolü
       const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
