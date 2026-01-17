@@ -74,19 +74,15 @@ export default function PostCard({ post, onLike, onDelete }: PostCardProps) {
         return { liked: true }
       }
     },
-    onSuccess: (data) => {
-      setIsLiked(data.liked)
-      // Optimistic update - Socket.IO'dan gelen güncelleme gerçek değeri ayarlayacak
-      if (data.liked) {
-        setLikesCount((prev) => prev + 1)
-      } else {
-        setLikesCount((prev) => Math.max(0, prev - 1))
-      }
-    },
-    onError: (error) => {
+    // ✅ onSuccess kaldırıldı - handleLike'da zaten optimistic update var
+    // ✅ onError'da rollback yapılacak (orijinal değerler handleLike'da saklanıyor)
+    onError: (error, variables, context) => {
       console.error('Like error:', error)
-      // Hata durumunda state'i geri al
-      setIsLiked((prev) => !prev)
+      // Hata durumunda orijinal değerlere geri dön (context'ten al)
+      if (context) {
+        setIsLiked(context.wasLiked)
+        setLikesCount(context.originalLikesCount)
+      }
     },
   })
 
@@ -98,8 +94,10 @@ export default function PostCard({ post, onLike, onDelete }: PostCardProps) {
       return
     }
 
-    // Optimistic update
+    // ✅ Optimistic update - UI anında güncellenir
     const wasLiked = isLiked
+    const originalLikesCount = likesCount
+    
     setIsLiked(!wasLiked)
     if (!wasLiked) {
       setLikesCount((prev) => prev + 1)
@@ -109,8 +107,14 @@ export default function PostCard({ post, onLike, onDelete }: PostCardProps) {
       setLikesCount((prev) => Math.max(0, prev - 1))
     }
 
-    // Backend API çağrısı
-    likeMutation.mutate()
+    // ✅ Backend API çağrısı - context ile orijinal değerleri sakla (rollback için)
+    likeMutation.mutate(undefined, {
+      onError: () => {
+        // Rollback: orijinal değerlere geri dön
+        setIsLiked(wasLiked)
+        setLikesCount(originalLikesCount)
+      },
+    })
 
     // Callback'i çağır
     if (onLike) {
