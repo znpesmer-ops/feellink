@@ -75,15 +75,7 @@ export default function PostCard({ post, onLike, onDelete }: PostCardProps) {
       }
     },
     // ✅ onSuccess kaldırıldı - handleLike'da zaten optimistic update var
-    // ✅ onError'da rollback yapılacak (orijinal değerler handleLike'da saklanıyor)
-    onError: (error, variables, context) => {
-      console.error('Like error:', error)
-      // Hata durumunda orijinal değerlere geri dön (context'ten al)
-      if (context) {
-        setIsLiked(context.wasLiked)
-        setLikesCount(context.originalLikesCount)
-      }
-    },
+    // ✅ onError rollback'i handleLike içindeki mutate callback'inde yapılıyor
   })
 
   const handleLike = (e: React.MouseEvent) => {
