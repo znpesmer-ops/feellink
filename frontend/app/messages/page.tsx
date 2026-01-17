@@ -773,6 +773,13 @@ function MessagesContent() {
 
   // Mesaj gönderme - görsel, dosya ve/veya metin
   const sendMessage = async () => {
+    console.log('🚀 [sendMessage] FUNCTION CALLED', {
+      messageText: messageText?.substring(0, 20),
+      hasActiveConversation: !!activeConversation,
+      activeConversationId: activeConversation?.id,
+      isSending: isSendingRef.current,
+    })
+
     // ✅ ÇİFT GÖNDERME KORUMASI: Eğer mesaj gönderiliyorsa tekrar gönderme
     if (isSendingRef.current) {
       console.log('⚠️ Mesaj zaten gönderiliyor, çift gönderme engellendi')
@@ -783,9 +790,11 @@ function MessagesContent() {
     if ((!messageText.trim() && !selectedImage && !selectedFile) || !activeConversation) {
       console.log('⚠️ [sendMessage] Validation failed:', {
         hasText: !!messageText.trim(),
+        messageTextLength: messageText?.length,
         hasImage: !!selectedImage,
         hasFile: !!selectedFile,
         hasConversation: !!activeConversation,
+        activeConversation: activeConversation,
       })
       return
     }
