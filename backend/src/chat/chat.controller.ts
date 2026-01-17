@@ -84,6 +84,23 @@ export class ChatController {
     return this.chatService.deleteMessage(id, user.id);
   }
 
+  @Post('messages')
+  @ApiOperation({ summary: 'Send a message (REST API fallback for Vercel)' })
+  async createMessage(
+    @Body() body: { conversationId: string; content?: string; imageUrl?: string; fileUrl?: string; fileName?: string; fileType?: string },
+    @CurrentUser() user: any,
+  ) {
+    return this.chatService.createMessage(
+      user.id,
+      body.conversationId,
+      body.content,
+      body.imageUrl,
+      body.fileUrl,
+      body.fileName,
+      body.fileType,
+    );
+  }
+
   @Get('conversations/:id/media')
   @ApiOperation({ summary: 'Get media (images) from a conversation' })
   async getMedia(@Param('id') conversationId: string, @CurrentUser() user: any) {

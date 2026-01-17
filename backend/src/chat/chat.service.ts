@@ -232,6 +232,109 @@ export class ChatService {
     };
   }
 
+  // ✅ REST API için mesaj gönderme metodu (ChatGateway'den taşındı)
+  async createMessage(
+    userId: string,
+    conversationId: string,
+    content?: string,
+    imageUrl?: string,
+    fileUrl?: string,
+    fileName?: string,
+    fileType?: string,
+  ) {
+    // En az content, imageUrl veya fileUrl biri olmalı
+    if (!content && !imageUrl && !fileUrl) {
+      throw new BadRequestException('Message must have content, imageUrl, or fileUrl');
+    }
+
+    // Konuşma ve katılımcıları kontrol et
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    const hasAccess = conversation.participants.some((p) => p.userId === userId);
+    if (!hasAccess) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    // Mesaj bağlamını conversation'dan al
+    const conversationAny = conversation as any;
+    const messageContext = conversationAny.context || 'DIRECT';
+    const messageJobId = conversationAny.jobId || null;
+    const messageApplicationId = conversationAny.applicationId || null;
+
+    // Mesaj verilerini hazırla
+    const messageData: any = {
+      conversationId,
+      senderId: userId,
+      content: content || null,
+      imageUrl: imageUrl || null,
+      fileUrl: fileUrl || null,
+      fileName: fileName || null,
+      fileType: fileType || null,
+      isDeleted: false,
+      read: false,
+    };
+
+    if (messageContext) {
+      messageData.context = messageContext;
+    }
+    if (messageJobId) {
+      messageData.jobId = messageJobId;
+    }
+    if (messageApplicationId) {
+      messageData.applicationId = messageApplicationId;
+    }
+
+    // Mesajı veritabanına kaydet
+    const message = await this.prisma.message.create({
+      data: messageData,
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+
+    // Conversation metadata güncelle
+    const lastMessageText = message.content ?? (message.imageUrl ? '📷 Fotoğraf' : (message.fileUrl ? '📎 Dosya' : 'Yeni mesaj'));
+    await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        lastMessage: lastMessageText,
+        updatedAt: new Date(),
+      },
+    });
+
+    // Socket event gönder (eğer gateway varsa)
+    if (this.chatGateway) {
+      this.chatGateway.broadcastMessageImmediately(message, conversation, userId, conversationId);
+    }
+
+    return message;
+  }
+
   async createConversation(userId: string, participantIds: string[], context?: 'DIRECT' | 'JOB_APPLICATION', jobId?: string, applicationId?: string) {
     // Geçerli participant ID'leri filtrele
     const validParticipantIds = participantIds.filter((id) => id && typeof id === 'string' && id.trim() !== '');
