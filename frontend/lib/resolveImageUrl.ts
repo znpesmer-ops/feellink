@@ -1,6 +1,6 @@
 import { getApiBaseURL } from './api'
 
-const FALLBACK_AVATAR = '/images/avatar-placeholder.png'
+const FALLBACK_AVATAR = '/icons/default-user.svg' // ✅ Mevcut dosyayı kullan
 
 // Backend URL - görseller backend'te (3002 portunda) bulunuyor
 // getApiBaseURL fonksiyonunu kullan (farklı ağlardan erişim için dinamik)

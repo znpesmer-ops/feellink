@@ -148,18 +148,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return
     }
 
-    const currentPathname = pathname
+    const currentPathname = pathname || ''
     const currentIsPublicRoute = publicRoutes.some((route) =>
-      currentPathname?.startsWith(route)
+      currentPathname.startsWith(route)
     )
-
-    console.log('[AuthGuard] Redirect check:', {
-      pathname: currentPathname,
-      isPublicRoute: currentIsPublicRoute,
-      isAuthenticated,
-      loading,
-      hasInitialized,
-    })
 
     // ⛔️ Zaten doğru route'daysa redirect yapma
     if (currentIsPublicRoute && !isAuthenticated) {
@@ -168,23 +160,33 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
     if (!currentIsPublicRoute && isAuthenticated) {
       // Protected route + authenticated = OK (feed page'de kal)
+      // ⛔️ KRİTİK: Zaten doğru route'daysa redirect yapma
+      if (currentPathname === '/feed' || currentPathname.startsWith('/feed')) {
+        return // Zaten /feed'deyiz, redirect yapma
+      }
       return
     }
 
     // 🔓 Public Routes (/login, /register) - authenticated ise feed'e git
     if (currentIsPublicRoute && isAuthenticated) {
-      console.log('[AuthGuard] Redirecting authenticated user from public route to /feed')
-      router.replace('/feed')
+      // ⛔️ Sadece gerçekten public route'daysa redirect yap (loop önleme)
+      if (currentPathname === '/login' || currentPathname === '/register' || currentPathname === '/') {
+        console.log('[AuthGuard] Redirecting authenticated user from public route to /feed')
+        router.replace('/feed')
+      }
       return
     }
 
     // 🔐 Protected Routes (/feed, /profile, /post/*) - NOT authenticated ise login'e git
     if (!currentIsPublicRoute && !isAuthenticated) {
-      console.log('[AuthGuard] Redirecting unauthenticated user from protected route to /login')
-      router.replace('/login')
+      // ⛔️ Sadece gerçekten protected route'daysa redirect yap (loop önleme)
+      if (currentPathname && currentPathname !== '/login' && currentPathname !== '/register') {
+        console.log('[AuthGuard] Redirecting unauthenticated user from protected route to /login')
+        router.replace('/login')
+      }
       return
     }
-  }, [loading, isAuthenticated, hasInitialized, router, pathname]) // ✅ pathname dependency eklendi - redirect için gerekli
+  }, [loading, isAuthenticated, hasInitialized, router]) // ⛔️ pathname dependency kaldırıldı - loop önleme
 
   // ⛔️ Loading state EKLENMEDEN redirect YAPILMAYACAK
   if (loading || !hasInitialized) {
