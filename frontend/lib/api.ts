@@ -22,25 +22,40 @@ const processQueue = (error: any, token: string | null = null) => {
 // API base URL - dinamik olarak belirle
 // Client-side'da window.location'dan, server-side'da env'den al
 const getBaseURL = (): string => {
+  // Helper: URL'de protocol yoksa ekle
+  const ensureProtocol = (url: string): string => {
+    if (!url) return url
+    // Eğer zaten http:// veya https:// ile başlıyorsa olduğu gibi döndür
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url
+    }
+    // Protocol yoksa https:// ekle (production için)
+    return `https://${url}`
+  }
+
   // Server-side (SSR)
   if (typeof window === 'undefined') {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'
+    const ssrURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'
+    return ensureProtocol(ssrURL)
   }
   
   // Client-side - dinamik URL belirleme
   const envURL = process.env.NEXT_PUBLIC_API_URL
   const currentHost = window.location.hostname
+  const isHTTPS = window.location.protocol === 'https:'
   
   // ✅ Production'da (feellink.io) backend URL'i otomatik algıla
   if (currentHost === 'feellink.io' || currentHost.includes('feellink.io')) {
-    // Production'da backend Vercel'de - feellink-backend.vercel.app
-    return envURL || 'https://feellink-backend.vercel.app'
+    // Production'da backend Vercel'de - https://feellink-backend.vercel.app
+    const backendURL = envURL || 'https://feellink-backend.vercel.app'
+    return ensureProtocol(backendURL)
   }
   
   // ✅ Vercel preview/staging için
   if (currentHost.includes('vercel.app')) {
     // Vercel'de frontend ve backend aynı domain'de olabilir veya env'den al
-    return envURL || `https://${currentHost.replace('feellink', 'feellink-backend')}`
+    const vercelURL = envURL || `https://${currentHost.replace('feellink', 'feellink-backend')}`
+    return ensureProtocol(vercelURL)
   }
   
   // Eğer env'de IP adresi varsa ve şu anda localhost'tan erişiliyorsa, localhost kullan
@@ -49,12 +64,13 @@ const getBaseURL = (): string => {
     if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
       return 'http://localhost:3002'
     }
-    // Mobil cihazdan erişiliyorsa, IP adresini kullan
-    return envURL
+    // Mobil cihazdan erişiliyorsa, IP adresini kullan (http:// olarak)
+    return envURL.startsWith('http') ? envURL : `http://${envURL}`
   }
   
   // Varsayılan olarak env URL'i veya localhost
-  return envURL || 'http://localhost:3002'
+  const defaultURL = envURL || 'http://localhost:3002'
+  return ensureProtocol(defaultURL)
 }
 
 const baseURL = getBaseURL()

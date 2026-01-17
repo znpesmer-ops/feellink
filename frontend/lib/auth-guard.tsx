@@ -142,7 +142,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ✅ Redirect kuralları
+  // ✅ Redirect kuralları - network hatası sonrası da çalışmalı
   useEffect(() => {
     if (loading || !hasInitialized) {
       return
@@ -153,26 +153,38 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       currentPathname?.startsWith(route)
     )
 
+    console.log('[AuthGuard] Redirect check:', {
+      pathname: currentPathname,
+      isPublicRoute: currentIsPublicRoute,
+      isAuthenticated,
+      loading,
+      hasInitialized,
+    })
+
     // ⛔️ Zaten doğru route'daysa redirect yapma
     if (currentIsPublicRoute && !isAuthenticated) {
+      // Public route + not authenticated = OK (login page'de kal)
       return
     }
     if (!currentIsPublicRoute && isAuthenticated) {
+      // Protected route + authenticated = OK (feed page'de kal)
       return
     }
 
-    // 🔓 Public Routes (/login, /register)
+    // 🔓 Public Routes (/login, /register) - authenticated ise feed'e git
     if (currentIsPublicRoute && isAuthenticated) {
+      console.log('[AuthGuard] Redirecting authenticated user from public route to /feed')
       router.replace('/feed')
       return
     }
 
-    // 🔐 Protected Routes (/feed, /profile, /post/*)
+    // 🔐 Protected Routes (/feed, /profile, /post/*) - NOT authenticated ise login'e git
     if (!currentIsPublicRoute && !isAuthenticated) {
+      console.log('[AuthGuard] Redirecting unauthenticated user from protected route to /login')
       router.replace('/login')
       return
     }
-  }, [loading, isAuthenticated, hasInitialized, router])
+  }, [loading, isAuthenticated, hasInitialized, router, pathname]) // ✅ pathname dependency eklendi - redirect için gerekli
 
   // ⛔️ Loading state EKLENMEDEN redirect YAPILMAYACAK
   if (loading || !hasInitialized) {
