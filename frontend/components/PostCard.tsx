@@ -35,15 +35,27 @@ export default function PostCard({ post, onLike, onDelete }: PostCardProps) {
   const router = useRouter()
   const { user, accessToken } = useAuthStore()
   const queryClient = useQueryClient()
-  const [isLiked, setIsLiked] = useState(
-    post.likedBy?.includes(user?.id || '') || false
-  )
-  const [likesCount, setLikesCount] = useState(post.likes || 0)
+  
+  // ✅ Tek kaynaklı state: post prop'undan derive et
+  const initialIsLiked = post.likedBy?.includes(user?.id || '') || false
+  const initialLikesCount = post.likes || 0
+  
+  // Local state sadece optimistic update için
+  const [isLiked, setIsLiked] = useState(initialIsLiked)
+  const [likesCount, setLikesCount] = useState(initialLikesCount)
   const [animateLike, setAnimateLike] = useState(false)
   const [pingAnimating, setPingAnimating] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  // ✅ post prop'u değiştiğinde local state'i sync et
+  useEffect(() => {
+    const newIsLiked = post.likedBy?.includes(user?.id || '') || false
+    const newLikesCount = post.likes || 0
+    setIsLiked(newIsLiked)
+    setLikesCount(newLikesCount)
+  }, [post.likedBy, post.likes, user?.id])
 
   // Check if current user is the post owner
   const isOwner = user?.id === post.userId || user?.id === post.authorId || user?.username === post.authorUsername
