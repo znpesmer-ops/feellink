@@ -19,7 +19,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     setHasInitialized,
     clearAuth
   } = useAuthStore()
-  const hasRunRef = useRef(false) // ⛔️ Component-level guard - her mount'ta reset
+  const hasRunRef = useRef(false)
 
   // ✅ Public routes
   const publicRoutes = [
@@ -38,41 +38,47 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     pathname?.startsWith(route)
   )
 
-  // ✅ Global bir kez backend doğrulaması - store'daki hasInitialized kontrolü ile
+  // ✅ Global bir kez backend doğrulaması
   useEffect(() => {
-    // ⛔️ Zaten global olarak initialize olduysa tekrar çalışma
     if (hasInitialized) {
-      // ⛔️ Ama loading hala true ise force false yap
       if (loading) {
         setLoading(false)
       }
       return
     }
 
-    // ⛔️ Bu component'te zaten çalıştıysa tekrar çalışma
     if (hasRunRef.current) {
       return
     }
     hasRunRef.current = true
 
     const initAuth = async () => {
-      // ⛔️ Timeout guard - 10 saniye içinde bitmezse force false
+      // ⛔️ Timeout guard - 5 saniye içinde bitmezse force false
       const timeoutId = setTimeout(() => {
-        console.warn('[AuthGuard] Timeout - forcing loading to false')
+        console.warn('[AuthGuard] Timeout (5s) - forcing loading to false')
         setLoading(false)
         setHasInitialized(true)
         setAuthenticated(false)
-      }, 10000) // 10 saniye timeout
+      }, 5000)
 
       try {
         setLoading(true)
+        console.log('[AuthGuard] Starting auth verification...')
+        console.log('[AuthGuard] API base URL:', api.defaults.baseURL)
 
         // Token kontrolü
         const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
         const hasToken = accessToken || tokenFromStorage
 
+        console.log('[AuthGuard] Token check:', {
+          hasToken: !!hasToken,
+          accessToken: !!accessToken,
+          tokenFromStorage: !!tokenFromStorage,
+        })
+
         // Token yoksa direkt authenticated = false
         if (!hasToken) {
+          console.log('[AuthGuard] No token - setting authenticated to false')
           setAuthenticated(false)
           clearTimeout(timeoutId)
           setLoading(false)
@@ -81,7 +87,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         }
 
         // ✅ Backend /me endpoint'i ile doğrulama
+        console.log('[AuthGuard] Calling /auth/me...')
         const response = await api.get('/auth/me')
+        console.log('[AuthGuard] /auth/me response:', response.status)
+        
         const { user: currentUser, capabilities, sidebar } = response.data
         
         // ✅ Backend Response 200 OK → isAuthenticated = true
@@ -95,10 +104,20 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         )
         setAuthenticated(true)
         clearTimeout(timeoutId)
+        console.log('[AuthGuard] Auth verified successfully')
 
       } catch (err: any) {
+        console.error('[AuthGuard] Auth verification failed:', {
+          message: err?.message,
+          code: err?.code,
+          response: err?.response?.status,
+          url: err?.config?.url,
+          baseURL: err?.config?.baseURL,
+        })
+
         // ✅ Backend Response 401/403 → token sil, isAuthenticated = false
         if (err?.response?.status === 401 || err?.response?.status === 403) {
+          console.log('[AuthGuard] 401/403 - clearing tokens')
           if (typeof window !== 'undefined') {
             localStorage.removeItem('access_token')
             localStorage.removeItem('refresh_token')
@@ -107,11 +126,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           setAuthenticated(false)
         } else {
           // Network error vs - authenticated = false ama token'ı silme
+          console.log('[AuthGuard] Network/other error - setting authenticated to false')
           setAuthenticated(false)
         }
         clearTimeout(timeoutId)
       } finally {
         // ✅ KRİTİK: HER SENARYODA loading false ve hasInitialized true
+        console.log('[AuthGuard] Finally block - setting loading to false, hasInitialized to true')
         setLoading(false)
         setHasInitialized(true)
       }
@@ -119,16 +140,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     initAuth()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // ✅ Sadece mount'ta bir kez çalış
+  }, [])
 
-  // ✅ Redirect kuralları - loading ve initialization tamamlandıktan sonra
+  // ✅ Redirect kuralları
   useEffect(() => {
-    // ⛔️ Loading === true veya henüz initialize olmadıysa hiçbir redirect YAPMA
     if (loading || !hasInitialized) {
       return
     }
 
-    // Pathname'i useEffect içinde kontrol et
     const currentPathname = pathname
     const currentIsPublicRoute = publicRoutes.some((route) =>
       currentPathname?.startsWith(route)
@@ -136,28 +155,24 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     // ⛔️ Zaten doğru route'daysa redirect yapma
     if (currentIsPublicRoute && !isAuthenticated) {
-      // Public route + not authenticated = OK, redirect yapma
       return
     }
     if (!currentIsPublicRoute && isAuthenticated) {
-      // Protected route + authenticated = OK, redirect yapma
       return
     }
 
     // 🔓 Public Routes (/login, /register)
     if (currentIsPublicRoute && isAuthenticated) {
-      // Eğer isAuthenticated === true → /feed
       router.replace('/feed')
       return
     }
 
     // 🔐 Protected Routes (/feed, /profile, /post/*)
     if (!currentIsPublicRoute && !isAuthenticated) {
-      // Eğer isAuthenticated === false → /login
       router.replace('/login')
       return
     }
-  }, [loading, isAuthenticated, hasInitialized, router]) // ⛔️ pathname YOK - sonsuz döngüyü önlemek için
+  }, [loading, isAuthenticated, hasInitialized, router])
 
   // ⛔️ Loading state EKLENMEDEN redirect YAPILMAYACAK
   if (loading || !hasInitialized) {

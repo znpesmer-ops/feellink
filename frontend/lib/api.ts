@@ -29,10 +29,22 @@ const getBaseURL = (): string => {
   
   // Client-side - dinamik URL belirleme
   const envURL = process.env.NEXT_PUBLIC_API_URL
+  const currentHost = window.location.hostname
+  
+  // ✅ Production'da (feellink.io) backend URL'i otomatik algıla
+  if (currentHost === 'feellink.io' || currentHost.includes('feellink.io')) {
+    // Production'da backend Vercel'de - feellink-backend.vercel.app
+    return envURL || 'https://feellink-backend.vercel.app'
+  }
+  
+  // ✅ Vercel preview/staging için
+  if (currentHost.includes('vercel.app')) {
+    // Vercel'de frontend ve backend aynı domain'de olabilir veya env'den al
+    return envURL || `https://${currentHost.replace('feellink', 'feellink-backend')}`
+  }
   
   // Eğer env'de IP adresi varsa ve şu anda localhost'tan erişiliyorsa, localhost kullan
   if (envURL && envURL.includes('192.168.')) {
-    const currentHost = window.location.hostname
     // Eğer localhost veya 127.0.0.1'den erişiliyorsa, localhost backend kullan
     if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
       return 'http://localhost:3002'
