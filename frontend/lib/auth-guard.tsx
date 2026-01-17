@@ -8,8 +8,18 @@ import api from './api'
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
-  const { accessToken, user, capabilities, setAuth, setUser, setCapabilities } = useAuthStore()
-  const [isInitializing, setIsInitializing] = useState(true)
+  const { 
+    accessToken, 
+    user, 
+    isAuthenticated, 
+    loading,
+    setAuth,
+    setUser,
+    setAuthenticated,
+    setLoading,
+    clearAuth
+  } = useAuthStore()
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false)
 
   // ✅ Public routes - logout sonrası bu sayfalarda kalınabilir
   const publicRoutes = [
@@ -18,306 +28,111 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     '/register',
     '/forgot-password',
     '/reset-password',
-    '/onboarding',   // Onboarding sayfası public
-    '/select-role',  // 🎯 Rol seçim sayfası public (onboarding akışı için)
-    '/posts',        // Eser detay sayfaları public
-    '/artwork',      // Eser sayfaları public (alternatif route)
+    '/onboarding',
+    '/select-role',
+    '/posts',
+    '/artwork',
   ]
 
   const isPublicRoute = publicRoutes.some((route) =>
     pathname?.startsWith(route)
   )
 
+  // ✅ İlk mount'ta backend doğrulaması
   useEffect(() => {
-    const checkAuth = async () => {
-      // localStorage'dan token kontrolü (store hydration'dan önce)
+    const verifyAuth = async () => {
+      // ⛔️ Loading === true ise hiçbir redirect YAPMA
+      if (loading && !hasCheckedAuth) {
+        return
+      }
+
+      // Token kontrolü
       const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
       const hasToken = accessToken || tokenFromStorage
 
-      // Debug (sadece development)
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[AuthGuard] Token check:', {
-          accessToken: accessToken ? 'exists' : 'null',
-          tokenFromStorage: tokenFromStorage ? 'exists' : 'null',
-          hasToken,
-          pathname,
-        })
-      }
-
-      // Wait for store hydration - ama token varsa bekleme
-      if (accessToken === undefined && !tokenFromStorage && user === undefined) {
-        // İlk render'da store henüz hydrate olmamış olabilir
-        // Kısa bir süre bekle
-        setTimeout(() => {
-          setIsInitializing(false)
-        }, 100)
-        return // Still hydrating and no token
-      }
-
-      // Store hydrate oldu, initialization tamamlandı
-      setIsInitializing(false)
-
-      // 🔥 KRİTİK: Profil sayfasındayken login'e redirect yapma (sadece token kontrolü yap)
-      // Profil sayfasında token yoksa bile redirect yapma, sadece loading göster
-      if (pathname?.startsWith('/profile')) {
-        // Profil sayfasında token yoksa bile redirect yapma
-        // Profil sayfası kendi auth kontrolünü yapacak
-        return
-      }
-
-      // ✅ Public route ise redirect yapma
-      if (isPublicRoute) {
-        return
-      }
-
-      // If no token (neither from store nor localStorage), redirect to login
+      // Token yoksa direkt authenticated = false
       if (!hasToken) {
-        router.replace('/login')
+        setAuthenticated(false)
+        setHasCheckedAuth(true)
         return
       }
 
-      // 🔥 KRİTİK: Feed, settings ve diğer ana sayfalara giderken activeRole kontrolünü atla
-      // Login sonrası direkt bu sayfalara gidebilsin
-      const allowedRoutesWithoutActiveRole = ['/feed', '/select-role', '/settings', '/notifications', '/profile']
-      const isAllowedRoute = allowedRoutesWithoutActiveRole.some(route => pathname?.startsWith(route))
-      
-      // ✅ Login sonrası feed'e giderken token varsa direkt geç (user yüklenene kadar bekleme)
-      if (isAllowedRoute && hasToken) {
-        // Bu sayfalara giderken activeRole kontrolünü atla, direkt geç
-        // User henüz yüklenmemiş olsa bile token varsa geç (user sonra yüklenecek)
-        return
-      }
-
-      // 🎯 KRİTİK: Rol seçimi kontrolü - sadece admin ve diğer özel sayfalar için
-      // Normal kullanıcı sayfaları için activeRole kontrolü yapma
-      if (hasToken && user && !isAllowedRoute) {
-        // activeRole kontrolü - user object'inde activeRole field'ı var mı?
-        const hasActiveRole = user.activeRole !== null && user.activeRole !== undefined && user.activeRole !== ''
-        // roles kontrolü - eğer roles varsa activeRole olmasa bile devam et
-        const hasRoles = user.roles && user.roles.length > 0
+      // ✅ Backend /me endpoint'i ile doğrulama
+      try {
+        setLoading(true)
+        const response = await api.get('/auth/me')
+        const { user: currentUser, capabilities, sidebar } = response.data
         
-        // Eğer activeRole yoksa VE roles da yoksa, /select-role'e yönlendir
-        // Ama sadece admin veya özel sayfalar için
-        if (!hasActiveRole && !hasRoles && pathname !== '/select-role') {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[AuthGuard] User authenticated but no activeRole and no roles, redirecting to /select-role')
+        // ✅ Backend Response 200 OK → isAuthenticated = true
+        setAuth(
+          currentUser,
+          tokenFromStorage || accessToken || '',
+          useAuthStore.getState().refreshToken || '',
+          capabilities ?? null,
+          sidebar ?? null
+        )
+        setAuthenticated(true)
+        setHasCheckedAuth(true)
+      } catch (error: any) {
+        // ✅ Backend Response 401/403 → token sil, isAuthenticated = false
+        if (error?.response?.status === 401 || error?.response?.status === 403) {
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('access_token')
+            localStorage.removeItem('refresh_token')
           }
-          router.replace('/select-role')
-          return
+          clearAuth()
+          setAuthenticated(false)
+          setHasCheckedAuth(true)
+        } else {
+          // Network error vs - authenticated = false ama token'ı silme
+          setAuthenticated(false)
+          setHasCheckedAuth(true)
         }
-        
-        // ✅ Eğer roles varsa ama activeRole yoksa, ilk role'ü activeRole olarak kullan
-        if (hasRoles && !hasActiveRole && pathname !== '/select-role') {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[AuthGuard] User has roles but no activeRole, using first role as activeRole')
-          }
-          // activeRole'ü set et (store'da güncelle)
-          const firstRole = user.roles?.[0]
-          if (firstRole) {
-            setUser({
-              ...user,
-              activeRole: firstRole,
-            })
-          }
-        }
-      }
-
-      // Token var ama store'da yok - store'u güncelle
-      if (tokenFromStorage && !accessToken) {
-        // Token localStorage'da var ama store'da yok - store'u güncelle
-        // Bu durumda /auth/me çağrısı yapıp user bilgisini al
-        // Retry mekanizması ile network error'ları handle et
-        let retryCount = 0
-        const maxRetries = 3
-        
-        const fetchUserData = async (): Promise<void> => {
-          try {
-            // Debug
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`[AuthGuard] Token found in localStorage, fetching user data... (attempt ${retryCount + 1}/${maxRetries})`)
-            }
-            
-            const response = await api.get('/auth/me')
-            const { user: currentUser, capabilities: caps, sidebar } = response.data
-            // Refresh token'ı store'dan al (varsa)
-            const state = useAuthStore.getState()
-            setAuth(currentUser, tokenFromStorage, state.refreshToken || '', caps ?? null, sidebar ?? null)
-            
-            // Debug
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[AuthGuard] User data fetched successfully')
-            }
-          } catch (error: any) {
-            // Debug
-            if (process.env.NODE_ENV === 'development') {
-              console.error('[AuthGuard] Failed to fetch user data:', {
-                error: error?.message,
-                code: error?.code,
-                response: error?.response?.status,
-                retryCount,
-              })
-            }
-            
-            // Network error ise retry yap
-            if ((error?.code === 'ERR_NETWORK' || !error?.response) && retryCount < maxRetries) {
-              retryCount++
-              const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 4000) // Exponential backoff
-              
-              if (process.env.NODE_ENV === 'development') {
-                console.log(`[AuthGuard] Network error, retrying in ${delay}ms...`)
-              }
-              
-              await new Promise(resolve => setTimeout(resolve, delay))
-              return fetchUserData() // Retry
-            }
-            
-            // Max retry sayısına ulaşıldı veya network error değil
-            // Token geçersiz - temizle ve login'e yönlendir
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('access_token')
-            }
-            
-            // Sadece auth error ise login'e yönlendir (network error değilse)
-            if (error?.response?.status === 401 || error?.response?.status === 403) {
-              router.replace('/login')
-            }
-            // Network error ise sessizce devam et (belki backend başlatılıyor)
-          }
-        }
-        
-        await fetchUserData()
-        return
-      }
-
-      // If no user but have token, verify token
-      if (!user && hasToken) {
-        // Retry mekanizması ile network error'ları handle et
-        let retryCount = 0
-        const maxRetries = 3
-        
-        const verifyToken = async (): Promise<void> => {
-          try {
-            const response = await api.get('/auth/me')
-            const { user: currentUser, capabilities: caps, sidebar } = response.data
-            setUser(currentUser, caps, sidebar ?? null)
-            setCapabilities(caps, sidebar ?? null)
-            // Token is valid, user is authenticated
-          } catch (error: any) {
-            // Network error ise retry yap
-            if ((error?.code === 'ERR_NETWORK' || !error?.response) && retryCount < maxRetries) {
-              retryCount++
-              const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 4000)
-              
-              if (process.env.NODE_ENV === 'development') {
-                console.log(`[AuthGuard] Network error during token verification, retrying in ${delay}ms...`)
-              }
-              
-              await new Promise(resolve => setTimeout(resolve, delay))
-              return verifyToken() // Retry
-            }
-            
-            // Network error değil veya max retry sayısına ulaşıldı
-            // Token invalid, try to refresh
-            const state = useAuthStore.getState()
-            const refreshToken = state.refreshToken
-            
-            if (refreshToken) {
-              try {
-                const refreshResponse = await api.post('/auth/refresh', {
-                  refreshToken,
-                })
-                const {
-                  user: refreshedUser,
-                  accessToken: newAccess,
-                  refreshToken: newRefresh,
-                  capabilities: caps,
-                  sidebar,
-                } = refreshResponse.data
-                setAuth(refreshedUser, newAccess, newRefresh, caps ?? null, sidebar ?? null)
-                // Retry the original request after refresh
-                return
-              } catch (refreshError: any) {
-                // Refresh failed, logout
-                // Network error ise sessizce devam et
-                if (refreshError?.code === 'ERR_NETWORK' || !refreshError?.response) {
-                  if (process.env.NODE_ENV === 'development') {
-                    console.warn('[AuthGuard] Network error during refresh, will retry later...')
-                  }
-                  return // Network error, retry later
-                }
-                
-                // Auth error ise logout
-                useAuthStore.getState().clearAuth()
-                // ✅ Public route ise redirect yapma
-                if (!isPublicRoute && !pathname?.startsWith('/profile')) {
-                  router.replace('/login')
-                }
-                return
-              }
-            } else {
-              // No refresh token, logout
-              // Sadece auth error ise logout (network error değilse)
-              if (error?.response?.status === 401 || error?.response?.status === 403) {
-                useAuthStore.getState().clearAuth()
-                // ✅ Public route ise redirect yapma
-                if (!isPublicRoute && !pathname?.startsWith('/profile')) {
-                  router.replace('/login')
-                }
-              }
-              return
-            }
-          }
-        }
-        
-        await verifyToken()
+      } finally {
+        setLoading(false)
       }
     }
 
-    checkAuth()
-  }, [accessToken, user, router, pathname, setAuth, setUser, setCapabilities, isPublicRoute])
+    // İlk mount'ta bir kez çalış
+    if (!hasCheckedAuth) {
+      verifyAuth()
+    }
+  }, [hasCheckedAuth, accessToken, setAuth, setAuthenticated, setLoading, clearAuth])
 
-  // Token kontrolü - localStorage'dan da kontrol et
-  const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
-  const hasToken = accessToken || tokenFromStorage
+  // ✅ Redirect kuralları
+  useEffect(() => {
+    // ⛔️ Loading === true ise hiçbir redirect YAPMA
+    if (loading || !hasCheckedAuth) {
+      return
+    }
 
-  // İlk initialization sırasında loading göster
-  if (isInitializing) {
+    // 🔓 Public Routes (/login, /register)
+    if (isPublicRoute) {
+      // Eğer isAuthenticated === true → /feed
+      if (isAuthenticated) {
+        router.replace('/feed')
+      }
+      return
+    }
+
+    // 🔐 Protected Routes (/feed, /profile, /post/*)
+    if (!isPublicRoute) {
+      // Eğer isAuthenticated === false → /login
+      if (!isAuthenticated) {
+        router.replace('/login')
+        return
+      }
+    }
+  }, [loading, isAuthenticated, isPublicRoute, pathname, router, hasCheckedAuth])
+
+  // ⛔️ Loading state EKLENMEDEN redirect YAPILMAYACAK
+  if (loading || !hasCheckedAuth) {
     return (
-      <div className="flex items-center justify-center py-20">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
       </div>
     )
   }
 
-  // Show loading while checking auth or waiting for capabilities (sadece protected route'larda)
-  // ✅ Feed'e giderken token varsa user yüklenene kadar bekleme (user sonra yüklenecek)
-  const allowedRoutesWithoutActiveRole = ['/feed', '/select-role', '/settings', '/notifications', '/profile']
-  const isAllowedRoute = allowedRoutesWithoutActiveRole.some(route => pathname?.startsWith(route))
-  
-  if ((!hasToken || !user) && !isPublicRoute && !pathname?.startsWith('/profile') && !isAllowedRoute) {
-    // Token yoksa login'e yönlendir (zaten useEffect'te yapılıyor ama loading göster)
-    if (!hasToken) {
-      return (
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-        </div>
-      )
-    }
-    // Token var ama user yok - user yüklenene kadar bekle (sadece feed dışı sayfalar için)
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
-    )
-  }
-
-  // 🔒 Profile Required Fields Check - Zorunlu alanlar eksikse bildirim oluştur (kullanıcıyı kilitleme)
-  // Kullanıcı eksik profil ile giriş yapabilir, sadece bildirim gösterilir
-  // Bu kontrol artık yapılmıyor - bildirim sistemi kullanılacak
-
-  // Capabilities are optional - don't block if they're not loaded yet
-  // Some routes might not need capabilities
-
   return <>{children}</>
 }
-

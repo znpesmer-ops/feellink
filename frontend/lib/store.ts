@@ -35,6 +35,8 @@ interface AuthState {
   refreshToken: string | null
   unreadCount: number
   unreadMessageCount: number
+  isAuthenticated: boolean // ✅ Backend doğrulaması ile set edilir
+  loading: boolean // ✅ Auth kontrolü yapılırken true
   setAuth: (
     user: User,
     accessToken: string,
@@ -50,6 +52,8 @@ interface AuthState {
   refreshUser: () => Promise<void> // Kullanıcı bilgilerini backend'den yenile
   setUnreadCount: (count: number) => void // Bildirim okunmamış sayısını güncelle
   setUnreadMessageCount: (count: number) => void // Mesaj okunmamış sayısını güncelle
+  setLoading: (loading: boolean) => void // ✅ Loading state kontrolü
+  setAuthenticated: (isAuthenticated: boolean) => void // ✅ Auth state kontrolü
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -62,12 +66,14 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       unreadCount: 0,
       unreadMessageCount: 0,
+      isAuthenticated: false, // ✅ Backend doğrulaması ile set edilir
+      loading: true, // ✅ İlk mount'ta true
       setAuth: (user, accessToken, refreshToken, capabilities = null, sidebar = null) => {
         // Token'ı localStorage'a kaydet (middleware ve diğer kontroller için)
         if (typeof window !== 'undefined' && accessToken) {
           localStorage.setItem('access_token', accessToken)
         }
-        set({ user, accessToken, refreshToken, capabilities, sidebar })
+        set({ user, accessToken, refreshToken, capabilities, sidebar, isAuthenticated: true, loading: false })
       },
       setUser: (user, capabilities = null, sidebar = null) => {
         set((state) => ({
@@ -94,12 +100,19 @@ export const useAuthStore = create<AuthState>()(
         }))
       },
       clearAuth: () => {
-        set({ user: null, capabilities: null, sidebar: null, accessToken: null, refreshToken: null, unreadCount: 0, unreadMessageCount: 0 })
+        set({ user: null, capabilities: null, sidebar: null, accessToken: null, refreshToken: null, unreadCount: 0, unreadMessageCount: 0, isAuthenticated: false, loading: false })
         // 🔥 Logout durumunda localStorage'dan rolleri ve token'ı temizle
         if (typeof window !== 'undefined') {
           localStorage.removeItem('feellink_roles')
           localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
         }
+      },
+      setLoading: (loading: boolean) => {
+        set({ loading })
+      },
+      setAuthenticated: (isAuthenticated: boolean) => {
+        set({ isAuthenticated, loading: false })
       },
       refreshUser: async () => {
         try {
