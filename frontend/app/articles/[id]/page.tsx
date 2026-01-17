@@ -9,6 +9,7 @@ import { useAuthStore } from '@/lib/store'
 import { initArticlesSocket } from '@/lib/socket'
 import type { Socket } from 'socket.io-client'
 import DOMPurify from 'dompurify'
+import { resolveImageUrl, resolveMediaUrl } from '@/lib/resolveImageUrl'
 
 const CommentLikeButton = dynamic(() => import('@/components/CommentLikeButton'), {
   ssr: false,
@@ -409,7 +410,7 @@ export default function ArticleDetailPage() {
         <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
           {article.author.avatar ? (
             <img
-              src={article.author.avatar}
+              src={resolveImageUrl(article.author.avatar)}
               alt={article.author.username}
               className="w-full h-full object-cover"
               onError={(e: any) => {
@@ -440,10 +441,9 @@ export default function ArticleDetailPage() {
       {article.coverImage && (
         <div className="mb-10 relative w-full rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800">
           <img
-            src={article.coverImage}
+            src={resolveMediaUrl(article.coverImage) || ''}
             alt={article.title}
             className="w-full h-auto object-cover"
-          />
         </div>
       )}
 
@@ -498,7 +498,7 @@ export default function ArticleDetailPage() {
               <div className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
                 {user.avatar ? (
                   <img
-                    src={user.avatar}
+                    src={resolveImageUrl(user.avatar)}
                     alt={user.username}
                     className="w-full h-full object-cover"
                   />
@@ -552,7 +552,7 @@ export default function ArticleDetailPage() {
                     <div className="relative w-6 h-6 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
                       {comment.author?.avatar ? (
                         <img
-                          src={comment.author.avatar}
+                          src={resolveImageUrl(comment.author.avatar)}
                           alt={comment.author.username || 'User'}
                           className="w-full h-full object-cover"
                           onError={(e: any) => {

@@ -48,6 +48,111 @@ export function resolveImageUrl(url?: string | null): string {
 
   const trimmedUrl = url.trim()
 
+  // ✅ KRİTİK: Absolute URL ise (http:// veya https:// ile başlıyorsa) kontrol et
+  if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+    // Absolute URL ise - doğru domain'de mi kontrol et
+    try {
+      const urlObj = new URL(trimmedUrl)
+      const backendHost = new URL(BACKEND_URL).hostname
+      
+      // ✅ Eğer URL zaten doğru backend domain'inde ise olduğu gibi döndür
+      if (urlObj.hostname === backendHost) {
+        return trimmedUrl
+      }
+      
+      // ✅ Eğer URL localhost/local IP içeriyorsa, path'i çıkar ve backend URL ile birleştir
+      if (
+        urlObj.hostname === 'localhost' ||
+        urlObj.hostname === '127.0.0.1' ||
+        urlObj.hostname.startsWith('192.168.') ||
+        urlObj.hostname.startsWith('10.') ||
+        urlObj.hostname.startsWith('172.') ||
+        urlObj.hostname.includes('.mycloudflare.com') ||
+        (urlObj.hostname.includes('.trycloudflare.com') && urlObj.hostname !== backendHost)
+      ) {
+        // Path ve query string'i koru, sadece domain'i değiştir
+        return `${BACKEND_URL}${urlObj.pathname}${urlObj.search}`
+      }
+      
+      // ✅ Production'da localhost/local IP içeren URL'leri backend URL ile değiştir
+      if (typeof window !== 'undefined') {
+        const currentHost = window.location.hostname
+        if (currentHost !== 'localhost' && currentHost !== '127.0.0.1' && !currentHost.startsWith('192.168.')) {
+          if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1' || urlObj.hostname.startsWith('192.168.')) {
+            return `${BACKEND_URL}${urlObj.pathname}${urlObj.search}`
+          }
+        }
+      }
+      
+      // ✅ Diğer external URL'ler (CDN vs.) için olduğu gibi döndür
+      return trimmedUrl
+    } catch {
+      // URL parse edilemezse, eski Cloudflare URL'si kontrolü yap
+      if (trimmedUrl.includes('.mycloudflare.com') || 
+          (trimmedUrl.includes('.trycloudflare.com') && !trimmedUrl.includes(new URL(BACKEND_URL).hostname))) {
+        const pathMatch = trimmedUrl.match(/https?:\/\/[^\/]+(\/.*)/)
+        if (pathMatch) {
+          return `${BACKEND_URL}${pathMatch[1]}`
+        }
+      }
+      return trimmedUrl
+    }
+  }
+
+  // ✅ KRİTİK: Relative path ise (/, /static/, vs.) mutlaka backend URL ile birleştir
+  // Backend'den gelen URL'ler genellikle şu formattadır: /static/posts/xxx.jpg, /static/avatars/xxx.jpg
+  const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`
+  return `${BACKEND_URL}${cleanPath}`
+}
+
+/**
+ * ✅ YENİ: Basit media URL resolver - sadece relative path'leri backend URL ile birleştirir
+ * Bu fonksiyon resolveImageUrl'den daha basit ve özellikle /static/ path'leri için tasarlanmıştır
+ */
+export function resolveMediaUrl(url?: string | null): string | null {
+  if (!url || url.trim() === '') return null
+
+  const trimmedUrl = url.trim()
+
+  // Absolute URL ise aynen kullan
+  if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+    // Doğru domain'de mi kontrol et
+    try {
+      const urlObj = new URL(trimmedUrl)
+      const backendHost = new URL(BACKEND_URL).hostname
+      // Zaten doğru domain'de ise olduğu gibi döndür
+      if (urlObj.hostname === backendHost) {
+        return trimmedUrl
+      }
+      // Localhost/local IP ise path'i çıkar ve backend URL ile birleştir
+      if (
+        urlObj.hostname === 'localhost' ||
+        urlObj.hostname === '127.0.0.1' ||
+        urlObj.hostname.startsWith('192.168.')
+      ) {
+        return `${BACKEND_URL}${urlObj.pathname}${urlObj.search}`
+      }
+    } catch {
+      // URL parse edilemezse olduğu gibi döndür
+      return trimmedUrl
+    }
+    return trimmedUrl
+  }
+
+  // ✅ KRİTİK: Relative path ise backend URL ile birleştir
+  const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`
+  return `${BACKEND_URL}${cleanPath}`
+}
+
+/**
+ * ✅ ESKİ FONKSİYON: Geriye uyumluluk için korunuyor
+ * Artık resolveImageUrl yerine resolveMediaUrl kullanılmalı
+ */
+export function resolveImageUrl_OLD(url?: string | null): string {
+  if (!url || url.trim() === '') return FALLBACK_AVATAR
+
+  const trimmedUrl = url.trim()
+
   // If it's already a full URL with localhost, replace with BACKEND_URL
   if (trimmedUrl.startsWith('http://localhost') || trimmedUrl.startsWith('https://localhost')) {
     return trimmedUrl.replace(/http(s?):\/\/localhost:\d+/, BACKEND_URL)
