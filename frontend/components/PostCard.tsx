@@ -259,8 +259,17 @@ export default function PostCard({ post, onLike, onDelete }: PostCardProps) {
                   alt={post.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   onError={(e) => {
-                    console.error('PostCard Image Error:', imageUrl)
-                    ;(e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
+                    const target = e.target as HTMLImageElement
+                    // ⚠️ 404 durumunda placeholder göster (Vercel serverless'ta dosyalar mevcut olmayabilir)
+                    if (!target.src.includes('avatar-placeholder') && !target.src.includes('placeholder')) {
+                      console.warn('PostCard Image 404:', imageUrl)
+                      target.src = '/icons/default-user.svg'
+                      // Görsel yüklenemezse parent div'e opacity ekle
+                      const parent = target.closest('.group\\/image')
+                      if (parent) {
+                        parent.classList.add('opacity-60')
+                      }
+                    }
                   }}
                 />
                 
