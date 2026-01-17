@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger, HttpException } from '@nestjs/common';
 import { json, raw, urlencoded } from 'express';
 import cookieParser from 'cookie-parser';
+import * as express from 'express';
+import { join } from 'path';
 import { AppModule } from './app.module';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
@@ -18,6 +20,23 @@ async function bootstrapServer() {
   const logger = new Logger('Bootstrap');
 
   app.use(cookieParser());
+
+  // 🔴 KRİTİK: instagram-uploads klasörünü public serve et
+  // Vercel serverless'ta dosyalar /var/task altında olabilir, path'i kontrol et
+  const isVercel = process.env.VERCEL === '1';
+  const staticPath = isVercel 
+    ? join('/var/task', 'instagram-uploads') // Vercel serverless path
+    : join(process.cwd(), 'instagram-uploads'); // Local development path
+
+  // Express static middleware - instagram-uploads klasörünü public yap
+  app.use(
+    '/instagram-uploads',
+    express.static(staticPath, {
+      setHeaders: (res) => {
+        res.set('Cache-Control', 'public, max-age=31536000'); // 1 yıl cache
+      },
+    }),
+  );
 
   // Favicon handler - yoksay (204 No Content)
   app.use('/favicon.ico', (_, res) => {
