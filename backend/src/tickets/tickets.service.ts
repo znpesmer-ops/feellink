@@ -5,7 +5,7 @@ import { TicketMailerService } from './ticket-mailer.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { generateCode, generateQrDataUrl } from './ticket.utils';
-import * as PDFDocument from 'pdfkit';
+import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import * as path from 'path';
 

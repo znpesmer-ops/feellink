@@ -15,12 +15,12 @@ import { generateUniqueArtworkCode } from './artwork.utils';
 import { generateQrDataUrl } from '../tickets/ticket.utils';
 import { ColorAnalysisService } from './color-analysis.service';
 import { containsBadWord } from '../common/utils/containsBadWord';
-import * as PDFDocument from 'pdfkit';
+import PDFDocument from 'pdfkit';
 import * as QRCode from 'qrcode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { PDFDocument as PDFLibDocument } from 'pdf-lib';
-import * as sharp from 'sharp';
+import sharp from 'sharp';
 
 @Injectable()
 export class PostsService {
