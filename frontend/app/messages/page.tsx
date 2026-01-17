@@ -858,25 +858,101 @@ function MessagesContent() {
     }
 
     // Typing durumunu durdur
-    chatSocketRef.current.emit('typing_stop', {
-      conversationId: activeConversation.id,
-    })
-
-    // Socket ile mesaj gönder - receive_message ile ekleme yapılacak
-    try {
-      chatSocketRef.current.emit('send_message', {
+    if (chatSocketRef.current?.connected) {
+      chatSocketRef.current.emit('typing_stop', {
         conversationId: activeConversation.id,
-        content: content || undefined,
-        imageUrl: imageUrl || undefined,
-        fileUrl: fileUrl || undefined,
-        fileName: fileName || undefined,
-        fileType: fileType || undefined,
-      }, (response: any) => {
-        if (response?.error) {
-          console.error('Failed to send message:', response.error)
-          alert('Mesaj gönderilirken bir hata oluştu')
-        }
       })
+    }
+
+    // ✅ Optimistic update - Mesajı anında UI'ya ekle
+    const tempMessageId = `temp-${Date.now()}-${Math.random()}`
+    const tempMessage: Message = {
+      id: tempMessageId,
+      content,
+      imageUrl: imageUrl || null,
+      fileUrl: fileUrl || null,
+      fileName: fileName || null,
+      fileType: fileType || null,
+      senderId: user.id,
+      conversationId: activeConversation.id,
+      read: false,
+      pending: true, // Geçici mesaj flag'i
+      createdAt: new Date().toISOString(),
+      sender: {
+        id: user.id,
+        username: user.username || 'Kullanıcı',
+        avatar: user.avatar || undefined,
+      },
+    }
+
+    // Anında UI'ya ekle
+    setMessages((prev) => [...prev, tempMessage])
+    setTimeout(() => scrollToBottom(), 0)
+
+    // ✅ Mesaj gönderme - Socket varsa socket, yoksa REST API
+    try {
+      let savedMessage: Message | null = null
+
+      // Socket bağlıysa socket ile gönder
+      if (chatSocketRef.current?.connected) {
+        chatSocketRef.current.emit('send_message', {
+          conversationId: activeConversation.id,
+          content: content || undefined,
+          imageUrl: imageUrl || undefined,
+          fileUrl: fileUrl || undefined,
+          fileName: fileName || undefined,
+          fileType: fileType || undefined,
+        }, (response: any) => {
+          if (response?.error) {
+            console.error('Failed to send message via socket:', response.error)
+            // Socket başarısız olursa REST API'ye fallback
+            sendViaRestAPI()
+          } else if (response?.message) {
+            // Socket başarılı - temp mesajı gerçek mesajla değiştir
+            setMessages((prev) =>
+              prev.map((m) => (m.id === tempMessageId ? response.message : m))
+            )
+          }
+        })
+      } else {
+        // Socket yoksa direkt REST API ile gönder
+        await sendViaRestAPI()
+      }
+
+      // REST API fallback fonksiyonu
+      async function sendViaRestAPI() {
+        try {
+          const response = await api.post('/chat/messages', {
+            conversationId: activeConversation.id,
+            content: content || undefined,
+            imageUrl: imageUrl || undefined,
+            fileUrl: fileUrl || undefined,
+            fileName: fileName || undefined,
+            fileType: fileType || undefined,
+          })
+
+          savedMessage = response.data
+          
+          // Temp mesajı gerçek mesajla değiştir
+          setMessages((prev) =>
+            prev.map((m) => (m.id === tempMessageId ? savedMessage! : m))
+          )
+
+          // Konuşma listesini güncelle
+          loadConversations()
+          setTimeout(() => scrollToBottom(), 0)
+        } catch (error: any) {
+          console.error('Failed to send message via REST API:', error)
+          
+          // Hata durumunda temp mesajı kaldır
+          setMessages((prev) => prev.filter((m) => m.id !== tempMessageId))
+          
+          // Input'u geri yükle
+          setMessageText(content || '')
+          
+          alert(error.response?.data?.message || 'Mesaj gönderilirken bir hata oluştu')
+        }
+      }
     } finally {
       // ✅ Kilit kaldırıldı (başarılı veya hatalı olsun)
       isSendingRef.current = false
