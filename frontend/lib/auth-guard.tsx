@@ -93,7 +93,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
 
     verifyAuth()
-  }, [hasInitialized, accessToken, setAuth, setAuthenticated, setLoading, setHasInitialized, clearAuth])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // ✅ Sadece mount'ta bir kez çalış - hasInitialized store'da kontrol ediliyor
 
   // ✅ Redirect kuralları - loading ve initialization tamamlandıktan sonra
   useEffect(() => {
