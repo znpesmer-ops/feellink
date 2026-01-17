@@ -95,37 +95,43 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, []) // ✅ Sadece mount'ta bir kez çalış
 
   // ✅ Redirect kuralları - loading ve initialization tamamlandıktan sonra
-  // ⛔️ pathname dependency YOK - sadece auth state değiştiğinde çalışır
+  // ⛔️ Sadece auth state değiştiğinde çalışır, pathname değiştiğinde değil
   useEffect(() => {
     // ⛔️ Loading === true veya henüz initialize olmadıysa hiçbir redirect YAPMA
     if (loading || !hasInitialized) {
       return
     }
 
+    // Pathname'i useEffect içinde kontrol et (dependency'ye ekleme - sonsuz döngüyü önlemek için)
+    const currentPathname = pathname
+    const currentIsPublicRoute = publicRoutes.some((route) =>
+      currentPathname?.startsWith(route)
+    )
+
     // ⛔️ Zaten doğru route'daysa redirect yapma
-    if (isPublicRoute && !isAuthenticated) {
+    if (currentIsPublicRoute && !isAuthenticated) {
       // Public route + not authenticated = OK, redirect yapma
       return
     }
-    if (!isPublicRoute && isAuthenticated) {
+    if (!currentIsPublicRoute && isAuthenticated) {
       // Protected route + authenticated = OK, redirect yapma
       return
     }
 
     // 🔓 Public Routes (/login, /register)
-    if (isPublicRoute && isAuthenticated) {
+    if (currentIsPublicRoute && isAuthenticated) {
       // Eğer isAuthenticated === true → /feed
       router.replace('/feed')
       return
     }
 
     // 🔐 Protected Routes (/feed, /profile, /post/*)
-    if (!isPublicRoute && !isAuthenticated) {
+    if (!currentIsPublicRoute && !isAuthenticated) {
       // Eğer isAuthenticated === false → /login
       router.replace('/login')
       return
     }
-  }, [loading, isAuthenticated, hasInitialized]) // ⛔️ pathname YOK - sonsuz döngüyü önlemek için
+  }, [loading, isAuthenticated, hasInitialized, router]) // ⛔️ pathname YOK - sonsuz döngüyü önlemek için
 
   // ⛔️ Loading state EKLENMEDEN redirect YAPILMAYACAK
   if (loading || !hasInitialized) {
