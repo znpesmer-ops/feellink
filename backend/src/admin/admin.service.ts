@@ -127,9 +127,8 @@ export class AdminService {
     ageMax?: number,
   ) {
     const skip = (page - 1) * limit;
-    const where: any = {
-      isDeleted: { $ne: true }, // 🗑️ Hide soft-deleted users (include undefined/null/false)
-    };
+    const where: any = {};
+    // 🎯 ADMIN PANELİ: Tüm kullanıcıları göster (silinmiş dahil)
 
     if (search) {
       where.OR = [
