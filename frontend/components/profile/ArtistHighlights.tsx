@@ -223,6 +223,8 @@ export function ArtistHighlights({ username, userId, isOwnProfile = false }: Art
     return (
       <div className="w-full mb-6">
         <h3 className="text-sm text-neutral-400 mb-2 dark:text-neutral-500">Öne Çıkan Temalar</h3>
+        {/* 🐛 DEBUG: Görsel işaret */}
+        <div className="text-xs text-orange-500 mb-1">✅ Component render edildi (boş state)</div>
         <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
           {/* "Yeni Tema" butonu sadece kendi profilinde görünür */}
           {isOwnProfile && (
@@ -251,6 +253,8 @@ export function ArtistHighlights({ username, userId, isOwnProfile = false }: Art
   return (
     <div className="w-full mb-6 relative group" onMouseEnter={() => {}}>
       <h3 className="text-sm text-neutral-400 mb-4 dark:text-neutral-500">Öne Çıkan Temalar</h3>
+      {/* 🐛 DEBUG: Görsel işaret */}
+      <div className="text-xs text-green-500 mb-1">✅ Component render edildi ({highlightsArray.length} tema)</div>
       {/* Carousel Container with snap scroll */}
       <div className="relative">
         {/* Left Arrow - Desktop only, hover visible */}
