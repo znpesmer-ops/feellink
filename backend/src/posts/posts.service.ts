@@ -149,6 +149,7 @@ export class PostsService {
         type: postType, // postType değişkenini kullan (artwork kontrolü yapıldı)
         code: artworkCode, // Artwork için otomatik kod
         colorPalette: dto.colorPalette ?? [], // 🎨 Frontend'den gelen renk paleti (hex string listesi)
+        isDeleted: false, // 🗑️ Default: not deleted
         media: {
           create: dto.media.map(m => ({
             url: m.url,
