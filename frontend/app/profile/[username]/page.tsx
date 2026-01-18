@@ -559,11 +559,15 @@ function ProfileContent() {
   }
 
   // Early return kontrolleri - JSX içinde yapılacak
+  console.log('🔍 ProfileContent STATE:', { accessToken: !!accessToken, isLoading, hasProfile: !!profile })
+  
   if (!accessToken) {
+    console.log('❌ ProfileContent: No accessToken, returning null')
     return null
   }
 
   if (isLoading) {
+    console.log('⏳ ProfileContent: Loading...')
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
@@ -591,6 +595,7 @@ function ProfileContent() {
   }
 
   if (!profile) {
+    console.log('❌ ProfileContent: No profile data')
     return (
       <div className="text-center py-12">
         <div className="rounded-3xl border border-red-200 bg-red-50 px-6 py-8 text-center text-sm text-red-600 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
@@ -613,6 +618,8 @@ function ProfileContent() {
     )
   }
 
+  console.log('✅ ProfileContent: Rendering profile for', username, 'userId:', profile?.id)
+  
   return (
     <>
       <div className="max-w-4xl mx-auto py-8 px-4">
