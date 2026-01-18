@@ -53,18 +53,27 @@ export class ChatController {
     @Body() body: { participantIds: string[]; context?: 'DIRECT' | 'JOB_APPLICATION'; jobId?: string; applicationId?: string },
     @CurrentUser() user: any,
   ) {
+    if (!user || !user.id) {
+      throw new Error('Kullanıcı doğrulaması başarısız');
+    }
     return this.chatService.createConversation(user.id, body.participantIds, body.context, body.jobId, body.applicationId);
   }
 
   @Put('conversations/:id/read')
   @ApiOperation({ summary: 'Mark messages as read' })
   async markAsRead(@Param('id') id: string, @CurrentUser() user: any) {
+    if (!user || !user.id) {
+      throw new Error('Kullanıcı doğrulaması başarısız');
+    }
     return this.chatService.markAsRead(id, user.id);
   }
 
   @Delete('conversations/:id')
   @ApiOperation({ summary: 'Delete a conversation' })
   async deleteConversation(@Param('id') id: string, @CurrentUser() user: any) {
+    if (!user || !user.id) {
+      throw new Error('Kullanıcı doğrulaması başarısız');
+    }
     return this.chatService.deleteConversation(id, user.id);
   }
 
@@ -75,12 +84,18 @@ export class ChatController {
     @Body() body: { content: string },
     @CurrentUser() user: any,
   ) {
+    if (!user || !user.id) {
+      throw new Error('Kullanıcı doğrulaması başarısız');
+    }
     return this.chatService.editMessage(id, user.id, body.content);
   }
 
   @Delete('messages/:id')
   @ApiOperation({ summary: 'Delete a message' })
   async deleteMessage(@Param('id') id: string, @CurrentUser() user: any) {
+    if (!user || !user.id) {
+      throw new Error('Kullanıcı doğrulaması başarısız');
+    }
     return this.chatService.deleteMessage(id, user.id);
   }
 
@@ -90,6 +105,9 @@ export class ChatController {
     @Body() body: { conversationId: string; content?: string; imageUrl?: string; fileUrl?: string; fileName?: string; fileType?: string },
     @CurrentUser() user: any,
   ) {
+    if (!user || !user.id) {
+      throw new Error('Kullanıcı doğrulaması başarısız');
+    }
     return this.chatService.createMessage(
       user.id,
       body.conversationId,

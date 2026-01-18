@@ -137,6 +137,9 @@ export class HighlightsController {
     @Body() body: { title: string; coverPostId?: string },
     @Req() req,
   ) {
+    if (!req.user || !req.user.id) {
+      throw new BadRequestException('Kullanıcı doğrulaması başarısız');
+    }
     return this.prisma.highlight.create({
       data: {
         title: body.title,
@@ -167,6 +170,11 @@ export class HighlightsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a highlight' })
   async deleteHighlight(@Param('id') id: string, @Req() req) {
+    // Validate user
+    if (!req.user || !req.user.id) {
+      throw new BadRequestException('Kullanıcı doğrulaması başarısız');
+    }
+
     // Validate ID
     if (!id || id === 'undefined' || id === 'null') {
       throw new BadRequestException('Valid highlight ID is required');
@@ -205,6 +213,9 @@ export class HighlightsController {
     @Body() body: { postIds: string[] },
     @Req() req,
   ) {
+    if (!req.user || !req.user.id) {
+      throw new BadRequestException('Kullanıcı doğrulaması başarısız');
+    }
     if (!id) {
       throw new BadRequestException('Highlight ID is required');
     }
@@ -256,6 +267,9 @@ export class HighlightsController {
     @Body() body: { postIds: string[] },
     @Req() req,
   ) {
+    if (!req.user || !req.user.id) {
+      throw new BadRequestException('Kullanıcı doğrulaması başarısız');
+    }
     if (!id) {
       throw new BadRequestException('Highlight ID is required');
     }
@@ -293,6 +307,9 @@ export class HighlightsController {
     @Body() body: { title: string },
     @Req() req,
   ) {
+    if (!req.user || !req.user.id) {
+      throw new BadRequestException('Kullanıcı doğrulaması başarısız');
+    }
     if (!id) {
       throw new BadRequestException('Highlight ID is required');
     }
