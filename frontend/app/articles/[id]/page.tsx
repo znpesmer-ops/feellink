@@ -444,6 +444,7 @@ export default function ArticleDetailPage() {
             src={resolveMediaUrl(article.coverImage) || ''}
             alt={article.title}
             className="w-full h-auto object-cover"
+          />
         </div>
       )}
 

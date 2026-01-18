@@ -953,7 +953,6 @@ function MessagesContent() {
       
       const errorMessage = error.response?.data?.message || error.message || 'Mesaj gönderilirken bir hata oluştu'
       alert(errorMessage)
-    }
     } finally {
       // ✅ Kilit kaldırıldı (başarılı veya hatalı olsun)
       isSendingRef.current = false
