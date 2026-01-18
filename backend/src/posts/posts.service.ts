@@ -1360,7 +1360,10 @@ export class PostsService {
     }
 
     // ✅ Type filtresi ekle: post veya artwork
-    const whereClause: any = { userId: actualUserId };
+    const whereClause: any = { 
+      userId: actualUserId,
+      isDeleted: false, // 🗑️ Silinen postları gösterme
+    };
     if (type) {
       whereClause.type = type;
     }

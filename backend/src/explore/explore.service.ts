@@ -128,7 +128,10 @@ export class ExploreService {
             });
 
     const posts = await this.prisma.post.findMany({
-      where,
+      where: {
+        ...where,
+        isDeleted: false, // 🗑️ Silinen postları gösterme
+      },
       include: {
         user: {
           select: {
