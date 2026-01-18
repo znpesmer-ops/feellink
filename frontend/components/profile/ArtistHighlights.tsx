@@ -206,26 +206,23 @@ export function ArtistHighlights({ username, userId, isOwnProfile = false }: Art
     return () => carousel.removeEventListener('scroll', updateArrowVisibility)
   }, [highlightsArray])
 
-  // 🔥 KRİTİK: İlk yükleme sırasında null döndür (stale data yoksa)
-  // Ama refetch sırasında highlights varsa (placeholderData sayesinde) göster
-  // isLoading true olsa bile highlights varsa göster (refetch sırasında UI kaybolmasın)
-  // highlightsArray boş olsa bile (placeholderData [] döndürdüyse) göster
-  if (isLoading && !highlights && !isRefetching) return null
-  
-  // ✅ Boş state her zaman göster (tüm kullanıcılarda görünür)
+  // ✅ Component her zaman render edilir (tüm kullanıcılarda görünür)
   // "Yeni Tema" butonu sadece kendi profilinde gösterilir (isOwnProfile kontrolü component içinde)
   if (!highlightsArray || highlightsArray.length === 0) {
     return (
       <div className="w-full mb-6">
         <h3 className="text-sm text-neutral-400 mb-2 dark:text-neutral-500">Öne Çıkan Temalar</h3>
         <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex-shrink-0 w-32 h-40 rounded-2xl border border-dashed border-neutral-700 dark:border-neutral-600 text-neutral-400 dark:text-neutral-500 hover:border-orange-500 hover:text-orange-400 dark:hover:border-orange-500 dark:hover:text-orange-400 flex flex-col items-center justify-center gap-2 transition-colors"
-          >
-            <span className="text-2xl">＋</span>
-            <span className="text-xs font-medium text-center">Yeni Tema</span>
-          </button>
+          {/* "Yeni Tema" butonu sadece kendi profilinde görünür */}
+          {isOwnProfile && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex-shrink-0 w-32 h-40 rounded-2xl border border-dashed border-neutral-700 dark:border-neutral-600 text-neutral-400 dark:text-neutral-500 hover:border-orange-500 hover:text-orange-400 dark:hover:border-orange-500 dark:hover:text-orange-400 flex flex-col items-center justify-center gap-2 transition-colors"
+            >
+              <span className="text-2xl">＋</span>
+              <span className="text-xs font-medium text-center">Yeni Tema</span>
+            </button>
+          )}
         </div>
 
         {showCreateModal && (
