@@ -621,7 +621,15 @@ function ProfileContent() {
     )
   }
 
-  console.log('✅ ProfileContent: Rendering profile for', username, 'userId:', profile?.id)
+  // 🐛 DEBUG: Profile bilgilerini logla
+  console.log('✅ ProfileContent: Rendering profile', {
+    username,
+    userId: profile?.id,
+    role: profile?.role,
+    profileType: (profile as any)?.profileType,
+    hasProfile: !!profile,
+    isOwnProfile: profile?.isOwnProfile
+  })
   
   return (
     <>

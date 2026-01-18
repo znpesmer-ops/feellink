@@ -5,6 +5,13 @@ let socket: Socket | null = null
 let chatSocket: Socket | null = null
 
 export const initSocket = (token: string): Socket => {
+  // 🔴 PRODUCTION: Socket.IO Vercel serverless ile uyumsuz - disable edildi
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    console.warn('[Socket] Socket.IO disabled in production (Vercel serverless incompatible)')
+    // Mock socket döndür - hiçbir şey kırılmasın
+    return { on: () => {}, off: () => {}, emit: () => {}, connected: false } as any
+  }
+  
   // Eğer socket zaten bağlıysa ve token aynıysa, mevcut socket'i döndür
   const currentAuth = socket?.auth as { token?: string } | undefined
   if (socket?.connected && currentAuth?.token === token) {
@@ -103,6 +110,13 @@ export const initSocket = (token: string): Socket => {
 }
 
 export const initChatSocket = (token: string): Socket => {
+  // 🔴 PRODUCTION: Socket.IO Vercel serverless ile uyumsuz - disable edildi
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    console.warn('[ChatSocket] Socket.IO disabled in production (Vercel serverless incompatible)')
+    // Mock socket döndür
+    return { on: () => {}, off: () => {}, emit: () => {}, connected: false } as any
+  }
+  
   // Eğer socket zaten bağlıysa ve token aynıysa, mevcut socket'i döndür
   const currentAuth = chatSocket?.auth as { token?: string } | undefined
   if (chatSocket?.connected && currentAuth?.token === token) {
