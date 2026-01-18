@@ -127,7 +127,9 @@ export class AdminService {
     ageMax?: number,
   ) {
     const skip = (page - 1) * limit;
-    const where: any = {};
+    const where: any = {
+      isDeleted: false, // 🗑️ Hide soft-deleted users
+    };
 
     if (search) {
       where.OR = [
@@ -194,6 +196,9 @@ export class AdminService {
           city: true,
           gender: true,
           profileCompleted: true,
+          isDeleted: true, // 🗑️ Include for admin visibility
+          deletedAt: true,
+          accountStatus: true,
         },
       }),
       this.prisma.user.count({ where }),
@@ -419,11 +424,16 @@ export class AdminService {
     // Check if user exists
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, username: true, email: true, superAdmin: true },
+      select: { id: true, username: true, email: true, superAdmin: true, isDeleted: true },
     });
 
     if (!user) {
       throw new NotFoundException('Kullanıcı bulunamadı');
+    }
+
+    // Check if already deleted
+    if (user.isDeleted) {
+      throw new BadRequestException('Kullanıcı zaten silinmiş');
     }
 
     // Prevent deleting superAdmin (GOD-MODE protection)
@@ -437,16 +447,22 @@ export class AdminService {
     }
 
     try {
-      // Delete user (Prisma cascade will handle related records if configured)
-      await this.prisma.user.delete({
+      // 🗑️ SOFT DELETE - Mark user as deleted instead of physically removing
+      await this.prisma.user.update({
         where: { id: userId },
+        data: {
+          isDeleted: true,
+          deletedAt: new Date(),
+          deletedBy: actorId,
+          accountStatus: 'SUSPENDED', // Disable login
+        },
       });
 
       // Audit log
       await this.prisma.auditLog.create({
         data: {
           actorId,
-          action: 'user.delete',
+          action: 'user.soft_delete',
           target: `user:${userId}`,
           meta: {
             deletedUser: {
@@ -457,15 +473,12 @@ export class AdminService {
         },
       });
 
-      return { message: 'Kullanıcı başarıyla silindi', deletedUserId: userId };
+      return { 
+        success: true,
+        message: 'Kullanıcı başarıyla silindi', 
+        deletedUserId: userId 
+      };
     } catch (error: any) {
-      // Prisma foreign key constraint errors
-      if (error.code === 'P2003' || error.code === 'P2014') {
-        throw new BadRequestException(
-          'Bu kullanıcı başka kayıtlarla ilişkili olduğu için silinemez. Önce ilgili verileri temizleyin.'
-        );
-      }
-
       // Prisma record not found (race condition)
       if (error.code === 'P2025') {
         throw new NotFoundException('Kullanıcı bulunamadı veya zaten silinmiş');

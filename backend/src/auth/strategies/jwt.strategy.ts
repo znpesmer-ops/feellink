@@ -38,11 +38,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         isVerified: true,
         isAdmin: true,
         superAdmin: true, // 🔥 GOD-MODE
+        isDeleted: true, // 🗑️ Soft delete check
+        accountStatus: true,
       },
     });
 
     if (!user) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('Kullanıcı bulunamadı');
+    }
+
+    // 🗑️ SOFT DELETE: Block deleted users from logging in
+    if (user.isDeleted) {
+      throw new UnauthorizedException('Bu hesap silinmiş');
+    }
+
+    // 🔒 SUSPENDED: Block suspended users
+    if (user.accountStatus === 'SUSPENDED') {
+      throw new UnauthorizedException('Bu hesap askıya alınmış');
     }
 
     return {
