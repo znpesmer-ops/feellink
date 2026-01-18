@@ -61,43 +61,29 @@ export class MediaService {
     if (this.isDisabled || !this.minioClient) {
       const blobToken = this.configService.get('BLOB_READ_WRITE_TOKEN');
       
-      if (blobToken) {
-        // ✅ Vercel Blob Storage'a upload
-        try {
-          const blob = await put(fileName, file.buffer, {
-            access: 'public',
-            contentType: file.mimetype,
-            token: blobToken,
-          });
-          
-          return {
-            url: blob.url, // ✅ Absolute public URL (örn: https://xxx.public.blob.vercel-storage.com/...)
-            fileName: file.originalname,
-            fileType: file.mimetype,
-          };
-        } catch (error: any) {
-          console.error('[MediaService] Vercel Blob upload failed:', error?.message || error);
-          // Fallback: local URL döndür (development için)
-          const base = this.configService.get('BASE_URL') || 
-                       this.configService.get('APP_URL') || 
-                       `http://192.168.1.38:${this.configService.get('PORT') || '3002'}`;
-          return {
-            url: `${base}/static/${fileName}`,
-            fileName: file.originalname,
-            fileType: file.mimetype,
-          };
-        }
+      if (!blobToken) {
+        // ❌ BLOB_READ_WRITE_TOKEN eksik - açık hata mesajı ver
+        console.error('[MediaService] ❌ BLOB_READ_WRITE_TOKEN environment variable tanımlı değil!');
+        throw new Error('Dosya yükleme servisi yapılandırılmamış. Lütfen sistem yöneticisiyle iletişime geçin.');
       }
       
-      // Fallback: local URL döndür (BLOB_READ_WRITE_TOKEN yoksa)
-      const base = this.configService.get('BASE_URL') || 
-                   this.configService.get('APP_URL') || 
-                   `http://192.168.1.38:${this.configService.get('PORT') || '3002'}`;
-      return {
-        url: `${base}/static/${fileName}`,
-        fileName: file.originalname,
-        fileType: file.mimetype,
-      };
+      // ✅ Vercel Blob Storage'a upload
+      try {
+        const blob = await put(fileName, file.buffer, {
+          access: 'public',
+          contentType: file.mimetype,
+          token: blobToken,
+        });
+        
+        return {
+          url: blob.url, // ✅ Absolute public URL (örn: https://xxx.public.blob.vercel-storage.com/...)
+          fileName: file.originalname,
+          fileType: file.mimetype,
+        };
+      } catch (error: any) {
+        console.error('[MediaService] ❌ Vercel Blob upload failed:', error?.message || error);
+        throw new Error(`Dosya yüklenemedi: ${error?.message || 'Bilinmeyen hata'}`);
+      }
     }
 
     await this.minioClient.putObject(
