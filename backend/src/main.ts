@@ -6,6 +6,7 @@ import * as express from 'express';
 import { join } from 'path';
 import { AppModule } from './app.module';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+// Deploy trigger: isDeleted filter fix - 2026-01-18
 
 let cachedServer: any;
 
