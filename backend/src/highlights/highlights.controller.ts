@@ -12,7 +12,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { HighlightsService } from './highlights.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -39,7 +39,14 @@ export class HighlightsController {
       include: {
         coverPost: {
           select: {
-            imageUrl: true,
+            id: true,
+            media: {
+              select: {
+                url: true,
+                type: true,
+              },
+              take: 1,
+            },
           },
         },
         items: {
@@ -47,9 +54,15 @@ export class HighlightsController {
             post: {
               select: {
                 id: true,
-                imageUrl: true,
                 caption: true,
                 title: true,
+                media: {
+                  select: {
+                    url: true,
+                    type: true,
+                  },
+                  take: 1,
+                },
               },
             },
           },
@@ -81,7 +94,14 @@ export class HighlightsController {
       include: {
         coverPost: {
           select: {
-            imageUrl: true,
+            id: true,
+            media: {
+              select: {
+                url: true,
+                type: true,
+              },
+              take: 1,
+            },
           },
         },
         items: {
@@ -89,9 +109,15 @@ export class HighlightsController {
             post: {
               select: {
                 id: true,
-                imageUrl: true,
                 caption: true,
                 title: true,
+                media: {
+                  select: {
+                    url: true,
+                    type: true,
+                  },
+                  take: 1,
+                },
               },
             },
           },
