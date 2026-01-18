@@ -152,6 +152,9 @@ export class PostsController {
   @ApiOperation({ summary: 'Delete post' })
   @ApiResponse({ status: 200, description: 'Post deleted successfully' })
   async deletePost(@Param() params: PostIdDto, @CurrentUser() user: any) {
+    if (!user || !user.id) {
+      throw new BadRequestException('Kullanıcı doğrulaması başarısız');
+    }
     return this.postsService.deletePost(params.id, user.id);
   }
 
@@ -278,6 +281,9 @@ export class PostsController {
     @Param('commentId') commentId: string,
     @CurrentUser() user: any,
   ) {
+    if (!user || !user.id) {
+      throw new BadRequestException('Kullanıcı doğrulaması başarısız');
+    }
     return this.postsService.deleteComment(commentId, user.id);
   }
 
