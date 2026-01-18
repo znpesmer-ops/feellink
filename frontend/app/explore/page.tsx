@@ -12,6 +12,7 @@ import { AuthGuard } from '@/lib/auth-guard'
 import { ProRoleBadge } from '@/components/ProRoleBadge'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import PostCard from '@/components/PostCard'
+import { PostCardSkeleton } from '@/components/ui/Skeleton'
 
 // ✅ Pinned Comment Component (Statik - Pin ikonu ile - Overlay için beyaz metin + kullanıcı adı)
 function PinnedComment({ user, text }: { user: string; text: string }) {
@@ -190,14 +191,7 @@ function ExploreContent() {
     }
   }, [posts])
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
-      </div>
-    )
-  }
-
+  // ✅ Optimistic render - UI hemen görünsün, fetch arkada devam etsin
   // Filtre sekmeleri kaldırıldı - sadece varsayılan keşfet akışı gösteriliyor
   // State (activeFilter) korunuyor - ileride tekrar eklenebilir
   // const filters = ['Tümü', 'Sanatçılar', 'Koleksiyonlar', 'Etkinlikler']
@@ -226,7 +220,13 @@ function ExploreContent() {
 
         {/* Düzenli Grid View - PostCard explore variant kullanıyor */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 py-8 px-4">
-          {posts.map((post: any, index: number) => {
+          {isLoading ? (
+            // ✅ Skeleton loader - UI hemen görünsün
+            Array.from({ length: 6 }).map((_, i) => (
+              <PostCardSkeleton key={`skeleton-${i}`} />
+            ))
+          ) : (
+            posts.map((post: any, index: number) => {
             // PostCard için uygun formata dönüştür
             const postCardData = {
               id: post.id,
@@ -259,7 +259,8 @@ function ExploreContent() {
                 />
               </motion.div>
             )
-          })}
+            })
+          )}
         </div>
 
         {/* Load More */}

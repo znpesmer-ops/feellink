@@ -9,6 +9,7 @@ import HighlightsRow from '@/components/highlights-row'
 import PostCard from '@/components/PostCard'
 import api from '@/lib/api'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
+import { PostCardSkeleton } from '@/components/ui/Skeleton'
 
 function FeedContent() {
   const router = useRouter()
@@ -114,8 +115,11 @@ function FeedContent() {
           <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-gray-100 mb-4 md:mb-6">Keşfet</h2>
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
+            // ✅ Skeleton loader - UI hemen görünsün
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <PostCardSkeleton key={i} />
+              ))}
             </div>
           ) : feedPosts.length === 0 ? (
             <div className="text-center py-12 md:py-20 bg-white dark:bg-gray-950 rounded-2xl border border-gray-100 dark:border-gray-900 px-4">
