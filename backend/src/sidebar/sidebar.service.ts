@@ -382,8 +382,8 @@ export class SidebarService {
         author: {
           id: { notIn: followingIds },
           isPrivate: false,
-          isDeleted: { $ne: true }, // 🔒 Hide deleted users
-          accountStatus: { $ne: 'SUSPENDED' }, // 🔒 Hide suspended users
+          isDeleted: { not: true }, // 🔒 Hide only truly deleted users
+          accountStatus: { not: 'SUSPENDED' }, // 🔒 Hide only suspended users
         },
       },
       include: {
@@ -408,8 +408,8 @@ export class SidebarService {
         user: {
           id: { notIn: followingIds },
           isPrivate: false,
-          isDeleted: { $ne: true }, // 🔒 Hide deleted users
-          accountStatus: { $ne: 'SUSPENDED' }, // 🔒 Hide suspended users
+          isDeleted: { not: true }, // 🔒 Hide only truly deleted users
+          accountStatus: { not: 'SUSPENDED' }, // 🔒 Hide only suspended users
         },
         // Caption kontrolünü kaldırdık - tüm postlar dahil (caption boş olsa bile)
       },

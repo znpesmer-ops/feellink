@@ -300,8 +300,8 @@ export class FeedService {
       where: {
         userId: { in: followingIds },
         user: {
-          isDeleted: { $ne: true }, // 🔒 Hide deleted users
-          accountStatus: { $ne: 'SUSPENDED' }, // 🔒 Hide suspended users
+          isDeleted: { not: true }, // 🔒 Hide only truly deleted users
+          accountStatus: { not: 'SUSPENDED' }, // 🔒 Hide only suspended users
         },
       },
       include: {

@@ -86,9 +86,10 @@ export class ExploreService {
     // If userId is null (no auth), show all public posts
     
     // 🔒 ALWAYS filter out suspended/deleted users
+    // ⚠️ IMPORTANT: Use $ne (not equal) to include users where field doesn't exist (undefined/null)
     const userFilter = {
-      isDeleted: { $ne: true }, // Hide deleted users
-      accountStatus: { $ne: 'SUSPENDED' }, // Hide suspended users
+      isDeleted: { not: true }, // Hide only truly deleted users (includes undefined/null/false)
+      accountStatus: { not: 'SUSPENDED' }, // Hide only suspended users (includes undefined/null/other statuses)
     };
     
     const where = userId
