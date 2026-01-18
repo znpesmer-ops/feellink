@@ -167,6 +167,12 @@ export const getChatSocket = (): Socket | null => {
 }
 
 export const initCommentsSocket = (token: string): Socket => {
+  // 🔴 PRODUCTION: Socket.IO Vercel serverless ile uyumsuz - disable edildi
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    console.warn('[CommentsSocket] Socket.IO disabled in production (Vercel serverless incompatible)')
+    return { on: () => {}, off: () => {}, emit: () => {}, connected: false } as any
+  }
+  
   // Comments socket için ayrı bir instance oluştur
   const baseURL = getApiBaseURL()
   const commentsSocket = io(`${baseURL}/comments`, {
@@ -196,6 +202,12 @@ export const initCommentsSocket = (token: string): Socket => {
 }
 
 export const initPostsSocket = (token: string): Socket => {
+  // 🔴 PRODUCTION: Socket.IO Vercel serverless ile uyumsuz - disable edildi
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    console.warn('[PostsSocket] Socket.IO disabled in production (Vercel serverless incompatible)')
+    return { on: () => {}, off: () => {}, emit: () => {}, connected: false } as any
+  }
+  
   // Posts socket için ayrı bir instance oluştur
   const baseURL = getApiBaseURL()
   const postsSocket = io(`${baseURL}/posts`, {
