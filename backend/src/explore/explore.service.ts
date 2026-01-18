@@ -85,20 +85,14 @@ export class ExploreService {
     // This creates the "discovery" feed - new content from users you haven't followed yet
     // If userId is null (no auth), show all public posts
     
-    // 🔒 ALWAYS filter out suspended/deleted users  
-    // ⚠️ Post schema'da isDeleted yok - sadece user filter'da kullan
-    const userFilter = {
-      isDeleted: { not: true }, // Hide only truly deleted users
-      accountStatus: { not: 'SUSPENDED' }, // Hide only suspended users
-    };
-    
-    const where = userId
+    const where: any = userId
       ? (cursor
           ? {
               id: { lt: cursor },
               userId: { not: userId }, // Exclude own posts
               user: {
-                ...userFilter,
+                isDeleted: { not: true }, // 🔒 Hide deleted users
+                accountStatus: { not: 'SUSPENDED' }, // 🔒 Hide suspended users
                 followers: {
                   none: {
                     followerId: userId, // Exclude posts from users you follow
@@ -109,7 +103,8 @@ export class ExploreService {
           : {
               userId: { not: userId }, // Exclude own posts
               user: {
-                ...userFilter,
+                isDeleted: { not: true }, // 🔒 Hide deleted users
+                accountStatus: { not: 'SUSPENDED' }, // 🔒 Hide suspended users
                 followers: {
                   none: {
                     followerId: userId, // Exclude posts from users you follow
@@ -120,10 +115,16 @@ export class ExploreService {
       : (cursor
           ? {
               id: { lt: cursor },
-              user: userFilter, // Apply filter even for non-auth users
+              user: {
+                isDeleted: { not: true }, // 🔒 Hide deleted users
+                accountStatus: { not: 'SUSPENDED' }, // 🔒 Hide suspended users
+              },
             }
           : {
-              user: userFilter, // Apply filter even for non-auth users
+              user: {
+                isDeleted: { not: true }, // 🔒 Hide deleted users
+                accountStatus: { not: 'SUSPENDED' }, // 🔒 Hide suspended users
+              },
             });
 
     const posts = await this.prisma.post.findMany({
