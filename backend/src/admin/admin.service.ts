@@ -128,7 +128,7 @@ export class AdminService {
   ) {
     const skip = (page - 1) * limit;
     const where: any = {
-      isDeleted: false, // 🗑️ Hide soft-deleted users
+      isDeleted: { $ne: true }, // 🗑️ Hide soft-deleted users (include undefined/null/false)
     };
 
     if (search) {
