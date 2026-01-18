@@ -1033,14 +1033,7 @@ function MessagesContent() {
     )
   })
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-gray-500 dark:text-gray-400">Yükleniyor...</div>
-      </div>
-    )
-  }
-
+  // ✅ Optimistic render - UI hemen görünsün, fetch arkada devam etsin
   return (
     <div className="flex h-[calc(100vh-8rem)] md:h-[calc(100vh-4rem)] bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
       {/* Sol Panel - Konuşma Listesi */}
@@ -1070,7 +1063,20 @@ function MessagesContent() {
 
         {/* Konuşma Listesi */}
         <div className="flex-1 overflow-y-auto">
-          {filteredConversations.length === 0 ? (
+          {loading ? (
+            // ✅ Skeleton loader - konuşma listesi için
+            <div className="p-4 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 animate-pulse">
+                  <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+                  <div className="flex-1">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredConversations.length === 0 ? (
             <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400 p-4">
               <p className="text-center">
                 {searchQuery ? 'Sonuç bulunamadı' : 'Henüz mesajınız yok'}
