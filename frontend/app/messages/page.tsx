@@ -786,14 +786,15 @@ function MessagesContent() {
       return
     }
 
-    // ✅ Active conversation kontrolü - Socket kontrolü kaldırıldı (REST API fallback var)
-    if ((!messageText.trim() && !selectedImage && !selectedFile) || !activeConversation) {
+    // ✅ Active conversation ve user kontrolü - Socket kontrolü kaldırıldı (REST API fallback var)
+    if ((!messageText.trim() && !selectedImage && !selectedFile) || !activeConversation || !user) {
       console.log('⚠️ [sendMessage] Validation failed:', {
         hasText: !!messageText.trim(),
         messageTextLength: messageText?.length,
         hasImage: !!selectedImage,
         hasFile: !!selectedFile,
         hasConversation: !!activeConversation,
+        hasUser: !!user,
         activeConversation: activeConversation,
       })
       return
