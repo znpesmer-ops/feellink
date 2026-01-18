@@ -134,6 +134,8 @@ model Post {
   code         String? // Artwork için otomatik üretilen kod (PA24-00001 gibi)
   colors       String[] @default([]) // Artwork için otomatik çıkarılan renkler (HEX formatında) - DEPRECATED
   colorPalette String[] @default([]) // 🎨 Basit renk paleti: hex string listesi (frontend'den gelir)
+  isDeleted    Boolean  @default(false) // 🗑️ Soft delete flag
+  deletedAt    DateTime? // 🗑️ Soft delete timestamp
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

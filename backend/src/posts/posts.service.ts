@@ -534,69 +534,66 @@ export class PostsService {
   }
 
   async deletePost(postId: string, userId: string) {
+    // Validate input
+    if (!postId || postId === 'undefined' || postId === 'null') {
+      throw new BadRequestException('Valid post ID is required');
+    }
+
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
-      include: {
-        media: true,
-      },
     });
 
     if (!post) {
       throw new NotFoundException('Post not found');
     }
 
+    // Check if already deleted
+    if (post.isDeleted) {
+      return { success: true, message: 'Post already deleted' };
+    }
+
+    // Check ownership
     if (post.userId !== userId) {
-      throw new ForbiddenException('Cannot delete this post');
+      throw new ForbiddenException('You can only delete your own posts');
     }
 
-    // ✅ Önce PostMedia kayıtlarını sil (required relation hatası önlemek için)
-    if (post.media && post.media.length > 0) {
-      await this.prisma.postMedia.deleteMany({
-        where: { postId },
+    try {
+      // 🗑️ SOFT DELETE - Mark as deleted instead of removing
+      await this.prisma.post.update({
+        where: { id: postId },
+        data: {
+          isDeleted: true,
+          deletedAt: new Date(),
+        },
       });
+
+      // Remove from feed cache
+      try {
+        await this.feedService.removeFromFeeds(postId);
+      } catch (error) {
+        console.warn('[deletePost] Feed removal failed:', error);
+      }
+
+      // 🔔 Real-time broadcast - Socket.IO
+      if (this.postsGateway) {
+        try {
+          this.postsGateway.server.emit('post:deleted', postId);
+          console.log(`🗑️ Post deleted event broadcasted: ${postId}`);
+        } catch (error) {
+          console.warn('[deletePost] Socket broadcast failed:', error);
+        }
+      }
+
+      return { success: true, message: 'Post deleted successfully' };
+    } catch (error: any) {
+      // Prisma errors
+      if (error.code === 'P2025') {
+        throw new NotFoundException('Post not found or already deleted');
+      }
+
+      console.error('[deletePost] error:', error);
+      throw new BadRequestException('Failed to delete post');
     }
-
-    // ✅ Post ile ilişkili diğer kayıtları da sil
-    // Comments (cascade delete yoksa manuel sil)
-    await this.prisma.comment.deleteMany({
-      where: { postId },
-    });
-
-    // Likes
-    await this.prisma.like.deleteMany({
-      where: { postId },
-    });
-
-    // SavedPosts
-    await this.prisma.savedPost.deleteMany({
-      where: { postId },
-    });
-
-    // SavedArtworks
-    await this.prisma.savedArtwork.deleteMany({
-      where: { postId },
-    });
-
-    // PostHashtags
-    await this.prisma.postHashtag.deleteMany({
-      where: { postId },
-    });
-
-    // Şimdi Post'u sil
-    await this.prisma.post.delete({
-      where: { id: postId },
-    });
-
-    // Remove from feed cache
-    await this.feedService.removeFromFeeds(postId);
-
-    // 🔔 Real-time yayın - Socket.IO ile silme bildirimi
-    if (this.postsGateway) {
-      this.postsGateway.server.emit('post:deleted', postId);
-      console.log(`🗑️ Post deleted event broadcasted: ${postId}`);
-    }
-
-    return { status: 'deleted' };
   }
 
   async likePost(postId: string, userId: string) {
