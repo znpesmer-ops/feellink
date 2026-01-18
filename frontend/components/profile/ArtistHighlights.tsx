@@ -212,12 +212,9 @@ export function ArtistHighlights({ username, userId, isOwnProfile = false }: Art
   // highlightsArray boş olsa bile (placeholderData [] döndürdüyse) göster
   if (isLoading && !highlights && !isRefetching) return null
   
-  // 🔥 KRİTİK: highlightsArray boş olsa bile, eğer refetch sırasındaysa göster (placeholderData sayesinde)
-  // Sadece gerçekten hiç data yoksa ve ilk yükleme değilse boş state göster
+  // ✅ Boş state her zaman göster (tüm kullanıcılarda görünür)
+  // "Yeni Tema" butonu sadece kendi profilinde gösterilir (isOwnProfile kontrolü component içinde)
   if (!highlightsArray || highlightsArray.length === 0) {
-    // Sadece kendi profilimizde "Yeni Tema" butonu göster
-    if (!isOwnProfile) return null
-    
     return (
       <div className="w-full mb-6">
         <h3 className="text-sm text-neutral-400 mb-2 dark:text-neutral-500">Öne Çıkan Temalar</h3>

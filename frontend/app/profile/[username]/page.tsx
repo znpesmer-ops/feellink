@@ -803,15 +803,8 @@ function ProfileContent() {
           </div>
         </div>
 
-        {/* Öne Çıkan Temalar - Sadece Pro Artist için */}
-        {/* Görünürlük mantığı:
-            - Kullanıcı kendi profilindeyse → Temalar görünsün
-            - Kullanıcı başkasının profiline bakıyorsa:
-              * Profil gizliyse → Temalar gizlensin
-              * Profil açıksa → Temalar görünsün */}
-        {isProArtist && (profile.isOwnProfile || !profile.isPrivate) && (
-          <ArtistHighlights username={username} userId={profile?.id} isOwnProfile={profile.isOwnProfile} />
-        )}
+        {/* Öne Çıkan Temalar - Tüm kullanıcılarda görünür */}
+        <ArtistHighlights username={username} userId={profile?.id} isOwnProfile={profile.isOwnProfile} />
 
         {/* Sekme Butonları - Instagram Tarzı İkonlu Sekmeler - Rol bazlı görünürlük */}
         <div className="flex justify-center gap-10 mb-6 border-b border-gray-200 dark:border-gray-700 pb-3 relative">
