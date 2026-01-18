@@ -36,9 +36,6 @@ interface ArtistHighlightsProps {
 }
 
 export function ArtistHighlights({ username, userId, isOwnProfile = false }: ArtistHighlightsProps) {
-  // 🐛 DEBUG: Props'ları logla
-  console.log('🎨 ArtistHighlights RENDER:', { username, userId, isOwnProfile })
-  
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [activeHighlight, setActiveHighlight] = useState<Highlight | null>(null)
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
@@ -192,13 +189,6 @@ export function ArtistHighlights({ username, userId, isOwnProfile = false }: Art
 
   // highlights her zaman array olmalı
   const highlightsArray = Array.isArray(highlights) ? highlights : []
-  
-  // 🐛 DEBUG: Query sonuçlarını logla
-  console.log('🎨 ArtistHighlights DATA:', { 
-    isLoading, 
-    highlightsCount: highlightsArray.length,
-    queryEnabled: !!(username || userId)
-  })
 
   // Carousel scroll kontrolü ve arrow visibility
   useEffect(() => {
@@ -219,12 +209,9 @@ export function ArtistHighlights({ username, userId, isOwnProfile = false }: Art
   // ✅ Component her zaman render edilir (tüm kullanıcılarda görünür)
   // "Yeni Tema" butonu sadece kendi profilinde gösterilir (isOwnProfile kontrolü component içinde)
   if (!highlightsArray || highlightsArray.length === 0) {
-    console.log('🎨 ArtistHighlights: Rendering EMPTY STATE')
     return (
       <div className="w-full mb-6">
         <h3 className="text-sm text-neutral-400 mb-2 dark:text-neutral-500">Öne Çıkan Temalar</h3>
-        {/* 🐛 DEBUG: Görsel işaret */}
-        <div className="text-xs text-orange-500 mb-1">✅ Component render edildi (boş state)</div>
         <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
           {/* "Yeni Tema" butonu sadece kendi profilinde görünür */}
           {isOwnProfile && (
@@ -249,12 +236,9 @@ export function ArtistHighlights({ username, userId, isOwnProfile = false }: Art
     )
   }
 
-  console.log('🎨 ArtistHighlights: Rendering FULL LIST with', highlightsArray.length, 'highlights')
   return (
     <div className="w-full mb-6 relative group" onMouseEnter={() => {}}>
       <h3 className="text-sm text-neutral-400 mb-4 dark:text-neutral-500">Öne Çıkan Temalar</h3>
-      {/* 🐛 DEBUG: Görsel işaret */}
-      <div className="text-xs text-green-500 mb-1">✅ Component render edildi ({highlightsArray.length} tema)</div>
       {/* Carousel Container with snap scroll */}
       <div className="relative">
         {/* Left Arrow - Desktop only, hover visible */}
