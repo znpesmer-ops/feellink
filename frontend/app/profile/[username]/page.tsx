@@ -26,9 +26,6 @@ import { ArtistHighlights } from '@/components/profile/ArtistHighlights'
 import ZoomModal from '@/components/common/ZoomModal'
 
 function ProfileContent() {
-  // 🔥 KANIT: Bu component render ediliyor mu?
-  console.log('🔥 PROFILE ROUTE RENDERED - /app/profile/[username]/page.tsx')
-  
   const params = useParams()
   const router = useRouter()
   const { accessToken, user: currentUser, capabilities } = useAuthStore()
@@ -562,15 +559,11 @@ function ProfileContent() {
   }
 
   // Early return kontrolleri - JSX içinde yapılacak
-  console.log('🔍 ProfileContent STATE:', { accessToken: !!accessToken, isLoading, hasProfile: !!profile })
-  
   if (!accessToken) {
-    console.log('❌ ProfileContent: No accessToken, returning null')
     return null
   }
 
   if (isLoading) {
-    console.log('⏳ ProfileContent: Loading...')
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
@@ -598,7 +591,6 @@ function ProfileContent() {
   }
 
   if (!profile) {
-    console.log('❌ ProfileContent: No profile data')
     return (
       <div className="text-center py-12">
         <div className="rounded-3xl border border-red-200 bg-red-50 px-6 py-8 text-center text-sm text-red-600 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
@@ -621,16 +613,6 @@ function ProfileContent() {
     )
   }
 
-  // 🐛 DEBUG: Profile bilgilerini logla
-  console.log('✅ ProfileContent: Rendering profile', {
-    username,
-    userId: profile?.id,
-    role: profile?.role,
-    profileType: (profile as any)?.profileType,
-    hasProfile: !!profile,
-    isOwnProfile: profile?.isOwnProfile
-  })
-  
   return (
     <>
       <div className="max-w-4xl mx-auto py-8 px-4">
