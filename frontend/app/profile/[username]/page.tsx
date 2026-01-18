@@ -268,7 +268,28 @@ function ProfileContent() {
       toast.success('Gönderi başarıyla silindi')
       // Remove from local state
       setProfilePosts((prev) => prev.filter((p) => p.id !== postId))
-      // Invalidate queries
+      
+      // 🎯 OPTIMISTIC UPDATE - Instagram mantığı: Anında sayacı azalt
+      queryClient.setQueriesData(
+        { 
+          predicate: (query) => {
+            const key = query.queryKey
+            return Array.isArray(key) && key[0] === 'profile'
+          }
+        },
+        (oldData: any) => {
+          if (!oldData) return oldData
+          return {
+            ...oldData,
+            _count: {
+              ...oldData._count,
+              posts: Math.max(0, (oldData._count?.posts || 0) - 1), // ✅ Anında -1 (min 0)
+            }
+          }
+        }
+      )
+      
+      // Invalidate queries (background refresh)
       queryClient.invalidateQueries({ queryKey: ['user-posts', profile?.id] })
       queryClient.invalidateQueries({ queryKey: ['profile', username] })
       queryClient.invalidateQueries({ queryKey: ['posts'] })
