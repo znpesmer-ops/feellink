@@ -266,12 +266,19 @@ export class UsersService {
     // Calculate counts from relations - manual count for accuracy
     // followerCount = how many users follow this user (followingId = user.id)
     // followingCount = how many users this user follows (followerId = user.id)
-    const [followerCount, followingCount] = await Promise.all([
+    // postsCount = active posts (not deleted)
+    const [followerCount, followingCount, postsCount] = await Promise.all([
       this.prisma.follow.count({
         where: { followingId: user.id },
       }),
       this.prisma.follow.count({
         where: { followerId: user.id },
+      }),
+      this.prisma.post.count({
+        where: { 
+          userId: user.id,
+          isDeleted: false, // 🗑️ Only count active posts
+        },
       }),
     ]);
 
@@ -414,9 +421,9 @@ export class UsersService {
       canViewPosts,
       followerCount,
       followingCount,
-      // Keep _count for posts count
+      // Keep _count for posts count - use manually calculated count
       _count: {
-        posts: user._count.posts,
+        posts: postsCount, // 🗑️ Manuel hesaplanan active post sayısı
       },
       badges: badgeIds,
       capabilities,
