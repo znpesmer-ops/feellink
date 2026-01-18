@@ -26,6 +26,9 @@ import { ArtistHighlights } from '@/components/profile/ArtistHighlights'
 import ZoomModal from '@/components/common/ZoomModal'
 
 function ProfileContent() {
+  // 🔥 KANIT: Bu component render ediliyor mu?
+  console.log('🔥 PROFILE ROUTE RENDERED - /app/profile/[username]/page.tsx')
+  
   const params = useParams()
   const router = useRouter()
   const { accessToken, user: currentUser, capabilities } = useAuthStore()
