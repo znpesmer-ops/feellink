@@ -84,12 +84,20 @@ export class ExploreService {
     // Get posts from users that the current user does NOT follow
     // This creates the "discovery" feed - new content from users you haven't followed yet
     // If userId is null (no auth), show all public posts
+    
+    // 🔒 ALWAYS filter out suspended/deleted users
+    const userFilter = {
+      isDeleted: { $ne: true }, // Hide deleted users
+      accountStatus: { $ne: 'SUSPENDED' }, // Hide suspended users
+    };
+    
     const where = userId
       ? (cursor
           ? {
               id: { lt: cursor },
               userId: { not: userId }, // Exclude own posts
               user: {
+                ...userFilter,
                 followers: {
                   none: {
                     followerId: userId, // Exclude posts from users you follow
@@ -100,6 +108,7 @@ export class ExploreService {
           : {
               userId: { not: userId }, // Exclude own posts
               user: {
+                ...userFilter,
                 followers: {
                   none: {
                     followerId: userId, // Exclude posts from users you follow
@@ -110,8 +119,11 @@ export class ExploreService {
       : (cursor
           ? {
               id: { lt: cursor },
+              user: userFilter, // Apply filter even for non-auth users
             }
-          : {});
+          : {
+              user: userFilter, // Apply filter even for non-auth users
+            });
 
     const posts = await this.prisma.post.findMany({
       where,

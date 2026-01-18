@@ -299,6 +299,10 @@ export class FeedService {
     const posts = await this.prisma.post.findMany({
       where: {
         userId: { in: followingIds },
+        user: {
+          isDeleted: { $ne: true }, // 🔒 Hide deleted users
+          accountStatus: { $ne: 'SUSPENDED' }, // 🔒 Hide suspended users
+        },
       },
       include: {
         user: {
