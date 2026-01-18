@@ -30,20 +30,12 @@ export class HighlightsController {
     return this.highlightsService.getMonthlyHighlights();
   }
 
-  // ✅ Get user highlights by username
-  @Get(':username')
-  @ApiOperation({ summary: 'Get user highlights by username' })
-  async getHighlightsByUsername(@Param('username') username: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { username },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
+  // ✅ Get user highlights by userId (daha spesifik route)
+  @Get('user/:userId')
+  @ApiOperation({ summary: 'Get user highlights by userId' })
+  async getHighlightsByUserId(@Param('userId') userId: string) {
     return this.prisma.highlight.findMany({
-      where: { userId: user.id },
+      where: { userId },
       include: {
         coverPost: {
           select: {
@@ -68,12 +60,24 @@ export class HighlightsController {
     });
   }
 
-  // ✅ Get user highlights by userId
-  @Get('user/:userId')
-  @ApiOperation({ summary: 'Get user highlights by userId' })
-  async getHighlightsByUserId(@Param('userId') userId: string) {
+  // ✅ Get user highlights by username (en genel route - SONDA olmalı)
+  @Get(':username')
+  @ApiOperation({ summary: 'Get user highlights by username' })
+  async getHighlightsByUsername(@Param('username') username: string) {
+    // "monthly", "user" gibi keyword'lerle çakışmasın
+    if (username === 'monthly' || username === 'user') {
+      throw new BadRequestException('Invalid username');
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { username },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     return this.prisma.highlight.findMany({
-      where: { userId },
+      where: { userId: user.id },
       include: {
         coverPost: {
           select: {
