@@ -98,7 +98,13 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
       }
       
       // Invalidate queries to refresh posts
-      queryClient.invalidateQueries({ queryKey: ['profile', username] })
+      // ✅ Invalidate ALL profile queries (regardless of additional params)
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey
+          return Array.isArray(key) && key[0] === 'profile'
+        }
+      })
       
       // Invalidate user posts query (critical for profile page)
       if (userId) {
