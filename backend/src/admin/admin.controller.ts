@@ -143,6 +143,9 @@ export class AdminController {
 
   @Delete('users/:id')
   async deleteUser(@Param('id') userId: string, @CurrentUser() user: any) {
+    if (!user || !user.id) {
+      throw new Error('Kullanıcı doğrulaması başarısız');
+    }
     return this.adminService.deleteUser(userId, user.id);
   }
 
@@ -157,6 +160,9 @@ export class AdminController {
 
   @Delete('posts/:id')
   async deletePost(@Param('id') postId: string, @CurrentUser() user: any) {
+    if (!user || !user.id) {
+      throw new Error('Kullanıcı doğrulaması başarısız');
+    }
     return this.adminService.deletePost(postId, user.id);
   }
 

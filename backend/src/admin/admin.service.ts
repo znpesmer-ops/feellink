@@ -1,4 +1,4 @@
-import { Injectable, Inject, forwardRef, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, NotFoundException, BadRequestException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
 import { Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ColorAnalysisService } from '../posts/color-analysis.service';
@@ -406,6 +406,16 @@ export class AdminService {
   }
 
   async deleteUser(userId: string, actorId: string) {
+    // Validate actorId
+    if (!actorId) {
+      throw new BadRequestException('Admin kullanıcı bilgisi eksik');
+    }
+
+    // Validate userId
+    if (!userId || userId === 'undefined' || userId === 'null') {
+      throw new BadRequestException('Geçerli bir kullanıcı ID\'si gerekli');
+    }
+
     // Check if user exists
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -413,40 +423,58 @@ export class AdminService {
     });
 
     if (!user) {
-      throw new Error('Kullanıcı bulunamadı');
+      throw new NotFoundException('Kullanıcı bulunamadı');
     }
 
     // Prevent deleting superAdmin (GOD-MODE protection)
     if (user.superAdmin) {
-      throw new Error('SuperAdmin kullanıcılar silinemez');
+      throw new ForbiddenException('SuperAdmin kullanıcılar silinemez');
     }
 
     // Prevent self-deletion
     if (user.id === actorId) {
-      throw new Error('Kendi hesabınızı silemezsiniz');
+      throw new ForbiddenException('Kendi hesabınızı silemezsiniz');
     }
 
-    // Delete user (Prisma cascade will handle related records)
-    await this.prisma.user.delete({
-      where: { id: userId },
-    });
+    try {
+      // Delete user (Prisma cascade will handle related records if configured)
+      await this.prisma.user.delete({
+        where: { id: userId },
+      });
 
-    // Audit log
-    await this.prisma.auditLog.create({
-      data: {
-        actorId,
-        action: 'user.delete',
-        target: `user:${userId}`,
-        meta: {
-          deletedUser: {
-            username: user.username,
-            email: user.email,
+      // Audit log
+      await this.prisma.auditLog.create({
+        data: {
+          actorId,
+          action: 'user.delete',
+          target: `user:${userId}`,
+          meta: {
+            deletedUser: {
+              username: user.username,
+              email: user.email,
+            },
           },
         },
-      },
-    });
+      });
 
-    return { message: 'Kullanıcı başarıyla silindi', deletedUserId: userId };
+      return { message: 'Kullanıcı başarıyla silindi', deletedUserId: userId };
+    } catch (error: any) {
+      // Prisma foreign key constraint errors
+      if (error.code === 'P2003' || error.code === 'P2014') {
+        throw new BadRequestException(
+          'Bu kullanıcı başka kayıtlarla ilişkili olduğu için silinemez. Önce ilgili verileri temizleyin.'
+        );
+      }
+
+      // Prisma record not found (race condition)
+      if (error.code === 'P2025') {
+        throw new NotFoundException('Kullanıcı bulunamadı veya zaten silinmiş');
+      }
+
+      // Re-throw other errors
+      console.error('[Admin Service] deleteUser error:', error);
+      throw new InternalServerErrorException('Kullanıcı silinirken bir hata oluştu');
+    }
   }
 
   async getPosts(page = 1, limit = 20) {
@@ -585,17 +613,55 @@ export class AdminService {
   }
 
   async deletePost(postId: string, actorId: string) {
-    await this.prisma.post.delete({
+    // Validate actorId
+    if (!actorId) {
+      throw new BadRequestException('Admin kullanıcı bilgisi eksik');
+    }
+
+    // Validate postId
+    if (!postId || postId === 'undefined' || postId === 'null') {
+      throw new BadRequestException('Geçerli bir gönderi ID\'si gerekli');
+    }
+
+    // Check if post exists
+    const post = await this.prisma.post.findUnique({
       where: { id: postId },
+      select: { id: true, userId: true },
     });
 
-    await this.createAuditLog({
-      actorId,
-      action: 'post.delete',
-      target: `post:${postId}`,
-    });
+    if (!post) {
+      throw new NotFoundException('Gönderi bulunamadı');
+    }
 
-    return { success: true };
+    try {
+      await this.prisma.post.delete({
+        where: { id: postId },
+      });
+
+      await this.createAuditLog({
+        actorId,
+        action: 'post.delete',
+        target: `post:${postId}`,
+      });
+
+      return { success: true, message: 'Gönderi başarıyla silindi' };
+    } catch (error: any) {
+      // Prisma foreign key constraint errors
+      if (error.code === 'P2003' || error.code === 'P2014') {
+        throw new BadRequestException(
+          'Bu gönderi başka kayıtlarla ilişkili olduğu için silinemez'
+        );
+      }
+
+      // Prisma record not found (race condition)
+      if (error.code === 'P2025') {
+        throw new NotFoundException('Gönderi bulunamadı veya zaten silinmiş');
+      }
+
+      // Re-throw other errors
+      console.error('[Admin Service] deletePost error:', error);
+      throw new InternalServerErrorException('Gönderi silinirken bir hata oluştu');
+    }
   }
 
   async getComments(page = 1, limit = 20) {
