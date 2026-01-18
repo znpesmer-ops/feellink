@@ -146,7 +146,14 @@ export class HighlightsController {
       include: {
         coverPost: {
           select: {
-            imageUrl: true,
+            id: true,
+            media: {
+              select: {
+                url: true,
+                type: true,
+              },
+              take: 1,
+            },
           },
         },
         items: true,
