@@ -85,11 +85,11 @@ export class ExploreService {
     // This creates the "discovery" feed - new content from users you haven't followed yet
     // If userId is null (no auth), show all public posts
     
-    // 🔒 ALWAYS filter out suspended/deleted users
-    // ⚠️ IMPORTANT: Use $ne (not equal) to include users where field doesn't exist (undefined/null)
+    // 🔒 ALWAYS filter out suspended/deleted users  
+    // ⚠️ Post schema'da isDeleted yok - sadece user filter'da kullan
     const userFilter = {
-      isDeleted: { not: true }, // Hide only truly deleted users (includes undefined/null/false)
-      accountStatus: { not: 'SUSPENDED' }, // Hide only suspended users (includes undefined/null/other statuses)
+      isDeleted: { not: true }, // Hide only truly deleted users
+      accountStatus: { not: 'SUSPENDED' }, // Hide only suspended users
     };
     
     const where = userId
