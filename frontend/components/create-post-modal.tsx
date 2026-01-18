@@ -83,7 +83,7 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
       })
       return response.data
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       // Reset form
       setFiles([])
       setPreviews([])
@@ -97,8 +97,27 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
         fileInputRef.current.value = ''
       }
       
-      // Invalidate queries to refresh posts
-      // ✅ Invalidate ALL profile queries (regardless of additional params)
+      // 🎯 OPTIMISTIC UPDATE - Instagram mantığı: Anında sayacı artır
+      queryClient.setQueriesData(
+        { 
+          predicate: (query) => {
+            const key = query.queryKey
+            return Array.isArray(key) && key[0] === 'profile'
+          }
+        },
+        (oldData: any) => {
+          if (!oldData) return oldData
+          return {
+            ...oldData,
+            _count: {
+              ...oldData._count,
+              posts: (oldData._count?.posts || 0) + 1, // ✅ Anında +1
+            }
+          }
+        }
+      )
+      
+      // Invalidate queries to refresh posts (background refresh)
       queryClient.invalidateQueries({ 
         predicate: (query) => {
           const key = query.queryKey
