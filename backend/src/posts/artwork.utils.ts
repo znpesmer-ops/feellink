@@ -25,33 +25,51 @@ export async function generateUniqueArtworkCode(
   prisma: any,
   prefix: string = `PA${new Date().getFullYear().toString().slice(-2)}`,
 ): Promise<string> {
-  // Son eseri bul - code field'ı null olmayan ve prefix ile başlayan
-  const lastArtwork = await prisma.post.findFirst({
-    where: {
-      type: 'artwork',
-      code: {
-        not: null,
-        startsWith: prefix,
+  try {
+    // Son eseri bul - MongoDB uyumlu query
+    const allArtworks = await prisma.post.findMany({
+      where: {
+        type: 'artwork',
+        code: { not: null },
       },
-    },
-    orderBy: {
-      code: 'desc',
-    },
-  });
+      select: {
+        code: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
 
-  let nextNumber = 1;
+    // Prefix ile başlayanları filtrele (client-side)
+    const matchingArtworks = allArtworks.filter(
+      (a: any) => a.code && a.code.startsWith(prefix)
+    );
 
-  if (lastArtwork && lastArtwork.code) {
-    // Son kodun numarasını çıkar (PA24-00001 -> 1)
-    const match = lastArtwork.code.match(/-(\d+)$/);
-    if (match) {
-      nextNumber = parseInt(match[1], 10) + 1;
+    let nextNumber = 1;
+
+    if (matchingArtworks.length > 0) {
+      // En büyük numarayı bul
+      const numbers = matchingArtworks
+        .map((a: any) => {
+          const match = a.code.match(/-(\d+)$/);
+          return match ? parseInt(match[1], 10) : 0;
+        })
+        .filter((n: number) => !isNaN(n));
+
+      if (numbers.length > 0) {
+        nextNumber = Math.max(...numbers) + 1;
+      }
     }
-  }
 
-  // 5 haneli numara formatı
-  const numberStr = nextNumber.toString().padStart(5, '0');
-  
-  return `${prefix}-${numberStr}`;
+    // 5 haneli numara formatı
+    const numberStr = nextNumber.toString().padStart(5, '0');
+    
+    return `${prefix}-${numberStr}`;
+  } catch (error) {
+    console.error('[generateUniqueArtworkCode] Error:', error);
+    // Fallback: Random kod
+    const randomNum = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
+    return `${prefix}-${randomNum}`;
+  }
 }
 

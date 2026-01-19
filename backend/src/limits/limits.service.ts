@@ -150,6 +150,7 @@ export class LimitsService {
       const createdThisMonth = await this.prisma.post.count({
         where: {
           userId,
+          type: 'artwork', // 🎨 SADECE ARTWORK SAY!
           createdAt: { gte: monthStart },
         },
       });
@@ -226,7 +227,11 @@ export class LimitsService {
 
       if (totalLimit > 0) {
         const count = await this.prisma.post.count({
-          where: { userId, createdAt: { gte: monthStart } },
+          where: { 
+            userId, 
+            type: 'artwork', // 🎨 SADECE ARTWORK SAY!
+            createdAt: { gte: monthStart } 
+          },
         });
 
         if (count >= totalLimit) {
