@@ -195,15 +195,27 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       const isArtwork = post?.type === 'artwork'
       const endpoint = isArtwork ? `/posts/${postId}/save-artwork` : `/posts/${postId}/save`
       
+      console.log(`💾 [PostModal] Saving post ${postId}:`, {
+        isArtwork,
+        endpoint,
+        isSaved: post?.isSaved,
+      });
+      
       if (post?.isSaved) {
-        await api.delete(endpoint)
+        console.log(`🗑️ [PostModal] Unsaving...`);
+        const response = await api.delete(endpoint)
+        console.log(`✅ [PostModal] Unsaved successfully:`, response.data);
         return { saved: false }
       } else {
-        await api.post(endpoint)
+        console.log(`💾 [PostModal] Saving...`);
+        const response = await api.post(endpoint)
+        console.log(`✅ [PostModal] Saved successfully:`, response.data);
         return { saved: true }
       }
     },
     onSuccess: async (data) => {
+      console.log(`✅ [PostModal] Save mutation success:`, data);
+      
       queryClient.setQueryData(['post', postId], (old: any) => {
         if (!old) return old
         return {
@@ -212,10 +224,11 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
         }
       })
       
-      // 🔥 KRİTİK: Query'leri invalidate et VE explicit refetch yap
+      // 🔥 KRİTİK: Query'leri invalidate et - saved-posts için!
+      console.log(`🔄 [PostModal] Invalidating queries...`);
       queryClient.invalidateQueries({ queryKey: ['post', postId] })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
-      queryClient.invalidateQueries({ queryKey: ['saved'] })
+      queryClient.invalidateQueries({ queryKey: ['saved-posts'] }) // 🔥 DÜZELTİLDİ: saved-posts!
       
       // Explicit refetch to ensure saved items list updates immediately
       const { user } = useAuthStore.getState()

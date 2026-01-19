@@ -1490,13 +1490,18 @@ export class PostsService {
   }
 
   async savePost(postId: string, userId: string) {
+    console.log(`💾 [savePost] User ${userId} saving post ${postId}`);
+    
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
     });
 
     if (!post) {
+      console.error(`❌ [savePost] Post ${postId} not found`);
       throw new NotFoundException('Post not found');
     }
+
+    console.log(`✅ [savePost] Post found: ${post.id}`);
 
     // Check if already saved
     const existing = await this.prisma.savedPost.findUnique({
@@ -1509,17 +1514,31 @@ export class PostsService {
     });
 
     if (existing) {
+      console.log(`⚠️ [savePost] Post already saved`);
       return { success: true, message: 'Post already saved' };
     }
 
-    await this.prisma.savedPost.create({
-      data: {
+    console.log(`💾 [savePost] Creating new savedPost entry...`);
+
+    try {
+      const savedPost = await this.prisma.savedPost.create({
+        data: {
+          userId,
+          postId,
+        },
+      });
+      
+      console.log(`✅ [savePost] SavedPost created successfully: ${savedPost.id}`);
+      return { success: true, message: 'Post saved successfully', savedPost };
+    } catch (error: any) {
+      console.error(`❌ [savePost] Failed to create savedPost:`, {
+        message: error?.message,
+        code: error?.code,
         userId,
         postId,
-      },
-    });
-
-    return { success: true, message: 'Post saved successfully' };
+      });
+      throw error;
+    }
   }
 
   async unsavePost(postId: string, userId: string) {
