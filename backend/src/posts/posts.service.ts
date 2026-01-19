@@ -240,7 +240,28 @@ export class PostsService {
       console.log(`📡 Post created event broadcasted: ${post.id}`);
     }
 
+    console.log(`[createPost] ✅ Post created successfully: ${post.id}`);
     return post;
+    } catch (error) {
+      console.error('[createPost] ❌ Error:', {
+        message: error?.message,
+        stack: error?.stack?.split('\n').slice(0, 3),
+        userId,
+        postType: dto.type,
+      });
+      
+      // Re-throw known exceptions
+      if (error instanceof BadRequestException || 
+          error instanceof ForbiddenException ||
+          error instanceof NotFoundException) {
+        throw error;
+      }
+      
+      // Unknown error - wrap in BadRequestException with clear message
+      throw new BadRequestException(
+        error?.message || 'Gönderi oluşturulurken bir hata oluştu'
+      );
+    }
   }
 
   async getPost(postId: string, currentUserId?: string) {
