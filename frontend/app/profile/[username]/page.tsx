@@ -51,13 +51,9 @@ function SavedPostsGrid() {
         console.error('❌ [SavedPostsGrid] FETCH ERROR:', {
           message: fetchError?.message,
           status: fetchError?.response?.status,
-          statusText: fetchError?.response?.statusText,
-          errorData: fetchError?.response?.data,
-          errorMessage: fetchError?.response?.data?.message,
-          errorDetails: fetchError?.response?.data?.details,
-          fullError: fetchError,
         })
-        throw fetchError
+        // ✅ 500 error olsa bile boş array dön - sayfa patlamasın!
+        return []
       }
     },
     staleTime: 0,
