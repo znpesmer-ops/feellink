@@ -104,68 +104,12 @@ export class FeedService {
   async getFeed(userId: string, limit: number = 20, cursor?: string) {
     // ✅ YENİ: Her zaman database'den çek (Redis cache kullanma - HERKESİN postları için)
     console.log('[FeedService] 📊 Ana Sayfa - HERKESİN postlarını getir (Redis bypass)');
-    const posts = await this.rebuildFeed(userId, limit);
+    const feedPosts = await this.rebuildFeed(userId, limit);
     return {
-      posts,
-      nextCursor: posts.length > 0 ? posts[posts.length - 1].id : undefined,
+      posts: feedPosts,
+      nextCursor: feedPosts.length > 0 ? feedPosts[feedPosts.length - 1].id : undefined,
       hasMore: false,
     };
-    
-    // Redis cache devre dışı - çünkü artık takip sistemi yok, herkesin postu var
-    /*
-    const isRedisAvailable = this.redis && (this.redis.status === 'ready' || this.redis.status === 'connect');
-    if (!isRedisAvailable) {
-      console.log('[FeedService] ⚠️ Redis not available, using database fallback');
-      const posts = await this.rebuildFeed(userId, limit);
-      return {
-        posts,
-        nextCursor: posts.length > 0 ? posts[posts.length - 1].id : undefined,
-        hasMore: false,
-      };
-    }
-    */
-
-    const cacheKey = `feed:${userId}`;
-
-    let postIds: string[] = [];
-    let hasMore = false;
-    let nextCursor: string | undefined;
-
-    try {
-      if (cursor) {
-        // Cursor-based pagination from cache
-        const cursorIndex = await this.redis.lpos(cacheKey, cursor);
-        if (cursorIndex !== null) {
-          const startIndex = cursorIndex + 1;
-          const endIndex = startIndex + limit - 1;
-          postIds = await this.redis.lrange(cacheKey, startIndex, endIndex);
-        }
-      } else {
-        // First page - get from cache or rebuild
-        postIds = await this.redis.lrange(cacheKey, 0, limit - 1);
-      }
-    } catch (error) {
-      console.warn('[FeedService] ⚠️ Redis error, using database fallback:', error);
-      const posts = await this.rebuildFeed(userId, limit);
-      return {
-        posts,
-        nextCursor: posts.length > 0 ? posts[posts.length - 1].id : undefined,
-        hasMore: false,
-      };
-    }
-
-    // If cache is empty or insufficient, rebuild feed
-    if (postIds.length === 0) {
-      const posts = await this.rebuildFeed(userId, limit);
-      return {
-        posts,
-        nextCursor: posts.length > 0 ? posts[posts.length - 1].id : undefined,
-        hasMore: false,
-      };
-    }
-
-    // Get posts from database
-    const posts = await this.prisma.post.findMany({
       where: {
         id: { in: postIds },
       },
@@ -241,21 +185,11 @@ export class FeedService {
 
     nextCursor = posts.length > 0 ? posts[posts.length - 1].id : undefined;
 
+    // ✅ Redis cache sistemini kaldırdık - artık gerek yok
     return {
-      posts: postsWithCounts.map(post => ({
-        ...post,
-        isLiked: likedPostIds.has(post.id),
-        media: post.media?.map((m: any) => ({
-          ...m,
-          url: this.transformMediaUrl(m.url),
-        })) || [],
-        user: {
-          ...post.user,
-          avatar: this.transformAvatarUrl(post.user.avatar),
-        },
-      })),
-      nextCursor,
-      hasMore,
+      posts: [],
+      nextCursor: undefined,
+      hasMore: false,
     };
   }
 
