@@ -1571,94 +1571,95 @@ export class PostsService {
 
   async getSavedPosts(userId: string) {
     try {
-      console.log(`🔖 [getSavedPosts] START - userId: ${userId}`);
+      console.log(`🔖 [getSavedPosts] BASİT QUERY - userId: ${userId}`);
       
-      // ✅ SAFE QUERY - Her adımda try-catch, hiçbir zaman 500 verme!
+      // ✅ BASİT QUERY: Sadece SavedPost + Post relation
       const savedPosts = await this.prisma.savedPost.findMany({
         where: { userId },
         include: {
           post: {
             include: {
-              user: true,
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  fullName: true,
+                  avatar: true,
+                  isVerified: true,
+                },
+              },
               media: true,
             },
           },
         },
         orderBy: { createdAt: 'desc' },
-      }).catch((error) => {
-        console.error('❌ [getSavedPosts] Prisma query failed:', error);
-        return []; // Hata olursa boş array dön, 500 verme!
       });
 
-      console.log(`✅ [getSavedPosts] Query result: ${savedPosts.length} records`);
+      console.log(`✅ [getSavedPosts] Found ${savedPosts.length} saved posts`);
 
-    // Filter out: 
-    // 1. Null posts (hard deleted)
-    // 2. Soft deleted posts (isDeleted: true)
-    const validSavedPosts = savedPosts.filter((sp): sp is typeof sp & { post: NonNullable<typeof sp.post> } => {
-      if (!sp.post) return false; // Post hard deleted
-      if (sp.post.isDeleted === true) return false; // Post soft deleted
-      return true;
-    });
+      // Filter: Null posts veya deleted posts'ları hariç tut
+      const validSavedPosts = savedPosts.filter((sp) => {
+        if (!sp.post) {
+          console.log(`⚠️ Skipping null post for savedPost: ${sp.id}`);
+          return false;
+        }
+        if (sp.post.isDeleted === true) {
+          console.log(`⚠️ Skipping deleted post: ${sp.postId}`);
+          return false;
+        }
+        return true;
+      });
 
-    console.log(`🔖 [getSavedPosts] Valid saved posts: ${validSavedPosts.length} (after null + isDeleted filter)`);
+      console.log(`✅ [getSavedPosts] Valid posts: ${validSavedPosts.length}`);
 
-    if (validSavedPosts.length === 0) {
-      console.log('🔖 [getSavedPosts] No valid saved posts, returning empty array');
-      return [];
-    }
+      if (validSavedPosts.length === 0) {
+        return [];
+      }
 
-    // Check if liked
-    const postIds = validSavedPosts.map(sp => sp.postId);
-    const likes = await this.prisma.like.findMany({
-      where: {
-        postId: { in: postIds },
-        userId,
-      },
-    });
+      // Check if liked
+      const postIds = validSavedPosts.map(sp => sp.postId);
+      const likes = await this.prisma.like.findMany({
+        where: {
+          postId: { in: postIds },
+          userId,
+        },
+      });
 
-    const likedPostIds = new Set(likes.map(l => l.postId));
+      const likedPostIds = new Set(likes.map(l => l.postId));
 
-    // 🔥 MongoDB uyumluluğu için manuel count yap
-    const [likeCounts, commentCounts] = await Promise.all([
-      Promise.all(
-        postIds.map(async (postId) => {
-          const count = await this.prisma.like.count({
-            where: { postId },
-          });
-          return { postId, count };
-        })
-      ),
-      Promise.all(
-        postIds.map(async (postId) => {
-          const count = await this.prisma.comment.count({
-            where: { postId, parentId: null }, // Sadece ana yorumlar
-          });
-          return { postId, count };
-        })
-      ),
-    ]);
+      // Manuel count (MongoDB uyumlu)
+      const likeCounts = await Promise.all(
+        postIds.map(async (postId) => ({
+          postId,
+          count: await this.prisma.like.count({ where: { postId } }),
+        }))
+      );
 
-    const likeCountMap = new Map(likeCounts.map(lc => [lc.postId, lc.count]));
-    const commentCountMap = new Map(commentCounts.map(cc => [cc.postId, cc.count]));
+      const commentCounts = await Promise.all(
+        postIds.map(async (postId) => ({
+          postId,
+          count: await this.prisma.comment.count({ where: { postId, parentId: null } }),
+        }))
+      );
 
-    const result = validSavedPosts.map(savedPost => ({
-      ...savedPost.post,
-      isLiked: likedPostIds.has(savedPost.postId),
-      savedAt: savedPost.createdAt,
-      _count: {
-        likes: likeCountMap.get(savedPost.postId) || 0,
-        comments: commentCountMap.get(savedPost.postId) || 0,
-      },
-    }));
+      const likeCountMap = new Map(likeCounts.map(lc => [lc.postId, lc.count]));
+      const commentCountMap = new Map(commentCounts.map(cc => [cc.postId, cc.count]));
+
+      const result = validSavedPosts.map(savedPost => ({
+        ...savedPost.post,
+        isLiked: likedPostIds.has(savedPost.postId),
+        savedAt: savedPost.createdAt,
+        _count: {
+          likes: likeCountMap.get(savedPost.postId) || 0,
+          comments: commentCountMap.get(savedPost.postId) || 0,
+        },
+      }));
 
       console.log(`✅ [getSavedPosts] Returning ${result.length} posts`);
       return result;
     } catch (error: any) {
-      console.error('❌ [getSavedPosts] ERROR:', error?.message);
-      
-      // ✅ HİÇBİR ZAMAN 500 VERME - Boş array dön!
-      return [];
+      console.error('❌ [getSavedPosts] ERROR:', error?.message, error?.stack);
+      return []; // Boş array dön, 500 verme!
     }
   }
 
