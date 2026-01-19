@@ -81,6 +81,8 @@ export class ExploreService {
   }
 
   async getExplorePosts(userId: string | null, limit: number = 20, cursor?: string) {
+    console.log('🔍 [EXPLORE] getExplorePosts called:', { userId, limit, cursor });
+    
     // ✅ YENİ MANTIK: Hem takip ettiklerin hem de etmediklerin (HERKES)
     // Feed: Sadece takip ettiklerin
     // Explore: HERKES (takip edilen + edilmeyen)
@@ -117,6 +119,8 @@ export class ExploreService {
               },
             });
 
+    console.log('🔍 [EXPLORE] Query where clause:', JSON.stringify(where, null, 2));
+    
     const posts = await this.prisma.post.findMany({
       where: {
         ...where,
