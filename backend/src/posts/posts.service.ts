@@ -1570,38 +1570,39 @@ export class PostsService {
   }
 
   async getSavedPosts(userId: string) {
-    console.log(`🔖 [getSavedPosts] Fetching saved posts for user: ${userId}`);
-    
-    // ✅ KİŞİSEL ALAN - kaydedilenler için post filtresini KALDIRDIK
-    // Sebep: Kullanıcı ne kaydettiyse görsün (isDeleted kontrolü client-side'da)
-    const savedPosts = await this.prisma.savedPost.findMany({
-      where: {
-        userId,
-        // ❌ post filtresi YOK - kişisel kayıtlar her zaman görünür olmalı
-      },
-      include: {
-        post: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                fullName: true,
-                avatar: true,
-                isVerified: true,
+    try {
+      console.log(`🔖 [getSavedPosts] Fetching saved posts for user: ${userId}`);
+      
+      // ✅ KİŞİSEL ALAN - kaydedilenler için post filtresini KALDIRDIK
+      // Sebep: Kullanıcı ne kaydettiyse görsün (isDeleted kontrolü client-side'da)
+      const savedPosts = await this.prisma.savedPost.findMany({
+        where: {
+          userId,
+          // ❌ post filtresi YOK - kişisel kayıtlar her zaman görünür olmalı
+        },
+        include: {
+          post: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  fullName: true,
+                  avatar: true,
+                  isVerified: true,
+                },
               },
+              media: {
+                orderBy: { order: 'asc' },
+              },
+              // _count removed - using manual count instead for MongoDB compatibility
             },
-            media: {
-              orderBy: { order: 'asc' },
-            },
-            // _count removed - using manual count instead for MongoDB compatibility
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      });
 
-    console.log(`🔖 [getSavedPosts] Found ${savedPosts.length} saved posts (before filtering)`);
+      console.log(`🔖 [getSavedPosts] Prisma query success: ${savedPosts.length} saved posts (before filtering)`);
 
     // Filter out: 
     // 1. Null posts (hard deleted)
@@ -1663,8 +1664,21 @@ export class PostsService {
       },
     }));
 
-    console.log(`✅ [getSavedPosts] Returning ${result.length} posts with full data`);
-    return result;
+      console.log(`✅ [getSavedPosts] Returning ${result.length} posts with full data`);
+      return result;
+    } catch (error: any) {
+      console.error('❌ [getSavedPosts] CRITICAL ERROR:', {
+        message: error?.message,
+        code: error?.code,
+        name: error?.name,
+        meta: error?.meta,
+        stack: error?.stack?.split('\n').slice(0, 5),
+        userId,
+      });
+
+      // Re-throw with clear message
+      throw new Error(`Failed to fetch saved posts: ${error?.message || 'Unknown error'}`);
+    }
   }
 
   // Artwork save/unsave methods

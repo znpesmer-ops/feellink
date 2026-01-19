@@ -266,7 +266,41 @@ export class PostsController {
   @ApiOperation({ summary: 'Get saved posts' })
   @ApiResponse({ status: 200, description: 'Saved posts retrieved successfully' })
   async getSavedPosts(@CurrentUser() user: any) {
-    return this.postsService.getSavedPosts(user.id);
+    try {
+      console.log('🔖 [GET /posts/saved] Request received:', {
+        userId: user?.id,
+        hasUser: !!user,
+      });
+
+      if (!user?.id) {
+        console.error('❌ [GET /posts/saved] No user ID!');
+        throw new BadRequestException('User authentication required');
+      }
+
+      const result = await this.postsService.getSavedPosts(user.id);
+      
+      console.log('✅ [GET /posts/saved] Success:', {
+        userId: user.id,
+        count: Array.isArray(result) ? result.length : 0,
+      });
+
+      return result;
+    } catch (error: any) {
+      console.error('❌ [GET /posts/saved] ERROR:', {
+        message: error?.message,
+        name: error?.name,
+        code: error?.code,
+        stack: error?.stack?.split('\n').slice(0, 5),
+        userId: user?.id,
+      });
+
+      // Return meaningful error to frontend
+      throw new BadRequestException({
+        message: error?.message || 'Kaydedilenler yüklenirken hata oluştu',
+        error: error?.name || 'SavedPostsError',
+        details: process.env.NODE_ENV !== 'production' ? error?.message : undefined,
+      });
+    }
   }
 
   @Post(':id/save-artwork')
