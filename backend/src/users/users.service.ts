@@ -1460,10 +1460,7 @@ export class UsersService {
           userId,
           post: {
             // ✅ KİŞİSEL ALAN - sadece gerçekten silinmiş postları filtrele
-            OR: [
-              { isDeleted: false },
-              { isDeleted: null }, // NULL-safe (eski kayıtlar için)
-            ],
+            isDeleted: { not: true }, // MongoDB uyumlu: isDeleted !== true (false VEYA null)
           },
         },
         include: {
@@ -1497,10 +1494,7 @@ export class UsersService {
           userId,
           post: {
             // ✅ Artwork'ler için de aynı filtre
-            OR: [
-              { isDeleted: false },
-              { isDeleted: null },
-            ],
+            isDeleted: { not: true }, // MongoDB uyumlu
           },
         },
         include: {

@@ -1545,10 +1545,7 @@ export class PostsService {
         userId,
         post: {
           // ✅ KİŞİSEL ALAN - sadece gerçekten silinmiş postları filtrele
-          OR: [
-            { isDeleted: false },
-            { isDeleted: null }, // NULL-safe (eski kayıtlar için)
-          ],
+          isDeleted: { not: true }, // MongoDB uyumlu: isDeleted !== true (false VEYA null)
           // ❌ user.isSuspended kontrolü YOK - kaydedilenler kişisel alan
         },
       },
