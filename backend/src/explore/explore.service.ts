@@ -170,6 +170,13 @@ export class ExploreService {
       },
       take: limit + 1, // Get one extra to check if there are more
     });
+    
+    console.log('✅ [EXPLORE] Query result:', {
+      foundPosts: posts.length,
+      limit,
+      hasMore: posts.length > limit,
+      firstPost: posts[0] ? { id: posts[0].id, userId: posts[0].userId, caption: posts[0].caption?.substring(0, 50) } : null,
+    });
 
     const hasMore = posts.length > limit;
     const filteredPosts = hasMore ? posts.slice(0, limit) : posts;
