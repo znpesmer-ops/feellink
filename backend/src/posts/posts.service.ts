@@ -1503,13 +1503,11 @@ export class PostsService {
 
     console.log(`✅ [savePost] Post found: ${post.id}`);
 
-    // Check if already saved
-    const existing = await this.prisma.savedPost.findUnique({
+    // Check if already saved - MongoDB uyumlu findFirst kullan
+    const existing = await this.prisma.savedPost.findFirst({
       where: {
-        userId_postId: {
-          userId,
-          postId,
-        },
+        userId,
+        postId,
       },
     });
 
@@ -1542,16 +1540,29 @@ export class PostsService {
   }
 
   async unsavePost(postId: string, userId: string) {
+    console.log(`🗑️ [unsavePost] User ${userId} unsaving post ${postId}`);
+    
     try {
-      await this.prisma.savedPost.delete({
+      // MongoDB uyumlu - önce bul, sonra sil
+      const savedPost = await this.prisma.savedPost.findFirst({
         where: {
-          userId_postId: {
-            userId,
-            postId,
-          },
+          userId,
+          postId,
         },
       });
-    } catch (error) {
+
+      if (savedPost) {
+        await this.prisma.savedPost.delete({
+          where: {
+            id: savedPost.id,
+          },
+        });
+        console.log(`✅ [unsavePost] SavedPost deleted: ${savedPost.id}`);
+      } else {
+        console.log(`⚠️ [unsavePost] SavedPost not found (already unsaved)`);
+      }
+    } catch (error: any) {
+      console.error(`❌ [unsavePost] Error:`, error?.message);
       // Ignore if not found
     }
 
@@ -1670,13 +1681,11 @@ export class PostsService {
       throw new BadRequestException('This post is not an artwork');
     }
 
-    // Check if already saved
-    const existing = await this.prisma.savedArtwork.findUnique({
+    // Check if already saved - MongoDB uyumlu findFirst kullan
+    const existing = await this.prisma.savedArtwork.findFirst({
       where: {
-        userId_postId: {
-          userId,
-          postId,
-        },
+        userId,
+        postId,
       },
     });
 
@@ -1698,17 +1707,26 @@ export class PostsService {
 
   async unsaveArtwork(postId: string, userId: string) {
     try {
-      const deleted = await this.prisma.savedArtwork.delete({
+      // MongoDB uyumlu - önce bul, sonra sil
+      const savedArtwork = await this.prisma.savedArtwork.findFirst({
         where: {
-          userId_postId: {
-            userId,
-            postId,
-          },
+          userId,
+          postId,
         },
       });
-      console.log('✅ Artwork unsaved from database:', { userId: deleted.userId, postId: deleted.postId })
-    } catch (error) {
-      console.warn('⚠️ Artwork unsave error (may not exist):', error)
+
+      if (savedArtwork) {
+        await this.prisma.savedArtwork.delete({
+          where: {
+            id: savedArtwork.id,
+          },
+        });
+        console.log('✅ Artwork unsaved from database:', { userId: savedArtwork.userId, postId: savedArtwork.postId });
+      } else {
+        console.log('⚠️ Artwork not found (already unsaved)');
+      }
+    } catch (error: any) {
+      console.warn('⚠️ Artwork unsave error:', error?.message);
       // Ignore if not found
     }
 
