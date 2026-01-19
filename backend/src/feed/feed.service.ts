@@ -102,7 +102,17 @@ export class FeedService {
   }
 
   async getFeed(userId: string, limit: number = 20, cursor?: string) {
-    // Redis yoksa direkt database'den çek (fallback)
+    // ✅ YENİ: Her zaman database'den çek (Redis cache kullanma - HERKESİN postları için)
+    console.log('[FeedService] 📊 Ana Sayfa - HERKESİN postlarını getir (Redis bypass)');
+    const posts = await this.rebuildFeed(userId, limit);
+    return {
+      posts,
+      nextCursor: posts.length > 0 ? posts[posts.length - 1].id : undefined,
+      hasMore: false,
+    };
+    
+    // Redis cache devre dışı - çünkü artık takip sistemi yok, herkesin postu var
+    /*
     const isRedisAvailable = this.redis && (this.redis.status === 'ready' || this.redis.status === 'connect');
     if (!isRedisAvailable) {
       console.log('[FeedService] ⚠️ Redis not available, using database fallback');
@@ -113,6 +123,7 @@ export class FeedService {
         hasMore: false,
       };
     }
+    */
 
     const cacheKey = `feed:${userId}`;
 
