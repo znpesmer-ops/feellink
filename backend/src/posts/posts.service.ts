@@ -1542,14 +1542,12 @@ export class PostsService {
   async getSavedPosts(userId: string) {
     console.log(`🔖 [getSavedPosts] Fetching saved posts for user: ${userId}`);
     
+    // ✅ KİŞİSEL ALAN - kaydedilenler için post filtresini KALDIRDIK
+    // Sebep: Kullanıcı ne kaydettiyse görsün (isDeleted kontrolü client-side'da)
     const savedPosts = await this.prisma.savedPost.findMany({
       where: {
         userId,
-        post: {
-          // ✅ KİŞİSEL ALAN - sadece gerçekten silinmiş postları filtrele
-          isDeleted: { not: true }, // MongoDB uyumlu: isDeleted !== true (false VEYA null)
-          // ❌ user.isSuspended kontrolü YOK - kaydedilenler kişisel alan
-        },
+        // ❌ post filtresi YOK - kişisel kayıtlar her zaman görünür olmalı
       },
       include: {
         post: {
@@ -1575,10 +1573,16 @@ export class PostsService {
 
     console.log(`🔖 [getSavedPosts] Found ${savedPosts.length} saved posts (before filtering)`);
 
-    // Filter out null posts (in case post was deleted)
-    const validSavedPosts = savedPosts.filter((sp): sp is typeof sp & { post: NonNullable<typeof sp.post> } => sp.post !== null);
+    // Filter out: 
+    // 1. Null posts (hard deleted)
+    // 2. Soft deleted posts (isDeleted: true)
+    const validSavedPosts = savedPosts.filter((sp): sp is typeof sp & { post: NonNullable<typeof sp.post> } => {
+      if (!sp.post) return false; // Post hard deleted
+      if (sp.post.isDeleted === true) return false; // Post soft deleted
+      return true;
+    });
 
-    console.log(`🔖 [getSavedPosts] Valid saved posts: ${validSavedPosts.length} (after null filter)`);
+    console.log(`🔖 [getSavedPosts] Valid saved posts: ${validSavedPosts.length} (after null + isDeleted filter)`);
 
     if (validSavedPosts.length === 0) {
       console.log('🔖 [getSavedPosts] No valid saved posts, returning empty array');
