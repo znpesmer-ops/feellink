@@ -917,7 +917,12 @@ function MessagesContent() {
 
     // ✅ Mesaj gönderme - Önce REST API dene (Vercel uyumlu), socket opsiyonel
     try {
-      console.log('📡 [sendMessage] Sending via REST API...')
+      console.log('📡 [sendMessage] Sending via REST API...', {
+        conversationId: activeConversation.id,
+        hasContent: !!content,
+        hasImage: !!imageUrl,
+        hasFile: !!fileUrl,
+      })
       
       const response = await api.post('/chat/messages', {
         conversationId: activeConversation.id,
@@ -928,7 +933,11 @@ function MessagesContent() {
         fileType: fileType || undefined,
       })
 
-      console.log('✅ [sendMessage] Message sent successfully:', response.data)
+      console.log('✅ [sendMessage] Message sent successfully:', {
+        id: response.data.id,
+        senderId: response.data.senderId,
+        conversationId: response.data.conversationId,
+      })
 
       // Temp mesajı gerçek mesajla değiştir
       setMessages((prev) =>
@@ -939,11 +948,13 @@ function MessagesContent() {
       loadConversations()
       setTimeout(() => scrollToBottom(), 0)
     } catch (error: any) {
-      console.error('❌ [sendMessage] Failed to send message:', error)
-      console.error('Error details:', {
+      console.error('❌ [sendMessage] Failed to send message:', {
         message: error.message,
-        response: error.response?.data,
+        code: error.code,
         status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
       })
       
       // Hata durumunda temp mesajı kaldır
@@ -952,7 +963,8 @@ function MessagesContent() {
       // Input'u geri yükle
       setMessageText(content || '')
       
-      const errorMessage = error.response?.data?.message || error.message || 'Mesaj gönderilirken bir hata oluştu'
+      const backendError = error.response?.data?.message
+      const errorMessage = backendError || error.message || 'Mesaj gönderilirken bir hata oluştu'
       alert(errorMessage)
     } finally {
       // ✅ Kilit kaldırıldı (başarılı veya hatalı olsun)
