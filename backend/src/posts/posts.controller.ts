@@ -98,14 +98,25 @@ export class PostsController {
         colorPalette, // 🎨 Frontend'den gelen renk paleti
       };
 
-      return await this.postsService.createPost(user.id, dto);
-    } catch (error) {
+      console.log('💾 [POST /posts/create] Creating post in database...');
+      const post = await this.postsService.createPost(user.id, dto);
+      console.log(`✅ [POST /posts/create] Post created successfully: ${post.id}`);
+      
+      return post;
+    } catch (error: any) {
+      console.error('❌ [POST /posts/create] Final error:', {
+        message: error?.message,
+        name: error?.name,
+        status: error?.status,
+        stack: error?.stack?.split('\n').slice(0, 3),
+      });
+      
       // HttpException ise olduğu gibi fırlat
       if (error instanceof BadRequestException || error instanceof Error && 'status' in error) {
         throw error;
       }
       // Diğer hatalar için Internal Server Error
-      throw new BadRequestException(error instanceof Error ? error.message : 'Gönderi oluşturulurken bir hata oluştu');
+      throw new BadRequestException(error instanceof Error ? error.message : 'Gönderi oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.');
     }
   }
 
