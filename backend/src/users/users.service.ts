@@ -1458,10 +1458,7 @@ export class UsersService {
       this.prisma.savedPost.findMany({
         where: {
           userId,
-          post: {
-            // ✅ KİŞİSEL ALAN - sadece gerçekten silinmiş postları filtrele
-            isDeleted: { not: true }, // MongoDB uyumlu: isDeleted !== true (false VEYA null)
-          },
+          // ❌ post filtresi YOK - MongoDB nested query sorunu önlenir
         },
         include: {
           post: {
@@ -1492,10 +1489,7 @@ export class UsersService {
       this.prisma.savedArtwork.findMany({
         where: {
           userId,
-          post: {
-            // ✅ Artwork'ler için de aynı filtre
-            isDeleted: { not: true }, // MongoDB uyumlu
-          },
+          // ❌ post filtresi YOK - MongoDB nested query sorunu önlenir
         },
         include: {
           post: {
