@@ -233,16 +233,14 @@ export class ChatService {
       take: limit + 1,
     });
 
-    // Artık ters çevirmeye gerek yok - doğrudan döndür
-    const reversedMessages = messages.reverse();
-
-    const hasMore = reversedMessages.length > limit;
-    const messagesToReturn = hasMore ? reversedMessages.slice(0, limit) : reversedMessages;
+    // ✅ Mesajlar zaten doğru sırada (asc), reverse() YAPMA!
+    const hasMore = messages.length > limit;
+    const messagesToReturn = hasMore ? messages.slice(0, limit) : messages;
 
     return {
-      messages: messagesToReturn.reverse(), // Eski mesajlar en başta olmalı
+      messages: messagesToReturn, // ✅ Eski mesajlar en başta, yeni mesajlar en altta
       hasMore,
-      nextCursor: hasMore ? messagesToReturn[0]?.createdAt.toISOString() : null,
+      nextCursor: hasMore ? messagesToReturn[messagesToReturn.length - 1]?.createdAt.toISOString() : null,
     };
   }
 
