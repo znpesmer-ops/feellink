@@ -81,49 +81,39 @@ export class ExploreService {
   }
 
   async getExplorePosts(userId: string | null, limit: number = 20, cursor?: string) {
-    // Get posts from users that the current user does NOT follow
-    // This creates the "discovery" feed - new content from users you haven't followed yet
-    // If userId is null (no auth), show all public posts
+    // ✅ YENİ MANTIK: Hem takip ettiklerin hem de etmediklerin (HERKES)
+    // Feed: Sadece takip ettiklerin
+    // Explore: HERKES (takip edilen + edilmeyen)
     
     const where: any = userId
       ? (cursor
           ? {
               id: { lt: cursor },
-              userId: { not: userId }, // Exclude own posts
+              userId: { not: userId }, // Kendi postlarını hariç tut
               user: {
-                isDeleted: { not: true }, // 🔒 Hide deleted users
-                accountStatus: { not: 'SUSPENDED' }, // 🔒 Hide suspended users
-                followers: {
-                  none: {
-                    followerId: userId, // Exclude posts from users you follow
-                  },
-                },
+                isDeleted: { not: true }, // 🔒 Silinen kullanıcıları gizle
+                accountStatus: { not: 'SUSPENDED' }, // 🔒 Askıya alınan kullanıcıları gizle
               },
             }
           : {
-              userId: { not: userId }, // Exclude own posts
+              userId: { not: userId }, // Kendi postlarını hariç tut
               user: {
-                isDeleted: { not: true }, // 🔒 Hide deleted users
-                accountStatus: { not: 'SUSPENDED' }, // 🔒 Hide suspended users
-                followers: {
-                  none: {
-                    followerId: userId, // Exclude posts from users you follow
-                  },
-                },
+                isDeleted: { not: true }, // 🔒 Silinen kullanıcıları gizle
+                accountStatus: { not: 'SUSPENDED' }, // 🔒 Askıya alınan kullanıcıları gizle
               },
             })
       : (cursor
           ? {
               id: { lt: cursor },
               user: {
-                isDeleted: { not: true }, // 🔒 Hide deleted users
-                accountStatus: { not: 'SUSPENDED' }, // 🔒 Hide suspended users
+                isDeleted: { not: true }, // 🔒 Silinen kullanıcıları gizle
+                accountStatus: { not: 'SUSPENDED' }, // 🔒 Askıya alınan kullanıcıları gizle
               },
             }
           : {
               user: {
-                isDeleted: { not: true }, // 🔒 Hide deleted users
-                accountStatus: { not: 'SUSPENDED' }, // 🔒 Hide suspended users
+                isDeleted: { not: true }, // 🔒 Silinen kullanıcıları gizle
+                accountStatus: { not: 'SUSPENDED' }, // 🔒 Askıya alınan kullanıcıları gizle
               },
             });
 
