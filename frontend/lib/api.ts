@@ -93,7 +93,9 @@ if (typeof window === 'undefined') {
 const api = axios.create({
   baseURL,
   withCredentials: true,
-  timeout: 15000, // 15 saniye timeout
+  timeout: 60000, // 60 saniye timeout (file upload için artırıldı)
+  maxContentLength: 100 * 1024 * 1024, // 100MB
+  maxBodyLength: 100 * 1024 * 1024, // 100MB
 })
 
 // Add token to requests
@@ -241,13 +243,21 @@ api.interceptors.response.use(
 
 // Utility function to extract user-friendly error messages
 export const getErrorMessage = (error: any): string => {
+  console.log('🔍 [getErrorMessage] Analyzing error:', {
+    hasResponse: !!error?.response,
+    status: error?.response?.status,
+    message: error?.message,
+    code: error?.code,
+    backendMessage: error?.response?.data?.message,
+  });
+
   // Network/Connection errors
   if (!error?.response) {
     if (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
-      return 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.'
+      return 'İstek zaman aşımına uğradı. Dosya çok büyük olabilir, lütfen tekrar deneyin.'
     }
     if (error?.code === 'ERR_NETWORK' || error?.message === 'Network Error') {
-      return 'Sunucuya bağlanılamıyor. İnternet bağlantınızı kontrol edin.'
+      return 'Sunucuya bağlanılamıyor. İnternet bağlantınızı kontrol edin veya tekrar deneyin.'
     }
     return 'Bağlantı hatası oluştu. Lütfen tekrar deneyin.'
   }
