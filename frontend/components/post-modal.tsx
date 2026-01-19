@@ -252,6 +252,20 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
         await queryClient.refetchQueries({ queryKey: ['saved', user.id] })
       }
     },
+    onError: (error: any) => {
+      console.error(`❌ [PostModal] Save mutation FAILED:`, {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+      });
+      
+      // ❌ UI'ı eski haline döndür (rollback)
+      queryClient.invalidateQueries({ queryKey: ['post', postId] })
+      
+      // Show error to user
+      const errorMessage = error?.response?.data?.message || 'Kaydetme işlemi başarısız oldu. Lütfen tekrar deneyin.';
+      console.error(`❌ [PostModal] Showing error to user: ${errorMessage}`);
+    },
   })
 
   // Comment mutation
