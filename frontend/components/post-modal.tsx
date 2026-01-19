@@ -205,17 +205,22 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
         console.log(`🗑️ [PostModal] Unsaving...`);
         const response = await api.delete(endpoint)
         console.log(`✅ [PostModal] Unsaved successfully:`, response.data);
-        return { saved: false }
+        return { saved: false, response: response.data }
       } else {
         console.log(`💾 [PostModal] Saving...`);
         const response = await api.post(endpoint)
         console.log(`✅ [PostModal] Saved successfully:`, response.data);
-        return { saved: true }
+        return { saved: true, response: response.data }
       }
     },
+    onMutate: async () => {
+      // ❌ OPTIMISTIC UPDATE KALDIRILDI - Backend confirm olana kadar bekle
+      console.log(`⏳ [PostModal] Waiting for backend confirmation...`);
+    },
     onSuccess: async (data) => {
-      console.log(`✅ [PostModal] Save mutation success:`, data);
+      console.log(`✅ [PostModal] Backend confirmed:`, data);
       
+      // ✅ Backend başarılı olduktan SONRA UI'ı güncelle
       queryClient.setQueryData(['post', postId], (old: any) => {
         if (!old) return old
         return {
@@ -226,9 +231,20 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       
       // 🔥 KRİTİK: Query'leri invalidate et - saved-posts için!
       console.log(`🔄 [PostModal] Invalidating queries...`);
-      queryClient.invalidateQueries({ queryKey: ['post', postId] })
-      queryClient.invalidateQueries({ queryKey: ['profile'] })
-      queryClient.invalidateQueries({ queryKey: ['saved-posts'] }) // 🔥 DÜZELTİLDİ: saved-posts!
+      await queryClient.invalidateQueries({ queryKey: ['post', postId] })
+      await queryClient.invalidateQueries({ queryKey: ['profile'] })
+      await queryClient.invalidateQueries({ queryKey: ['saved-posts'] }) // 🔥 saved-posts!
+      
+      // Explicit refetch
+      console.log(`🔄 [PostModal] Forcing refetch of saved-posts...`);
+      await queryClient.refetchQueries({ queryKey: ['saved-posts'] })
+      
+      // Show success message
+      if (data.saved) {
+        console.log(`✅ [PostModal] Post saved to database!`);
+      } else {
+        console.log(`✅ [PostModal] Post removed from database!`);
+      }
       
       // Explicit refetch to ensure saved items list updates immediately
       const { user } = useAuthStore.getState()
