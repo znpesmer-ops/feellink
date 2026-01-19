@@ -195,6 +195,19 @@ export class ChatService {
       throw new ForbiddenException('Access denied');
     }
 
+    // 🕐 SON GÖRÜLME GÜNCELLEMESİ (mesaj açıldığında)
+    try {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          lastSeen: new Date(),
+          isOnline: true,
+        },
+      });
+    } catch (error) {
+      console.warn(`⚠️ [getMessages] Failed to update lastSeen:`, error);
+    }
+
     // Mesajları getir (silinmemiş olanlar)
     const messages = await this.prisma.message.findMany({
       where: {
@@ -247,6 +260,8 @@ export class ChatService {
       throw new BadRequestException('Message must have content, imageUrl, or fileUrl');
     }
 
+    console.log(`📨 [createMessage] User ${userId} sending message to conversation ${conversationId}`);
+
     // Konuşma ve katılımcıları kontrol et
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
@@ -266,12 +281,28 @@ export class ChatService {
     });
 
     if (!conversation) {
+      console.error(`❌ [createMessage] Conversation ${conversationId} not found`);
       throw new NotFoundException('Conversation not found');
     }
 
     const hasAccess = conversation.participants.some((p) => p.userId === userId);
     if (!hasAccess) {
+      console.error(`❌ [createMessage] User ${userId} has no access to conversation ${conversationId}`);
       throw new ForbiddenException('Access denied');
+    }
+
+    // 🕐 SON GÖRÜLME GÜNCELLEMESİ
+    try {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          lastSeen: new Date(),
+          isOnline: true,
+        },
+      });
+      console.log(`✅ [createMessage] Updated lastSeen for user ${userId}`);
+    } catch (error) {
+      console.warn(`⚠️ [createMessage] Failed to update lastSeen:`, error);
     }
 
     // Mesaj bağlamını conversation'dan al
@@ -312,10 +343,13 @@ export class ChatService {
             id: true,
             username: true,
             avatar: true,
+            fullName: true,
           },
         },
       },
     });
+
+    console.log(`✅ [createMessage] Message created: ${message.id}`);
 
     // Conversation metadata güncelle
     const lastMessageText = message.content ?? (message.imageUrl ? '📷 Fotoğraf' : (message.fileUrl ? '📎 Dosya' : 'Yeni mesaj'));
@@ -327,11 +361,14 @@ export class ChatService {
       },
     });
 
+    console.log(`✅ [createMessage] Conversation ${conversationId} metadata updated`);
+
     // Socket event gönder (eğer gateway varsa ve çalışıyorsa)
     // ⚠️ Vercel'de socket çalışmaz, bu yüzden opsiyonel
     if (this.chatGateway && typeof (this.chatGateway as any).broadcastMessageImmediately === 'function') {
       try {
         (this.chatGateway as any).broadcastMessageImmediately(message, conversation, userId, conversationId);
+        console.log(`📡 [createMessage] Broadcast message via socket`);
       } catch (error) {
         // Socket event gönderilemezse sessizce devam et (REST API fallback var)
         console.warn('[ChatService] Failed to broadcast message via socket:', error);
