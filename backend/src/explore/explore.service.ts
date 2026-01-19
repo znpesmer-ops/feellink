@@ -83,49 +83,28 @@ export class ExploreService {
   async getExplorePosts(userId: string | null, limit: number = 20, cursor?: string) {
     console.log('🔍 [EXPLORE] getExplorePosts called:', { userId, limit, cursor });
     
-    // ✅ YENİ MANTIK: Hem takip ettiklerin hem de etmediklerin (HERKES)
-    // Feed: Sadece takip ettiklerin
-    // Explore: HERKES (takip edilen + edilmeyen)
+    // ✅ BASİT MANTIK: HERKESİN POSTLARINI GÖSTER!
+    // Sadece isDeleted: false olan postlar
+    // Kendi postlarını hariç tut (userId varsa)
     
-    const where: any = userId
-      ? (cursor
-          ? {
-              id: { lt: cursor },
-              userId: { not: userId }, // Kendi postlarını hariç tut
-              user: {
-                isDeleted: { not: true }, // 🔒 Silinen kullanıcıları gizle
-                accountStatus: { not: 'SUSPENDED' }, // 🔒 Askıya alınan kullanıcıları gizle
-              },
-            }
-          : {
-              userId: { not: userId }, // Kendi postlarını hariç tut
-              user: {
-                isDeleted: { not: true }, // 🔒 Silinen kullanıcıları gizle
-                accountStatus: { not: 'SUSPENDED' }, // 🔒 Askıya alınan kullanıcıları gizle
-              },
-            })
-      : (cursor
-          ? {
-              id: { lt: cursor },
-              user: {
-                isDeleted: { not: true }, // 🔒 Silinen kullanıcıları gizle
-                accountStatus: { not: 'SUSPENDED' }, // 🔒 Askıya alınan kullanıcıları gizle
-              },
-            }
-          : {
-              user: {
-                isDeleted: { not: true }, // 🔒 Silinen kullanıcıları gizle
-                accountStatus: { not: 'SUSPENDED' }, // 🔒 Askıya alınan kullanıcıları gizle
-              },
-            });
+    const where: any = {
+      isDeleted: false, // 🗑️ Sadece silinmemiş postları göster
+    };
+    
+    // Cursor varsa ekle
+    if (cursor) {
+      where.id = { lt: cursor };
+    }
+    
+    // Kendi postlarını hariç tut (userId varsa)
+    if (userId) {
+      where.userId = { not: userId };
+    }
 
-    console.log('🔍 [EXPLORE] Query where clause:', JSON.stringify(where, null, 2));
+    console.log('🔍 [EXPLORE] BASİT Query where:', JSON.stringify(where, null, 2));
     
     const posts = await this.prisma.post.findMany({
-      where: {
-        ...where,
-        isDeleted: false, // 🗑️ Silinen postları gösterme
-      },
+      where,
       include: {
         user: {
           select: {
