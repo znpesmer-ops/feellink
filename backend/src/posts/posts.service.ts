@@ -111,36 +111,44 @@ export class PostsService {
   }
 
   async createPost(userId: string, dto: CreatePostDto) {
-    if (!dto.media || dto.media.length === 0) {
-      throw new BadRequestException('At least one media file is required');
-    }
+    try {
+      if (!dto.media || dto.media.length === 0) {
+        throw new BadRequestException('At least one media file is required');
+      }
 
-    // Küfür kontrolü
-    if (dto.caption && containsBadWord(dto.caption)) {
-      throw new BadRequestException('Bu içerik topluluk kurallarına uygun değil.');
-    }
+      // Küfür kontrolü
+      if (dto.caption && containsBadWord(dto.caption)) {
+        throw new BadRequestException('Bu içerik topluluk kurallarına uygun değil.');
+      }
 
-    // 🎨 Sanatsever Free gönderi oluşturabilir ama yalnızca "artwork" tipindeki paylaşımlar yasaktır
-    // Eğer post.type === "artwork" ise engelle, diğer her şeyi (post, photo, video) serbest bırak
-    const postType = dto.type || 'post'; // Default to 'post' if not provided
-    
-    if (postType === 'artwork') {
-      // Sadece artwork oluştururken rol kontrolü yap
-      await this.limitsService.ensureCanCreateArtwork(userId);
-    }
+      // 🎨 Sanatsever Free gönderi oluşturabilir ama yalnızca "artwork" tipindeki paylaşımlar yasaktır
+      // Eğer post.type === "artwork" ise engelle, diğer her şeyi (post, photo, video) serbest bırak
+      const postType = dto.type || 'post'; // Default to 'post' if not provided
+      
+      console.log(`[createPost] Creating ${postType} for user ${userId}`);
+      
+      if (postType === 'artwork') {
+        // Sadece artwork oluştururken rol kontrolü yap
+        console.log('[createPost] Checking artwork creation limits...');
+        await this.limitsService.ensureCanCreateArtwork(userId);
+        console.log('[createPost] Artwork limits OK');
+      }
 
-    // Extract hashtags from caption
-    const hashtags = this.extractHashtags(dto.caption || '');
+      // Extract hashtags from caption
+      const hashtags = this.extractHashtags(dto.caption || '');
 
-    // Eğer artwork ise, otomatik kod üret
-    let artworkCode: string | undefined;
-    
-    if (postType === 'artwork') {
-      artworkCode = await generateUniqueArtworkCode(this.prisma);
-    }
+      // Eğer artwork ise, otomatik kod üret
+      let artworkCode: string | undefined;
+      
+      if (postType === 'artwork') {
+        console.log('[createPost] Generating unique artwork code...');
+        artworkCode = await generateUniqueArtworkCode(this.prisma);
+        console.log(`[createPost] Generated artwork code: ${artworkCode}`);
+      }
 
-    // Create post
-    const post = await this.prisma.post.create({
+      // Create post
+      console.log('[createPost] Creating post in database...');
+      const post = await this.prisma.post.create({
       data: {
         userId,
         caption: dto.caption,

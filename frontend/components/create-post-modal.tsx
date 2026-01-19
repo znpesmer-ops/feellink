@@ -143,7 +143,16 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
       onClose()
     },
     onError: (error: any) => {
-      console.error('Error creating post:', error)
+      // 🔍 DEBUG: Detaylı error logging
+      console.error('❌ [CreatePost] Error:', {
+        message: error?.message,
+        code: error?.code,
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        data: error?.response?.data,
+        url: error?.config?.url,
+      })
+      
       const responseData = error?.response?.data
       const nested = typeof responseData?.message === 'object' ? responseData.message : null
       const errorCode = nested?.code ?? responseData?.code
