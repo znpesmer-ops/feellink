@@ -135,7 +135,32 @@ async function bootstrapServer() {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    console.log(`📥 Request: ${req.method} ${req.url}`);
+    // ✅ MANUEL CORS HEADERS (Vercel serverless için kritik)
+    const origin = req.headers.origin || req.headers.referer;
+    const allowedOrigins = [
+      'https://feellink.io',
+      'https://www.feellink.io',
+      'https://feellink.vercel.app',
+      'http://localhost:3000',
+      'http://localhost:3001',
+    ];
+
+    // Origin kontrolü ve header set etme
+    if (origin && (allowedOrigins.some(allowed => origin.startsWith(allowed)) || origin.includes('vercel.app'))) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+      res.setHeader('Access-Control-Max-Age', '86400');
+    }
+
+    // ✅ Preflight OPTIONS request için hızlı yanıt
+    if (req.method === 'OPTIONS') {
+      res.status(204).end();
+      return;
+    }
+
+    console.log(`📥 Request: ${req.method} ${req.url} from ${origin || 'unknown'}`);
     const server = await bootstrapServer();
     
     // Wrap in promise to handle async errors
