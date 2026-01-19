@@ -619,19 +619,39 @@ function MessagesContent() {
 
   const loadMessages = async (conversationId: string) => {
     try {
+      console.log(`📥 [loadMessages] Fetching messages for conversation ${conversationId}`)
       const response = await api.get(`/chat/conversations/${conversationId}/messages`)
       const loadedMessages = response.data.messages || []
-      setMessages(loadedMessages)
+      
+      console.log(`✅ [loadMessages] Loaded ${loadedMessages.length} messages`)
+      
+      // 🔍 Yeni mesaj var mı kontrol et (duplicate eklemeyi önle)
+      setMessages((prevMessages) => {
+        // Eğer mesaj sayısı değişmediyse ve içerik aynıysa güncelleme yapma
+        if (prevMessages.length === loadedMessages.length) {
+          const lastPrevId = prevMessages[prevMessages.length - 1]?.id
+          const lastLoadedId = loadedMessages[loadedMessages.length - 1]?.id
+          if (lastPrevId === lastLoadedId) {
+            console.log(`⏭️ [loadMessages] No new messages, skipping update`)
+            return prevMessages
+          }
+        }
+        
+        console.log(`🔄 [loadMessages] Updating messages (${prevMessages.length} -> ${loadedMessages.length})`)
+        return loadedMessages
+      })
+      
       scrollToBottom()
 
       // Mesajlar yüklendiğinde okundu işaretle
-      if (loadedMessages.length > 0 && chatSocketRef.current?.connected) {
+      if (loadedMessages.length > 0) {
         // Kendi göndermediğimiz mesajları bul
         const unreadMessages = loadedMessages.filter(
           (m: Message) => m.senderId !== user?.id && !m.read
         )
 
         if (unreadMessages.length > 0) {
+          console.log(`📖 [loadMessages] Marking ${unreadMessages.length} messages as read`)
           // Tüm okunmamış mesajları backend'de okundu işaretle (REST API)
           try {
             await api.put(`/chat/conversations/${conversationId}/read`)
@@ -639,12 +659,14 @@ function MessagesContent() {
             console.error('Failed to mark messages as read:', error)
           }
 
-          // Sadece son mesajı socket ile okundu işaretle (Instagram tarzı - sadece son mesajda "Görüldü")
-          const lastUnreadMessage = unreadMessages[unreadMessages.length - 1]
-          chatSocketRef.current?.emit('mark_message_read', {
-            messageId: lastUnreadMessage.id,
-            conversationId,
-          })
+          // Socket varsa son mesajı socket ile de okundu işaretle
+          if (chatSocketRef.current?.connected) {
+            const lastUnreadMessage = unreadMessages[unreadMessages.length - 1]
+            chatSocketRef.current?.emit('mark_message_read', {
+              messageId: lastUnreadMessage.id,
+              conversationId,
+            })
+          }
         }
       }
     } catch (error) {
