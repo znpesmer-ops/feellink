@@ -208,7 +208,7 @@ export class ChatService {
       console.warn(`⚠️ [getMessages] Failed to update lastSeen:`, error);
     }
 
-    // Mesajları getir (silinmemiş olanlar)
+    // Mesajları getir (silinmemiş olanlar) - ARTAN SIRA (eski → yeni)
     const messages = await this.prisma.message.findMany({
       where: {
         conversationId,
@@ -223,16 +223,17 @@ export class ChatService {
             id: true,
             username: true,
             avatar: true,
+            fullName: true,
           },
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: 'asc', // ✅ Eski mesajlar üstte, yeni mesajlar altta (Instagram/WhatsApp gibi)
       },
       take: limit + 1,
     });
 
-    // Mesajları ters çevir (en eski en üstte, en yeni en altta - Instagram gibi)
+    // Artık ters çevirmeye gerek yok - doğrudan döndür
     const reversedMessages = messages.reverse();
 
     const hasMore = reversedMessages.length > limit;
