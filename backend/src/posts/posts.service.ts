@@ -1540,6 +1540,8 @@ export class PostsService {
   }
 
   async getSavedPosts(userId: string) {
+    console.log(`🔖 [getSavedPosts] Fetching saved posts for user: ${userId}`);
+    
     const savedPosts = await this.prisma.savedPost.findMany({
       where: {
         userId,
@@ -1571,10 +1573,15 @@ export class PostsService {
       orderBy: { createdAt: 'desc' },
     });
 
+    console.log(`🔖 [getSavedPosts] Found ${savedPosts.length} saved posts (before filtering)`);
+
     // Filter out null posts (in case post was deleted)
     const validSavedPosts = savedPosts.filter((sp): sp is typeof sp & { post: NonNullable<typeof sp.post> } => sp.post !== null);
 
+    console.log(`🔖 [getSavedPosts] Valid saved posts: ${validSavedPosts.length} (after null filter)`);
+
     if (validSavedPosts.length === 0) {
+      console.log('🔖 [getSavedPosts] No valid saved posts, returning empty array');
       return [];
     }
 
@@ -1612,7 +1619,7 @@ export class PostsService {
     const likeCountMap = new Map(likeCounts.map(lc => [lc.postId, lc.count]));
     const commentCountMap = new Map(commentCounts.map(cc => [cc.postId, cc.count]));
 
-    return validSavedPosts.map(savedPost => ({
+    const result = validSavedPosts.map(savedPost => ({
       ...savedPost.post,
       isLiked: likedPostIds.has(savedPost.postId),
       savedAt: savedPost.createdAt,
@@ -1621,6 +1628,9 @@ export class PostsService {
         comments: commentCountMap.get(savedPost.postId) || 0,
       },
     }));
+
+    console.log(`✅ [getSavedPosts] Returning ${result.length} posts with full data`);
+    return result;
   }
 
   // Artwork save/unsave methods

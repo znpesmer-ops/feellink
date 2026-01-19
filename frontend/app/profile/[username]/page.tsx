@@ -31,14 +31,32 @@ function SavedPostsGrid() {
   const [selectedPost, setSelectedPost] = useState<any>(null)
 
   // Get saved posts
-  const { data: savedPosts, isLoading } = useQuery({
+  const { data: savedPosts, isLoading, error } = useQuery({
     queryKey: ['saved-posts'],
     queryFn: async () => {
+      console.log('🔖 [SavedPostsGrid] Fetching saved posts...')
       const response = await api.get('/posts/saved')
-      return Array.isArray(response.data) ? response.data : (response.data?.posts || [])
+      console.log('🔖 [SavedPostsGrid] Response:', {
+        status: response.status,
+        dataType: typeof response.data,
+        isArray: Array.isArray(response.data),
+        length: Array.isArray(response.data) ? response.data.length : 'N/A',
+        data: response.data,
+      })
+      const result = Array.isArray(response.data) ? response.data : (response.data?.posts || [])
+      console.log('🔖 [SavedPostsGrid] Final result:', result.length, 'posts')
+      return result
     },
     staleTime: 0,
     refetchOnMount: true,
+  })
+
+  // Debug log
+  console.log('🔖 [SavedPostsGrid] Render state:', {
+    isLoading,
+    hasError: !!error,
+    savedPostsCount: savedPosts?.length || 0,
+    savedPosts,
   })
 
   // Unsave mutation
