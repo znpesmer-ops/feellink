@@ -137,6 +137,16 @@ function ExploreContent() {
           params.append('cursor', pageParam)
         }
         const response = await api.get(`/explore?${params.toString()}`)
+        
+        console.log('[EXPLORE] 📊 Keşfet API yanıtı:', {
+          toplam: response.data?.posts?.length || 0,
+          rawData: response.data,
+        })
+        
+        if (!response.data?.posts || response.data.posts.length === 0) {
+          console.warn('[EXPLORE] ⚠️ KEŞFET BOŞ! Hiç post bulunamadı.')
+        }
+        
         return response.data
       } catch (err: any) {
         // DETAYLI ERROR LOG - kullanıcının istediği bilgi
