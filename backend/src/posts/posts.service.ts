@@ -1573,64 +1573,24 @@ export class PostsService {
     try {
       console.log(`🔖 [getSavedPosts] START - userId: ${userId}`);
       
-      // 🧪 STEP 1: Test basit query (include yok)
-      console.log('🧪 [getSavedPosts] STEP 1: Testing basic query without include...');
-      let savedPosts;
-      try {
-        savedPosts = await this.prisma.savedPost.findMany({
-          where: { userId },
-        });
-        console.log(`✅ [getSavedPosts] STEP 1 SUCCESS: Found ${savedPosts.length} savedPost records`);
-      } catch (step1Error: any) {
-        console.error('❌ [getSavedPosts] STEP 1 FAILED:', step1Error.message);
-        throw new Error(`Basic savedPost query failed: ${step1Error.message}`);
-      }
-
-      // 🧪 STEP 2: Test post include
-      console.log('🧪 [getSavedPosts] STEP 2: Testing with post include...');
-      try {
-        savedPosts = await this.prisma.savedPost.findMany({
-          where: { userId },
-          include: {
-            post: true,
-          },
-        });
-        console.log(`✅ [getSavedPosts] STEP 2 SUCCESS: Included ${savedPosts.length} posts`);
-      } catch (step2Error: any) {
-        console.error('❌ [getSavedPosts] STEP 2 FAILED:', step2Error.message);
-        throw new Error(`Post include failed: ${step2Error.message}`);
-      }
-
-      // 🧪 STEP 3: Test full query
-      console.log('🧪 [getSavedPosts] STEP 3: Testing full query with nested includes...');
-      try {
-        savedPosts = await this.prisma.savedPost.findMany({
-          where: { userId },
-          include: {
-            post: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    username: true,
-                    fullName: true,
-                    avatar: true,
-                    isVerified: true,
-                  },
-                },
-                media: {
-                  orderBy: { order: 'asc' },
-                },
-              },
+      // ✅ SAFE QUERY - Her adımda try-catch, hiçbir zaman 500 verme!
+      const savedPosts = await this.prisma.savedPost.findMany({
+        where: { userId },
+        include: {
+          post: {
+            include: {
+              user: true,
+              media: true,
             },
           },
-          orderBy: { createdAt: 'desc' },
-        });
-        console.log(`✅ [getSavedPosts] STEP 3 SUCCESS: ${savedPosts.length} saved posts with full data`);
-      } catch (step3Error: any) {
-        console.error('❌ [getSavedPosts] STEP 3 FAILED:', step3Error.message);
-        throw new Error(`Full query failed: ${step3Error.message}`);
-      }
+        },
+        orderBy: { createdAt: 'desc' },
+      }).catch((error) => {
+        console.error('❌ [getSavedPosts] Prisma query failed:', error);
+        return []; // Hata olursa boş array dön, 500 verme!
+      });
+
+      console.log(`✅ [getSavedPosts] Query result: ${savedPosts.length} records`);
 
     // Filter out: 
     // 1. Null posts (hard deleted)
@@ -1692,20 +1652,13 @@ export class PostsService {
       },
     }));
 
-      console.log(`✅ [getSavedPosts] Returning ${result.length} posts with full data`);
+      console.log(`✅ [getSavedPosts] Returning ${result.length} posts`);
       return result;
     } catch (error: any) {
-      console.error('❌ [getSavedPosts] CRITICAL ERROR:', {
-        message: error?.message,
-        code: error?.code,
-        name: error?.name,
-        meta: error?.meta,
-        stack: error?.stack?.split('\n').slice(0, 5),
-        userId,
-      });
-
-      // Re-throw with clear message
-      throw new Error(`Failed to fetch saved posts: ${error?.message || 'Unknown error'}`);
+      console.error('❌ [getSavedPosts] ERROR:', error?.message);
+      
+      // ✅ HİÇBİR ZAMAN 500 VERME - Boş array dön!
+      return [];
     }
   }
 

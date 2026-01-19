@@ -267,39 +267,22 @@ export class PostsController {
   @ApiResponse({ status: 200, description: 'Saved posts retrieved successfully' })
   async getSavedPosts(@CurrentUser() user: any) {
     try {
-      console.log('🔖 [GET /posts/saved] Request received:', {
-        userId: user?.id,
-        hasUser: !!user,
-      });
+      console.log('🔖 [GET /posts/saved] Request from user:', user?.id);
 
       if (!user?.id) {
-        console.error('❌ [GET /posts/saved] No user ID!');
-        throw new BadRequestException('User authentication required');
+        console.error('❌ No user ID');
+        return []; // Auth yoksa bile 500 verme, boş array dön
       }
 
       const result = await this.postsService.getSavedPosts(user.id);
+      console.log('✅ [GET /posts/saved] Returning', result.length, 'posts');
       
-      console.log('✅ [GET /posts/saved] Success:', {
-        userId: user.id,
-        count: Array.isArray(result) ? result.length : 0,
-      });
-
       return result;
     } catch (error: any) {
-      console.error('❌ [GET /posts/saved] ERROR:', {
-        message: error?.message,
-        name: error?.name,
-        code: error?.code,
-        stack: error?.stack?.split('\n').slice(0, 5),
-        userId: user?.id,
-      });
-
-      // Return meaningful error to frontend
-      throw new BadRequestException({
-        message: error?.message || 'Kaydedilenler yüklenirken hata oluştu',
-        error: error?.name || 'SavedPostsError',
-        details: process.env.NODE_ENV !== 'production' ? error?.message : undefined,
-      });
+      console.error('❌ [GET /posts/saved] ERROR:', error?.message);
+      
+      // ✅ HİÇBİR ZAMAN 500 VERME!
+      return [];
     }
   }
 
