@@ -56,24 +56,39 @@ export class MediaService {
 
   async uploadFile(file: Express.Multer.File, folder: string = 'posts'): Promise<{ url: string; fileName: string; fileType: string }> {
     const fileName = `${folder}/${randomUUID()}-${file.originalname}`;
+    
+    console.log(`📤 [MediaService] uploadFile called:`, {
+      fileName,
+      size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+      mimetype: file.mimetype,
+      isDisabled: this.isDisabled,
+      hasMinioClient: !!this.minioClient,
+    });
 
     // ✅ Vercel serverless'ta Vercel Blob Storage kullan
     if (this.isDisabled || !this.minioClient) {
       const blobToken = this.configService.get('BLOB_READ_WRITE_TOKEN');
       
+      console.log('[MediaService] Using Vercel Blob Storage (MinIO disabled)');
+      
       if (!blobToken) {
         // ❌ BLOB_READ_WRITE_TOKEN eksik - açık hata mesajı ver
         console.error('[MediaService] ❌ BLOB_READ_WRITE_TOKEN environment variable tanımlı değil!');
-        throw new Error('Dosya yükleme servisi yapılandırılmamış. Lütfen sistem yöneticisiyle iletişime geçin.');
+        console.error('[MediaService] ❌ Available env vars:', Object.keys(process.env).filter(k => k.includes('BLOB') || k.includes('VERCEL')));
+        throw new Error('Dosya yükleme servisi yapılandırılmamış (BLOB_READ_WRITE_TOKEN eksik). Lütfen sistem yöneticisiyle iletişime geçin.');
       }
       
       // ✅ Vercel Blob Storage'a upload
       try {
+        console.log(`[MediaService] Uploading to Vercel Blob: ${fileName}`);
+        
         const blob = await put(fileName, file.buffer, {
           access: 'public',
           contentType: file.mimetype,
           token: blobToken,
         });
+        
+        console.log(`✅ [MediaService] Upload successful: ${blob.url.substring(0, 50)}...`);
         
         return {
           url: blob.url, // ✅ Absolute public URL (örn: https://xxx.public.blob.vercel-storage.com/...)
@@ -81,8 +96,12 @@ export class MediaService {
           fileType: file.mimetype,
         };
       } catch (error: any) {
-        console.error('[MediaService] ❌ Vercel Blob upload failed:', error?.message || error);
-        throw new Error(`Dosya yüklenemedi: ${error?.message || 'Bilinmeyen hata'}`);
+        console.error('[MediaService] ❌ Vercel Blob upload failed:', {
+          message: error?.message,
+          code: error?.code,
+          stack: error?.stack?.split('\n').slice(0, 3),
+        });
+        throw new Error(`Dosya yüklenemedi: ${error?.message || 'Vercel Blob Storage bağlantı hatası'}`);
       }
     }
 

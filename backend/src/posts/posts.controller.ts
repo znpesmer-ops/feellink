@@ -30,30 +30,50 @@ export class PostsController {
     @UploadedFiles() files: Express.Multer.File[],
     @Body() body: { caption?: string; title?: string; location?: string; type?: string; colorPalette?: string | string[] },
   ) {
+    console.log('🚀 [POST /posts/create] Request received:', {
+      userId: user?.id,
+      filesCount: files?.length || 0,
+      bodyType: body?.type || 'post',
+      caption: body?.caption?.substring(0, 50) || 'none',
+    });
+
     try {
       if (!files || files.length === 0) {
+        console.error('❌ [POST /posts/create] No files uploaded');
         throw new BadRequestException('En az bir dosya gereklidir');
       }
 
       if (!user?.id) {
+        console.error('❌ [POST /posts/create] No user ID');
         throw new BadRequestException('Kullanıcı kimliği bulunamadı');
       }
 
-      // Upload files to MinIO
+      // Upload files to MinIO/Vercel Blob Storage
+      console.log('📤 [POST /posts/create] Starting media uploads...');
       const mediaUploads = await Promise.all(
         files.map(async (file, index) => {
+          console.log(`📁 [POST /posts/create] Uploading file ${index + 1}/${files.length}: ${file.originalname} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+          
           try {
             const uploadResult = await this.mediaService.uploadFile(file, 'posts');
+            console.log(`✅ [POST /posts/create] File ${index + 1} uploaded: ${uploadResult.url.substring(0, 50)}...`);
+            
             return {
               url: typeof uploadResult === 'string' ? uploadResult : uploadResult.url,
               type: file.mimetype.startsWith('video/') ? 'video' : 'image',
               order: index,
             };
-          } catch (uploadError) {
+          } catch (uploadError: any) {
+            console.error(`❌ [POST /posts/create] File ${index + 1} upload failed:`, {
+              message: uploadError?.message,
+              stack: uploadError?.stack?.split('\n').slice(0, 3),
+            });
             throw new BadRequestException(`Dosya yükleme hatası: ${uploadError instanceof Error ? uploadError.message : 'Bilinmeyen hata'}`);
           }
         }),
       );
+      
+      console.log(`✅ [POST /posts/create] All ${mediaUploads.length} files uploaded successfully`);
 
       // Parse colorPalette if it's a string (from FormData)
       let colorPalette: string[] | undefined;
