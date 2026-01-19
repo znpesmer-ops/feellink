@@ -11,32 +11,7 @@ import { initSocket } from '@/lib/socket'
 export function Navbar() {
   const router = useRouter()
   const pathname = usePathname()
-  const { user, accessToken } = useAuthStore()
-  const [unreadCount, setUnreadCount] = useState(0)
-
-  // Fetch unread notification count and setup socket
-  useEffect(() => {
-    if (!accessToken) return
-
-    // Fetch initial count
-    api.get('/notifications/unread-count')
-      .then((response) => setUnreadCount(response.data.count))
-      .catch(() => {})
-
-    // Setup socket connection for real-time notifications
-    const socket = initSocket(accessToken)
-
-    socket.on('notification', () => {
-      setUnreadCount((prev) => prev + 1)
-      api.get('/notifications/unread-count')
-        .then((response) => setUnreadCount(response.data.count))
-        .catch(() => {})
-    })
-
-    return () => {
-      socket.off('notification')
-    }
-  }, [accessToken])
+  const { user, accessToken, unreadCount } = useAuthStore() // ✅ Global store kullan
 
   if (!accessToken) {
     return null

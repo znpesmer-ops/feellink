@@ -8,6 +8,7 @@ import { SearchResults } from './search-results'
 import api from '@/lib/api'
 import { useTheme } from '@/lib/theme-context'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
+import { Bell } from 'lucide-react'
 
 interface SearchUser {
   id: string
@@ -23,7 +24,7 @@ interface HeaderProps {
 
 export function Header({ forceMobile = false }: HeaderProps = {}) {
   const router = useRouter()
-  const { user, accessToken, refreshToken, clearAuth } = useAuthStore()
+  const { user, accessToken, refreshToken, clearAuth, unreadCount } = useAuthStore() // ✅ unreadCount ekle
   const { theme, toggleTheme } = useTheme()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchUser[]>([])
@@ -207,7 +208,7 @@ export function Header({ forceMobile = false }: HeaderProps = {}) {
           </div>
         </div>
 
-        {/* Sağ taraf - Theme Toggle + Profil */}
+        {/* Sağ taraf - Theme Toggle + Bildirimler + Profil */}
         <div className="flex items-center justify-end gap-3 md:gap-4 md:pl-6">
           {/* Theme Toggle Button */}
           <button
@@ -245,6 +246,20 @@ export function Header({ forceMobile = false }: HeaderProps = {}) {
               </svg>
             )}
           </button>
+
+          {/* ✅ Bildirimler İkonu */}
+          <Link
+            href="/notifications"
+            className="relative p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+            aria-label="Bildirimler"
+          >
+            <Bell className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[#ff7b00] text-white text-[10px] font-bold">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </Link>
 
           {/* Profile Menu */}
           <div ref={menuRef} className="relative">
