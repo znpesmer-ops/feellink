@@ -52,11 +52,54 @@ async function bootstrapServer() {
   app.use(json({ limit: '2mb' }));
   app.use(urlencoded({ limit: '2mb', extended: true }));
 
+  // ✅ CORS configuration - feellink.io için explicit support
+  const allowedOrigins = [
+    'https://feellink.io',
+    'https://www.feellink.io',
+    'https://feellink.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001',
+  ];
+
   app.enableCors({
-    origin: true,
+    origin: (origin, callback) => {
+      // ✅ Origin header yoksa (Postman, curl, etc.) izin ver
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      
+      // ✅ Allowed origins listesinde varsa izin ver
+      if (allowedOrigins.some(allowed => origin.startsWith(allowed))) {
+        callback(null, true);
+        return;
+      }
+      
+      // ✅ Vercel preview deployments için wildcard
+      if (origin.includes('vercel.app')) {
+        callback(null, true);
+        return;
+      }
+      
+      // ❌ Diğer origin'lere izin verme
+      console.warn(`❌ CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+      'Access-Control-Request-Method',
+      'Access-Control-Request-Headers',
+    ],
+    exposedHeaders: ['Content-Length', 'Content-Type'],
+    maxAge: 86400, // 24 hours preflight cache
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
   app.useGlobalPipes(
