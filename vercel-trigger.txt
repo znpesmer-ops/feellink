@@ -1,1 +1,2 @@
 trigger deploy - backend isDeleted filter fix - Sun Jan 18 15:35:12 +03 2026
+Trigger: Mon Jan 19 21:19:42 +03 2026
