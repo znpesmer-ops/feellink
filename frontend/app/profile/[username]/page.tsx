@@ -35,17 +35,30 @@ function SavedPostsGrid() {
     queryKey: ['saved-posts'],
     queryFn: async () => {
       console.log('🔖 [SavedPostsGrid] Fetching saved posts...')
-      const response = await api.get('/posts/saved')
-      console.log('🔖 [SavedPostsGrid] Response:', {
-        status: response.status,
-        dataType: typeof response.data,
-        isArray: Array.isArray(response.data),
-        length: Array.isArray(response.data) ? response.data.length : 'N/A',
-        data: response.data,
-      })
-      const result = Array.isArray(response.data) ? response.data : (response.data?.posts || [])
-      console.log('🔖 [SavedPostsGrid] Final result:', result.length, 'posts')
-      return result
+      try {
+        const response = await api.get('/posts/saved')
+        console.log('✅ [SavedPostsGrid] SUCCESS - Response:', {
+          status: response.status,
+          dataType: typeof response.data,
+          isArray: Array.isArray(response.data),
+          length: Array.isArray(response.data) ? response.data.length : 'N/A',
+          data: response.data,
+        })
+        const result = Array.isArray(response.data) ? response.data : (response.data?.posts || [])
+        console.log('✅ [SavedPostsGrid] Final result:', result.length, 'posts')
+        return result
+      } catch (fetchError: any) {
+        console.error('❌ [SavedPostsGrid] FETCH ERROR:', {
+          message: fetchError?.message,
+          status: fetchError?.response?.status,
+          statusText: fetchError?.response?.statusText,
+          errorData: fetchError?.response?.data,
+          errorMessage: fetchError?.response?.data?.message,
+          errorDetails: fetchError?.response?.data?.details,
+          fullError: fetchError,
+        })
+        throw fetchError
+      }
     },
     staleTime: 0,
     refetchOnMount: true,
