@@ -266,16 +266,17 @@ export class PostsController {
   @ApiOperation({ summary: 'Get saved posts' })
   @ApiResponse({ status: 200, description: 'Saved posts retrieved successfully' })
   async getSavedPosts(@CurrentUser() user: any) {
-    // ✅ SIMPLE TEST - Hiçbir Prisma query yok, sadece test
-    console.log('🔖 [GET /posts/saved] SIMPLE TEST - user:', user?.id);
-    
-    // ŞİMDİLİK SADECE BOŞ ARRAY DÖN - Prisma'yı test et
-    return {
-      message: 'Test endpoint - Prisma query disabled',
-      userId: user?.id,
-      timestamp: new Date().toISOString(),
-      data: [],
-    };
+    console.log('🔖 [GET /posts/saved] Request from user:', user?.id);
+
+    if (!user?.id) {
+      console.error('❌ No user ID');
+      return [];
+    }
+
+    // ✅ GERÇEK QUERY - Service çağrısı
+    const result = await this.postsService.getSavedPosts(user.id);
+    console.log('✅ [GET /posts/saved] Returning', result.length, 'posts');
+    return result;
   }
 
   @Post(':id/save-artwork')
