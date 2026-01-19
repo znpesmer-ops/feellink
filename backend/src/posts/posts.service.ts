@@ -1541,7 +1541,17 @@ export class PostsService {
 
   async getSavedPosts(userId: string) {
     const savedPosts = await this.prisma.savedPost.findMany({
-      where: { userId },
+      where: {
+        userId,
+        post: {
+          // ✅ KİŞİSEL ALAN - sadece gerçekten silinmiş postları filtrele
+          OR: [
+            { isDeleted: false },
+            { isDeleted: null }, // NULL-safe (eski kayıtlar için)
+          ],
+          // ❌ user.isSuspended kontrolü YOK - kaydedilenler kişisel alan
+        },
+      },
       include: {
         post: {
           include: {

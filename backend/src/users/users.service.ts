@@ -1456,7 +1456,16 @@ export class UsersService {
     // Fetch both saved posts and saved artworks
     const [savedPosts, savedArtworks] = await Promise.all([
       this.prisma.savedPost.findMany({
-        where: { userId },
+        where: {
+          userId,
+          post: {
+            // ✅ KİŞİSEL ALAN - sadece gerçekten silinmiş postları filtrele
+            OR: [
+              { isDeleted: false },
+              { isDeleted: null }, // NULL-safe (eski kayıtlar için)
+            ],
+          },
+        },
         include: {
           post: {
             include: {
@@ -1484,7 +1493,16 @@ export class UsersService {
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.savedArtwork.findMany({
-        where: { userId },
+        where: {
+          userId,
+          post: {
+            // ✅ Artwork'ler için de aynı filtre
+            OR: [
+              { isDeleted: false },
+              { isDeleted: null },
+            ],
+          },
+        },
         include: {
           post: {
             include: {
