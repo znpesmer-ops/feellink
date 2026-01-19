@@ -6,7 +6,7 @@ import { SidebarPersistent } from '@/components/sidebar-persistent'
 import { Header } from '@/components/header'
 import RightSidebar from '@/components/right-sidebar'
 import { useAuthStore } from '@/lib/store'
-import { Menu, User, LogOut, X, Bell } from 'lucide-react'
+import { Menu, User, LogOut, X } from 'lucide-react'
 import Link from 'next/link'
 import { useTheme } from '@/lib/theme-context'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
@@ -16,7 +16,7 @@ import { Sidebar } from '@/components/sidebar'
 function LayoutConditionalComponent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, accessToken, refreshToken, clearAuth, unreadCount } = useAuthStore() // ✅ unreadCount ekle
+  const { user, accessToken, refreshToken, clearAuth } = useAuthStore()
   const { theme, toggleTheme } = useTheme()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
@@ -148,15 +148,6 @@ function LayoutConditionalComponent({ children }: { children: React.ReactNode })
               <button onClick={toggleTheme} className="p-2 rounded-lg">
                 {theme === 'dark' ? '☀️' : '🌙'}
               </button>
-              {/* ✅ Bildirimler İkonu - Mobil */}
-              <Link href="/notifications" className="relative p-2 rounded-lg">
-                <Bell size={20} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-[#ff7b00] text-white text-[9px] font-bold">
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
-                )}
-              </Link>
               {(isFeed || isExplore) && (
                 <button onClick={() => { setRightSidebarOpen(true); setRightSidebarTitle(isExplore ? 'Keşfet' : 'Keşfet'); }}>
                   <User size={20} />
