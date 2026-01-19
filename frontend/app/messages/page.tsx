@@ -583,10 +583,20 @@ function MessagesContent() {
       typingTimeoutRef.current = null
     }
 
-    if (activeConversation && chatSocketRef.current?.connected) {
-      loadMessages(activeConversation.id)
+    if (!activeConversation) return
 
-      // Konuşmaya join ol
+    // İlk mesajları yükle
+    loadMessages(activeConversation.id)
+
+    // 🔄 REST POLLING - Socket yokken mesajları düzenli çek (3 saniyede bir)
+    console.log(`🔄 [Polling] Starting message polling for conversation ${activeConversation.id}`)
+    const pollingInterval = setInterval(() => {
+      console.log(`🔄 [Polling] Fetching messages...`)
+      loadMessages(activeConversation.id)
+    }, 3000) // 3 saniye
+
+    // Socket varsa join ol (opsiyonel)
+    if (chatSocketRef.current?.connected) {
       chatSocketRef.current.emit('join_conversation', {
         conversationId: activeConversation.id
       }, (response: any) => {
@@ -602,6 +612,10 @@ function MessagesContent() {
     }
 
     return () => {
+      // 🛑 Polling'i durdur
+      console.log(`🛑 [Polling] Stopping message polling for conversation ${activeConversation.id}`)
+      clearInterval(pollingInterval)
+
       // Typing timeout'unu temizle
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current)
