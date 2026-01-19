@@ -12,7 +12,7 @@ import { PostModal } from '@/components/post-modal'
 import UserArticles from '@/components/user-articles'
 import DraftArticles from '@/components/draft-articles'
 import { Plus, Grid, FileText, Calendar, Image as ImageIcon, Heart, MessageCircle, MoreVertical, Trash2, Clock } from 'lucide-react'
-import { FiGrid, FiFileText, FiMessageCircle, FiImage, FiCalendar, FiClock } from 'react-icons/fi'
+import { FiGrid, FiFileText, FiMessageCircle, FiImage, FiCalendar, FiClock, FiBookmark } from 'react-icons/fi'
 import { initPostsSocket, initCommentsSocket } from '@/lib/socket'
 import UserBadge from '@/components/UserBadge'
 import { UserBadges } from '@/components/profile/UserBadges'
@@ -24,6 +24,120 @@ import toast from 'react-hot-toast'
 import { ProfileCommentsList } from '@/components/profile/ProfileCommentsList'
 import { ArtistHighlights } from '@/components/profile/ArtistHighlights'
 import ZoomModal from '@/components/common/ZoomModal'
+
+// 🔖 Kaydedilenler Grid Component
+function SavedPostsGrid() {
+  const queryClient = useQueryClient()
+  const [selectedPost, setSelectedPost] = useState<any>(null)
+
+  // Get saved posts
+  const { data: savedPosts, isLoading } = useQuery({
+    queryKey: ['saved-posts'],
+    queryFn: async () => {
+      const response = await api.get('/posts/saved')
+      return Array.isArray(response.data) ? response.data : (response.data?.posts || [])
+    },
+    staleTime: 0,
+    refetchOnMount: true,
+  })
+
+  // Unsave mutation
+  const unsaveMutation = useMutation({
+    mutationFn: async (postId: string) => {
+      await api.delete(`/posts/${postId}/save`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['saved-posts'] })
+      toast.success('Kayıtlı gönderilerden kaldırıldı')
+    },
+  })
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange mx-auto"></div>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">Kaydedilenler yükleniyor...</p>
+      </div>
+    )
+  }
+
+  if (!savedPosts || savedPosts.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <FiBookmark className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+        <p className="text-gray-500 dark:text-gray-400 font-medium">Henüz kayıtlı gönderi yok</p>
+        <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+          Beğendiğin gönderileri kaydet, buradan tekrar bak
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-3 gap-1 md:gap-2">
+        {savedPosts.map((savedPost: any) => {
+          const post = savedPost.post || savedPost
+          const firstMedia = post?.media?.[0]
+
+          return (
+            <div
+              key={post.id}
+              className="relative aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden cursor-pointer group"
+              onClick={() => setSelectedPost(post)}
+            >
+              {firstMedia ? (
+                <img
+                  src={resolveImageUrl(firstMedia.url)}
+                  alt=""
+                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">
+                  <ImageIcon className="w-8 h-8 text-gray-400" />
+                </div>
+              )}
+
+              {/* Hover overlay */}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                <div className="flex items-center gap-4 text-white">
+                  <div className="flex items-center gap-1">
+                    <Heart size={20} fill="white" />
+                    <span className="font-semibold">{post._count?.likes || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <MessageCircle size={20} fill="white" />
+                    <span className="font-semibold">{post._count?.comments || 0}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Unsave button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  unsaveMutation.mutate(post.id)
+                }}
+                className="absolute top-2 right-2 p-2 rounded-full bg-white/90 dark:bg-black/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white dark:hover:bg-black/80"
+                title="Kayıtlılardan kaldır"
+              >
+                <FiBookmark className="w-4 h-4 text-brand-orange" fill="currentColor" />
+              </button>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Post Modal */}
+      {selectedPost && (
+        <PostModal
+          postId={selectedPost.id}
+          onClose={() => setSelectedPost(null)}
+        />
+      )}
+    </>
+  )
+}
 
 function ProfileContent() {
   const params = useParams()
@@ -58,7 +172,7 @@ function ProfileContent() {
   const [postType, setPostType] = useState<'post' | 'artwork'>('post')
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
   const [creatingConversation, setCreatingConversation] = useState(false)
-  const [activeTab, setActiveTab] = useState<'posts' | 'articles' | 'comments' | 'artworks' | 'events' | 'drafts'>('posts')
+  const [activeTab, setActiveTab] = useState<'posts' | 'articles' | 'comments' | 'artworks' | 'events' | 'drafts' | 'saved'>('posts')
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
   const [profilePosts, setProfilePosts] = useState<any[]>([])
   const [zoomImage, setZoomImage] = useState<string | null>(null)
@@ -176,6 +290,8 @@ function ProfileContent() {
     { key: 'articles', label: 'Yazılar', icon: FiFileText },
     { key: 'comments', label: 'Yorumlar', icon: FiMessageCircle },
     { key: 'events', label: 'Etkinlikler', icon: FiCalendar },
+    // 🔖 Kaydedilenler - SADECE kendi profilinde
+    ...(profile?.isOwnProfile ? [{ key: 'saved', label: 'Kaydedilenler', icon: FiBookmark }] : []),
   ]
   
   // Plan kontrolü kaldırıldı - artık tüm sekmeler herkes için görünür
@@ -976,6 +1092,8 @@ function ProfileContent() {
           <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-100 dark:border-gray-900 shadow-sm transition-colors">
             <DraftArticles authorId={profile.id} />
           </div>
+        ) : activeTab === 'saved' && profile.isOwnProfile ? (
+          <SavedPostsGrid />
         ) : !profile.canViewPosts && profile.isPrivate && !profile.isOwnProfile ? (
           <div className="text-center py-12 border border-gray-100 dark:border-gray-900 rounded-2xl bg-white dark:bg-gray-950 transition-colors shadow-sm">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
