@@ -39,16 +39,22 @@ interface SidebarProps {
 
 export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}) {
   const pathname = usePathname()
-  const { user, capabilities, accessToken, sidebar, unreadCount, setUnreadCount } = useAuthStore()
+  const { user, capabilities, accessToken, sidebar, unreadCount, setUnreadCount, unreadMessageCount, setUnreadMessageCount } = useAuthStore() // ✅ unreadMessageCount ekle
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false)
 
   useEffect(() => {
     if (!accessToken) return
 
-    // ✅ Store'dan unreadCount'ı güncelle
+    // ✅ Store'dan unreadCount'ı güncelle (notifications)
     api
       .get('/notifications/unread-count')
       .then((response) => setUnreadCount(response.data.count))
+      .catch(() => {})
+
+    // ✅ Store'dan unreadMessageCount'ı güncelle (messages)
+    api
+      .get('/chat/unread-count')
+      .then((response) => setUnreadMessageCount(response.data.count))
       .catch(() => {})
 
     const socket = initSocket(accessToken)
@@ -63,12 +69,18 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
     return () => {
       socket.off('notification')
     }
-  }, [accessToken, setUnreadCount])
+  }, [accessToken, setUnreadCount, setUnreadMessageCount])
 
   useEffect(() => {
     if (!accessToken) return
     const chatSocket = initChatSocket(accessToken)
     chatSocket.on('new_message', () => {
+      // ✅ Yeni mesaj geldiğinde store'u güncelle
+      api
+        .get('/chat/unread-count')
+        .then((response) => setUnreadMessageCount(response.data.count))
+        .catch(() => {})
+      
       if (pathname !== '/messages') {
         setHasUnreadMessages(true)
       }
@@ -76,7 +88,7 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
     return () => {
       chatSocket.off('new_message')
     }
-  }, [accessToken, pathname])
+  }, [accessToken, pathname, setUnreadMessageCount])
 
   useEffect(() => {
     if (pathname === '/messages') {
@@ -135,7 +147,7 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
         href: '/messages',
         icon: MessageSquare,
         flag: 'showMessages',
-        highlight: hasUnreadMessages,
+        badgeCount: unreadMessageCount, // ✅ Badge count ekle
       },
       { key: 'profile', label: 'Profil', href: profileHref, icon: User, flag: 'showProfile' },
       { key: 'analytics', label: 'Analizler', href: '/analytics', icon: BarChart3 },
