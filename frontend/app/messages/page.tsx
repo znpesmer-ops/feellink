@@ -59,6 +59,9 @@ interface Message {
 
 interface Conversation {
   id: string
+  context?: 'DIRECT' | 'JOB_APPLICATION' // 🔵 Conversation type
+  jobId?: string // 🟠 İlan ID (JOB_APPLICATION için)
+  applicationId?: string // 🟠 Başvuru ID
   createdAt: string
   updatedAt: string
   participants: Array<{
@@ -1172,18 +1175,19 @@ function MessagesContent() {
                             {otherUser?.user?.fullName || otherUser?.user?.username || 'Kullanıcı'}
                             <ProRoleBadge roles={(otherUser?.user as any)?.roles} plan={(otherUser?.user as any)?.plan} />
                           </h3>
-                          {/* ✅ İlan bağlamı göster (query parametresinden gelen - sadece aktif sohbet için) */}
-                          {jobContext && conversation.id === activeConversation?.id && (
+                          {/* 🔵 CONTEXT'E GÖRE BADGE GÖSTER */}
+                          {conversation.context === 'JOB_APPLICATION' ? (
                             <p className="text-xs text-brand-orange dark:text-orange-400 mt-0.5">
-                              İlan üzerinden • {jobContext.title}
+                              📌 İlan üzerinden mesaj
+                              {jobApplications[otherUser?.user?.id || ''] && (
+                                <span> • {jobApplications[otherUser.user.id].listingTitle}</span>
+                              )}
                             </p>
-                          )}
-                          {/* Eski jobApplications (kabul edilmiş başvurular için) */}
-                          {(!jobContext || conversation.id !== activeConversation?.id) && jobApplications[otherUser?.user?.id || ''] && (
-                            <p className="text-xs text-brand-orange dark:text-orange-400 mt-0.5">
-                              İlan üzerinden • {jobApplications[otherUser.user.id].listingTitle}
+                          ) : conversation.context === 'DIRECT' ? (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                              💬 Doğrudan mesaj
                             </p>
-                          )}
+                          ) : null}
                         </div>
                         {lastMessage ? (
                           <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 whitespace-nowrap">

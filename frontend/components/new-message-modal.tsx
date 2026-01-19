@@ -67,9 +67,12 @@ export function NewMessageModal({ onClose, onSelect }: NewMessageModalProps) {
 
     setStarting(recipientId)
     try {
+      console.log('🔵 [NewMessage] Creating DIRECT conversation with user:', recipientId)
       const response = await api.post('/chat/conversations', {
         participantIds: [recipientId],
+        context: 'DIRECT', // 🔵 Normal DM - ilan değil!
       })
+      console.log('✅ [NewMessage] DIRECT conversation created:', response.data.id)
       onSelect(response.data.id)
       onClose()
     } catch (error: any) {
