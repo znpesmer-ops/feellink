@@ -280,30 +280,16 @@ export class FeedService {
   }
 
   private async rebuildFeed(userId: string, limit: number = 20): Promise<any[]> {
-    // Get posts from users that the current user follows
-    // This creates the "home feed" - only content from users you follow
-    // Includes all post types: posts, artworks, articles, events
-    const following = await this.prisma.follow.findMany({
-      where: { followerId: userId },
-      select: { followingId: true },
-    });
+    // ✅ YENİ MANTIK: Ana Sayfa = Keşfet mantığı (HERKESİN postları!)
+    // Artık takip etme zorunluluğu yok - tüm kullanıcıların postları görünsün
+    
+    console.log('🔍 [FEED] rebuildFeed - HERKESİN postlarını getir (Keşfet mantığı)');
 
-    const followingIds = following.map(f => f.followingId);
-
-    // If user follows no one, return empty feed
-    if (followingIds.length === 0) {
-      return [];
-    }
-
-    // Get posts (all types: post, artwork, article, event) from followed users
+    // Get ALL posts (not just from followed users!)
     const posts = await this.prisma.post.findMany({
       where: {
-        userId: { in: followingIds },
-        isDeleted: false, // 🗑️ Silinen postları gösterme
-        user: {
-          isDeleted: { not: true }, // 🔒 Hide only truly deleted users
-          accountStatus: { not: 'SUSPENDED' }, // 🔒 Hide only suspended users
-        },
+        isDeleted: false, // 🗑️ Sadece silinmemiş postlar
+        userId: { not: userId }, // Kendi postlarını hariç tut
       },
       include: {
         user: {
