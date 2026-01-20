@@ -48,9 +48,14 @@ function SavedPostsGrid() {
         console.log('✅ [SavedPostsGrid] Final result:', result.length, 'posts')
         return result
       } catch (fetchError: any) {
-        console.error('❌ [SavedPostsGrid] FETCH ERROR:', {
+        console.error('❌ [SavedPostsGrid] FETCH ERROR DETAY:', {
           message: fetchError?.message,
           status: fetchError?.response?.status,
+          statusText: fetchError?.response?.statusText,
+          errorData: fetchError?.response?.data,
+          url: fetchError?.config?.url,
+          method: fetchError?.config?.method,
+          fullError: fetchError,
         })
         // ✅ 500 error olsa bile boş array dön - sayfa patlamasın!
         return []
