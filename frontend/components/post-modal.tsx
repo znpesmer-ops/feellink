@@ -239,8 +239,12 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       // ✅ OPTIMISTIC UPDATE - ANINDA UI güncelle (Instagram mantığı)
       console.log(`⚡ [PostModal] OPTIMISTIC UPDATE - UI anında güncelleniyor...`);
       
+      // ❗ ESKİ STATE'İ KAYDET (rollback için)
+      const previousPost = queryClient.getQueryData(['post', postId]);
+      const previousSavedState = (previousPost as any)?.isSaved || false;
+      
       // UI'ı anında güncelle
-      const newSavedState = !post?.isSaved;
+      const newSavedState = !previousSavedState;
       queryClient.setQueryData(['post', postId], (old: any) => {
         if (!old) return old
         return {
@@ -249,7 +253,10 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
         }
       })
       
-      console.log(`✅ [PostModal] UI updated instantly: isSaved = ${newSavedState}`);
+      console.log(`✅ [PostModal] UI updated instantly: ${previousSavedState} → ${newSavedState}`);
+      
+      // ✅ Context return et (onError için)
+      return { previousSavedState };
     },
     onSuccess: (data) => {
       console.log(`✅ [PostModal] Backend CONFIRMED:`, data);
