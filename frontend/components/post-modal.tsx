@@ -296,6 +296,11 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
   }
 
   const handleSave = () => {
+    console.log('🖱️ [PostModal] BOOKMARK BUTTON TIKLANDI!', {
+      postId,
+      isSaved: post?.isSaved,
+      isPending: saveMutation.isPending,
+    });
     saveMutation.mutate()
   }
 
