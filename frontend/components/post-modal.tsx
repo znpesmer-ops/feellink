@@ -172,7 +172,11 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
   }, [highlightCommentId, post?.comments])
 
   // Like mutation
-  const likeMutation = useMutation({
+  const likeMutation = useMutation<
+    { liked: boolean },
+    Error,
+    void
+  >({
     mutationFn: async () => {
       if (post?.isLiked) {
         await api.delete(`/posts/${postId}/like`)
@@ -317,7 +321,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
   })
 
   const handleLike = () => {
-    likeMutation.mutate()
+    likeMutation.mutate(undefined)
     if (!post?.isLiked) {
       setAnimateLike(true)
       setTimeout(() => setAnimateLike(false), 400)
@@ -330,7 +334,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       isSaved: post?.isSaved,
       isPending: saveMutation.isPending,
     });
-    saveMutation.mutate(undefined as void)
+    saveMutation.mutate(undefined)
   }
 
   // Küfür kontrolü
