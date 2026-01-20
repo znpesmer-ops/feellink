@@ -214,57 +214,44 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       }
     },
     onMutate: async () => {
-      // ❌ OPTIMISTIC UPDATE KALDIRILDI - Backend confirm olana kadar bekle
-      console.log(`⏳ [PostModal] Waiting for backend confirmation...`);
-    },
-    onSuccess: async (data) => {
-      console.log(`✅ [PostModal] Backend confirmed:`, data);
+      // ✅ OPTIMISTIC UPDATE - ANINDA UI güncelle (Instagram mantığı)
+      console.log(`⚡ [PostModal] OPTIMISTIC UPDATE - UI anında güncelleniyor...`);
       
-      // ✅ Backend başarılı olduktan SONRA UI'ı güncelle
+      // UI'ı anında güncelle
+      const newSavedState = !post?.isSaved;
       queryClient.setQueryData(['post', postId], (old: any) => {
         if (!old) return old
         return {
           ...old,
-          isSaved: data.saved,
+          isSaved: newSavedState,
         }
       })
       
-      // 🔥 KRİTİK: Query'leri invalidate et - saved-posts için!
-      console.log(`🔄 [PostModal] Invalidating queries...`);
-      await queryClient.invalidateQueries({ queryKey: ['post', postId] })
-      await queryClient.invalidateQueries({ queryKey: ['profile'] })
-      await queryClient.invalidateQueries({ queryKey: ['saved-posts'] }) // 🔥 saved-posts!
+      console.log(`✅ [PostModal] UI updated instantly: isSaved = ${newSavedState}`);
+    },
+    onSuccess: (data) => {
+      console.log(`✅ [PostModal] Backend CONFIRMED:`, data);
       
-      // Explicit refetch
-      console.log(`🔄 [PostModal] Forcing refetch of saved-posts...`);
-      await queryClient.refetchQueries({ queryKey: ['saved-posts'] })
+      // ✅ Backend de aynı state'te - invalidate ederek background refresh yap
+      queryClient.invalidateQueries({ queryKey: ['saved-posts'] })
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
       
-      // Show success message
-      if (data.saved) {
-        console.log(`✅ [PostModal] Post saved to database!`);
-      } else {
-        console.log(`✅ [PostModal] Post removed from database!`);
-      }
-      
-      // Explicit refetch to ensure saved items list updates immediately
-      const { user } = useAuthStore.getState()
-      if (user?.id) {
-        await queryClient.refetchQueries({ queryKey: ['saved', user.id] })
-      }
+      // Arka planda refetch (kullanıcı beklemez)
+      queryClient.refetchQueries({ queryKey: ['saved-posts'] })
     },
     onError: (error: any) => {
-      console.error(`❌ [PostModal] Save mutation FAILED:`, {
-        message: error?.message,
-        response: error?.response?.data,
-        status: error?.response?.status,
-      });
+      console.error(`❌ [PostModal] Backend FAILED - ROLLBACK!`, error);
       
-      // ❌ UI'ı eski haline döndür (rollback)
-      queryClient.invalidateQueries({ queryKey: ['post', postId] })
+      // ❌ UI'ı eski haline döndür (ROLLBACK - Optimistic update başarısız)
+      queryClient.setQueryData(['post', postId], (old: any) => {
+        if (!old) return old
+        return {
+          ...old,
+          isSaved: post?.isSaved, // Eski state'e geri dön
+        }
+      })
       
-      // Show error to user
-      const errorMessage = error?.response?.data?.message || 'Kaydetme işlemi başarısız oldu. Lütfen tekrar deneyin.';
-      console.error(`❌ [PostModal] Showing error to user: ${errorMessage}`);
+      console.error(`🔄 [PostModal] UI rolled back to: isSaved = ${post?.isSaved}`);
     },
   })
 
@@ -688,15 +675,14 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
             </div>
             <button
               onClick={handleSave}
-              disabled={saveMutation.isPending}
-              className="hover:text-brand-orange transition-colors"
+              className="hover:text-brand-orange transition-colors disabled:opacity-50"
             >
               <Bookmark
                 size={24}
-                className={`transition-all duration-300 ${
+                className={`transition-all duration-200 ${
                   post.isSaved
-                    ? 'fill-brand-orange text-brand-orange'
-                    : 'text-gray-700 dark:text-gray-300'
+                    ? 'fill-brand-orange text-brand-orange scale-110'
+                    : 'text-gray-700 dark:text-gray-300 scale-100'
                 }`}
               />
               {canManageCollections && (
