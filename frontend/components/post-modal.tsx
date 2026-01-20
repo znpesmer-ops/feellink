@@ -499,8 +499,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       // API isteği
       await api.post(`/posts/comments/${commentId}/pin`, { pinned: newPinnedState })
       
-      // Query'yi invalidate et ki backend'den güncel veriyi çeksin (optimistic update'i doğrula)
-      await queryClient.invalidateQueries({ queryKey: ['post', postId] })
+      // ✅ POST CACHE'İNİ INVALIDATE ETME! (optimistic update yeterli, Like/Save kaybolur)
       
       // Başarı mesajı
       toast.success(newPinnedState ? 'Yorum sabitlendi' : 'Sabitleme kaldırıldı', {
@@ -510,8 +509,8 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
     } catch (error: any) {
       console.error('Error pinning comment:', error)
       
-      // ❌ Hata durumunda optimistic update'i geri al
-      queryClient.invalidateQueries({ queryKey: ['post', postId] })
+      // ❌ Hata durumunda optimistic update'i geri al (ROLLBACK)
+      queryClient.invalidateQueries({ queryKey: ['post', postId] }) // ✅ Sadece error durumunda
       
       const errorMessage = error?.response?.data?.message || error?.message || 'Yorum sabitlenemedi'
       toast.error(errorMessage, {
