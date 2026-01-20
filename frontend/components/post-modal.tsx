@@ -204,13 +204,20 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       })
     },
     onSuccess: () => {
+      // ✅ Kullanıcıya BAŞARILI bildirimi GÖSTER!
+      // toast.success('Beğeni kaydedildi! ✅') // ❌ Çok fazla spam olur, kaldır
+      
       // ✅ SADECE LIST CACHE'LERİNİ INVALIDATE ET
       // ❌ POST CACHE'İNİ INVALIDATE ETME! (optimistic update var)
       // Aksi halde: backend'den fresh data gelir → isSaved kaybolur
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       queryClient.invalidateQueries({ queryKey: ['feed'] })
     },
-    onError: () => {
+    onError: (error: any) => {
+      // ❌ KULLANICIYA HATA BİLDİRİMİ GÖSTER!
+      const errorMsg = error?.response?.data?.message || error?.message || 'Bir hata oluştu'
+      toast.error(`❌ Beğeni kaydedilemedi: ${errorMsg}`)
+      
       // ✅ ROLLBACK: POST CACHE'İNİ INVALIDATE ET (optimistic update iptal)
       queryClient.invalidateQueries({ queryKey: ['post', postId] })
     },
@@ -230,15 +237,17 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
         isArtwork,
         endpoint,
         isSaved: post?.isSaved,
+        baseURL: api.defaults.baseURL,
+        fullURL: `${api.defaults.baseURL}${endpoint}`,
       });
       
       if (post?.isSaved) {
-        console.log(`🗑️ [PostModal] Unsaving...`);
+        console.log(`🗑️ [PostModal] Unsaving → DELETE ${endpoint}`);
         const response = await api.delete(endpoint)
         console.log(`✅ [PostModal] Unsaved successfully:`, response.data);
         return { saved: false, response: response.data }
       } else {
-        console.log(`💾 [PostModal] Saving...`);
+        console.log(`💾 [PostModal] Saving → POST ${endpoint}`);
         const response = await api.post(endpoint)
         console.log(`✅ [PostModal] Saved successfully:`, response.data);
         return { saved: true, response: response.data }
@@ -270,6 +279,13 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
     onSuccess: (data) => {
       console.log(`✅ [PostModal] Backend CONFIRMED:`, data);
       
+      // ✅ Kullanıcıya BAŞARILI bildirimi göster!
+      if (data.saved) {
+        toast.success('Gönderi kaydedildi! ✅')
+      } else {
+        toast.success('Kayıtlılardan kaldırıldı')
+      }
+      
       // ✅ SADECE LIST CACHE'LERİNİ INVALIDATE ET
       // ❌ POST CACHE'İNİ INVALIDATE ETME! (optimistic update var)
       queryClient.invalidateQueries({ queryKey: ['saved-posts'] })
@@ -286,6 +302,10 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
         status: error?.response?.status,
         previousState: context?.previousSavedState,
       });
+      
+      // ❌ KULLANICIYA HATA BİLDİRİMİ GÖSTER! (ÇOK ÖNEMLİ!)
+      const errorMsg = error?.response?.data?.message || error?.message || 'Bir hata oluştu'
+      toast.error(`❌ Kaydedilemedi: ${errorMsg}`)
       
       // ❌ UI'ı eski haline döndür (ROLLBACK - context'ten al!)
       if (context?.previousSavedState !== undefined) {
@@ -308,10 +328,22 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
   // Comment mutation
   const commentMutation = useMutation({
     mutationFn: async ({ content, parentId }: { content: string; parentId?: string }) => {
-      const response = await api.post(`/posts/${postId}/comments`, { content, parentId })
+      const endpoint = `/posts/${postId}/comments`
+      console.log(`💬 [PostModal] Comment mutation:`, {
+        postId,
+        contentLength: content.length,
+        hasParent: !!parentId,
+        fullURL: `${api.defaults.baseURL}${endpoint}`,
+      });
+      
+      const response = await api.post(endpoint, { content, parentId })
+      console.log(`✅ [PostModal] Comment successful:`, response.data);
       return response.data
     },
     onSuccess: (newComment) => {
+      // ✅ Kullanıcıya BAŞARILI bildirimi göster!
+      toast.success('Yorum eklendi! ✅')
+      
       // ✅ SADECE COMMENTS ARRAY'İNİ GÜNCELLE
       // ❌ POST CACHE'İNİ INVALIDATE ETME! (Like/Save kaybolur)
       queryClient.setQueryData(['post', postId], (old: any) => {
@@ -330,7 +362,11 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       setReplyingTo(null)
       setIsPostingComment(false)
     },
-    onError: () => {
+    onError: (error: any) => {
+      // ❌ KULLANICIYA HATA BİLDİRİMİ GÖSTER!
+      const errorMsg = error?.response?.data?.message || error?.message || 'Bir hata oluştu'
+      toast.error(`❌ Yorum eklenemedi: ${errorMsg}`)
+      
       setIsPostingComment(false)
     },
   })
