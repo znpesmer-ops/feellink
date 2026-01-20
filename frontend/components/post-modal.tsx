@@ -268,19 +268,28 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       // Arka planda refetch (kullanıcı beklemez)
       queryClient.refetchQueries({ queryKey: ['saved-posts'] })
     },
-    onError: (error: any) => {
-      console.error(`❌ [PostModal] Backend FAILED - ROLLBACK!`, error);
+    onError: (error: any, variables: any, context: any) => {
+      console.error(`❌ [PostModal] Backend FAILED - ROLLBACK!`, {
+        error: error?.message,
+        status: error?.response?.status,
+        previousState: context?.previousSavedState,
+      });
       
-      // ❌ UI'ı eski haline döndür (ROLLBACK - Optimistic update başarısız)
-      queryClient.setQueryData(['post', postId], (old: any) => {
-        if (!old) return old
-        return {
-          ...old,
-          isSaved: post?.isSaved, // Eski state'e geri dön
-        }
-      })
-      
-      console.error(`🔄 [PostModal] UI rolled back to: isSaved = ${post?.isSaved}`);
+      // ❌ UI'ı eski haline döndür (ROLLBACK - context'ten al!)
+      if (context?.previousSavedState !== undefined) {
+        queryClient.setQueryData(['post', postId], (old: any) => {
+          if (!old) return old
+          return {
+            ...old,
+            isSaved: context.previousSavedState, // ✅ Context'ten eski state
+          }
+        })
+        console.error(`🔄 [PostModal] UI rolled back to: isSaved = ${context.previousSavedState}`);
+      } else {
+        // Fallback: invalidate query
+        queryClient.invalidateQueries({ queryKey: ['post', postId] })
+        console.error(`🔄 [PostModal] Context missing - invalidating query instead`);
+      }
     },
   })
 
