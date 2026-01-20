@@ -266,17 +266,46 @@ export class PostsController {
   @ApiOperation({ summary: 'Get saved posts' })
   @ApiResponse({ status: 200, description: 'Saved posts retrieved successfully' })
   async getSavedPosts(@CurrentUser() user: any) {
-    console.log('🔖 [GET /posts/saved] Request from user:', user?.id);
+    console.log('🔖 [GET /posts/saved] ========== START ==========');
+    console.log('🔖 [GET /posts/saved] Request from user:', {
+      id: user?.id,
+      username: user?.username,
+      hasUser: !!user,
+    });
 
     if (!user?.id) {
-      console.error('❌ No user ID');
+      console.error('❌ [GET /posts/saved] No user ID - returning empty array');
       return [];
     }
 
-    // ✅ GERÇEK QUERY - Service çağrısı
-    const result = await this.postsService.getSavedPosts(user.id);
-    console.log('✅ [GET /posts/saved] Returning', result.length, 'posts');
-    return result;
+    try {
+      // ✅ GERÇEK QUERY - Service çağrısı
+      console.log('🔖 [GET /posts/saved] Calling service.getSavedPosts...');
+      const result = await this.postsService.getSavedPosts(user.id);
+      console.log('✅ [GET /posts/saved] Service returned', result.length, 'posts');
+      
+      // ✅ İlk post detayı
+      if (result.length > 0) {
+        console.log('✅ [GET /posts/saved] First post:', {
+          id: result[0]?.id,
+          hasMedia: !!result[0]?.media,
+          mediaCount: result[0]?.media?.length,
+          userId: result[0]?.userId,
+        });
+      } else {
+        console.warn('⚠️ [GET /posts/saved] SERVICE RETURNED EMPTY! userId:', user.id);
+      }
+      
+      console.log('🔖 [GET /posts/saved] ========== END ==========');
+      return result;
+    } catch (error: any) {
+      console.error('❌ [GET /posts/saved] EXCEPTION:', {
+        message: error?.message,
+        stack: error?.stack,
+        userId: user?.id,
+      });
+      throw error; // ✅ Hata fırlat ki frontend görsün!
+    }
   }
 
   @Post(':id/save-artwork')

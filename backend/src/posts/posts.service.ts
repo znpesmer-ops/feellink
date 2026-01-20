@@ -1571,7 +1571,9 @@ export class PostsService {
 
   async getSavedPosts(userId: string) {
     try {
+      console.log(`🔖 [getSavedPosts] ========== START ==========`);
       console.log(`🔖 [getSavedPosts] QUERY - userId: ${userId}`);
+      console.log(`🔖 [getSavedPosts] Querying SavedPost and SavedArtwork tables...`);
       
       // ✅ HEM SavedPost HEM SavedArtwork query et!
       const [savedPosts, savedArtworks] = await Promise.all([
@@ -1619,7 +1621,23 @@ export class PostsService {
         }),
       ]);
 
-      console.log(`✅ [getSavedPosts] Found ${savedPosts.length} posts + ${savedArtworks.length} artworks`);
+      console.log(`✅ [getSavedPosts] RAW QUERY RESULT: ${savedPosts.length} posts + ${savedArtworks.length} artworks`);
+      
+      // ✅ İlk kayıt detayı
+      if (savedPosts.length > 0) {
+        console.log(`✅ [getSavedPosts] First SavedPost:`, {
+          id: savedPosts[0]?.id,
+          postId: savedPosts[0]?.postId,
+          userId: savedPosts[0]?.userId,
+          hasPost: !!savedPosts[0]?.post,
+          postDeleted: savedPosts[0]?.post?.isDeleted,
+          hasMedia: !!savedPosts[0]?.post?.media,
+          mediaCount: savedPosts[0]?.post?.media?.length,
+        });
+      } else {
+        console.warn(`⚠️ [getSavedPosts] NO SAVED POSTS FOUND FOR userId: ${userId}`);
+        console.warn(`⚠️ [getSavedPosts] Bu kullanıcı hiç post kaydetmemiş olabilir!`);
+      }
       
       // Combine both arrays
       const allSaved = [...savedPosts, ...savedArtworks];
