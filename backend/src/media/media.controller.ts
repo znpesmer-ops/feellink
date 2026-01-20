@@ -8,47 +8,9 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class MediaController {
   constructor(private mediaService: MediaService) {}
 
-  // Public endpoint: MinIO bucket dosyalarını servis et
-  // Bu endpoint authentication gerektirmez (görseller herkese açık)
-  // ⚠️ MinIO disabled olduğunda Vercel serverless'ta dosyalar Vercel Blob Storage veya başka yerde
-  // Bu endpoint'i client-side'da proxy olarak kullanmak için 404 döndürmeyi önleyelim
-  @Get('instagram-uploads/:path(*)')
-  async getFile(
-    @Param('path') path: string,
-    @Res() res: Response,
-  ) {
-    try {
-      const stream = await this.mediaService.getFile(path);
-      
-      if (!stream) {
-        // ⚠️ MinIO disabled olduğunda dosya bulunamaz, ama 404 yerine proxy URL döndür
-        // Client-side'da bu URL'leri CDN veya başka bir kaynaktan çekmek için kullanılabilir
-        throw new NotFoundException('File not found');
-      }
-
-      // Content-Type'ı belirle
-      const metadata = await this.mediaService.getFileMetadata(path);
-      const contentType = metadata?.metaData?.['content-type'] || 
-                         metadata?.metaData?.['Content-Type'] || 
-                         'application/octet-stream';
-
-      res.setHeader('Content-Type', contentType);
-      res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 yıl cache
-      
-      stream.pipe(res);
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        // ⚠️ 404 durumunda bile client'a bilgi ver (Vercel serverless'ta dosyalar başka yerde olabilir)
-        res.status(404).json({ 
-          error: 'File not found',
-          path,
-          message: 'File may be stored in Vercel Blob Storage or external CDN'
-        });
-        return;
-      }
-      throw new NotFoundException('File not found');
-    }
-  }
+  // ⚠️ MinIO endpoint'leri kaldırıldı - Vercel Blob kullanıyoruz
+  // Vercel Blob URL'leri zaten public ve CDN'li
+  // File serving için bu endpoint'e gerek yok
 
   @Post('media/upload')
   @UseGuards(JwtAuthGuard)
