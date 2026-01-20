@@ -35,8 +35,9 @@ async function bootstrapServer() {
 
     app.use('/payments/webhook', raw({ type: 'application/json' }));
 
-    app.use(json({ limit: '2mb' }));
-    app.use(urlencoded({ limit: '2mb', extended: true }));
+    // ✅ BODY SIZE LIMIT - 50MB (gönderi + medya için)
+    app.use(json({ limit: '50mb' }));
+    app.use(urlencoded({ limit: '50mb', extended: true }));
 
     // ✅ CORS configuration - feellink.io için explicit support
     const allowedOrigins = [
