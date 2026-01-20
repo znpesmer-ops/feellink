@@ -35,6 +35,9 @@ function SavedPostsGrid() {
     queryKey: ['saved-posts'],
     queryFn: async () => {
       console.log('🔖 [SavedPostsGrid] Fetching saved posts...')
+      console.log('🔖 [SavedPostsGrid] API base URL:', api.defaults.baseURL)
+      console.log('🔖 [SavedPostsGrid] Full URL:', `${api.defaults.baseURL}/posts/saved`)
+      
       try {
         const response = await api.get('/posts/saved')
         console.log('✅ [SavedPostsGrid] SUCCESS - Response:', {
@@ -44,8 +47,30 @@ function SavedPostsGrid() {
           length: Array.isArray(response.data) ? response.data.length : 'N/A',
           data: response.data,
         })
+        
+        // ✅ EĞER BOŞ İSE DAHA DETAYLI LOG!
+        if (Array.isArray(response.data) && response.data.length === 0) {
+          console.warn('⚠️ [SavedPostsGrid] BACKEND BOŞ DÖNDÜ!')
+          console.warn('⚠️ [SavedPostsGrid] Muhtemel sebepler:')
+          console.warn('   1. Hiç kayıtlı post yok (DB query boş)')
+          console.warn('   2. Backend filter çok katı (media yok diye atıyor)')
+          console.warn('   3. User ID mapping hatası')
+          console.warn('⚠️ [SavedPostsGrid] Vercel backend log\'larını kontrol et!')
+        }
+        
         const result = Array.isArray(response.data) ? response.data : (response.data?.posts || [])
         console.log('✅ [SavedPostsGrid] Final result:', result.length, 'posts')
+        
+        // ✅ İlk post detayı
+        if (result.length > 0) {
+          console.log('✅ [SavedPostsGrid] İLK POST:', {
+            id: result[0]?.id,
+            hasMedia: !!result[0]?.media,
+            mediaLength: result[0]?.media?.length,
+            firstMediaUrl: result[0]?.media?.[0]?.url,
+          })
+        }
+        
         return result
       } catch (fetchError: any) {
         console.error('❌ [SavedPostsGrid] FETCH ERROR DETAY:', {
