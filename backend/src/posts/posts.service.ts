@@ -1571,36 +1571,63 @@ export class PostsService {
 
   async getSavedPosts(userId: string) {
     try {
-      console.log(`🔖 [getSavedPosts] BASİT QUERY - userId: ${userId}`);
+      console.log(`🔖 [getSavedPosts] QUERY - userId: ${userId}`);
       
-      // ✅ BASİT QUERY: Sadece SavedPost + Post relation
-      const savedPosts = await this.prisma.savedPost.findMany({
-        where: { userId },
-        include: {
-          post: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  username: true,
-                  fullName: true,
-                  avatar: true,
-                  isVerified: true,
+      // ✅ HEM SavedPost HEM SavedArtwork query et!
+      const [savedPosts, savedArtworks] = await Promise.all([
+        // Normal posts
+        this.prisma.savedPost.findMany({
+          where: { userId },
+          include: {
+            post: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    fullName: true,
+                    avatar: true,
+                    isVerified: true,
+                  },
                 },
+                media: true,
               },
-              media: true,
             },
           },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
+          orderBy: { createdAt: 'desc' },
+        }),
+        // Artworks
+        this.prisma.savedArtwork.findMany({
+          where: { userId },
+          include: {
+            post: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    fullName: true,
+                    avatar: true,
+                    isVerified: true,
+                  },
+                },
+                media: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
 
-      console.log(`✅ [getSavedPosts] Found ${savedPosts.length} saved posts`);
+      console.log(`✅ [getSavedPosts] Found ${savedPosts.length} posts + ${savedArtworks.length} artworks`);
+      
+      // Combine both arrays
+      const allSaved = [...savedPosts, ...savedArtworks];
 
       // Filter: Null posts veya deleted posts'ları hariç tut
-      const validSavedPosts = savedPosts.filter((sp) => {
+      const validSavedPosts = allSaved.filter((sp) => {
         if (!sp.post) {
-          console.log(`⚠️ Skipping null post for savedPost: ${sp.id}`);
+          console.log(`⚠️ Skipping null post for saved item: ${sp.id}`);
           return false;
         }
         if (sp.post.isDeleted === true) {
@@ -1609,8 +1636,15 @@ export class PostsService {
         }
         return true;
       });
+      
+      // Sort by savedAt date (createdAt of SavedPost/SavedArtwork)
+      validSavedPosts.sort((a, b) => {
+        const aDate = new Date(a.createdAt).getTime();
+        const bDate = new Date(b.createdAt).getTime();
+        return bDate - aDate; // Newest first
+      });
 
-      console.log(`✅ [getSavedPosts] Valid posts: ${validSavedPosts.length}`);
+      console.log(`✅ [getSavedPosts] Valid items: ${validSavedPosts.length} (sorted by date)`);
 
       if (validSavedPosts.length === 0) {
         return [];
