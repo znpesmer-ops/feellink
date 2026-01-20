@@ -204,13 +204,14 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       })
     },
     onSuccess: () => {
-      // Arka planda invalidate (background refresh)
-      queryClient.invalidateQueries({ queryKey: ['post', postId] })
+      // ✅ SADECE LIST CACHE'LERİNİ INVALIDATE ET
+      // ❌ POST CACHE'İNİ INVALIDATE ETME! (optimistic update var)
+      // Aksi halde: backend'den fresh data gelir → isSaved kaybolur
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       queryClient.invalidateQueries({ queryKey: ['feed'] })
     },
     onError: () => {
-      // ROLLBACK on error
+      // ✅ ROLLBACK: POST CACHE'İNİ INVALIDATE ET (optimistic update iptal)
       queryClient.invalidateQueries({ queryKey: ['post', postId] })
     },
   })
@@ -269,12 +270,15 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
     onSuccess: (data) => {
       console.log(`✅ [PostModal] Backend CONFIRMED:`, data);
       
-      // ✅ Backend de aynı state'te - invalidate ederek background refresh yap
+      // ✅ SADECE LIST CACHE'LERİNİ INVALIDATE ET
+      // ❌ POST CACHE'İNİ INVALIDATE ETME! (optimistic update var)
       queryClient.invalidateQueries({ queryKey: ['saved-posts'] })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       
       // Arka planda refetch (kullanıcı beklemez)
       queryClient.refetchQueries({ queryKey: ['saved-posts'] })
+      
+      // ✅ POST CACHE KORUMALI! Like state kaybolmamalı!
     },
     onError: (error: any, variables: any, context: any) => {
       console.error(`❌ [PostModal] Backend FAILED - ROLLBACK!`, {
