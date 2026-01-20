@@ -60,13 +60,27 @@ function SavedPostsGrid() {
     refetchOnMount: true,
   })
 
-  // Debug log
+  // Debug log - DETAYLI
   console.log('🔖 [SavedPostsGrid] Render state:', {
     isLoading,
     hasError: !!error,
+    errorDetails: error,
     savedPostsCount: savedPosts?.length || 0,
     savedPosts,
+    firstPost: savedPosts?.[0],
   })
+  
+  // Backend'den gelen data yapısını kontrol et
+  if (savedPosts && savedPosts.length > 0) {
+    console.log('✅ [SavedPostsGrid] İLK POST DETAYI:', {
+      id: savedPosts[0]?.id,
+      caption: savedPosts[0]?.caption?.substring(0, 50),
+      hasMedia: !!savedPosts[0]?.media,
+      mediaCount: savedPosts[0]?.media?.length,
+      user: savedPosts[0]?.user?.username,
+      counts: savedPosts[0]?._count,
+    })
+  }
 
   // Unsave mutation
   const unsaveMutation = useMutation({
@@ -89,6 +103,7 @@ function SavedPostsGrid() {
   }
 
   if (!savedPosts || savedPosts.length === 0) {
+    console.warn('⚠️ [SavedPostsGrid] BOŞ ARRAY - Backend query başarısız veya hiç kayıtlı post yok')
     return (
       <div className="text-center py-16">
         <FiBookmark className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
@@ -99,6 +114,8 @@ function SavedPostsGrid() {
       </div>
     )
   }
+  
+  console.log(`✅ [SavedPostsGrid] GRID RENDER EDİLİYOR: ${savedPosts.length} posts`)
 
   return (
     <>
