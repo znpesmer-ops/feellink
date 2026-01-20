@@ -1624,16 +1624,33 @@ export class PostsService {
       // Combine both arrays
       const allSaved = [...savedPosts, ...savedArtworks];
 
-      // Filter: Null posts veya deleted posts'ları hariç tut
+      // ✅ NULL-SAFE Filter: Bozuk kayıtları atla
       const validSavedPosts = allSaved.filter((sp) => {
+        // 1. Post null mu?
         if (!sp.post) {
           console.log(`⚠️ Skipping null post for saved item: ${sp.id}`);
           return false;
         }
+        
+        // 2. Post deleted mi?
         if (sp.post.isDeleted === true) {
           console.log(`⚠️ Skipping deleted post: ${sp.postId}`);
           return false;
         }
+        
+        // 3. Media var mı? (Bozuk upload kayıtları)
+        if (!sp.post.media || sp.post.media.length === 0) {
+          console.log(`⚠️ Skipping post without media: ${sp.postId}`);
+          return false;
+        }
+        
+        // 4. İlk media'nın URL'i var mı?
+        const firstMedia = sp.post.media[0];
+        if (!firstMedia || !firstMedia.url) {
+          console.log(`⚠️ Skipping post with null media URL: ${sp.postId}`);
+          return false;
+        }
+        
         return true;
       });
       
