@@ -311,9 +311,20 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       const response = await api.post(`/posts/${postId}/comments`, { content, parentId })
       return response.data
     },
-    onSuccess: () => {
-      // ✅ REST API başarılı - Query invalidation ile state güncelleniyor
-      queryClient.invalidateQueries({ queryKey: ['post', postId] })
+    onSuccess: (newComment) => {
+      // ✅ SADECE COMMENTS ARRAY'İNİ GÜNCELLE
+      // ❌ POST CACHE'İNİ INVALIDATE ETME! (Like/Save kaybolur)
+      queryClient.setQueryData(['post', postId], (old: any) => {
+        if (!old) return old
+        return {
+          ...old, // ✅ Like/Save korunuyor!
+          comments: [...(old.comments || []), newComment],
+          _count: {
+            ...old._count,
+            comments: (old._count?.comments || 0) + 1,
+          },
+        }
+      })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       setCommentText('')
       setReplyingTo(null)
@@ -356,9 +367,20 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
   const updateCommentMutation = useMutation({
     mutationFn: async ({ commentId, content }: { commentId: string; content: string }) => {
       await api.patch(`/posts/${postId}/comments/${commentId}`, { content })
+      return { commentId, content }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['post', postId] })
+    onSuccess: ({ commentId, content }) => {
+      // ✅ SADECE İLGİLİ COMMENT'İ GÜNCELLE
+      // ❌ POST CACHE'İNİ INVALIDATE ETME! (Like/Save kaybolur)
+      queryClient.setQueryData(['post', postId], (old: any) => {
+        if (!old) return old
+        return {
+          ...old, // ✅ Like/Save korunuyor!
+          comments: old.comments?.map((c: any) => 
+            c.id === commentId ? { ...c, content } : c
+          ),
+        }
+      })
       setEditingCommentId(null)
       setEditedContent('')
     },
@@ -368,9 +390,22 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
   const deleteCommentMutation = useMutation({
     mutationFn: async (commentId: string) => {
       await api.delete(`/posts/${postId}/comments/${commentId}`)
+      return commentId
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['post', postId] })
+    onSuccess: (commentId) => {
+      // ✅ SADECE SİLİNEN COMMENT'İ KALDIR
+      // ❌ POST CACHE'İNİ INVALIDATE ETME! (Like/Save kaybolur)
+      queryClient.setQueryData(['post', postId], (old: any) => {
+        if (!old) return old
+        return {
+          ...old, // ✅ Like/Save korunuyor!
+          comments: old.comments?.filter((c: any) => c.id !== commentId),
+          _count: {
+            ...old._count,
+            comments: Math.max(0, (old._count?.comments || 0) - 1),
+          },
+        }
+      })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       setCommentMenuOpen(null)
     },
