@@ -298,15 +298,19 @@ export default function PostCard({ post, onLike, onDelete }: PostCardProps) {
         </div>
       )}
 
-      {/* Başlık */}
-      <h3 className="text-base md:text-lg font-semibold text-[#111] dark:text-white mb-2 line-clamp-2">
-        {post.title}
-      </h3>
+      {/* Başlık - Sadece gerçek başlık varsa göster (fallback "Gönderi" yazısını gösterme) */}
+      {post.title && post.title !== 'Gönderi' && (
+        <h3 className="text-base md:text-lg font-semibold text-[#111] dark:text-white mb-2 line-clamp-2">
+          {post.title}
+        </h3>
+      )}
 
       {/* İçerik önizleme */}
-      <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300 leading-snug mb-3 md:mb-4 line-clamp-3">
-        {post.content}
-      </p>
+      {post.content && (
+        <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300 leading-snug mb-3 md:mb-4 line-clamp-3">
+          {post.content}
+        </p>
+      )}
 
       {/* Alt bilgi */}
       <div className="flex justify-between items-center">
