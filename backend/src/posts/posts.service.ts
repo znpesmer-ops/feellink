@@ -1624,33 +1624,36 @@ export class PostsService {
       // Combine both arrays
       const allSaved = [...savedPosts, ...savedArtworks];
 
-      // ✅ NULL-SAFE Filter: Bozuk kayıtları atla
+      // ✅ NULL-SAFE Filter: Bozuk kayıtları atla (DAHA TOLERANT)
       const validSavedPosts = allSaved.filter((sp) => {
         // 1. Post null mu?
         if (!sp.post) {
-          console.log(`⚠️ Skipping null post for saved item: ${sp.id}`);
+          console.log(`⚠️ [getSavedPosts] SKIP: null post - savedItem: ${sp.id}`);
           return false;
         }
         
         // 2. Post deleted mi?
         if (sp.post.isDeleted === true) {
-          console.log(`⚠️ Skipping deleted post: ${sp.postId}`);
+          console.log(`⚠️ [getSavedPosts] SKIP: deleted - postId: ${sp.postId}`);
           return false;
         }
         
-        // 3. Media var mı? (Bozuk upload kayıtları)
+        // 3. ⚠️ UYARI SADECE (media yoksa bile devam et - eski postlar için)
         if (!sp.post.media || sp.post.media.length === 0) {
-          console.log(`⚠️ Skipping post without media: ${sp.postId}`);
-          return false;
+          console.warn(`⚠️ [getSavedPosts] WARNING: No media - postId: ${sp.postId} (keeping anyway)`);
+          // return false; // ❌ SKIP ETME! Eski postlar media yoksa bile görünsün
         }
         
-        // 4. İlk media'nın URL'i var mı?
-        const firstMedia = sp.post.media[0];
-        if (!firstMedia || !firstMedia.url) {
-          console.log(`⚠️ Skipping post with null media URL: ${sp.postId}`);
-          return false;
+        // 4. Media varsa URL kontrolü yap
+        if (sp.post.media && sp.post.media.length > 0) {
+          const firstMedia = sp.post.media[0];
+          if (!firstMedia || !firstMedia.url) {
+            console.warn(`⚠️ [getSavedPosts] WARNING: Null media URL - postId: ${sp.postId} (keeping anyway)`);
+            // return false; // ❌ SKIP ETME!
+          }
         }
         
+        console.log(`✅ [getSavedPosts] VALID: postId: ${sp.postId}, hasMedia: ${!!sp.post.media?.length}`);
         return true;
       });
       
