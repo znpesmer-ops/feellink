@@ -212,7 +212,11 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
   })
 
   // Save mutation (works for both posts and artworks)
-  const saveMutation = useMutation({
+  const saveMutation = useMutation<
+    { saved: boolean; response: any },
+    Error,
+    void
+  >({
     mutationFn: async () => {
       const isArtwork = post?.type === 'artwork'
       const endpoint = isArtwork ? `/posts/${postId}/save-artwork` : `/posts/${postId}/save`
@@ -326,7 +330,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       isSaved: post?.isSaved,
       isPending: saveMutation.isPending,
     });
-    saveMutation.mutate()
+    saveMutation.mutate(undefined as void)
   }
 
   // Küfür kontrolü
