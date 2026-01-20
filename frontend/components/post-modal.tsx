@@ -182,10 +182,32 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
         return { liked: true }
       }
     },
+    onMutate: async () => {
+      // ⚡ OPTIMISTIC UPDATE - Anında UI güncelle
+      const newLikedState = !post?.isLiked
+      const likeDelta = newLikedState ? 1 : -1
+      
+      queryClient.setQueryData(['post', postId], (old: any) => {
+        if (!old) return old
+        return {
+          ...old,
+          isLiked: newLikedState,
+          _count: {
+            ...old._count,
+            likes: Math.max(0, (old._count?.likes || 0) + likeDelta),
+          },
+        }
+      })
+    },
     onSuccess: () => {
+      // Arka planda invalidate (background refresh)
       queryClient.invalidateQueries({ queryKey: ['post', postId] })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       queryClient.invalidateQueries({ queryKey: ['feed'] })
+    },
+    onError: () => {
+      // ROLLBACK on error
+      queryClient.invalidateQueries({ queryKey: ['post', postId] })
     },
   })
 
