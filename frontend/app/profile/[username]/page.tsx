@@ -73,15 +73,30 @@ function SavedPostsGrid() {
         
         return result
       } catch (fetchError: any) {
-        console.error('❌ [SavedPostsGrid] FETCH ERROR DETAY:', {
-          message: fetchError?.message,
-          status: fetchError?.response?.status,
-          statusText: fetchError?.response?.statusText,
-          errorData: fetchError?.response?.data,
-          url: fetchError?.config?.url,
-          method: fetchError?.config?.method,
-          fullError: fetchError,
-        })
+        console.error('❌ [SavedPostsGrid] ========== FETCH ERROR ==========');
+        console.error('❌ [SavedPostsGrid] Error message:', fetchError?.message);
+        console.error('❌ [SavedPostsGrid] Status code:', fetchError?.response?.status);
+        console.error('❌ [SavedPostsGrid] Status text:', fetchError?.response?.statusText);
+        console.error('❌ [SavedPostsGrid] Error data:', fetchError?.response?.data);
+        console.error('❌ [SavedPostsGrid] Request URL:', fetchError?.config?.url);
+        console.error('❌ [SavedPostsGrid] Full error:', fetchError);
+        
+        // ✅ STATUS CODE KONTROLÜ
+        if (fetchError?.response?.status === 401) {
+          console.error('🚨 [SavedPostsGrid] 401 UNAUTHORIZED!');
+          console.error('🚨 [SavedPostsGrid] Auth token geçersiz veya süresi dolmuş!');
+          console.error('🚨 [SavedPostsGrid] ÇÖZÜM: LOGOUT → LOGIN yap!');
+        } else if (fetchError?.response?.status === 500) {
+          console.error('🚨 [SavedPostsGrid] 500 INTERNAL SERVER ERROR!');
+          console.error('🚨 [SavedPostsGrid] Backend crash oluyor!');
+          console.error('🚨 [SavedPostsGrid] Vercel backend log\'larını kontrol et!');
+        } else if (!fetchError?.response) {
+          console.error('🚨 [SavedPostsGrid] NETWORK ERROR!');
+          console.error('🚨 [SavedPostsGrid] Backend\'e erişilemiyor veya CORS hatası!');
+        }
+        
+        console.error('❌ [SavedPostsGrid] ========== END ERROR ==========');
+        
         // ✅ 500 error olsa bile boş array dön - sayfa patlamasın!
         return []
       }
