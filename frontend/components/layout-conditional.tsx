@@ -48,7 +48,8 @@ function LayoutConditionalComponent({ children }: { children: React.ReactNode })
     } finally {
       clearAuth()
       setMobileProfileMenuOpen(false)
-      // ✅ Logout sonrası redirect yok - kullanıcı bulunduğu sayfada kalır
+      // ✅ Logout sonrası login sayfasına yönlendir
+      router.replace('/login')
     }
   }
 

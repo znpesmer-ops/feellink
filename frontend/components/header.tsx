@@ -98,7 +98,8 @@ export function Header({ forceMobile = false }: HeaderProps = {}) {
     } finally {
       clearAuth()
       setIsMenuOpen(false)
-      // ✅ Logout sonrası redirect yok - kullanıcı bulunduğu sayfada kalır
+      // ✅ Logout sonrası login sayfasına yönlendir
+      router.replace('/login')
     }
   }
 
