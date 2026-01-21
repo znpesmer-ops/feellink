@@ -300,8 +300,59 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       if (data.saved) {
         toast.success('Gönderi kaydedildi! ✅')
         console.log('✅ [PostModal] Şimdi Profil → Kaydedilenler kısmında gözükmeli!');
+        
+        // 🔥 OPTIMISTIC UPDATE: saved-posts query'sine direkt ekle!
+        // Query henüz mount olmamışsa bile cache'e ekle, sonra görünecek!
+        queryClient.setQueryData(['saved-posts'], (oldData: any[] | undefined) => {
+          if (!oldData) {
+            // Query henüz mount olmamış, post'u fetch et ve ekle
+            console.log('🔄 [PostModal] saved-posts query henüz yok, post fetch ediliyor...');
+            // Post'u cache'den al (zaten var)
+            const currentPost = queryClient.getQueryData(['post', postId]) as Post | undefined;
+            if (currentPost) {
+              console.log('✅ [PostModal] Post cache\'den alındı, saved-posts\'a eklendi!');
+              return [{
+                ...currentPost,
+                savedAt: new Date().toISOString(),
+              }];
+            }
+            return [];
+          }
+          
+          // Query zaten var, post'u ekle (eğer yoksa)
+          const existingIndex = oldData.findIndex((item: any) => {
+            const itemPost = item.post || item;
+            return itemPost?.id === postId;
+          });
+          
+          if (existingIndex >= 0) {
+            console.log('⚠️ [PostModal] Post zaten saved-posts\'ta var, skip');
+            return oldData;
+          }
+          
+          // Post'u cache'den al ve ekle
+          const currentPost = queryClient.getQueryData(['post', postId]) as Post | undefined;
+          if (currentPost) {
+            console.log('✅ [PostModal] Post saved-posts\'a eklendi!');
+            return [{
+              ...currentPost,
+              savedAt: new Date().toISOString(),
+            }, ...oldData];
+          }
+          
+          return oldData;
+        });
       } else {
         toast.success('Kayıtlılardan kaldırıldı')
+        
+        // 🔥 OPTIMISTIC UPDATE: saved-posts query'sinden çıkar!
+        queryClient.setQueryData(['saved-posts'], (oldData: any[] | undefined) => {
+          if (!oldData) return [];
+          return oldData.filter((item: any) => {
+            const itemPost = item.post || item;
+            return itemPost?.id !== postId;
+          });
+        });
       }
       
       // ✅ SADECE LIST CACHE'LERİNİ INVALIDATE ET
