@@ -381,7 +381,9 @@ export class PostsService {
     
     if (currentUserId) {
       // 🔥 MongoDB: Compound unique için findFirst kullan
-      const [like, savedPost] = await Promise.all([
+      // ✅ KRİTİK: Hem SavedPost HEM SavedArtwork kontrol et!
+      // Artwork'ler SavedArtwork tablosunda, normal postlar SavedPost tablosunda!
+      const [like, savedPost, savedArtwork] = await Promise.all([
         this.prisma.like.findFirst({
           where: {
             postId,
@@ -394,9 +396,21 @@ export class PostsService {
             postId,
           },
         }),
+        this.prisma.savedArtwork.findFirst({
+          where: {
+            userId: currentUserId,
+            postId,
+          },
+        }),
       ]);
       isLiked = !!like;
-      isSaved = !!savedPost;
+      // ✅ İKİSİNDEN BİRİ VARSA KAYDEDİLMİŞ!
+      isSaved = !!savedPost || !!savedArtwork;
+      
+      // 🔍 DEBUG LOG
+      if (isSaved) {
+        console.log(`✅ [getPost] Post ${postId} isSaved=true (savedPost: ${!!savedPost}, savedArtwork: ${!!savedArtwork})`);
+      }
     }
 
     // 🔥 MongoDB: Manuel count (daha güvenilir)
@@ -1514,6 +1528,7 @@ export class PostsService {
   }
 
   async savePost(postId: string, userId: string) {
+    console.log(`💾 [savePost] ========== START ==========`);
     console.log(`💾 [savePost] User ${userId} saving post ${postId}`);
     
     const post = await this.prisma.post.findUnique({
@@ -1525,7 +1540,13 @@ export class PostsService {
       throw new NotFoundException('Post not found');
     }
 
-    console.log(`✅ [savePost] Post found: ${post.id}`);
+    console.log(`✅ [savePost] Post found: ${post.id}, type: ${post.type}`);
+    
+    // ⚠️ UYARI: Artwork'ler SavedArtwork tablosuna kaydedilmeli!
+    if (post.type === 'artwork') {
+      console.warn(`⚠️ [savePost] Post is artwork! Frontend /save-artwork endpoint kullanmalı!`);
+      // Yine de SavedPost'a kaydet (backward compatibility)
+    }
 
     // Check if already saved - MongoDB uyumlu findFirst kullan
     const existing = await this.prisma.savedPost.findFirst({
@@ -1551,6 +1572,7 @@ export class PostsService {
       });
       
       console.log(`✅ [savePost] SavedPost created successfully: ${savedPost.id}`);
+      console.log(`✅ [savePost] ========== SUCCESS ==========`);
       return { success: true, message: 'Post saved successfully', savedPost };
     } catch (error: any) {
       console.error(`❌ [savePost] Failed to create savedPost:`, {
