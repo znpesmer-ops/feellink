@@ -23,7 +23,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // ✅ Public routes
   const publicRoutes = [
-    '/',
     '/login',
     '/register',
     '/forgot-password',
@@ -176,9 +175,21 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     // 🔓 Public Routes (/login, /register) - authenticated ise feed'e git
     if (currentIsPublicRoute && isAuthenticated) {
       // ⛔️ Sadece gerçekten public route'daysa redirect yap (loop önleme)
-      if (currentPathname === '/login' || currentPathname === '/register' || currentPathname === '/') {
+      if (currentPathname === '/login' || currentPathname === '/register') {
         console.log('[AuthGuard] Redirecting authenticated user from public route to /feed')
         router.replace('/feed')
+      }
+      return
+    }
+
+    // 🏠 Ana sayfa (/) - authenticated değilse login'e, authenticated ise feed'e git
+    if (currentPathname === '/') {
+      if (isAuthenticated) {
+        console.log('[AuthGuard] Redirecting authenticated user from / to /feed')
+        router.replace('/feed')
+      } else {
+        console.log('[AuthGuard] Redirecting unauthenticated user from / to /login')
+        router.replace('/login')
       }
       return
     }
