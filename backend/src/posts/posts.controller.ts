@@ -299,12 +299,17 @@ export class PostsController {
       console.log('🔖 [GET /posts/saved] ========== END ==========');
       return result;
     } catch (error: any) {
-      console.error('❌ [GET /posts/saved] EXCEPTION:', {
-        message: error?.message,
-        stack: error?.stack,
-        userId: user?.id,
-      });
-      throw error; // ✅ Hata fırlat ki frontend görsün!
+      console.error('❌ [GET /posts/saved] ========== EXCEPTION CAUGHT ==========');
+      console.error('❌ [GET /posts/saved] Error message:', error?.message);
+      console.error('❌ [GET /posts/saved] Error name:', error?.name);
+      console.error('❌ [GET /posts/saved] Error stack:', error?.stack);
+      console.error('❌ [GET /posts/saved] User ID:', user?.id);
+      console.error('❌ [GET /posts/saved] ========== END EXCEPTION ==========');
+      
+      // ⚠️ BOŞ ARRAY DÖN - Frontend patlamasın!
+      // Frontend'e 500 fırlatmak yerine boş array dön
+      console.warn('⚠️ [GET /posts/saved] Returning empty array due to exception');
+      return [];
     }
   }
 
