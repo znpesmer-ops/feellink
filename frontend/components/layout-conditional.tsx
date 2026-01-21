@@ -48,8 +48,10 @@ function LayoutConditionalComponent({ children }: { children: React.ReactNode })
     } finally {
       clearAuth()
       setMobileProfileMenuOpen(false)
-      // ✅ Logout sonrası login sayfasına yönlendir
-      router.replace('/login')
+      // ✅ HARD REDIRECT - Tüm state temizlenir, sayfa yeniden yüklenir
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login'
+      }
     }
   }
 

@@ -85,8 +85,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       console.warn('Logout error:', error)
     } finally {
       clearAuth()
-      // replace kullanarak geri butonuna basınca geri dönmesin
-      router.replace('/login')
+      // ✅ HARD REDIRECT - Tüm state temizlenir, sayfa yeniden yüklenir
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login'
+      }
     }
   }
 
