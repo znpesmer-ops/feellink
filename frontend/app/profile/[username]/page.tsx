@@ -28,6 +28,7 @@ import ZoomModal from '@/components/common/ZoomModal'
 // 🔖 Kaydedilenler Grid Component
 function SavedPostsGrid() {
   const queryClient = useQueryClient()
+  const { accessToken } = useAuthStore()
   const [selectedPost, setSelectedPost] = useState<any>(null)
 
   // Get saved posts
@@ -107,8 +108,10 @@ function SavedPostsGrid() {
         return []
       }
     },
+    enabled: !!accessToken, // ✅ KRİTİK: Sadece token varsa query çalışsın!
     staleTime: 0,
     refetchOnMount: true,
+    refetchOnWindowFocus: true, // ✅ Window focus olduğunda da refetch!
   })
 
   // Debug log - DETAYLI

@@ -310,9 +310,12 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       queryClient.invalidateQueries({ queryKey: ['saved-posts'] })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       
-      // Arka planda refetch (kullanıcı beklemez)
-      console.log('🔄 [PostModal] saved-posts refetch başlatılıyor...');
-      queryClient.refetchQueries({ queryKey: ['saved-posts'] })
+      // ✅ ZORLA REFETCH! (invalidate yeterli olmayabilir)
+      console.log('🔄 [PostModal] saved-posts ZORLA refetch başlatılıyor...');
+      queryClient.refetchQueries({ 
+        queryKey: ['saved-posts'],
+        type: 'active', // ✅ Sadece aktif query'leri refetch et
+      })
       
       console.log('✅ [PostModal] ========== İŞLEM TAMAMLANDI ==========');
       // ✅ POST CACHE KORUMALI! Like state kaybolmamalı!
