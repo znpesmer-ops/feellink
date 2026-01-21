@@ -277,23 +277,29 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       return { previousSavedState };
     },
     onSuccess: (data) => {
-      console.log(`✅ [PostModal] Backend CONFIRMED:`, data);
+      console.log(`✅ [PostModal] ========== BACKEND BAŞARILI ==========`);
+      console.log(`✅ [PostModal] Backend response:`, data);
+      console.log(`✅ [PostModal] Post ${data.saved ? 'KAYDEDİLDİ' : 'KALDIRILDI'}`);
       
       // ✅ Kullanıcıya BAŞARILI bildirimi göster!
       if (data.saved) {
         toast.success('Gönderi kaydedildi! ✅')
+        console.log('✅ [PostModal] Şimdi Profil → Kaydedilenler kısmında gözükmeli!');
       } else {
         toast.success('Kayıtlılardan kaldırıldı')
       }
       
       // ✅ SADECE LIST CACHE'LERİNİ INVALIDATE ET
       // ❌ POST CACHE'İNİ INVALIDATE ETME! (optimistic update var)
+      console.log('🔄 [PostModal] Cache invalidate ediliyor: saved-posts, profile');
       queryClient.invalidateQueries({ queryKey: ['saved-posts'] })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       
       // Arka planda refetch (kullanıcı beklemez)
+      console.log('🔄 [PostModal] saved-posts refetch başlatılıyor...');
       queryClient.refetchQueries({ queryKey: ['saved-posts'] })
       
+      console.log('✅ [PostModal] ========== İŞLEM TAMAMLANDI ==========');
       // ✅ POST CACHE KORUMALI! Like state kaybolmamalı!
     },
     onError: (error: any, variables: any, context: any) => {
