@@ -178,11 +178,18 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
     void
   >({
     mutationFn: async () => {
+      console.log(`❤️ [PostModal] ========== LIKE MUTATION START ==========`);
+      console.log(`❤️ [PostModal] Current state: isLiked=${post?.isLiked}`);
+      
       if (post?.isLiked) {
+        console.log(`💔 [PostModal] UNLIKE → DELETE /posts/${postId}/like`);
         await api.delete(`/posts/${postId}/like`)
+        console.log(`✅ [PostModal] UNLIKE successful!`);
         return { liked: false }
       } else {
+        console.log(`❤️ [PostModal] LIKE → POST /posts/${postId}/like`);
         await api.post(`/posts/${postId}/like`)
+        console.log(`✅ [PostModal] LIKE successful!`);
         return { liked: true }
       }
     },
@@ -190,6 +197,8 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       // ⚡ OPTIMISTIC UPDATE - Anında UI güncelle
       const newLikedState = !post?.isLiked
       const likeDelta = newLikedState ? 1 : -1
+      
+      console.log(`⚡ [PostModal] OPTIMISTIC UPDATE: ${post?.isLiked} → ${newLikedState}`);
       
       queryClient.setQueryData(['post', postId], (old: any) => {
         if (!old) return old
@@ -202,10 +211,11 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
           },
         }
       })
+      
+      console.log(`✅ [PostModal] UI updated! New count: ${Math.max(0, (post?._count?.likes || 0) + likeDelta)}`);
     },
     onSuccess: () => {
-      // ✅ Kullanıcıya BAŞARILI bildirimi GÖSTER!
-      // toast.success('Beğeni kaydedildi! ✅') // ❌ Çok fazla spam olur, kaldır
+      console.log(`✅ [PostModal] ========== LIKE MUTATION SUCCESS ==========`);
       
       // ✅ SADECE LIST CACHE'LERİNİ INVALIDATE ET
       // ❌ POST CACHE'İNİ INVALIDATE ETME! (optimistic update var)
@@ -214,6 +224,11 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       queryClient.invalidateQueries({ queryKey: ['feed'] })
     },
     onError: (error: any) => {
+      console.error(`❌ [PostModal] ========== LIKE MUTATION ERROR ==========`);
+      console.error(`❌ [PostModal] Error:`, error?.message);
+      console.error(`❌ [PostModal] Status:`, error?.response?.status);
+      console.error(`❌ [PostModal] Data:`, error?.response?.data);
+      
       // ❌ KULLANICIYA HATA BİLDİRİMİ GÖSTER!
       const errorMsg = error?.response?.data?.message || error?.message || 'Bir hata oluştu'
       toast.error(`❌ Beğeni kaydedilemedi: ${errorMsg}`)
