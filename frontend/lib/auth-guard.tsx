@@ -40,6 +40,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // ✅ Global bir kez backend doğrulaması
   useEffect(() => {
+    // ⛔️ Eğer hasInitialized = false ise hasRunRef'i sıfırla (logout sonrası)
+    if (!hasInitialized && hasRunRef.current) {
+      console.log('[AuthGuard] hasInitialized = false, resetting hasRunRef')
+      hasRunRef.current = false
+    }
+
     if (hasInitialized) {
       if (loading) {
         setLoading(false)
