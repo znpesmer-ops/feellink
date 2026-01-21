@@ -143,15 +143,32 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
       onClose()
     },
     onError: (error: any) => {
-      // 🔍 DEBUG: Detaylı error logging
-      console.error('❌ [CreatePost] Error:', {
-        message: error?.message,
-        code: error?.code,
-        status: error?.response?.status,
-        statusText: error?.response?.statusText,
-        data: error?.response?.data,
-        url: error?.config?.url,
-      })
+      // 🔍 DEBUG: ULTRA DETAYLI error logging
+      console.error('❌ [CreatePost] ========== POST CREATE ERROR ==========')
+      console.error('❌ [CreatePost] Error message:', error?.message)
+      console.error('❌ [CreatePost] Error code:', error?.code)
+      console.error('❌ [CreatePost] Status code:', error?.response?.status)
+      console.error('❌ [CreatePost] Status text:', error?.response?.statusText)
+      console.error('❌ [CreatePost] Response data:', error?.response?.data)
+      console.error('❌ [CreatePost] Request URL:', error?.config?.url)
+      console.error('❌ [CreatePost] Full error:', error)
+      
+      // ✅ HATA TİPİ KONTROLÜ VE ÇÖZÜM ÖNERİSİ
+      if (error?.response?.status === 401) {
+        console.error('🚨 [CreatePost] 401 UNAUTHORIZED!')
+        console.error('🚨 [CreatePost] Auth token geçersiz! LOGOUT → LOGIN yap!')
+      } else if (error?.response?.status === 413) {
+        console.error('🚨 [CreatePost] 413 CONTENT TOO LARGE!')
+        console.error('🚨 [CreatePost] Dosya çok büyük! Max 50MB')
+      } else if (error?.response?.status === 500) {
+        console.error('🚨 [CreatePost] 500 INTERNAL SERVER ERROR!')
+        console.error('🚨 [CreatePost] Backend crash! Vercel log\'larını kontrol et!')
+      } else if (!error?.response) {
+        console.error('🚨 [CreatePost] NETWORK ERROR!')
+        console.error('🚨 [CreatePost] Backend\'e erişilemiyor veya CORS hatası!')
+      }
+      
+      console.error('❌ [CreatePost] ========== END ERROR ==========')
       
       const responseData = error?.response?.data
       const nested = typeof responseData?.message === 'object' ? responseData.message : null
