@@ -50,15 +50,7 @@ export class UsersController {
     return this.usersService.getProfile(username, user.id);
   }
 
-  @Put('profile')
-  @UseGuards(JwtAuthGuard)
-  async updateProfile(
-    @CurrentUser() user: any,
-    @Body() data: UpdateUserDto
-  ) {
-    return this.usersService.updateProfile(user.id, data);
-  }
-
+  // ✅ ÖNEMLİ: Daha spesifik route'lar önce tanımlanmalı
   @Patch('me/username')
   @UseGuards(JwtAuthGuard)
   async updateUsername(
@@ -69,6 +61,15 @@ export class UsersController {
       throw new NotFoundException('Kullanıcı kimliği bulunamadı.');
     }
     return this.usersService.updateUsername(user.id, data.username);
+  }
+
+  @Put('profile')
+  @UseGuards(JwtAuthGuard)
+  async updateProfile(
+    @CurrentUser() user: any,
+    @Body() data: UpdateUserDto
+  ) {
+    return this.usersService.updateProfile(user.id, data);
   }
 
   @Post('me/complete-onboarding')
