@@ -64,6 +64,8 @@ function EditProfileContent() {
 
   useEffect(() => {
     if (user) {
+      // ✅ KRİTİK: User state değiştiğinde local state'leri güncelle
+      // Bu sayfa açıldığında veya user state güncellendiğinde çalışır
       setUsername(user.username || '')
       setBio(user.bio || '')
       setAvatar(user.avatar || '')
@@ -71,11 +73,24 @@ function EditProfileContent() {
       setFullName(user.fullName || '')
       setWebsite(user.website || '')
       setIsPrivate(user.isPrivate || false)
+      
       // Load profile data from API if available
       const loadProfileData = async () => {
         try {
           const response = await api.get('/users/me')
           const profileData = response.data
+          
+          // ✅ KRİTİK: API'den gelen fresh data ile local state'leri güncelle
+          if (profileData.username) setUsername(profileData.username)
+          if (profileData.bio !== undefined) setBio(profileData.bio || '')
+          if (profileData.fullName !== undefined) setFullName(profileData.fullName || '')
+          if (profileData.website !== undefined) setWebsite(profileData.website || '')
+          if (profileData.isPrivate !== undefined) setIsPrivate(profileData.isPrivate || false)
+          if (profileData.avatar) {
+            setAvatar(profileData.avatar)
+            setAvatarPreview(profileData.avatar)
+          }
+          
           if (profileData.dateOfBirth) {
             const date = new Date(profileData.dateOfBirth)
             setDateOfBirth(date.toISOString().split('T')[0])
@@ -89,7 +104,7 @@ function EditProfileContent() {
       }
       loadProfileData()
     }
-  }, [user])
+  }, [user]) // ✅ user değiştiğinde çalışır (username update sonrası da)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -212,8 +227,13 @@ function EditProfileContent() {
             const freshUserResponse = await api.get('/users/me')
             if (freshUserResponse.data) {
               // ✅ Backend'den gelen TAM fresh user data'yı kullan
-              setUser(freshUserResponse.data, capabilities ?? null)
-              console.log('✅ [Profile Edit] Username update sonrası user state güncellendi:', freshUserResponse.data)
+              const freshUser = freshUserResponse.data
+              setUser(freshUser, capabilities ?? null)
+              
+              // ✅ KRİTİK: Local state'i de güncelle (input'ta görünsün)
+              setUsername(freshUser.username || '')
+              
+              console.log('✅ [Profile Edit] Username update sonrası user state güncellendi:', freshUser)
             }
           } catch (refreshError) {
             console.warn('⚠️ [Profile Edit] Username update sonrası fresh user data çekilemedi:', refreshError)
@@ -225,6 +245,9 @@ function EditProfileContent() {
                 usernameLastChangedAt: usernameResponse.data.usernameLastChangedAt || null,
               };
               setUser(updatedUser, capabilities ?? null);
+              
+              // ✅ KRİTİK: Local state'i de güncelle
+              setUsername(usernameResponse.data.username || '')
             }
           }
           
@@ -285,7 +308,15 @@ function EditProfileContent() {
           // ✅ Backend'den gelen TAM user data'yı kullan
           const freshUser = freshUserResponse.data
           setUser(freshUser, capabilities ?? null)
-          console.log('✅ [Profile Edit] User state güncellendi:', freshUser)
+          
+          // ✅ KRİTİK: Local state'leri de güncelle (input'larda görünsün)
+          setUsername(freshUser.username || '')
+          setBio(freshUser.bio || '')
+          setFullName(freshUser.fullName || '')
+          setWebsite(freshUser.website || '')
+          setIsPrivate(freshUser.isPrivate || false)
+          
+          console.log('✅ [Profile Edit] User state ve local state güncellendi:', freshUser)
         }
       } catch (refreshError) {
         console.warn('⚠️ [Profile Edit] Fresh user data çekilemedi, response.data kullanılıyor:', refreshError)
@@ -293,6 +324,13 @@ function EditProfileContent() {
         if (response.data) {
           const updatedUser = { ...user, ...response.data }
           setUser(updatedUser, capabilities ?? null)
+          
+          // ✅ KRİTİK: Local state'leri de güncelle
+          if (response.data.username) setUsername(response.data.username)
+          if (response.data.bio !== undefined) setBio(response.data.bio || '')
+          if (response.data.fullName !== undefined) setFullName(response.data.fullName || '')
+          if (response.data.website !== undefined) setWebsite(response.data.website || '')
+          if (response.data.isPrivate !== undefined) setIsPrivate(response.data.isPrivate || false)
         }
       }
       
