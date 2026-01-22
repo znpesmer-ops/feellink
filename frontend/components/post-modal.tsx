@@ -311,10 +311,23 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
             const currentPost = queryClient.getQueryData(['post', postId]) as Post | undefined;
             if (currentPost) {
               console.log('✅ [PostModal] Post cache\'den alındı, saved-posts\'a eklendi!');
-              return [{
+              const newData = [{
                 ...currentPost,
                 savedAt: new Date().toISOString(),
               }];
+              
+              // ✅ KRİTİK: localStorage'a da kaydet!
+              if (typeof window !== 'undefined' && user?.id) {
+                try {
+                  const localStorageKey = `saved-posts-${user.id}`;
+                  localStorage.setItem(localStorageKey, JSON.stringify(newData));
+                  console.log('✅ [PostModal] localStorage\'a kaydedildi!');
+                } catch (e) {
+                  console.warn('⚠️ [PostModal] localStorage kaydetme hatası:', e);
+                }
+              }
+              
+              return newData;
             }
             return [];
           }
@@ -334,10 +347,23 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
           const currentPost = queryClient.getQueryData(['post', postId]) as Post | undefined;
           if (currentPost) {
             console.log('✅ [PostModal] Post saved-posts\'a eklendi!');
-            return [{
+            const newData = [{
               ...currentPost,
               savedAt: new Date().toISOString(),
             }, ...oldData];
+            
+            // ✅ KRİTİK: localStorage'a da kaydet!
+            if (typeof window !== 'undefined' && user?.id) {
+              try {
+                const localStorageKey = `saved-posts-${user.id}`;
+                localStorage.setItem(localStorageKey, JSON.stringify(newData));
+                console.log('✅ [PostModal] localStorage\'a kaydedildi!');
+              } catch (e) {
+                console.warn('⚠️ [PostModal] localStorage kaydetme hatası:', e);
+              }
+            }
+            
+            return newData;
           }
           
           return oldData;
@@ -348,10 +374,23 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
         // 🔥 OPTIMISTIC UPDATE: saved-posts query'sinden çıkar!
         queryClient.setQueryData(['saved-posts'], (oldData: any[] | undefined) => {
           if (!oldData) return [];
-          return oldData.filter((item: any) => {
+          const newData = oldData.filter((item: any) => {
             const itemPost = item.post || item;
             return itemPost?.id !== postId;
           });
+          
+          // ✅ KRİTİK: localStorage'dan da sil!
+          if (typeof window !== 'undefined' && user?.id) {
+            try {
+              const localStorageKey = `saved-posts-${user.id}`;
+              localStorage.setItem(localStorageKey, JSON.stringify(newData));
+              console.log('✅ [PostModal] localStorage güncellendi (post kaldırıldı)!');
+            } catch (e) {
+              console.warn('⚠️ [PostModal] localStorage güncelleme hatası:', e);
+            }
+          }
+          
+          return newData;
         });
       }
       

@@ -39,6 +39,21 @@ function SavedPostsGrid() {
       console.log('🔖 [SavedPostsGrid] API base URL:', api.defaults.baseURL)
       console.log('🔖 [SavedPostsGrid] Full URL:', `${api.defaults.baseURL}/posts/saved`)
       
+      // ✅ KRİTİK: localStorage'dan önceki data'yı yükle (sayfa yenilendiğinde korunur!)
+      const localStorageKey = `saved-posts-${user?.id || 'anonymous'}`;
+      let localStorageData: any[] | null = null;
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = localStorage.getItem(localStorageKey);
+          if (stored) {
+            localStorageData = JSON.parse(stored);
+            console.log('✅ [SavedPostsGrid] localStorage\'dan yüklendi:', localStorageData?.length || 0, 'posts');
+          }
+        } catch (e) {
+          console.warn('⚠️ [SavedPostsGrid] localStorage parse hatası:', e);
+        }
+      }
+      
       try {
         const response = await api.get('/posts/saved')
         console.log('✅ [SavedPostsGrid] SUCCESS - Response:', {
@@ -62,13 +77,20 @@ function SavedPostsGrid() {
         const result = Array.isArray(response.data) ? response.data : (response.data?.posts || [])
         console.log('✅ [SavedPostsGrid] Final result:', result.length, 'posts')
         
-        // ✅ KRİTİK: Backend boş array döndü ama cache'de data varsa, cache'i koru!
-        if (result.length === 0) {
-          const cachedData = queryClient.getQueryData(['saved-posts']) as any[] | undefined;
-          if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
-            console.warn('⚠️ [SavedPostsGrid] Backend boş döndü ama cache\'de data var, cache kullanılıyor!');
-            console.warn('⚠️ [SavedPostsGrid] Cache\'deki post sayısı:', cachedData.length);
-            return cachedData; // ✅ Cache'i koru!
+        // ✅ KRİTİK: Backend boş array döndü ama localStorage'da data varsa, localStorage'ı kullan!
+        if (result.length === 0 && localStorageData && localStorageData.length > 0) {
+          console.warn('⚠️ [SavedPostsGrid] Backend boş döndü ama localStorage\'da data var, localStorage kullanılıyor!');
+          console.warn('⚠️ [SavedPostsGrid] localStorage\'daki post sayısı:', localStorageData.length);
+          return localStorageData; // ✅ localStorage'daki data'yı koru!
+        }
+        
+        // ✅ Backend'den data geldiyse localStorage'a kaydet!
+        if (result.length > 0 && typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(localStorageKey, JSON.stringify(result));
+            console.log('✅ [SavedPostsGrid] localStorage\'a kaydedildi:', result.length, 'posts');
+          } catch (e) {
+            console.warn('⚠️ [SavedPostsGrid] localStorage kaydetme hatası:', e);
           }
         }
         
@@ -114,8 +136,13 @@ function SavedPostsGrid() {
         
         console.error('❌ [SavedPostsGrid] ========== END ERROR ==========');
         
+        // ✅ KRİTİK: Error durumunda localStorage'dan yükle!
+        if (localStorageData && localStorageData.length > 0) {
+          console.warn('⚠️ [SavedPostsGrid] Error ama localStorage\'da data var, localStorage kullanılıyor!');
+          return localStorageData; // ✅ localStorage'daki data'yı koru!
+        }
+        
         // ❌ BOŞ ARRAY DÖNME! Mevcut cache'i koru!
-        // Eğer cache'de data varsa onu kullan, yoksa boş array dön
         const cachedData = queryClient.getQueryData(['saved-posts']) as any[] | undefined;
         if (cachedData && cachedData.length > 0) {
           console.warn('⚠️ [SavedPostsGrid] Error ama cache\'de data var, cache kullanılıyor!');
