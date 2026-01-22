@@ -200,14 +200,36 @@ function EditProfileContent() {
       // ✅ Username değiştiyse önce username endpoint'ini çağır
       if (username && username !== user?.username) {
         try {
-          await api.patch('/users/me/username', { username }, {
+          const usernameResponse = await api.patch('/users/me/username', { username }, {
             headers: {
               Authorization: `Bearer ${accessToken}`,
             },
           });
+          
+          // ✅ Backend'den gelen yeni username'i kullan
+          if (usernameResponse.data?.username) {
+            const updatedUser = { ...user, username: usernameResponse.data.username, usernameLastChangedAt: usernameResponse.data.usernameLastChangedAt };
+            setUser(updatedUser, capabilities ?? null);
+          }
+          
           toast.success('Kullanıcı adı başarıyla güncellendi!');
         } catch (usernameError: any) {
-          const errorMessage = usernameError.response?.data?.message || 'Kullanıcı adı güncellenemedi';
+          console.error('Username update error:', usernameError);
+          
+          // ✅ Daha detaylı hata mesajı
+          let errorMessage = 'Kullanıcı adı güncellenemedi';
+          
+          if (usernameError.response) {
+            // Backend'den gelen hata mesajı
+            errorMessage = usernameError.response.data?.message || usernameError.response.statusText || errorMessage;
+          } else if (usernameError.request) {
+            // Network hatası
+            errorMessage = 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.';
+          } else {
+            // Diğer hatalar
+            errorMessage = usernameError.message || errorMessage;
+          }
+          
           setMessage(errorMessage);
           toast.error(errorMessage);
           setIsLoading(false);
