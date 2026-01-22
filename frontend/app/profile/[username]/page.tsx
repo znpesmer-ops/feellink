@@ -28,7 +28,7 @@ import ZoomModal from '@/components/common/ZoomModal'
 // 🔖 Kaydedilenler Grid Component
 function SavedPostsGrid() {
   const queryClient = useQueryClient()
-  const { accessToken } = useAuthStore()
+  const { accessToken, user } = useAuthStore() // ✅ user ekle!
   const [selectedPost, setSelectedPost] = useState<any>(null)
 
   // Get saved posts
@@ -104,15 +104,24 @@ function SavedPostsGrid() {
         
         console.error('❌ [SavedPostsGrid] ========== END ERROR ==========');
         
-        // ✅ 500 error olsa bile boş array dön - sayfa patlamasın!
-        return []
+        // ❌ BOŞ ARRAY DÖNME! Mevcut cache'i koru!
+        // Eğer cache'de data varsa onu kullan, yoksa boş array dön
+        const cachedData = queryClient.getQueryData(['saved-posts']) as any[] | undefined;
+        if (cachedData && cachedData.length > 0) {
+          console.warn('⚠️ [SavedPostsGrid] Error ama cache\'de data var, cache kullanılıyor!');
+          return cachedData; // ✅ Cache'deki data'yı koru!
+        }
+        return [] // Sadece cache yoksa boş array dön
       }
     },
-    enabled: !!accessToken, // ✅ KRİTİK: Sadece token varsa query çalışsın!
-    staleTime: 0, // ✅ Her zaman fresh data çek
-    refetchOnMount: true, // ✅ Mount olduğunda refetch
+    enabled: !!accessToken && !!user?.id, // ✅ KRİTİK: Token VE user.id varsa query çalışsın!
+    staleTime: 30 * 1000, // ✅ 30 saniye fresh kabul et (optimistic update'i korumak için)
+    refetchOnMount: false, // ❌ Mount'ta refetch YOK! (optimistic update'i bozmamak için)
     refetchOnWindowFocus: false, // ❌ Window focus'ta refetch YOK! (optimistic update'i bozmamak için)
+    refetchOnReconnect: false, // ❌ Reconnect'te refetch YOK!
     gcTime: 5 * 60 * 1000, // ✅ 5 dakika cache'de tut (eski cacheTime)
+    // ✅ KRİTİK: Boş data ile cache'i overwrite ETME!
+    placeholderData: (previousData) => previousData, // ✅ Önceki data'yı placeholder olarak kullan
   })
 
   // Debug log - DETAYLI

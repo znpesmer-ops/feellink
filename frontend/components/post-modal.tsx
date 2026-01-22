@@ -363,11 +363,11 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       
       // ❌ REFETCH YOK! Optimistic update yeterli!
-      // Query mount olduğunda veya window focus olduğunda otomatik refetch olacak
-      // Backend zaten kaydetti, query fresh data çekecek
+      // Query refetchOnMount: false olduğu için otomatik refetch OLMAYACAK
+      // Backend zaten kaydetti, optimistic update cache'de kalacak
       
       console.log('✅ [PostModal] ========== İŞLEM TAMAMLANDI ==========');
-      console.log('✅ [PostModal] Optimistic update cache\'de! Query mount olduğunda görünecek!');
+      console.log('✅ [PostModal] Optimistic update cache\'de! Kalıcı olacak!');
       // ✅ POST CACHE KORUMALI! Like state kaybolmamalı!
     },
     onError: (error: any, variables: any, context: any) => {
