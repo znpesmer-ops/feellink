@@ -197,7 +197,7 @@ function EditProfileContent() {
 
       // 🔒 KRİTİK: Username'i gönderme - profil URL'ini bozmamak için
       // Username sadece özel bir sayfadan (username değiştirme) güncellenebilir
-      // ✅ Username değiştiyse önce username endpoint'ini çağır
+      // ✅ Username değiştiyse önce username endpoint'ini çağır (opsiyonel - başarısız olsa bile devam et)
       if (username && username !== user?.username) {
         try {
           const usernameResponse = await api.patch('/users/me/username', { username }, {
@@ -214,48 +214,30 @@ function EditProfileContent() {
               usernameLastChangedAt: usernameResponse.data.usernameLastChangedAt || null,
             };
             setUser(updatedUser, capabilities ?? null);
+            toast.success('Kullanıcı adı başarıyla güncellendi!');
           }
-          
-          toast.success('Kullanıcı adı başarıyla güncellendi!');
         } catch (usernameError: any) {
-          console.error('❌ [Username Update] ========== ERROR ==========');
-          console.error('❌ [Username Update] Error object:', usernameError);
-          console.error('❌ [Username Update] Error message:', usernameError?.message);
-          console.error('❌ [Username Update] Error code:', usernameError?.code);
-          console.error('❌ [Username Update] Response status:', usernameError?.response?.status);
-          console.error('❌ [Username Update] Response data:', usernameError?.response?.data);
-          console.error('❌ [Username Update] Request URL:', usernameError?.config?.url);
-          console.error('❌ [Username Update] Request method:', usernameError?.config?.method);
-          console.error('❌ [Username Update] Full URL:', `${usernameError?.config?.baseURL}${usernameError?.config?.url}`);
-          console.error('❌ [Username Update] ========== END ERROR ==========');
+          // ⚠️ Username update başarısız olsa bile diğer profil güncellemeleri devam etsin
+          console.warn('⚠️ [Username Update] Username güncellenemedi, diğer güncellemeler devam ediyor:', usernameError?.response?.status);
           
-          // ✅ Daha detaylı hata mesajı
-          let errorMessage = 'Kullanıcı adı güncellenemedi';
-          
-          if (usernameError.response) {
-            // Backend'den gelen hata mesajı
-            const status = usernameError.response.status;
-            if (status === 404) {
-              errorMessage = 'Kullanıcı adı güncelleme endpoint\'i bulunamadı. Lütfen daha sonra tekrar deneyin.';
-            } else if (status === 401) {
-              errorMessage = 'Oturum süreniz dolmuş. Lütfen tekrar giriş yapın.';
-            } else if (status === 400) {
-              errorMessage = usernameError.response.data?.message || 'Kullanıcı adı güncellenemedi. Lütfen kontrol edin.';
-            } else {
-              errorMessage = usernameError.response.data?.message || usernameError.response.statusText || errorMessage;
-            }
-          } else if (usernameError.request) {
-            // Network hatası
-            errorMessage = 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.';
-          } else {
-            // Diğer hatalar
-            errorMessage = usernameError.message || errorMessage;
+          // Sadece 401 (auth) hatası durumunda durdur
+          if (usernameError.response?.status === 401) {
+            setMessage('Oturum süreniz dolmuş. Lütfen tekrar giriş yapın.');
+            toast.error('Oturum süreniz dolmuş. Lütfen tekrar giriş yapın.');
+            setIsLoading(false);
+            return;
           }
           
-          setMessage(errorMessage);
-          toast.error(errorMessage);
-          setIsLoading(false);
-          return; // Username update başarısızsa diğer update'leri yapma
+          // Diğer hatalarda sadece uyarı göster, devam et
+          if (usernameError.response?.status === 404) {
+            console.warn('⚠️ [Username Update] Endpoint bulunamadı (404) - Backend deploy olmamış olabilir');
+            // Sessizce devam et, kullanıcıyı rahatsız etme
+          } else if (usernameError.response?.status === 400) {
+            // 14 gün limiti gibi validation hataları için uyarı göster
+            const errorMsg = usernameError.response.data?.message || 'Kullanıcı adı güncellenemedi';
+            toast.error(errorMsg);
+          }
+          // Diğer hatalarda sessizce devam et
         }
       }
 

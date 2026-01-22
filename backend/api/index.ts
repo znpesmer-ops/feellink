@@ -1,5 +1,5 @@
 // Vercel serverless function - TypeScript (Vercel auto-compiles)
-// Deploy trigger: USERNAME ENDPOINT FIX - 2026-01-22 17:00
+// Deploy trigger: USERNAME ENDPOINT FINAL FIX - 2026-01-22 17:20
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger, HttpException } from '@nestjs/common';
 import { json, raw, urlencoded } from 'express';
