@@ -62,6 +62,16 @@ function SavedPostsGrid() {
         const result = Array.isArray(response.data) ? response.data : (response.data?.posts || [])
         console.log('✅ [SavedPostsGrid] Final result:', result.length, 'posts')
         
+        // ✅ KRİTİK: Backend boş array döndü ama cache'de data varsa, cache'i koru!
+        if (result.length === 0) {
+          const cachedData = queryClient.getQueryData(['saved-posts']) as any[] | undefined;
+          if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+            console.warn('⚠️ [SavedPostsGrid] Backend boş döndü ama cache\'de data var, cache kullanılıyor!');
+            console.warn('⚠️ [SavedPostsGrid] Cache\'deki post sayısı:', cachedData.length);
+            return cachedData; // ✅ Cache'i koru!
+          }
+        }
+        
         // ✅ İlk post detayı
         if (result.length > 0) {
           console.log('✅ [SavedPostsGrid] İLK POST:', {
@@ -115,13 +125,20 @@ function SavedPostsGrid() {
       }
     },
     enabled: !!accessToken && !!user?.id, // ✅ KRİTİK: Token VE user.id varsa query çalışsın!
-    staleTime: 30 * 1000, // ✅ 30 saniye fresh kabul et (optimistic update'i korumak için)
-    refetchOnMount: false, // ❌ Mount'ta refetch YOK! (optimistic update'i bozmamak için)
+    staleTime: 5 * 60 * 1000, // ✅ 5 dakika stale time (sayfa yenilendiğinde cache kullan)
+    refetchOnMount: true, // ✅ Mount olduğunda refetch (fresh data için)
     refetchOnWindowFocus: false, // ❌ Window focus'ta refetch YOK! (optimistic update'i bozmamak için)
-    refetchOnReconnect: false, // ❌ Reconnect'te refetch YOK!
-    gcTime: 5 * 60 * 1000, // ✅ 5 dakika cache'de tut (eski cacheTime)
-    // ✅ KRİTİK: Boş data ile cache'i overwrite ETME!
-    placeholderData: (previousData) => previousData, // ✅ Önceki data'yı placeholder olarak kullan
+    refetchOnReconnect: true, // ✅ Reconnect olduğunda refetch
+    gcTime: 10 * 60 * 1000, // ✅ 10 dakika cache'de tut
+    // ✅ KRİTİK: placeholderData ile cache korunur! Boş array ile overwrite ETME!
+    placeholderData: (previousData) => {
+      // Eğer önceki data varsa onu kullan (sayfa yenilendiğinde kaybolmasın!)
+      if (previousData && Array.isArray(previousData) && previousData.length > 0) {
+        console.log('✅ [SavedPostsGrid] Using cached placeholder data:', previousData.length, 'posts');
+        return previousData;
+      }
+      return undefined; // Cache yoksa undefined dön, query çalışsın
+    },
   })
 
   // Debug log - DETAYLI
