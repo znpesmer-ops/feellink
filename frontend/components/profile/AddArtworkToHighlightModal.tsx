@@ -18,7 +18,10 @@ interface AddArtworkToHighlightModalProps {
       id: string
       post: {
         id: string
-        imageUrl: string | null
+        media: Array<{
+          url: string
+          type: string
+        }>
         caption: string | null
         title: string | null
       }
@@ -228,7 +231,10 @@ export function AddArtworkToHighlightModal({
               {allArtworks.map((artwork: any, index: number) => {
                 const isSelected = selectedWorkIds.includes(artwork.id)
                 const wasInitiallyAdded = initialWorkIds.includes(artwork.id)
-                const imageUrl = artwork.media?.[0]?.url || artwork.imageUrl
+                // ✅ Backend'den media array geliyor, ilk media'nın URL'ini al
+                const imageUrl = artwork.media && artwork.media.length > 0 
+                  ? artwork.media[0].url 
+                  : null
                 
                 // Güvenli başlık çıkarma - tüm olası field'ları kontrol et
                 let artworkTitle = ''
