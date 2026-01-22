@@ -655,6 +655,16 @@ export class UsersService {
 
     // 🔒 Username uniqueness kontrolü
     const normalizedNewUsername = newUsername.toLowerCase().trim();
+    
+    // ✅ Mevcut username ile aynıysa değişiklik yok, direkt return et
+    if (currentUser.username.toLowerCase().trim() === normalizedNewUsername) {
+      return {
+        id: currentUser.id,
+        username: currentUser.username,
+        usernameLastChangedAt: currentUser.usernameLastChangedAt,
+      };
+    }
+    
     const existingUser = await this.prisma.user.findFirst({
       where: {
         username: { equals: normalizedNewUsername, mode: 'insensitive' },

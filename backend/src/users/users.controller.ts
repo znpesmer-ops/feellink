@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Patch, Post, Delete, Body, Param, UseGuards, Query, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Put, Patch, Post, Delete, Body, Param, UseGuards, Query, NotFoundException, BadRequestException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -60,7 +60,19 @@ export class UsersController {
     if (!user?.id) {
       throw new NotFoundException('Kullanıcı kimliği bulunamadı.');
     }
-    return this.usersService.updateUsername(user.id, data.username);
+    
+    try {
+      const result = await this.usersService.updateUsername(user.id, data.username);
+      return result;
+    } catch (error: any) {
+      // ✅ Error handling - BadRequestException ve NotFoundException'ı direkt throw et
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      // ✅ Diğer hatalar için generic error
+      console.error('❌ [updateUsername] Unexpected error:', error);
+      throw new BadRequestException(error?.message || 'Kullanıcı adı güncellenemedi.');
+    }
   }
 
   @Put('profile')
