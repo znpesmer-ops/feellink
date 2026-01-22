@@ -227,7 +227,7 @@ function SavedPostsGrid() {
 
   return (
     <>
-      <div className="grid grid-cols-3 gap-1 md:gap-2">
+      <div className="grid grid-cols-3 gap-2">
         {savedPosts.map((savedPost: any) => {
           const post = savedPost.post || savedPost
           const firstMedia = post?.media?.[0]
@@ -235,7 +235,7 @@ function SavedPostsGrid() {
           return (
             <div
               key={post.id}
-              className="relative aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden cursor-pointer group"
+              className="relative aspect-square bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden cursor-pointer group"
               onClick={() => setSelectedPost(post)}
             >
               {firstMedia ? (
