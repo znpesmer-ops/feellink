@@ -25,6 +25,8 @@ interface User {
   city?: string | null
   gender?: string | null
   activeRole?: string | null // 🎯 Aktif rol (profil header'da gösterilecek, onboarding kontrolü için)
+  usernameLastChangedAt?: string | null // 🔒 Kullanıcı adı son değiştirilme tarihi (14 günlük limit için)
+  website?: string | null // 🔗 Website URL
 }
 
 interface AuthState {

@@ -69,7 +69,7 @@ function EditProfileContent() {
       setAvatar(user.avatar || '')
       setAvatarPreview(user.avatar || '')
       setFullName(user.fullName || '')
-      setWebsite((user as any).website || '')
+      setWebsite(user.website || '')
       setIsPrivate(user.isPrivate || false)
       // Load profile data from API if available
       const loadProfileData = async () => {
@@ -207,8 +207,12 @@ function EditProfileContent() {
           });
           
           // ✅ Backend'den gelen yeni username'i kullan
-          if (usernameResponse.data?.username) {
-            const updatedUser = { ...user, username: usernameResponse.data.username, usernameLastChangedAt: usernameResponse.data.usernameLastChangedAt };
+          if (usernameResponse.data?.username && user) {
+            const updatedUser = {
+              ...user,
+              username: usernameResponse.data.username,
+              usernameLastChangedAt: usernameResponse.data.usernameLastChangedAt || null,
+            };
             setUser(updatedUser, capabilities ?? null);
           }
           
@@ -441,7 +445,7 @@ function EditProfileContent() {
           </label>
           {(() => {
             const DAYS_LIMIT = 14;
-            const usernameLastChangedAt = (user as any)?.usernameLastChangedAt;
+            const usernameLastChangedAt = user?.usernameLastChangedAt;
             const daysLeft = usernameLastChangedAt
               ? Math.ceil(
                   DAYS_LIMIT -
