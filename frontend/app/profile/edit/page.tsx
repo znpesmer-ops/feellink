@@ -27,7 +27,7 @@ function EditProfileContent() {
   const queryClient = useQueryClient()
   const isRequired = searchParams.get('required') === 'true'
   const { user, accessToken, capabilities, setUser } = useAuthStore()
-  // 🔒 KRİTİK: Username state'i kaldırıldı - sadece gösterim için user?.username kullanılacak
+  const [username, setUsername] = useState('')
   const [bio, setBio] = useState('')
   const [avatar, setAvatar] = useState('')
   const [fullName, setFullName] = useState('')
@@ -64,7 +64,7 @@ function EditProfileContent() {
 
   useEffect(() => {
     if (user) {
-      // 🔒 KRİTİK: Username set edilmiyor - sadece gösterim için user?.username kullanılacak
+      setUsername(user.username || '')
       setBio(user.bio || '')
       setAvatar(user.avatar || '')
       setAvatarPreview(user.avatar || '')
@@ -197,10 +197,27 @@ function EditProfileContent() {
 
       // 🔒 KRİTİK: Username'i gönderme - profil URL'ini bozmamak için
       // Username sadece özel bir sayfadan (username değiştirme) güncellenebilir
+      // ✅ Username değiştiyse önce username endpoint'ini çağır
+      if (username && username !== user?.username) {
+        try {
+          await api.patch('/users/me/username', { username }, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
+          toast.success('Kullanıcı adı başarıyla güncellendi!');
+        } catch (usernameError: any) {
+          const errorMessage = usernameError.response?.data?.message || 'Kullanıcı adı güncellenemedi';
+          setMessage(errorMessage);
+          toast.error(errorMessage);
+          setIsLoading(false);
+          return; // Username update başarısızsa diğer update'leri yapma
+        }
+      }
+
       const response = await api.put(
         '/users/profile',
         {
-          // username: username, // ❌ KALDIRILDI - Profil URL'ini bozmamak için
           bio,
           avatar,
           fullName,
@@ -395,17 +412,53 @@ function EditProfileContent() {
           </div>
         </div>
 
-        {/* Username - Read Only */}
+        {/* Username - Editable with 14-day limit */}
         <div className="mb-6">
           <label className="block text-sm text-gray-700 dark:text-white/70 mb-2">
             Kullanıcı Adı
           </label>
-          <div className="w-full bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-gray-500 dark:text-gray-400">
-            @{user?.username || 'kullanıcıadı'}
-          </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Kullanıcı adı değiştirilemez (profil URL'inizi korur)
-          </p>
+          {(() => {
+            const DAYS_LIMIT = 14;
+            const usernameLastChangedAt = (user as any)?.usernameLastChangedAt;
+            const daysLeft = usernameLastChangedAt
+              ? Math.ceil(
+                  DAYS_LIMIT -
+                    (Date.now() - new Date(usernameLastChangedAt).getTime()) /
+                      (1000 * 60 * 60 * 24)
+                )
+              : 0;
+            const isDisabled = daysLeft > 0;
+
+            return (
+              <>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => {
+                    // Sadece küçük harf, rakam, nokta ve alt çizgi kabul et
+                    const value = e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, '');
+                    setUsername(value);
+                  }}
+                  disabled={isDisabled}
+                  className={`w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400 ${
+                    isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  placeholder="kullanıcıadı"
+                  minLength={3}
+                  maxLength={30}
+                />
+                {isDisabled ? (
+                  <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                    Kullanıcı adını {daysLeft} gün sonra tekrar değiştirebilirsin.
+                  </p>
+                ) : (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                    Kullanıcı adını değiştirebilirsin.
+                  </p>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* Full Name */}

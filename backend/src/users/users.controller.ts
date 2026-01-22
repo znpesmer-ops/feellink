@@ -6,6 +6,7 @@ import { UpdateRoleSelectionDto } from './dto/update-role-selection.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 import { RoleChangeRequestDto } from './dto/role-change-request.dto';
+import { UpdateUsernameDto } from './dto/update-username.dto';
 
 @Controller('users')
 export class UsersController {
@@ -56,6 +57,18 @@ export class UsersController {
     @Body() data: UpdateUserDto
   ) {
     return this.usersService.updateProfile(user.id, data);
+  }
+
+  @Patch('me/username')
+  @UseGuards(JwtAuthGuard)
+  async updateUsername(
+    @CurrentUser() user: any,
+    @Body() data: UpdateUsernameDto
+  ) {
+    if (!user?.id) {
+      throw new NotFoundException('Kullanıcı kimliği bulunamadı.');
+    }
+    return this.usersService.updateUsername(user.id, data.username);
   }
 
   @Post('me/complete-onboarding')

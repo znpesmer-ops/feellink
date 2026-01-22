@@ -624,6 +624,65 @@ export class UsersService {
     }
   }
 
+  async updateUsername(userId: string, newUsername: string) {
+    // 🔒 KRİTİK: Kullanıcıyı bul ve usernameLastChangedAt kontrolü yap
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        usernameLastChangedAt: true,
+      },
+    });
+
+    if (!currentUser) {
+      throw new NotFoundException('Kullanıcı bulunamadı.');
+    }
+
+    // 🔒 14 günlük limit kontrolü
+    if (currentUser.usernameLastChangedAt) {
+      const now = new Date();
+      const lastChanged = currentUser.usernameLastChangedAt;
+      const diffInDays = (now.getTime() - lastChanged.getTime()) / (1000 * 60 * 60 * 24);
+
+      if (diffInDays < 14) {
+        const remainingDays = Math.ceil(14 - diffInDays);
+        throw new BadRequestException(
+          `Kullanıcı adını yalnızca 14 günde bir değiştirebilirsiniz. Kalan süre: ${remainingDays} gün`
+        );
+      }
+    }
+
+    // 🔒 Username uniqueness kontrolü
+    const normalizedNewUsername = newUsername.toLowerCase().trim();
+    const existingUser = await this.prisma.user.findFirst({
+      where: {
+        username: { equals: normalizedNewUsername, mode: 'insensitive' },
+        id: { not: userId },
+      },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('Bu kullanıcı adı zaten kullanılıyor.');
+    }
+
+    // ✅ Username güncelle
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        username: normalizedNewUsername,
+        usernameLastChangedAt: new Date(),
+      },
+      select: {
+        id: true,
+        username: true,
+        usernameLastChangedAt: true,
+      },
+    });
+
+    return updatedUser;
+  }
+
   async updateProfile(
     userId: string,
     data: UpdateUserDto
