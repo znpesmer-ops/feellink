@@ -697,7 +697,29 @@ export class UsersService {
         id: true,
         username: true,
         usernameLastChangedAt: true,
+        email: true,
+        fullName: true,
+        avatar: true,
+        bio: true,
+        roles: true,
+        plan: true,
+        badges: true,
+        isPrivate: true,
+        isVerified: true,
+        profileCompleted: true,
+        dateOfBirth: true,
+        country: true,
+        city: true,
+        gender: true,
+        website: true,
       },
+    });
+
+    console.log('✅ [updateUsername] Username güncellendi:', {
+      userId,
+      oldUsername: currentUser.username,
+      newUsername: normalizedNewUsername,
+      updatedUser: updatedUser.username,
     });
 
     return updatedUser;
