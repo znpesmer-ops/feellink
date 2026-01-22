@@ -206,16 +206,33 @@ function EditProfileContent() {
             },
           });
           
-          // ✅ Backend'den gelen yeni username'i kullan
-          if (usernameResponse.data?.username && user) {
-            const updatedUser = {
-              ...user,
-              username: usernameResponse.data.username,
-              usernameLastChangedAt: usernameResponse.data.usernameLastChangedAt || null,
-            };
-            setUser(updatedUser, capabilities ?? null);
-            toast.success('Kullanıcı adı başarıyla güncellendi!');
+          // ✅ KRİTİK: Username update sonrası BACKEND'DEN FRESH USER DATA ÇEK
+          // Sadece username'i güncellemek yeterli değil, tüm user state'i fresh olmalı
+          try {
+            const freshUserResponse = await api.get('/users/me')
+            if (freshUserResponse.data) {
+              // ✅ Backend'den gelen TAM fresh user data'yı kullan
+              setUser(freshUserResponse.data, capabilities ?? null)
+              console.log('✅ [Profile Edit] Username update sonrası user state güncellendi:', freshUserResponse.data)
+            }
+          } catch (refreshError) {
+            console.warn('⚠️ [Profile Edit] Username update sonrası fresh user data çekilemedi:', refreshError)
+            // Fallback: usernameResponse'dan gelen data'yı kullan
+            if (usernameResponse.data?.username && user) {
+              const updatedUser = {
+                ...user,
+                username: usernameResponse.data.username,
+                usernameLastChangedAt: usernameResponse.data.usernameLastChangedAt || null,
+              };
+              setUser(updatedUser, capabilities ?? null);
+            }
           }
+          
+          // ✅ KRİTİK: Username değişti, tüm profile query'lerini invalidate et
+          queryClient.invalidateQueries({ queryKey: ['profile'] })
+          queryClient.invalidateQueries({ queryKey: ['saved-posts'] })
+          
+          toast.success('Kullanıcı adı başarıyla güncellendi!');
         } catch (usernameError: any) {
           // ⚠️ Username update başarısız olsa bile diğer profil güncellemeleri devam etsin
           console.warn('⚠️ [Username Update] Username güncellenemedi, diğer güncellemeler devam ediyor:', usernameError?.response?.status);
@@ -283,8 +300,13 @@ function EditProfileContent() {
       toast.success('Profil başarıyla güncellendi!')
 
       // ✅ KRİTİK: Tüm profile-related query'leri invalidate et
+      // Username değiştiyse veya profil güncellendiyse tüm cache'i temizle
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['saved-posts'] })
+      
+      // ✅ KRİTİK: User state değişti, tüm component'lerin re-render olması için
+      // Zustand store'u zaten reactive, ama query cache'leri de temizlenmeli
       
       // 🔔 Zorunlu alanlar tamamlandıysa bildirimi sil (backend otomatik silecek, frontend query'i invalidate et)
       if (dateOfBirth && country && city && gender) {
