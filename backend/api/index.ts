@@ -1,5 +1,6 @@
 // Vercel serverless function - TypeScript (Vercel auto-compiles)
-// Deploy trigger: USERNAME ENDPOINT ERROR FIX - 2026-01-22 21:00
+// Deploy trigger: BACKEND DEPLOY FIX - 2026-01-22 21:05
+// ✅ KRİTİK: Bu dosya backend/ klasöründe, Vercel'de Root Directory: backend olmalı!
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger, HttpException } from '@nestjs/common';
 import { json, raw, urlencoded } from 'express';
