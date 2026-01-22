@@ -15,7 +15,10 @@ interface Highlight {
     id: string
     post: {
       id: string
-      imageUrl: string | null
+      media: Array<{
+        url: string
+        type: string
+      }>
       caption: string | null
       title: string | null
     }
@@ -55,7 +58,11 @@ export function HighlightDetailModal({ highlight, onClose }: HighlightDetailModa
           {highlight.items && highlight.items.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-1">
               {highlight.items.map((item) => {
-              const imageUrl = item.post.imageUrl
+              // ✅ Backend'den media array geliyor, ilk media'nın URL'ini al
+              const imageUrl = item.post.media && item.post.media.length > 0 
+                ? item.post.media[0].url 
+                : null
+              
               // Güvenli başlık çıkarma - title öncelikli, sonra caption
               const artworkTitle = (
                 (item.post.title && typeof item.post.title === 'string' && item.post.title.trim().length > 0)
@@ -83,6 +90,7 @@ export function HighlightDetailModal({ highlight, onClose }: HighlightDetailModa
                         alt={artworkTitle}
                         className="w-full h-full object-cover"
                         onError={(e) => {
+                          console.error('❌ [HighlightDetailModal] Image load error:', imageUrl);
                           (e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
                         }}
                       />

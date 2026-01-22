@@ -16,13 +16,20 @@ interface Highlight {
   id: string
   title: string
   coverPost: {
-    imageUrl: string | null
+    id: string
+    media: Array<{
+      url: string
+      type: string
+    }>
   } | null
   items: Array<{
     id: string
     post: {
       id: string
-      imageUrl: string | null
+      media: Array<{
+        url: string
+        type: string
+      }>
       caption: string | null
       title: string | null
     }
@@ -293,12 +300,13 @@ export function ArtistHighlights({ username, userId, isOwnProfile = false }: Art
                 onClick={() => setActiveHighlight(hl)}
               >
                 <div className="w-full h-full bg-neutral-900 dark:bg-gray-800">
-                  {hl.coverPost?.imageUrl ? (
+                  {hl.coverPost?.media && hl.coverPost.media.length > 0 && hl.coverPost.media[0]?.url ? (
                     <img
-                      src={resolveImageUrl(hl.coverPost.imageUrl)}
+                      src={resolveImageUrl(hl.coverPost.media[0].url)}
                       alt={hl.title}
                       className="w-full h-full object-cover"
                       onError={(e) => {
+                        console.error('❌ [ArtistHighlights] Cover image load error:', hl.coverPost?.media[0]?.url);
                         (e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
                       }}
                     />
