@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
+// ✅ useRef zaten import edilmiş
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
 import api from '@/lib/api'
@@ -50,6 +51,7 @@ function EditProfileContent() {
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
+  const hasInitialized = useRef(false) // ✅ İlk mount kontrolü için
 
   // Load countries data
   useEffect(() => {
@@ -63,9 +65,9 @@ function EditProfileContent() {
   }, [])
 
   useEffect(() => {
-    if (user) {
-      // ✅ KRİTİK: User state değiştiğinde local state'leri güncelle
-      // Bu sayfa açıldığında veya user state güncellendiğinde çalışır
+    // ✅ KRİTİK: İlk mount'ta sadece bir kez çalışsın, username update sonrası override etmesin
+    if (user && !hasInitialized.current) {
+      // ✅ Sadece ilk mount'ta çalış (sayfa ilk açıldığında)
       setUsername(user.username || '')
       setBio(user.bio || '')
       setAvatar(user.avatar || '')
@@ -98,13 +100,15 @@ function EditProfileContent() {
           setCountry(profileData.country || null)
           setCity(profileData.city || null)
           setGender((profileData.gender as 'FEMALE' | 'MALE' | 'UNSPECIFIED') || '')
+          
+          hasInitialized.current = true; // ✅ İlk yükleme tamamlandı
         } catch (error) {
           console.error('Error loading profile data:', error)
         }
       }
       loadProfileData()
     }
-  }, [user]) // ✅ user değiştiğinde çalışır (username update sonrası da)
+  }, [user]) // ✅ user değiştiğinde çalışır ama hasInitialized kontrolü var
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -221,33 +225,40 @@ function EditProfileContent() {
             },
           });
           
-          // ✅ KRİTİK: Username update sonrası BACKEND'DEN FRESH USER DATA ÇEK
-          // Sadece username'i güncellemek yeterli değil, tüm user state'i fresh olmalı
-          try {
-            const freshUserResponse = await api.get('/users/me')
-            if (freshUserResponse.data) {
-              // ✅ Backend'den gelen TAM fresh user data'yı kullan
-              const freshUser = freshUserResponse.data
-              setUser(freshUser, capabilities ?? null)
-              
-              // ✅ KRİTİK: Local state'i de güncelle (input'ta görünsün)
-              setUsername(freshUser.username || '')
-              
-              console.log('✅ [Profile Edit] Username update sonrası user state güncellendi:', freshUser)
-            }
-          } catch (refreshError) {
-            console.warn('⚠️ [Profile Edit] Username update sonrası fresh user data çekilemedi:', refreshError)
-            // Fallback: usernameResponse'dan gelen data'yı kullan
-            if (usernameResponse.data?.username && user) {
-              const updatedUser = {
-                ...user,
-                username: usernameResponse.data.username,
-                usernameLastChangedAt: usernameResponse.data.usernameLastChangedAt || null,
-              };
-              setUser(updatedUser, capabilities ?? null);
-              
-              // ✅ KRİTİK: Local state'i de güncelle
-              setUsername(usernameResponse.data.username || '')
+          // ✅ KRİTİK: Backend'den gelen response'u direkt kullan (fresh data çekmeye gerek yok)
+          // Backend zaten güncellenmiş user'ı döndürüyor
+          if (usernameResponse.data) {
+            const updatedUserData = usernameResponse.data;
+            
+            // ✅ Backend'den gelen güncellenmiş user data'yı kullan
+            // Backend response'unda tüm user bilgileri var
+            const updatedUser = {
+              ...user,
+              ...updatedUserData, // ✅ Backend'den gelen tüm güncellenmiş data
+            };
+            
+            setUser(updatedUser, capabilities ?? null);
+            
+            // ✅ KRİTİK: Local state'i de güncelle (input'ta görünsün)
+            setUsername(updatedUserData.username || '')
+            
+            console.log('✅ [Profile Edit] Username update başarılı:', {
+              oldUsername: user?.username,
+              newUsername: updatedUserData.username,
+              updatedUser: updatedUserData,
+            });
+          } else {
+            // ✅ Fallback: Backend response'u yoksa fresh data çek
+            try {
+              const freshUserResponse = await api.get('/users/me')
+              if (freshUserResponse.data) {
+                const freshUser = freshUserResponse.data
+                setUser(freshUser, capabilities ?? null)
+                setUsername(freshUser.username || '')
+                console.log('✅ [Profile Edit] Username update sonrası fresh user data çekildi:', freshUser)
+              }
+            } catch (refreshError) {
+              console.warn('⚠️ [Profile Edit] Username update sonrası fresh user data çekilemedi:', refreshError)
             }
           }
           
