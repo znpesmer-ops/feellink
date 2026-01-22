@@ -109,9 +109,10 @@ function SavedPostsGrid() {
       }
     },
     enabled: !!accessToken, // ✅ KRİTİK: Sadece token varsa query çalışsın!
-    staleTime: 0,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true, // ✅ Window focus olduğunda da refetch!
+    staleTime: 0, // ✅ Her zaman fresh data çek
+    refetchOnMount: true, // ✅ Mount olduğunda refetch
+    refetchOnWindowFocus: false, // ❌ Window focus'ta refetch YOK! (optimistic update'i bozmamak için)
+    gcTime: 5 * 60 * 1000, // ✅ 5 dakika cache'de tut (eski cacheTime)
   })
 
   // Debug log - DETAYLI

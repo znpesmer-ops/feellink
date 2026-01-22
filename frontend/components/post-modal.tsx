@@ -355,20 +355,19 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
         });
       }
       
-      // ✅ SADECE LIST CACHE'LERİNİ INVALIDATE ET
-      // ❌ POST CACHE'İNİ INVALIDATE ETME! (optimistic update var)
-      console.log('🔄 [PostModal] Cache invalidate ediliyor: saved-posts, profile');
-      queryClient.invalidateQueries({ queryKey: ['saved-posts'] })
+      // ✅ SADECE PROFILE CACHE'İNİ INVALIDATE ET
+      // ❌ saved-posts query'sini invalidate/refetch ETME!
+      // Çünkü: Optimistic update zaten cache'e ekledi!
+      // Refetch backend'den eski data çekip optimistic update'i overwrite ediyor! ❌
+      console.log('🔄 [PostModal] Profile cache invalidate ediliyor...');
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       
-      // ✅ ZORLA REFETCH! (invalidate yeterli olmayabilir)
-      console.log('🔄 [PostModal] saved-posts ZORLA refetch başlatılıyor...');
-      queryClient.refetchQueries({ 
-        queryKey: ['saved-posts'],
-        type: 'active', // ✅ Sadece aktif query'leri refetch et
-      })
+      // ❌ REFETCH YOK! Optimistic update yeterli!
+      // Query mount olduğunda veya window focus olduğunda otomatik refetch olacak
+      // Backend zaten kaydetti, query fresh data çekecek
       
       console.log('✅ [PostModal] ========== İŞLEM TAMAMLANDI ==========');
+      console.log('✅ [PostModal] Optimistic update cache\'de! Query mount olduğunda görünecek!');
       // ✅ POST CACHE KORUMALI! Like state kaybolmamalı!
     },
     onError: (error: any, variables: any, context: any) => {
