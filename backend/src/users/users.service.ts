@@ -665,12 +665,22 @@ export class UsersService {
       };
     }
     
-    const existingUser = await this.prisma.user.findFirst({
+    // ✅ MongoDB için case-insensitive arama (mode: 'insensitive' MongoDB'de çalışmaz)
+    // Tüm kullanıcıları çek ve JavaScript'te filtrele
+    const allUsers = await this.prisma.user.findMany({
       where: {
-        username: { equals: normalizedNewUsername, mode: 'insensitive' },
         id: { not: userId },
       },
+      select: {
+        id: true,
+        username: true,
+      },
     });
+    
+    // Case-insensitive kontrol
+    const existingUser = allUsers.find(
+      (u) => u.username?.toLowerCase().trim() === normalizedNewUsername
+    );
 
     if (existingUser) {
       throw new BadRequestException('Bu kullanıcı adı zaten kullanılıyor.');
