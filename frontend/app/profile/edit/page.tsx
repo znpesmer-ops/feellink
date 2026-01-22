@@ -261,21 +261,31 @@ function EditProfileContent() {
         }
       )
 
-      // 🔒 KRİTİK: User state'ini güncelle - UI'ın eski veriyi göstermesini önle
-      if (response.data) {
-        // Backend'den gelen updated user'ı kullan
-        const updatedUser = { ...user, ...response.data }
-        setUser(updatedUser, capabilities ?? null)
-
-        // Zorunlu alanlar doluysa profileCompleted'i true yap
-        if (dateOfBirth && country && city && gender) {
-          const userWithCompletedProfile = { ...updatedUser, profileCompleted: true }
-          setUser(userWithCompletedProfile, capabilities ?? null)
+      // 🔒 KRİTİK: Backend'den FRESH user data çek - güncel veriyi garantile
+      try {
+        const freshUserResponse = await api.get('/users/me')
+        if (freshUserResponse.data) {
+          // ✅ Backend'den gelen TAM user data'yı kullan
+          const freshUser = freshUserResponse.data
+          setUser(freshUser, capabilities ?? null)
+          console.log('✅ [Profile Edit] User state güncellendi:', freshUser)
+        }
+      } catch (refreshError) {
+        console.warn('⚠️ [Profile Edit] Fresh user data çekilemedi, response.data kullanılıyor:', refreshError)
+        // Fallback: response.data kullan
+        if (response.data) {
+          const updatedUser = { ...user, ...response.data }
+          setUser(updatedUser, capabilities ?? null)
         }
       }
+      
       setMessage('Profil başarıyla güncellendi!')
       toast.success('Profil başarıyla güncellendi!')
 
+      // ✅ KRİTİK: Tüm profile-related query'leri invalidate et
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      
       // 🔔 Zorunlu alanlar tamamlandıysa bildirimi sil (backend otomatik silecek, frontend query'i invalidate et)
       if (dateOfBirth && country && city && gender) {
         queryClient.invalidateQueries({ queryKey: ['notifications'] })
@@ -315,22 +325,23 @@ function EditProfileContent() {
         console.log('[Profile Edit] Username from store (fallback):', finalUsername)
       }
 
-      // Redirect yap (sadece required değilse)
+      // ✅ Redirect yap (sadece required değilse) - query'ler invalidate edildi, fresh data yüklenecek
       if (!isRequired && finalUsername) {
         setTimeout(() => {
           console.log('[Profile Edit] Redirecting to:', `/profile/${finalUsername}`)
+          // ✅ Query'ler invalidate edildi, sayfa yüklendiğinde fresh data çekilecek
           router.push(`/profile/${finalUsername}`)
           router.refresh() // 🔒 Sayfayı yenile - güncel veriyi göster
-        }, 1500)
+        }, 1000) // ✅ 1 saniye yeterli (toast mesajı gösterilsin)
       } else if (isRequired && dateOfBirth && country && city && gender) {
         // Zorunlu alanlar tamamlandı, feed'e yönlendir
         setTimeout(() => {
           router.push('/feed')
           router.refresh()
-        }, 1500)
+        }, 1000)
       } else if (!finalUsername) {
         console.error('[Profile Edit] No username found for redirect')
-        toast.error('Profil güncellendi ancak yönlendirme yapılamadı')
+        // ✅ Redirect yapılamasa bile query'ler invalidate edildi, sayfa yenilendiğinde fresh data görünecek
       }
     } catch (error: any) {
       setMessage(error.response?.data?.message || 'Bir hata oluştu')
