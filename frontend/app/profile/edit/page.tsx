@@ -218,14 +218,32 @@ function EditProfileContent() {
           
           toast.success('Kullanıcı adı başarıyla güncellendi!');
         } catch (usernameError: any) {
-          console.error('Username update error:', usernameError);
+          console.error('❌ [Username Update] ========== ERROR ==========');
+          console.error('❌ [Username Update] Error object:', usernameError);
+          console.error('❌ [Username Update] Error message:', usernameError?.message);
+          console.error('❌ [Username Update] Error code:', usernameError?.code);
+          console.error('❌ [Username Update] Response status:', usernameError?.response?.status);
+          console.error('❌ [Username Update] Response data:', usernameError?.response?.data);
+          console.error('❌ [Username Update] Request URL:', usernameError?.config?.url);
+          console.error('❌ [Username Update] Request method:', usernameError?.config?.method);
+          console.error('❌ [Username Update] Full URL:', `${usernameError?.config?.baseURL}${usernameError?.config?.url}`);
+          console.error('❌ [Username Update] ========== END ERROR ==========');
           
           // ✅ Daha detaylı hata mesajı
           let errorMessage = 'Kullanıcı adı güncellenemedi';
           
           if (usernameError.response) {
             // Backend'den gelen hata mesajı
-            errorMessage = usernameError.response.data?.message || usernameError.response.statusText || errorMessage;
+            const status = usernameError.response.status;
+            if (status === 404) {
+              errorMessage = 'Kullanıcı adı güncelleme endpoint\'i bulunamadı. Lütfen daha sonra tekrar deneyin.';
+            } else if (status === 401) {
+              errorMessage = 'Oturum süreniz dolmuş. Lütfen tekrar giriş yapın.';
+            } else if (status === 400) {
+              errorMessage = usernameError.response.data?.message || 'Kullanıcı adı güncellenemedi. Lütfen kontrol edin.';
+            } else {
+              errorMessage = usernameError.response.data?.message || usernameError.response.statusText || errorMessage;
+            }
           } else if (usernameError.request) {
             // Network hatası
             errorMessage = 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.';
