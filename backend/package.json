@@ -1,7 +1,7 @@
 {
   "name": "feellink-backend",
-  "version": "1.0.3",
-  "description": "Feellink Backend API - Backend Only Deploy: 2026-01-23-19-52",
+  "version": "1.0.4",
+  "description": "Feellink Backend API - Vercel Root Directory: backend (ZORUNLU!)",
   "author": "",
   "private": true,
   "license": "MIT",
