@@ -1,10 +1,11 @@
 // Vercel serverless function - TypeScript (Vercel auto-compiles)
-// Deploy trigger: DEPRECATED PACKAGES FIX - 2026-01-23 19:40
+// Deploy trigger: DEPRECATED PACKAGES FIX - 2026-01-23 19:45
 // ✅ KRİTİK: Bu dosya backend/ klasöründe, Vercel'de Root Directory: backend olmalı!
 // ✅ BACKEND DEPLOY ZORUNLU: Her backend değişikliğinde bu dosya güncellenmeli!
 // 🔥 FORCE DEPLOY: Bu yorum satırı değiştiği için Vercel backend'i deploy edecek!
 // 🔥 FORCE DEPLOY: Bu değişken değiştiği için Vercel backend'i deploy edecek!
-const FORCE_DEPLOY_TRIGGER = 'DEPRECATED_PACKAGES_FIX_2026_01_23_19_40';
+const FORCE_DEPLOY_TRIGGER = 'DEPRECATED_PACKAGES_FIX_2026_01_23_19_45';
+const FORCE_DEPLOY_TRIGGER_2 = 'BACKEND_DEPLOY_REQUIRED_NOW';
 // Bu satır Vercel'in backend klasöründe değişiklik algılaması için kritik!
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger, HttpException } from '@nestjs/common';
