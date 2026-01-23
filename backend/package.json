@@ -1,12 +1,11 @@
 {
   "name": "feellink-backend",
-  "version": "1.0.1",
-  "description": "Feellink Backend API",
+  "version": "1.0.2",
+  "description": "Feellink Backend API - Deploy trigger: 2026-01-23-19-50",
   "author": "",
   "private": true,
   "license": "MIT",
   "packageManager": "npm@10.0.0",
-  "// DEPLOY_TRIGGER": "2026-01-23-19-47-BACKEND-DEPLOY-REQUIRED",
   "scripts": {
     "postinstall": "prisma generate",
     "build": "prisma generate && npx tsc -p tsconfig.json",
