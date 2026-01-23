@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "name": "feellink-backend",
   "buildCommand": "npm install --legacy-peer-deps && npx prisma generate && npm run build",
   "installCommand": "npm install --legacy-peer-deps",
   "builds": [
