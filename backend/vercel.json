@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "// DEPLOY_TRIGGER": "2026-01-23-19-47-BACKEND-DEPLOY-REQUIRED",
   "buildCommand": "npm install --legacy-peer-deps && npx prisma generate && npm run build",
   "installCommand": "npm install --legacy-peer-deps",
   "builds": [
