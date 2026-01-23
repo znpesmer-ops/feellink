@@ -200,6 +200,7 @@ export class AuthService {
           roles: initialRoles,
           plan: 'FREE',
           badges: [],
+          termsAccepted: true, // ✅ Kullanıcı sözleşmesi onay durumu
           termsAcceptedAt: new Date(), // ✅ Kullanıcı sözleşmesi onay tarihi
         },
         select: {
