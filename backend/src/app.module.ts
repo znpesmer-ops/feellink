@@ -1,3 +1,4 @@
+// Backend deploy trigger: 2026-01-23-19-52-BACKEND-ONLY
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';

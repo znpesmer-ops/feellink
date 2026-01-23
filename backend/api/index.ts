@@ -1,13 +1,14 @@
 // Vercel serverless function - TypeScript (Vercel auto-compiles)
-// Deploy trigger: BACKEND ERROR FIX - 2026-01-23 19:50
+// Deploy trigger: BACKEND ONLY DEPLOY - 2026-01-23 19:52
 // ✅ KRİTİK: Bu dosya backend/ klasöründe, Vercel'de Root Directory: backend olmalı!
 // ✅ BACKEND DEPLOY ZORUNLU: Her backend değişikliğinde bu dosya güncellenmeli!
 // 🔥 FORCE DEPLOY: Bu yorum satırı değiştiği için Vercel backend'i deploy edecek!
 // 🔥 FORCE DEPLOY: Bu değişken değiştiği için Vercel backend'i deploy edecek!
-const FORCE_DEPLOY_TRIGGER = 'BACKEND_ERROR_FIX_2026_01_23_19_50';
+const FORCE_DEPLOY_TRIGGER = 'BACKEND_ONLY_DEPLOY_2026_01_23_19_52';
 const FORCE_DEPLOY_TRIGGER_2 = 'BACKEND_DEPLOY_REQUIRED_NOW';
 const FORCE_DEPLOY_TRIGGER_3 = 'PRODUCTION_ENVIRONMENT_DEPLOY';
 const FORCE_DEPLOY_TRIGGER_4 = 'JSON_SYNTAX_ERROR_FIXED';
+const FORCE_DEPLOY_TRIGGER_5 = 'BACKEND_CLASSORU_ONLY_NO_FRONTEND';
 // Bu satır Vercel'in backend klasöründe değişiklik algılaması için kritik!
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger, HttpException } from '@nestjs/common';
