@@ -123,5 +123,14 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "overrides": {
+    "inflight": "npm:@isaacs/inflight@^1.0.6",
+    "glob": "^10.3.10",
+    "rimraf": "^5.0.5",
+    "tar": "^7.4.3",
+    "superagent": "^10.2.2",
+    "@humanwhocodes/object-schema": "npm:@eslint/object-schema@^2.1.0",
+    "@humanwhocodes/config-array": "npm:@eslint/config-array@^0.18.0"
   }
 }
