@@ -20,6 +20,9 @@ const registerSchema = z.object({
     .min(8, 'Şifre en az 8 karakter olmalıdır')
     .regex(/^(?=.*[A-Za-z])(?=.*\d).+$/, 'Şifre en az bir harf ve bir rakam içermelidir'),
   fullName: z.string().optional(),
+  termsAccepted: z.boolean().refine((val) => val === true, {
+    message: 'Devam etmek için kullanıcı sözleşmesi ve KVKK metnini kabul etmelisiniz.',
+  }),
 })
 
 type RegisterForm = z.infer<typeof registerSchema>
@@ -30,7 +33,6 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [isChecking, setIsChecking] = useState(true)
   const [mode, setMode] = useState<'user' | 'corporate'>('user')
-  const [termsAccepted, setTermsAccepted] = useState(false)
   const [showTerms, setShowTerms] = useState(false) // ✅ Sözleşme alanını göster/gizle
 
   // Register sayfasında olduğumuz için, sayfa yüklendiğinde eski auth state'i temizle
@@ -67,20 +69,32 @@ export default function RegisterPage() {
     watch,
   } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
+    defaultValues: {
+      termsAccepted: false,
+    },
   })
+
+  // ✅ termsAccepted değerini watch ile izle
+  const termsAccepted = watch('termsAccepted')
 
   const onSubmit = async (data: RegisterForm) => {
     try {
       setError('')
       const endpoint = mode === 'corporate' ? '/auth/register-corporate' : '/auth/register'
       
+      // ✅ Kullanıcı sözleşmesi kontrolü (zod validation zaten yapıyor ama ekstra güvenlik)
+      if (!data.termsAccepted) {
+        setError('Devam etmek için kullanıcı sözleşmesi ve KVKK metnini kabul etmelisiniz.')
+        return
+      }
+
       // Boş string'leri undefined'a çevir (backend @IsOptional için)
       const payload = {
         email: data.email.trim(),
         username: data.username.trim(),
         password: data.password,
         ...(data.fullName && data.fullName.trim() ? { fullName: data.fullName.trim() } : {}),
-        termsAccepted: true, // Kullanıcı sözleşmesi onayı
+        termsAccepted: data.termsAccepted, // ✅ Form'dan gelen değer
       }
       
       // Debug: Gönderilen datayı logla
@@ -236,8 +250,7 @@ export default function RegisterPage() {
               <input
                 type="checkbox"
                 id="termsAccepted"
-                checked={termsAccepted}
-                onChange={(e: any) => setTermsAccepted(e.target.checked)}
+                {...registerField('termsAccepted')}
                 className="mt-1 h-4 w-4 text-[#ff7b00] focus:ring-[#ff7b00] border-gray-300 dark:border-gray-600 rounded"
               />
               <label htmlFor="termsAccepted" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
@@ -246,11 +259,25 @@ export default function RegisterPage() {
                   onClick={() => setShowTerms(!showTerms)}
                   className="text-[#ff7b00] hover:text-[#e36f00] underline"
                 >
-                  Kullanıcı Sözleşmesini
+                  Kullanıcı Sözleşmesi
                 </button>
-                {' '}okudum ve kabul ediyorum.
+                {' '}ve{' '}
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#ff7b00] hover:text-[#e36f00] underline"
+                >
+                  KVKK Aydınlatma Metni
+                </a>
+                {' '}ni okudum, kabul ediyorum.
               </label>
             </div>
+            {errors.termsAccepted && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                {errors.termsAccepted.message}
+              </p>
+            )}
 
             {/* ✅ Inline Sözleşme Alanı */}
             {showTerms && (

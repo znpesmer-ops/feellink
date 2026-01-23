@@ -29,127 +29,128 @@ enum AccountStatus {
 }
 
 model User {
-  id                    String           @id @default(auto()) @map("_id") @db.ObjectId
-  username              String           @unique
-  email                 String           @unique
-  password              String
-  fullName              String?
-  bio                   String?
-  avatar                String?
-  roles                 UserRole[]       @default([])
-  extras                String[]         @default([])
-  plan                  SubscriptionPlan @default(FREE)
-  badges                String[]         @default([])
-  isPrivate             Boolean          @default(false)
-  isVerified            Boolean          @default(false)
-  isAdmin               Boolean          @default(false)
-  superAdmin            Boolean          @default(false) // 🔥 GOD-MODE
-  followerCount         Int              @default(0)
-  followingCount        Int              @default(0)
-  isOnline              Boolean          @default(false)
-  lastSeen              DateTime?
-  passwordResetToken    String?          
-  passwordResetExpires  DateTime?
-  usernameLastChangedAt DateTime?
-  nameLastChangedAt     DateTime?
-  website               String?
-  dateOfBirth           DateTime?
-  country               String?
-  city                  String?
-  gender                String?
-  profileCompleted      Boolean          @default(false)
-  phoneNumber           String?
-  phoneVerified         Boolean          @default(false)
-  gdprConsent           Boolean          @default(false)
-  gdprConsentAt         DateTime?
-  analyticsConsent      Boolean          @default(false)
-  showProfileColorSignature Boolean      @default(true) // 🎨 Profil renk imzasını göster/gizle
-  termsAcceptedAt       DateTime?       // ✅ Kullanıcı sözleşmesi onay tarihi
-  accountStatus         AccountStatus   @default(ACTIVE) // 🔒 Hesap durumu
-  suspendedAt           DateTime?       // 🔒 Askıya alma tarihi
-  suspendedUntil        DateTime?       // 🔒 Askıya alma bitiş tarihi
-  suspensionReason      String?         // 🔒 Askıya alma nedeni
-  suspensionNote        String?         // 🔒 Admin iç notu
-  suspendedByAdminId    String?         @db.ObjectId // 🔒 Askıya alan admin ID
-  isDeleted             Boolean          @default(false) // 🗑️ Soft delete flag
-  deletedAt             DateTime?       // 🗑️ Soft delete timestamp
-  deletedBy             String?         @db.ObjectId // 🗑️ Admin who deleted
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
+  id                        String           @id @default(auto()) @map("_id") @db.ObjectId
+  username                  String           @unique
+  email                     String           @unique
+  password                  String
+  fullName                  String?
+  bio                       String?
+  avatar                    String?
+  roles                     UserRole[]       @default([])
+  extras                    String[]         @default([])
+  plan                      SubscriptionPlan @default(FREE)
+  badges                    String[]         @default([])
+  isPrivate                 Boolean          @default(false)
+  isVerified                Boolean          @default(false)
+  isAdmin                   Boolean          @default(false)
+  superAdmin                Boolean          @default(false) // 🔥 GOD-MODE
+  followerCount             Int              @default(0)
+  followingCount            Int              @default(0)
+  isOnline                  Boolean          @default(false)
+  lastSeen                  DateTime?
+  passwordResetToken        String?
+  passwordResetExpires      DateTime?
+  usernameLastChangedAt     DateTime?
+  nameLastChangedAt         DateTime?
+  website                   String?
+  dateOfBirth               DateTime?
+  country                   String?
+  city                      String?
+  gender                    String?
+  profileCompleted          Boolean          @default(false)
+  phoneNumber               String?
+  phoneVerified             Boolean          @default(false)
+  gdprConsent               Boolean          @default(false)
+  gdprConsentAt             DateTime?
+  analyticsConsent          Boolean          @default(false)
+  showProfileColorSignature Boolean          @default(true) // 🎨 Profil renk imzasını göster/gizle
+  termsAccepted             Boolean          @default(false) // ✅ Kullanıcı sözleşmesi onay durumu
+  termsAcceptedAt           DateTime? // ✅ Kullanıcı sözleşmesi onay tarihi
+  accountStatus             AccountStatus    @default(ACTIVE) // 🔒 Hesap durumu
+  suspendedAt               DateTime? // 🔒 Askıya alma tarihi
+  suspendedUntil            DateTime? // 🔒 Askıya alma bitiş tarihi
+  suspensionReason          String? // 🔒 Askıya alma nedeni
+  suspensionNote            String? // 🔒 Admin iç notu
+  suspendedByAdminId        String?          @db.ObjectId // 🔒 Askıya alan admin ID
+  isDeleted                 Boolean          @default(false) // 🗑️ Soft delete flag
+  deletedAt                 DateTime? // 🗑️ Soft delete timestamp
+  deletedBy                 String?          @db.ObjectId // 🗑️ Admin who deleted
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
 
   // Relations
-  posts                  Post[]
-  articles               Article[]
-  comments               Comment[]
-  likes                  Like[]
-  followers              Follow[]                @relation("Follower")
-  following              Follow[]                @relation("Following")
-  blockedBy              Block[]                 @relation("BlockedUser")
-  blockedUsers           Block[]                 @relation("BlockerUser")
-  followRequestsReceived FollowRequest[]         @relation("RequestedUser")
-  followRequestsSent     FollowRequest[]         @relation("RequesterUser")
-  notificationsReceived  Notification[]          @relation("ReceivedNotifications")
-  notificationsSent      Notification[]          @relation("SentNotifications")
-  stories                Story[]
-  storyViews             StoryView[]
-  refreshTokens          RefreshToken[]
-  savedPosts             SavedPost[]
-  savedArtworks          SavedArtwork[]
-  messages               Message[]
-  conversations          UserConversation[]
-  commentReactions       CommentReaction[]
-  articleComments        ArticleComment[]
-  articleCommentLikes    ArticleCommentLike[]
-  commentLikes           CommentLike[]
-  notificationPreference NotificationPreference?
-  collections            Collection[]            @relation("CollectionOwner")
-  events                 Event[]                 @relation("EventOwner")
-  eventComments          EventComment[]          @relation("EventCommentAuthor")
-  eventParticipants      EventParticipant[]      @relation("EventParticipantUser")
-  ticketPurchases        TicketPurchase[]        @relation("TicketPurchaseUser")
-  auditLogs              AuditLog[]              @relation("AuditLogActor")
-  jobListings            JobListing[]
-  jobApplications        JobApplication[]        @relation("JobApplications")
-  roleChangeRequests     RoleChangeRequest[]     @relation("RoleChangeRequests")
-  reviewedRoleChangeRequests RoleChangeRequest[] @relation("ReviewedRoleChangeRequests")
-  highlights             Highlight[]
-  monthlyHighlightsAsMuseum MonthlyHighlight[]   @relation("MonthlyHighlightMuseum")
-  collectionItems        CollectionItem[]        @relation("CollectionItemAddedBy")
-  reportsMade            UserReport[]            @relation("ReportsMade")
-  reportsReceived        UserReport[]            @relation("ReportsReceived")
-  emailChangeRequests    EmailChangeRequest[]
-  phoneVerifications     PhoneVerification[]
-  roleChangeLogs         RoleChangeLog[]              @relation("RoleChanges")
+  posts                      Post[]
+  articles                   Article[]
+  comments                   Comment[]
+  likes                      Like[]
+  followers                  Follow[]                @relation("Follower")
+  following                  Follow[]                @relation("Following")
+  blockedBy                  Block[]                 @relation("BlockedUser")
+  blockedUsers               Block[]                 @relation("BlockerUser")
+  followRequestsReceived     FollowRequest[]         @relation("RequestedUser")
+  followRequestsSent         FollowRequest[]         @relation("RequesterUser")
+  notificationsReceived      Notification[]          @relation("ReceivedNotifications")
+  notificationsSent          Notification[]          @relation("SentNotifications")
+  stories                    Story[]
+  storyViews                 StoryView[]
+  refreshTokens              RefreshToken[]
+  savedPosts                 SavedPost[]
+  savedArtworks              SavedArtwork[]
+  messages                   Message[]
+  conversations              UserConversation[]
+  commentReactions           CommentReaction[]
+  articleComments            ArticleComment[]
+  articleCommentLikes        ArticleCommentLike[]
+  commentLikes               CommentLike[]
+  notificationPreference     NotificationPreference?
+  collections                Collection[]            @relation("CollectionOwner")
+  events                     Event[]                 @relation("EventOwner")
+  eventComments              EventComment[]          @relation("EventCommentAuthor")
+  eventParticipants          EventParticipant[]      @relation("EventParticipantUser")
+  ticketPurchases            TicketPurchase[]        @relation("TicketPurchaseUser")
+  auditLogs                  AuditLog[]              @relation("AuditLogActor")
+  jobListings                JobListing[]
+  jobApplications            JobApplication[]        @relation("JobApplications")
+  roleChangeRequests         RoleChangeRequest[]     @relation("RoleChangeRequests")
+  reviewedRoleChangeRequests RoleChangeRequest[]     @relation("ReviewedRoleChangeRequests")
+  highlights                 Highlight[]
+  monthlyHighlightsAsMuseum  MonthlyHighlight[]      @relation("MonthlyHighlightMuseum")
+  collectionItems            CollectionItem[]        @relation("CollectionItemAddedBy")
+  reportsMade                UserReport[]            @relation("ReportsMade")
+  reportsReceived            UserReport[]            @relation("ReportsReceived")
+  emailChangeRequests        EmailChangeRequest[]
+  phoneVerifications         PhoneVerification[]
+  roleChangeLogs             RoleChangeLog[]         @relation("RoleChanges")
 
   @@map("users")
 }
 
 model Post {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
   userId       String
   caption      String?
   title        String? // 🎨 Eser adı (artwork için)
   location     String?
-  type         String   @default("post") // "post" | "artwork"
+  type         String    @default("post") // "post" | "artwork"
   code         String? // Artwork için otomatik üretilen kod (PA24-00001 gibi)
-  colors       String[] @default([]) // Artwork için otomatik çıkarılan renkler (HEX formatında) - DEPRECATED
-  colorPalette String[] @default([]) // 🎨 Basit renk paleti: hex string listesi (frontend'den gelir)
-  isDeleted    Boolean  @default(false) // 🗑️ Soft delete flag
+  colors       String[]  @default([]) // Artwork için otomatik çıkarılan renkler (HEX formatında) - DEPRECATED
+  colorPalette String[]  @default([]) // 🎨 Basit renk paleti: hex string listesi (frontend'den gelir)
+  isDeleted    Boolean   @default(false) // 🗑️ Soft delete flag
   deletedAt    DateTime? // 🗑️ Soft delete timestamp
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   // Relations
-  user            User             @relation(fields: [userId], references: [id])
-  media           PostMedia[]
-  comments        Comment[]
-  likes           Like[]
-  hashtags        PostHashtag[]
-  savedBy         SavedPost[]
-  highlightCover  Highlight[]      @relation("HighlightCoverPost")
-  highlightItems  HighlightItem[]
-  collectionItems CollectionItem[]
-  savedByArtworks SavedArtwork[]   @relation("SavedByArtworks")
+  user                       User               @relation(fields: [userId], references: [id])
+  media                      PostMedia[]
+  comments                   Comment[]
+  likes                      Like[]
+  hashtags                   PostHashtag[]
+  savedBy                    SavedPost[]
+  highlightCover             Highlight[]        @relation("HighlightCoverPost")
+  highlightItems             HighlightItem[]
+  collectionItems            CollectionItem[]
+  savedByArtworks            SavedArtwork[]     @relation("SavedByArtworks")
   monthlyHighlightsAsArtwork MonthlyHighlight[] @relation("MonthlyHighlightArtwork")
 
   @@index([userId])
@@ -206,12 +207,12 @@ model Comment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  post      Post              @relation(fields: [postId], references: [id])
-  user      User              @relation(fields: [userId], references: [id])
-  parent    Comment?          @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  replies   Comment[]         @relation("CommentReplies")
-  reactions CommentReaction[]
-  likes     CommentLike[]
+  post              Post               @relation(fields: [postId], references: [id])
+  user              User               @relation(fields: [userId], references: [id])
+  parent            Comment?           @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies           Comment[]          @relation("CommentReplies")
+  reactions         CommentReaction[]
+  likes             CommentLike[]
   monthlyHighlights MonthlyHighlight[] @relation("MonthlyHighlightComment")
 
   @@index([postId])
@@ -423,15 +424,15 @@ enum ConversationContext {
 }
 
 model Conversation {
-  id           String              @id @default(auto()) @map("_id") @db.ObjectId
-  lastMessage  String?             // 🔥 Son mesaj içeriği (sol panel için)
-  context      ConversationContext @default(DIRECT) // "DIRECT" | "JOB_APPLICATION" - mesaj bağlamı
-  jobId        String?             @db.ObjectId // İlan üzerinden mesaj ise ilan ID'si
-  applicationId String?            @db.ObjectId // ✅ Başvuruya bağlı sohbet ise başvuru ID'si (LinkedIn/Upwork mantığı)
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-  participants UserConversation[]
-  messages     Message[]
+  id            String              @id @default(auto()) @map("_id") @db.ObjectId
+  lastMessage   String? // 🔥 Son mesaj içeriği (sol panel için)
+  context       ConversationContext @default(DIRECT) // "DIRECT" | "JOB_APPLICATION" - mesaj bağlamı
+  jobId         String?             @db.ObjectId // İlan üzerinden mesaj ise ilan ID'si
+  applicationId String?             @db.ObjectId // ✅ Başvuruya bağlı sohbet ise başvuru ID'si (LinkedIn/Upwork mantığı)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  participants  UserConversation[]
+  messages      Message[]
 
   @@index([createdAt])
   @@index([updatedAt])
@@ -457,7 +458,7 @@ model UserConversation {
 }
 
 model Message {
-  id             String              @id @default(auto()) @map("_id") @db.ObjectId
+  id             String               @id @default(auto()) @map("_id") @db.ObjectId
   content        String?
   imageUrl       String?
   fileUrl        String?
@@ -469,13 +470,13 @@ model Message {
   jobId          String?              @db.ObjectId // İlan üzerinden mesaj ise ilan ID'si (conversation'dan inherit edilir)
   applicationId  String?              @db.ObjectId // ✅ Başvuruya bağlı sohbet ise başvuru ID'si (conversation'dan inherit edilir)
   read           Boolean              @default(false)
-  isEdited        Boolean              @default(false)
-  isDeleted       Boolean              @default(false)
-  isRequest       Boolean              @default(false) // 🔥 Instagram tarzı mesaj isteği
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
-  sender          User                 @relation(fields: [senderId], references: [id])
-  conversation    Conversation         @relation(fields: [conversationId], references: [id])
+  isEdited       Boolean              @default(false)
+  isDeleted      Boolean              @default(false)
+  isRequest      Boolean              @default(false) // 🔥 Instagram tarzı mesaj isteği
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  sender         User                 @relation(fields: [senderId], references: [id])
+  conversation   Conversation         @relation(fields: [conversationId], references: [id])
 
   @@index([conversationId, createdAt])
   @@index([senderId])
@@ -587,7 +588,7 @@ model JobApplication {
 
   status ApplicationStatus @default(PENDING)
 
-  conversationId String?   @db.ObjectId // ✅ Başvuru onaylandığında oluşturulan sohbet ID'si (LinkedIn/Upwork mantığı)
+  conversationId String? @db.ObjectId // ✅ Başvuru onaylandığında oluşturulan sohbet ID'si (LinkedIn/Upwork mantığı)
 
   expiresAt      DateTime? // 30 günlük yanıt süresi (başvuru tarihinden itibaren)
   reminderSentAt DateTime? // Son hatırlatma bildirimi gönderilme tarihi
@@ -650,8 +651,8 @@ model Collection {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  owner User             @relation("CollectionOwner", fields: [ownerId], references: [id])
-  items CollectionItem[]
+  owner             User               @relation("CollectionOwner", fields: [ownerId], references: [id])
+  items             CollectionItem[]
   monthlyHighlights MonthlyHighlight[] @relation("MonthlyHighlightCollection")
 
   @@index([ownerId])
@@ -734,8 +735,8 @@ model EventParticipant {
   eventId           String
   userId            String
   status            EventParticipantStatus @default(PENDING)
-  reminderSentAt    DateTime?              // 30 dakika hatırlatma için
-  reminder24hSentAt DateTime?              // 24 saat hatırlatma için
+  reminderSentAt    DateTime? // 30 dakika hatırlatma için
+  reminder24hSentAt DateTime? // 24 saat hatırlatma için
   createdAt         DateTime               @default(now())
 
   event Event @relation("EventParticipants", fields: [eventId], references: [id])
@@ -858,15 +859,15 @@ enum ReportReason {
 }
 
 model UserReport {
-  id             String        @id @default(auto()) @map("_id") @db.ObjectId
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
   reporterId     String
   reportedUserId String
   conversationId String?
   messageId      String?
   reason         ReportReason
   note           String?
-  status         String        @default("OPEN")
-  createdAt      DateTime      @default(now())
+  status         String       @default("OPEN")
+  createdAt      DateTime     @default(now())
 
   reporter     User @relation("ReportsMade", fields: [reporterId], references: [id])
   reportedUser User @relation("ReportsReceived", fields: [reportedUserId], references: [id])
@@ -885,12 +886,12 @@ model RoleChangeRequest {
   status        String    @default("PENDING") // PENDING, APPROVED, REJECTED
   reviewedBy    String?   @db.ObjectId // Admin ID
   reviewedAt    DateTime?
-  reviewNote    String?   // Admin notu
+  reviewNote    String? // Admin notu
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  user          User      @relation("RoleChangeRequests", fields: [userId], references: [id], onDelete: Cascade)
-  reviewer      User?     @relation("ReviewedRoleChangeRequests", fields: [reviewedBy], references: [id])
+  user     User  @relation("RoleChangeRequests", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("ReviewedRoleChangeRequests", fields: [reviewedBy], references: [id])
 
   @@index([userId])
   @@index([status])
@@ -946,22 +947,22 @@ model RoleChangeLog {
 
 // ✅ Ayın Öne Çıkanları - Admin kontrollü veya otomatik seçim
 model MonthlyHighlight {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  year          Int       // Yıl (2024, 2025, vb.)
-  month         Int       // Ay (1-12)
-  museumId      String?   @db.ObjectId // Ayın Müzesi (User ID - museum role)
-  artworkId     String?   @db.ObjectId // Ayın Eseri (Post ID - type="artwork")
-  commentId     String?   @db.ObjectId // Ayın Yorumu (Comment ID)
-  collectionId String?   @db.ObjectId // Ayın Koleksiyonu (Collection ID)
-  isAuto        Boolean   @default(false) // Otomatik seçim mi, admin override mi?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  year         Int // Yıl (2024, 2025, vb.)
+  month        Int // Ay (1-12)
+  museumId     String?  @db.ObjectId // Ayın Müzesi (User ID - museum role)
+  artworkId    String?  @db.ObjectId // Ayın Eseri (Post ID - type="artwork")
+  commentId    String?  @db.ObjectId // Ayın Yorumu (Comment ID)
+  collectionId String?  @db.ObjectId // Ayın Koleksiyonu (Collection ID)
+  isAuto       Boolean  @default(false) // Otomatik seçim mi, admin override mi?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations (optional - nullable)
-  museum      User?      @relation("MonthlyHighlightMuseum", fields: [museumId], references: [id])
-  artwork     Post?      @relation("MonthlyHighlightArtwork", fields: [artworkId], references: [id])
-  comment     Comment?   @relation("MonthlyHighlightComment", fields: [commentId], references: [id])
-  collection  Collection? @relation("MonthlyHighlightCollection", fields: [collectionId], references: [id])
+  museum     User?       @relation("MonthlyHighlightMuseum", fields: [museumId], references: [id])
+  artwork    Post?       @relation("MonthlyHighlightArtwork", fields: [artworkId], references: [id])
+  comment    Comment?    @relation("MonthlyHighlightComment", fields: [commentId], references: [id])
+  collection Collection? @relation("MonthlyHighlightCollection", fields: [collectionId], references: [id])
 
   @@unique([year, month]) // Her ay için sadece bir kayıt (bu zaten bir index oluşturur)
   @@index([museumId])
