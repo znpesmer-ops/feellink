@@ -1,6 +1,6 @@
-// Backend deploy trigger: 2026-01-23-22-36-BACKEND-ONLY-ERROR-REDEPLOY
-// VERCEL: feellink-backend projesi için Root Directory: backend OLMALI!
 import { Module } from '@nestjs/common';
+// Backend deploy trigger: 2026-01-23-22-40-BACKEND-ONLY-ERROR-REDEPLOY
+// VERCEL: feellink-backend projesi için Root Directory: backend OLMALI!
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';

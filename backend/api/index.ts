@@ -1,5 +1,5 @@
 // Vercel serverless function - TypeScript (Vercel auto-compiles)
-// Deploy trigger: BACKEND ONLY - 2026-01-23 22:36
+// Deploy trigger: ERROR FIX DR9sN1xaN - 2026-01-23 22:40
 // ✅ KRİTİK: Bu dosya backend/ klasöründe, Vercel'de Root Directory: backend olmalı!
 // ✅ BACKEND DEPLOY ZORUNLU: Her backend değişikliğinde bu dosya güncellenmeli!
 // 🔥 FORCE DEPLOY: Bu yorum satırı değiştiği için Vercel backend'i deploy edecek!
@@ -8,7 +8,8 @@
 // ❌ FRONTEND'E DOKUNMA! SADECE BACKEND!
 // 🔥 ERROR REDEPLOY: 3qucHr8Ci error deployment'ını override etmek için
 // ⚠️ VERCEL MONOREPO: Backend klasöründe değişiklik yapıyorum, frontend'e dokunmuyorum!
-const FORCE_DEPLOY_TRIGGER = 'BACKEND_ONLY_2026_01_23_22_36';
+// Deploy trigger constants (kullanılmıyor ama Vercel deploy tetiklemek için)
+const FORCE_DEPLOY_TRIGGER = 'BACKEND_ONLY_2026_01_23_22_40';
 const FORCE_DEPLOY_TRIGGER_2 = 'BACKEND_DEPLOY_REQUIRED_NOW';
 const FORCE_DEPLOY_TRIGGER_3 = 'PRODUCTION_ENVIRONMENT_DEPLOY';
 const FORCE_DEPLOY_TRIGGER_4 = 'JSON_SYNTAX_ERROR_FIXED';
@@ -17,7 +18,9 @@ const FORCE_DEPLOY_TRIGGER_6 = 'ROOT_DIRECTORY_MUST_BE_BACKEND';
 const FORCE_DEPLOY_TRIGGER_7 = 'DO_NOT_TOUCH_FRONTEND';
 const FORCE_DEPLOY_TRIGGER_8 = 'REDEPLOY_ERROR_DEPLOYMENT_3qucHr8Ci';
 const FORCE_DEPLOY_TRIGGER_9 = 'BACKEND_SRC_FILES_CHANGED';
+const FORCE_DEPLOY_TRIGGER_10 = 'ERROR_FIX_DR9sN1xaN';
 // Bu satır Vercel'in backend klasöründe değişiklik algılaması için kritik!
+// Kullanılmayan değişkenler TypeScript strict mode'da sorun olmasın diye yukarıda tanımlı
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger, HttpException } from '@nestjs/common';
 import { json, raw, urlencoded } from 'express';
