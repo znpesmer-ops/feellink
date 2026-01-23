@@ -1,18 +1,20 @@
 // Vercel serverless function - TypeScript (Vercel auto-compiles)
-// Deploy trigger: BACKEND ONLY - NO FRONTEND - 2026-01-23 19:58
+// Deploy trigger: ERROR REDEPLOY - 2026-01-23 22:16
 // ✅ KRİTİK: Bu dosya backend/ klasöründe, Vercel'de Root Directory: backend olmalı!
 // ✅ BACKEND DEPLOY ZORUNLU: Her backend değişikliğinde bu dosya güncellenmeli!
 // 🔥 FORCE DEPLOY: Bu yorum satırı değiştiği için Vercel backend'i deploy edecek!
 // 🔥 FORCE DEPLOY: Bu değişken değiştiği için Vercel backend'i deploy edecek!
 // ⚠️ VERCEL AYARLARI: feellink-backend projesinde Root Directory: backend OLMALI!
 // ❌ FRONTEND'E DOKUNMA! SADECE BACKEND!
-const FORCE_DEPLOY_TRIGGER = 'BACKEND_ONLY_NO_FRONTEND_2026_01_23_19_58';
+// 🔥 ERROR REDEPLOY: 3qucHr8Ci error deployment'ını override etmek için
+const FORCE_DEPLOY_TRIGGER = 'ERROR_REDEPLOY_2026_01_23_22_16';
 const FORCE_DEPLOY_TRIGGER_2 = 'BACKEND_DEPLOY_REQUIRED_NOW';
 const FORCE_DEPLOY_TRIGGER_3 = 'PRODUCTION_ENVIRONMENT_DEPLOY';
 const FORCE_DEPLOY_TRIGGER_4 = 'JSON_SYNTAX_ERROR_FIXED';
 const FORCE_DEPLOY_TRIGGER_5 = 'BACKEND_CLASSORU_ONLY_NO_FRONTEND';
 const FORCE_DEPLOY_TRIGGER_6 = 'ROOT_DIRECTORY_MUST_BE_BACKEND';
 const FORCE_DEPLOY_TRIGGER_7 = 'DO_NOT_TOUCH_FRONTEND';
+const FORCE_DEPLOY_TRIGGER_8 = 'REDEPLOY_ERROR_DEPLOYMENT_3qucHr8Ci';
 // Bu satır Vercel'in backend klasöründe değişiklik algılaması için kritik!
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger, HttpException } from '@nestjs/common';
