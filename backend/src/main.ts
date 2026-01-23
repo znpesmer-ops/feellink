@@ -1,3 +1,5 @@
+// Backend deploy trigger: 2026-01-23-22-36-BACKEND-ONLY
+// VERCEL: feellink-backend projesi için Root Directory: backend OLMALI!
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger, HttpException } from '@nestjs/common';
 import { json, raw, urlencoded } from 'express';
