@@ -1,4 +1,4 @@
-# Instagram Clone - Tam Entegre Sosyal Medya Platformu
+Sosyal Medya Platformu
 
 Bu proje, Instagram ile birebir aynı mantıkta çalışan profesyonel bir sosyal medya platformudur.
 
