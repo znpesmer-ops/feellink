@@ -268,12 +268,17 @@ export const getErrorMessage = (error: any): string => {
     return 'Bir hata oluştu. Lütfen tekrar deneyin.'
   }
 
-  // Handle nested message objects (NestJS format)
-  const nested = typeof responseData?.message === 'object' ? responseData.message : null
-  const errorMessage = nested?.message ?? 
-    (typeof responseData?.message === 'string' ? responseData.message : null) ??
-    responseData?.error ??
-    'Bir hata oluştu. Lütfen tekrar deneyin.'
+  // Handle NestJS format: message can be string, array of strings, or nested object
+  const msg = responseData?.message
+  let errorMessage: string | null = null
+  if (Array.isArray(msg)) {
+    errorMessage = msg.filter(Boolean).join('. ')
+  } else if (typeof msg === 'string') {
+    errorMessage = msg
+  } else if (msg && typeof msg === 'object' && typeof (msg as any).message === 'string') {
+    errorMessage = (msg as any).message
+  }
+  const finalMessage = errorMessage ?? responseData?.error ?? 'Bir hata oluştu. Lütfen tekrar deneyin.'
 
   // Filter out unwanted error messages
   const unwantedMessages = [
@@ -284,11 +289,11 @@ export const getErrorMessage = (error: any): string => {
     'internal server error',
   ]
 
-  if (unwantedMessages.some(msg => errorMessage.toLowerCase().includes(msg.toLowerCase()))) {
+  if (unwantedMessages.some(m => finalMessage.toLowerCase().includes(m.toLowerCase()))) {
     return 'Bir hata oluştu. Lütfen tekrar deneyin.'
   }
 
-  return errorMessage
+  return finalMessage
 }
 
 export { api }

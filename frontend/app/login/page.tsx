@@ -19,10 +19,16 @@ const loginSchema = z.object({
 })
 
 const registerSchema = z.object({
-  username: z.string().min(3, 'Username must be at least 3 characters'),
-  email: z.string().regex(unicodeEmailRegex, 'Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  username: z.string().min(3, 'Kullanıcı adı en az 3 karakter olmalıdır'),
+  email: z.string().regex(unicodeEmailRegex, 'Lütfen geçerli bir e-posta adresi girin'),
+  password: z
+    .string()
+    .min(8, 'Şifre en az 8 karakter olmalıdır')
+    .regex(/^(?=.*[A-Za-z])(?=.*\d).+$/, 'Şifre en az bir harf ve bir rakam içermelidir'),
   fullName: z.string().optional(),
+  termsAccepted: z.boolean().refine((val) => val === true, {
+    message: 'Devam etmek için kullanıcı sözleşmesi ve KVKK metnini kabul etmelisiniz.',
+  }),
 })
 
 type LoginForm = z.infer<typeof loginSchema>
@@ -123,6 +129,9 @@ export default function LoginPage() {
 
   const registerForm = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
+    defaultValues: {
+      termsAccepted: false,
+    },
   })
 
   const onLogin = async (data: LoginForm) => {
@@ -156,8 +165,14 @@ export default function LoginPage() {
   const onRegister = async (data: RegisterForm) => {
     try {
       setError('')
-      // Birleşik register endpoint'i kullan
-      const response = await api.post('/auth/register', data)
+      const payload = {
+        email: data.email.trim(),
+        username: data.username.trim(),
+        password: data.password,
+        ...(data.fullName && data.fullName.trim() ? { fullName: data.fullName.trim() } : {}),
+        termsAccepted: data.termsAccepted,
+      }
+      const response = await api.post('/auth/register', payload)
       const {
         user: registeredUser,
         accessToken: newAccessToken,
@@ -519,6 +534,37 @@ export default function LoginPage() {
                   </p>
                 )}
               </div>
+
+              <div className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  id="register-termsAccepted"
+                  {...registerForm.register('termsAccepted')}
+                  className={`mt-1 h-4 w-4 rounded border-2 text-[#ff7a00] focus:ring-[#ff7a00] ${
+                    darkMode ? 'border-gray-500 bg-[#1a1a1a]' : 'border-gray-300 bg-white'
+                  }`}
+                />
+                <label
+                  htmlFor="register-termsAccepted"
+                  className={`text-sm ${
+                    darkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}
+                >
+                  <a href="/register" className="text-[#ff7a00] hover:underline">
+                    Kullanıcı Sözleşmesi
+                  </a>
+                  {' ve '}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-[#ff7a00] hover:underline">
+                    KVKK Aydınlatma Metni
+                  </a>
+                  {' '}ni okudum, kabul ediyorum.
+                </label>
+              </div>
+              {registerForm.formState.errors.termsAccepted && (
+                <p className={`text-sm ${darkMode ? 'text-red-400' : 'text-red-600'}`}>
+                  {registerForm.formState.errors.termsAccepted.message}
+                </p>
+              )}
 
               <button
                 type="submit"

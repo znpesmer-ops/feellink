@@ -36,6 +36,11 @@ export class RegisterDto {
   @IsString()
   role?: UserRoleCode;
 
+  @Transform(({ value }) => {
+    if (value === true || value === 'true' || value === 1) return true;
+    if (value === false || value === 'false' || value === 0) return false;
+    return value;
+  })
   @IsBoolean({ message: 'Kullanıcı sözleşmesi kabul edilmelidir' })
   @IsNotEmpty({ message: 'Kullanıcı sözleşmesi kabul edilmelidir' })
   termsAccepted: boolean;
