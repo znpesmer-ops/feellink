@@ -19,6 +19,7 @@ const FORCE_DEPLOY_TRIGGER_7 = 'DO_NOT_TOUCH_FRONTEND';
 const FORCE_DEPLOY_TRIGGER_8 = 'REDEPLOY_ERROR_DEPLOYMENT_3qucHr8Ci';
 const FORCE_DEPLOY_TRIGGER_9 = 'BACKEND_SRC_FILES_CHANGED';
 const FORCE_DEPLOY_TRIGGER_10 = 'ERROR_FIX_DR9sN1xaN';
+const FORCE_DEPLOY_TRIGGER_11 = 'BACKEND_REDEPLOY_2026_03_08';
 // Bu satır Vercel'in backend klasöründe değişiklik algılaması için kritik!
 // Kullanılmayan değişkenler TypeScript strict mode'da sorun olmasın diye yukarıda tanımlı
 import { NestFactory } from '@nestjs/core';
