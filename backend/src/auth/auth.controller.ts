@@ -56,6 +56,12 @@ export class AuthController {
     return result;
   }
 
+  @Get('db-check')
+  async dbCheck() {
+    const ok = await this.authService.checkDatabase();
+    return { ok };
+  }
+
   @Post('login')
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(loginDto);

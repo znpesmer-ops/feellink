@@ -183,6 +183,14 @@ export class AuthService {
       throw new BadRequestException('Kullanıcı sözleşmesi kabul edilmeden kayıt olunamaz.');
     }
 
+    const dbOk = await this.checkDatabase();
+    if (!dbOk) {
+      this.logger.warn('[REGISTER] DB check failed before create');
+      throw new BadRequestException(
+        'Kayıt işlemi şu anda tamamlanamıyor. Lütfen daha sonra tekrar deneyin.',
+      );
+    }
+
     try {
       // 🔥 DEBUG: Register işlemi başladı
       this.logger.log(`[REGISTER DEBUG] Starting registration for: ${email}`);
@@ -401,6 +409,16 @@ export class AuthService {
       ...tokens,
       needsRoleSelection,
     };
+  }
+
+  async checkDatabase(): Promise<boolean> {
+    try {
+      await this.prisma.$connect();
+      await this.prisma.user.findFirst({ select: { id: true }, take: 1 });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private async generateTokens(userId: string) {
