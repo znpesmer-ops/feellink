@@ -190,10 +190,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ✅ Path normalize: Vercel bazen /api veya /api/... gönderir
     let path = (req.url || '/').split('?')[0].replace(/\/$/, '') || '/';
     if (path.startsWith('/api')) path = path.slice(4) || '/';
+    if (path === '') path = '/';
 
-    // ✅ /ready ve /health: Nest bootstrap etmeden 200 dön (Vercel "Ready" için)
-    const isReady = req.method === 'GET' && (path === '/ready' || path === '/health' || path === '/');
-    if (isReady) {
+    const readyPaths = ['/', '/health', '/ready', '/ping', '/live'];
+    const isReadyRequest = req.method === 'GET' && readyPaths.includes(path);
+
+    // ✅ Health/ready: Nest bootstrap etmeden 200 dön (Vercel "Ready" için, asla hata verme)
+    if (isReadyRequest) {
       res.setHeader('Content-Type', 'application/json');
       res.status(200).end(
         JSON.stringify({
@@ -211,7 +214,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     (req as any).url = path + qs;
 
     console.log(`📥 Request: ${req.method} ${req.url} from ${origin || 'unknown'}`);
-    const server = await bootstrapServer();
+    let server;
+    try {
+      server = await bootstrapServer();
+    } catch (bootstrapErr: any) {
+      console.error('🔥 Bootstrap failed (non-ready request):', bootstrapErr?.message);
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', 'application/json');
+        res.status(503).end(
+          JSON.stringify({
+            statusCode: 503,
+            message: 'Service temporarily unavailable',
+            error: 'Service Unavailable',
+          }),
+        );
+      }
+      return;
+    }
     
     // Wrap in promise to handle async errors
     return new Promise<void>((resolve) => {
@@ -257,34 +276,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     });
   } catch (err: any) {
-    // Detailed error logging for debugging
     const errorDetails = {
       message: err?.message,
       stack: err?.stack,
       name: err?.name,
-      code: err?.code,
-      cause: err?.cause,
       path: req.url,
       method: req.method,
     };
-
     console.error('🔥 VERCEL RUNTIME ERROR:', JSON.stringify(errorDetails, null, 2));
-    console.error('Environment check:', {
-      NODE_ENV: process.env.NODE_ENV,
-      DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'MISSING',
-      JWT_SECRET: process.env.JWT_SECRET ? 'SET' : 'MISSING',
-    });
 
     if (!res.headersSent) {
-      res.status(500).json({
-        statusCode: 500,
-        message:
-          process.env.NODE_ENV === 'production'
-            ? 'Internal Server Error'
-            : err?.message || 'Internal Server Error',
-        error: 'Internal Server Error',
-        ...(process.env.NODE_ENV !== 'production' && { details: errorDetails }),
-      });
+      res.setHeader('Content-Type', 'application/json');
+      res.status(503).end(
+        JSON.stringify({
+          statusCode: 503,
+          message: 'Service temporarily unavailable',
+          error: 'Service Unavailable',
+        }),
+      );
     }
   }
 }

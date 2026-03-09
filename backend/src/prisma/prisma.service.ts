@@ -20,7 +20,8 @@ export class PrismaService
 
   async onModuleInit() {
     if (!process.env.DATABASE_URL) {
-      this.logger.error('❌ DATABASE_URL is missing');
+      this.logger.warn('⚠️ DATABASE_URL is missing');
+      if (process.env.VERCEL) return; // Vercel: başlamayı engelleme, /health vb. yine 200 döner
       throw new Error('DATABASE_URL is not set');
     }
 
@@ -29,6 +30,7 @@ export class PrismaService
       this.logger.log('✅ Prisma connected');
     } catch (err) {
       this.logger.error('❌ Prisma connection failed', err);
+      if (process.env.VERCEL) return; // Vercel: throw etme, deployment ready kalsın
       throw err;
     }
   }
