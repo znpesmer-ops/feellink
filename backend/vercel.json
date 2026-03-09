@@ -2,7 +2,7 @@
   "version": 2,
   "name": "feellink-backend",
   "buildCommand": "export DATABASE_URL=\"${DATABASE_URL:-mongodb://localhost:27017/feellink-build}\" && npm run build",
-  "installCommand": "export DATABASE_URL=\"${DATABASE_URL:-mongodb://localhost:27017/feellink-build}\" && (npm ci --legacy-peer-deps 2>/dev/null || npm install --legacy-peer-deps)",
+  "installCommand": "export DATABASE_URL=\"${DATABASE_URL:-mongodb://localhost:27017/feellink-build}\" && export NODE_ENV=development && (npm ci --legacy-peer-deps 2>/dev/null || npm install --legacy-peer-deps)",
   "rewrites": [
     {
       "source": "/(.*)",
