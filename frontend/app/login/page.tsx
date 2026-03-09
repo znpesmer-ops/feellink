@@ -170,8 +170,9 @@ export default function LoginPage() {
         username: data.username.trim(),
         password: data.password,
         ...(data.fullName && data.fullName.trim() ? { fullName: data.fullName.trim() } : {}),
-        termsAccepted: data.termsAccepted,
+        termsAccepted: Boolean(data.termsAccepted),
       }
+      console.log('[Register] Sending payload (password hidden):', { ...payload, password: '***' })
       const response = await api.post('/auth/register', payload)
       const {
         user: registeredUser,
@@ -185,7 +186,14 @@ export default function LoginPage() {
       setAuth(registeredUser, newAccessToken, newRefreshToken, caps ?? null, sidebar ?? null)
       handlePostAuthNavigation(registeredUser, caps ?? undefined, needsRoleSelection)
     } catch (err: any) {
+      const responseData = err?.response?.data
       console.error('Register error:', err)
+      console.error('[Register] Backend response (400 body):', {
+        statusCode: responseData?.statusCode,
+        message: responseData?.message,
+        error: responseData?.error,
+        fullBody: responseData,
+      })
       setError(getErrorMessage(err))
     }
   }

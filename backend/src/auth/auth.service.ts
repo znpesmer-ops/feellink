@@ -233,7 +233,7 @@ export class AuthService {
         ...tokens,
         needsRoleSelection,
       };
-    } catch (err) {
+    } catch (err: any) {
       // Prisma unique constraint hatası (email veya username çakışması)
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
         const target = (err.meta?.target as string[]) || [];
@@ -247,14 +247,28 @@ export class AuthService {
         throw new ConflictException('Bu bilgilerle kayıtlı bir kullanıcı zaten var');
       }
 
-      // Validation dışındaki diğer hatalar
-      this.logger.error(`[REGISTER DEBUG] Registration error for ${email}:`, err);
-      this.logger.error(`[REGISTER DEBUG] Error details:`, {
-        message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined,
-        code: err instanceof PrismaClientKnownRequestError ? err.code : undefined,
-      });
-      throw new BadRequestException('Kayıt işlemi sırasında bir hata oluştu');
+      const errMessage = err?.message ?? String(err);
+      const isDbError =
+        !errMessage ||
+        errMessage.includes('DATABASE_URL') ||
+        errMessage.includes('Can\'t reach') ||
+        errMessage.includes('connection') ||
+        errMessage.includes('ECONNREFUSED') ||
+        errMessage.includes('connect');
+
+      this.logger.error(`[REGISTER DEBUG] Registration error for ${email}:`, errMessage);
+
+      if (isDbError) {
+        throw new BadRequestException(
+          'Veritabanı bağlantısı kurulamadı. Lütfen daha sonra deneyin veya destek ile iletişime geçin.',
+        );
+      }
+
+      throw new BadRequestException(
+        process.env.NODE_ENV === 'production'
+          ? 'Kayıt işlemi sırasında bir hata oluştu. Lütfen bilgilerinizi kontrol edip tekrar deneyin.'
+          : errMessage,
+      );
     }
   }
 
