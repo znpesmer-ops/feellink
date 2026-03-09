@@ -93,9 +93,9 @@
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
     "@types/supertest": "^7.0.0",
-    "@typescript-eslint/eslint-plugin": "^6.17.0",
-    "@typescript-eslint/parser": "^6.17.0",
-    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "6.21.0",
+    "@typescript-eslint/parser": "6.21.0",
+    "eslint": "8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.2",
     "jest": "^29.7.0",
@@ -126,6 +126,7 @@
     "testEnvironment": "node"
   },
   "overrides": {
+    "eslint": "8.57.0",
     "glob": "^10.3.10",
     "rimraf": "^5.0.5",
     "tar": "^7.4.3",
