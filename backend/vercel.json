@@ -1,8 +1,8 @@
 {
   "version": 2,
   "name": "feellink-backend",
-  "buildCommand": "npm install --legacy-peer-deps && npx prisma generate && npm run build",
-  "installCommand": "npm install --legacy-peer-deps",
+  "buildCommand": "export DATABASE_URL=\"${DATABASE_URL:-mongodb://localhost:27017/feellink-build}\" && npm run build",
+  "installCommand": "export DATABASE_URL=\"${DATABASE_URL:-mongodb://localhost:27017/feellink-build}\" && (npm ci --legacy-peer-deps 2>/dev/null || npm install --legacy-peer-deps)",
   "rewrites": [
     {
       "source": "/(.*)",
