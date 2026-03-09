@@ -187,6 +187,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
+    // ✅ Path normalize: Vercel bazen /api veya /api/... gönderir
+    let path = (req.url || '/').split('?')[0].replace(/\/$/, '') || '/';
+    if (path.startsWith('/api')) path = path.slice(4) || '/';
+
+    // ✅ /ready ve /health: Nest bootstrap etmeden 200 dön (Vercel "Ready" için)
+    const isReady = req.method === 'GET' && (path === '/ready' || path === '/health' || path === '/');
+    if (isReady) {
+      res.setHeader('Content-Type', 'application/json');
+      res.status(200).end(
+        JSON.stringify({
+          status: 'ok',
+          ready: true,
+          service: 'Feellink Backend API',
+          timestamp: new Date().toISOString(),
+        }),
+      );
+      return;
+    }
+
+    // Nest'in gördüğü URL: /api prefix'i kaldır (Vercel rewrite nedeniyle)
+    const qs = (req.url || '').includes('?') ? '?' + (req.url || '').split('?')[1] : '';
+    (req as any).url = path + qs;
+
     console.log(`📥 Request: ${req.method} ${req.url} from ${origin || 'unknown'}`);
     const server = await bootstrapServer();
     
