@@ -13,7 +13,14 @@ Vercel → **feellink-backend** → **Settings** → **Environment Variables** �
 | **DATABASE_URL** | MongoDB bağlantı adresi (Prisma) | `mongodb+srv://user:pass@cluster0.xxx.mongodb.net/feellink?retryWrites=true&w=majority` |
 | **JWT_SECRET** | Giriş token’ları için gizli anahtar | Uzun rastgele string (örn. `openssl rand -base64 48`) |
 
-**Not:** `MONGODB_URI` kullanma; backend **DATABASE_URL** kullanıyor (Prisma).
+**Not:** Backend önce **DATABASE_URL** arar; yoksa **MONGODB_URI** veya **DATABASE_URI** kullanır. En doğrusu **DATABASE_URL** eklemek.
+
+**"Veritabanı bağlantısı kurulamadı" alıyorsan:**  
+1. [vercel.com](https://vercel.com) → **feellink-backend** projesi → **Settings** → **Environment Variables**  
+2. **Key:** `DATABASE_URL`  
+3. **Value:** MongoDB connection string (örn. `mongodb+srv://kullanici:sifre@cluster0.xxxxx.mongodb.net/feellink?retryWrites=true&w=majority`)  
+4. **Environment:** Production (ve istersen Preview) işaretle → **Save**  
+5. **Deployments** sekmesine git → son deployment’ta **⋯** → **Redeploy** (env’ler yeni deploy’da yüklenir)
 
 ---
 
@@ -27,6 +34,28 @@ Vercel → **feellink-backend** → **Settings** → **Environment Variables** �
 | **BASE_URL** | Backend’in kendi URL’i (bazı servisler kullanıyor) | `https://feellink-backend.vercel.app` |
 
 **PORT** → Vercel otomatik set eder, eklemen gerekmez.
+
+---
+
+## Blob (dosya yükleme) nasıl eklenir?
+
+Profil fotoğrafı ve gönderi medyası için Vercel Blob kullanıyorsun. Token’ı şöyle oluşturup backend’e bağlarsın:
+
+1. **Vercel Dashboard** → [vercel.com](https://vercel.com) → giriş yap.
+2. **feellink-backend** projesini aç (veya Blob’u bağlayacağın proje).
+3. Üst menüden **Storage** sekmesine git.
+4. **Create Database** → **Blob** seç → **Continue**.
+5. **Access:** Public (profil/gönderi resimleri herkese açık olsun) veya Private seç.
+6. Store adı ver (örn. `feellink-blob`) → **Create**.
+7. Oluşturduktan sonra **Connect to Project** (veya “Add to Project”) ile bu store’u **feellink-backend** projesine bağla.
+8. Environment olarak **Production** (ve istersen Preview) işaretle → bağla.
+
+Bu adımlardan sonra Vercel, **BLOB_READ_WRITE_TOKEN** değişkenini projeye otomatik ekler. Backend’deki `MediaService` bu token’ı kullanır; ekstra env eklemen gerekmez.
+
+**Kendi elinle env eklemek istersen:**  
+Storage → Blob store’unu seç → **Settings** / **.env** kısmından token’ı kopyala → **feellink-backend** → **Settings** → **Environment Variables** → Key: `BLOB_READ_WRITE_TOKEN`, Value: (kopyaladığın token), Environment: Production → Save.
+
+**Lokal geliştirme:** Token’ı kullanmak için `vercel env pull` ile çekebilir veya `.env` dosyana `BLOB_READ_WRITE_TOKEN=...` ekleyebilirsin.
 
 ---
 
