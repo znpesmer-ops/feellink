@@ -377,7 +377,7 @@ model FeedCache {
 model RefreshToken {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   token     String   @unique
-  userId    String
+  userId    String   @db.ObjectId
   expiresAt DateTime
   createdAt DateTime @default(now())
 

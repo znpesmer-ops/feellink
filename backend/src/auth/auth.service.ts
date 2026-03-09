@@ -239,10 +239,10 @@ export class AuthService {
         needsRoleSelection,
       };
     } catch (err: any) {
-      // Prisma unique constraint hatası (email veya username çakışması)
+      // Prisma unique constraint (email/username zaten var)
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
         const target = (err.meta?.target as string[]) || [];
-        this.logger.warn(`[REGISTER DEBUG] Unique constraint violation: ${JSON.stringify(target)}`);
+        this.logger.warn(`[REGISTER] Unique constraint: ${JSON.stringify(target)}`);
         if (target.includes('email')) {
           throw new ConflictException('Bu e-posta adresi zaten kullanımda');
         }
@@ -252,16 +252,19 @@ export class AuthService {
         throw new ConflictException('Bu bilgilerle kayıtlı bir kullanıcı zaten var');
       }
 
-      const errMessage = err?.message ?? String(err);
+      const errMessage =
+        typeof err?.message === 'string'
+          ? err.message
+          : err?.error?.message ?? err?.response?.data?.message ?? String(err);
       const isDbError =
         !errMessage ||
         errMessage.includes('DATABASE_URL') ||
-        errMessage.includes('Can\'t reach') ||
+        errMessage.includes("Can't reach") ||
         errMessage.includes('connection') ||
         errMessage.includes('ECONNREFUSED') ||
         errMessage.includes('connect');
 
-      this.logger.error(`[REGISTER DEBUG] Registration error for ${email}:`, errMessage);
+      this.logger.error(`[REGISTER] Error for ${email}:`, errMessage);
 
       if (isDbError) {
         throw new BadRequestException(
@@ -269,11 +272,8 @@ export class AuthService {
         );
       }
 
-      // Gerçek hata mesajını döndür (teşhis için; hassas detayları gösterme)
       const safeMessage =
-        typeof errMessage === 'string' && errMessage.length < 200
-          ? errMessage
-          : 'Kayıt işlemi sırasında bir hata oluştu. Lütfen bilgilerinizi kontrol edip tekrar deneyin.';
+        typeof errMessage === 'string' && errMessage.length < 300 ? errMessage : 'Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.';
       throw new BadRequestException(safeMessage);
     }
   }
