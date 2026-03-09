@@ -173,7 +173,12 @@ export class AuthService {
   async register(registerDto: RegisterDto) {
     const { email, username, password, fullName, role, termsAccepted } = registerDto;
 
-    // ✅ Kullanıcı sözleşmesi kontrolü
+    if (!this.configService.get<string>('JWT_SECRET')) {
+      throw new BadRequestException(
+        'Sunucu yapılandırma hatası (JWT_SECRET eksik). Lütfen destek ile iletişime geçin.',
+      );
+    }
+
     if (termsAccepted !== true) {
       throw new BadRequestException('Kullanıcı sözleşmesi kabul edilmeden kayıt olunamaz.');
     }
@@ -264,11 +269,12 @@ export class AuthService {
         );
       }
 
-      throw new BadRequestException(
-        process.env.NODE_ENV === 'production'
-          ? 'Kayıt işlemi sırasında bir hata oluştu. Lütfen bilgilerinizi kontrol edip tekrar deneyin.'
-          : errMessage,
-      );
+      // Gerçek hata mesajını döndür (teşhis için; hassas detayları gösterme)
+      const safeMessage =
+        typeof errMessage === 'string' && errMessage.length < 200
+          ? errMessage
+          : 'Kayıt işlemi sırasında bir hata oluştu. Lütfen bilgilerinizi kontrol edip tekrar deneyin.';
+      throw new BadRequestException(safeMessage);
     }
   }
 
