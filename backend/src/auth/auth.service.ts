@@ -271,20 +271,10 @@ export class AuthService {
 
       this.logger.error(`[REGISTER] Error for ${email}:`, errMessage);
 
-      if (isAuthFailed) {
-        throw new BadRequestException(
-          'Veritabanı girişi başarısız. Vercel\'de DATABASE_URL içindeki MongoDB kullanıcı adı ve şifresini kontrol edin. Şifrede @, #, : gibi karakter varsa URL-encode edin (örn. @ → %40).',
-        );
-      }
-      if (isDbError) {
-        throw new BadRequestException(
-          'Veritabanı bağlantısı kurulamadı. Lütfen daha sonra deneyin veya destek ile iletişime geçin.',
-        );
-      }
-
-      const safeMessage =
-        typeof errMessage === 'string' && errMessage.length < 300 ? errMessage : 'Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.';
-      throw new BadRequestException(safeMessage);
+      // Kullanıcıya yalnızca genel mesaj; teknik detay sadece log’ta
+      const userMessage =
+        'Kayıt işlemi şu anda tamamlanamıyor. Lütfen daha sonra tekrar deneyin.';
+      throw new BadRequestException(userMessage);
     }
   }
 

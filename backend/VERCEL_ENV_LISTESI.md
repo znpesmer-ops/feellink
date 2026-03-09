@@ -33,6 +33,15 @@ Vercel → **feellink-backend** → **Settings** → **Environment Variables** �
 - Örnek: şifre `P@ss#123` ise connection string’de `P%40ss%23123` yazın.  
 - MongoDB Atlas: Database Access → kullanıcının şifresini doğrulayın veya yeni şifre oluşturup DATABASE_URL’i güncelleyin.
 
+**DATABASE_URL doğrulama kontrol listesi (sadece geliştirici, UI’da gösterilmez):**  
+- [ ] Vercel → feellink-backend → Settings → Environment Variables’da DATABASE_URL tanımlı mı?  
+- [ ] MongoDB Atlas connection string doğru mu? (Atlas → Database → Connect → Drivers → URI kopyala)  
+- [ ] Kullanıcı adı ve şifre doğru mu? (Database Access’teki kullanıcı)  
+- [ ] Şifrede özel karakter (@, #, :, /, ?, %) varsa URL-encode edilmiş mi?  
+- [ ] Atlas Network Access’te 0.0.0.0/0 veya Vercel IP’leri açık mı?  
+- [ ] DB kullanıcısının ilgili veritabanına erişim yetkisi var mı?  
+- [ ] Değişiklikten sonra Vercel’de Redeploy yapıldı mı?
+
 ---
 
 ## Önerilen (site düzgün çalışsın)

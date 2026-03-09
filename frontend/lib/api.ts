@@ -280,7 +280,31 @@ export const getErrorMessage = (error: any): string => {
   }
   const finalMessage = errorMessage ?? responseData?.error ?? 'Bir hata oluştu. Lütfen tekrar deneyin.'
 
-  // Filter out unwanted error messages
+  // Teknik / iç sistem mesajları kullanıcıya gösterme (güvenlik ve UX)
+  const technicalTerms = [
+    'internet server error',
+    'internal server error',
+    'DATABASE_URL',
+    'MongoDB',
+    'Vercel',
+    'URL-encode',
+    'connection string',
+    'SCRAM',
+    'authentication failed',
+    'bad auth',
+    'ConnectorError',
+    'Prisma',
+    'env',
+    'Environment variable',
+  ]
+  const isTechnical = technicalTerms.some(term =>
+    finalMessage.toLowerCase().includes(term.toLowerCase()),
+  )
+  if (isTechnical) {
+    return 'Kayıt işlemi şu anda tamamlanamıyor. Lütfen daha sonra tekrar deneyin.'
+  }
+
+  // Eski genel filtre
   const unwantedMessages = [
     'internet server error',
     'Internet Server Error',
@@ -288,7 +312,6 @@ export const getErrorMessage = (error: any): string => {
     'Internal Server Error',
     'internal server error',
   ]
-
   if (unwantedMessages.some(m => finalMessage.toLowerCase().includes(m.toLowerCase()))) {
     return 'Bir hata oluştu. Lütfen tekrar deneyin.'
   }
