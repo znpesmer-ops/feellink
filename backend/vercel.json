@@ -3,16 +3,10 @@
   "name": "feellink-backend",
   "buildCommand": "npm install --legacy-peer-deps && npx prisma generate && npm run build",
   "installCommand": "npm install --legacy-peer-deps",
-  "routes": [
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "api/index.ts"
+      "source": "/(.*)",
+      "destination": "/api"
     }
-  ],
-  "functions": {
-    "api/index.ts": {
-      "maxDuration": 60,
-      "memory": 3008
-    }
-  }
+  ]
 }
