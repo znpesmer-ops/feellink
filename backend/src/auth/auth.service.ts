@@ -263,9 +263,19 @@ export class AuthService {
         errMessage.includes('connection') ||
         errMessage.includes('ECONNREFUSED') ||
         errMessage.includes('connect');
+      const isAuthFailed =
+        errMessage.includes('AuthenticationFailed') ||
+        errMessage.includes('bad auth') ||
+        errMessage.includes('SCRAM failure') ||
+        errMessage.includes('authentication failed');
 
       this.logger.error(`[REGISTER] Error for ${email}:`, errMessage);
 
+      if (isAuthFailed) {
+        throw new BadRequestException(
+          'Veritabanı girişi başarısız. Vercel\'de DATABASE_URL içindeki MongoDB kullanıcı adı ve şifresini kontrol edin. Şifrede @, #, : gibi karakter varsa URL-encode edin (örn. @ → %40).',
+        );
+      }
       if (isDbError) {
         throw new BadRequestException(
           'Veritabanı bağlantısı kurulamadı. Lütfen daha sonra deneyin veya destek ile iletişime geçin.',

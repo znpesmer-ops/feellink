@@ -22,6 +22,17 @@ Vercel → **feellink-backend** → **Settings** → **Environment Variables** �
 4. **Environment:** Production (ve istersen Preview) işaretle → **Save**  
 5. **Deployments** sekmesine git → son deployment’ta **⋯** → **Redeploy** (env’ler yeni deploy’da yüklenir)
 
+**"SCRAM failure: bad auth" / "authentication failed" alıyorsan:**  
+- MongoDB kullanıcı adı veya şifresi yanlış. **Şifrede özel karakter varsa** (örn. `@`, `#`, `:`, `/`, `?`, `%`) mutlaka **URL-encode** edin:  
+  - `@` → `%40`  
+  - `#` → `%23`  
+  - `:` → `%3A`  
+  - `/` → `%2F`  
+  - `?` → `%3F`  
+  - `%` → `%25`  
+- Örnek: şifre `P@ss#123` ise connection string’de `P%40ss%23123` yazın.  
+- MongoDB Atlas: Database Access → kullanıcının şifresini doğrulayın veya yeni şifre oluşturup DATABASE_URL’i güncelleyin.
+
 ---
 
 ## Önerilen (site düzgün çalışsın)
