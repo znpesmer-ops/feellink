@@ -166,7 +166,14 @@ export class FeedService {
           },
         },
         media: true,
-        // _count removed - using manual count instead for MongoDB compatibility
+        comments: {
+          where: { parentId: null },
+          take: 6,
+          orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
+          include: {
+            user: { select: { username: true, fullName: true } },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
       take: limit,
@@ -215,18 +222,25 @@ export class FeedService {
 
     const likedPostIds = new Set(likes.map(l => l.postId));
 
-    return postsWithCounts.map(post => ({
-      ...post,
-      isLiked: likedPostIds.has(post.id),
-      media: post.media?.map((m: any) => ({
-        ...m,
-        url: this.transformMediaUrl(m.url),
-      })) || [],
-      user: {
-        ...post.user,
-        avatar: this.transformAvatarUrl(post.user.avatar),
-      },
-    }));
+    return postsWithCounts.map((post: any) => {
+      const pinned = post.comments?.find((c: any) => c.isPinned);
+      const pinnedComment = pinned
+        ? { user: pinned.user?.username || pinned.user?.fullName || 'Kullanıcı', text: pinned.content }
+        : null;
+      return {
+        ...post,
+        isLiked: likedPostIds.has(post.id),
+        media: post.media?.map((m: any) => ({
+          ...m,
+          url: this.transformMediaUrl(m.url),
+        })) || [],
+        user: {
+          ...post.user,
+          avatar: this.transformAvatarUrl(post.user.avatar),
+        },
+        pinnedComment,
+      };
+    });
   }
 }
 

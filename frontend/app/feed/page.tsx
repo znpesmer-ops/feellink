@@ -26,6 +26,7 @@ type FeedPost = {
   date: string
   createdAt: string
   _count?: { likes: number; comments: number }
+  pinnedComment?: { user: string; text: string } | null
 }
 
 function FeedContent() {
@@ -72,6 +73,7 @@ function FeedContent() {
         likes: post._count?.likes ?? 0,
         comments: post._count?.comments ?? 0,
       },
+      pinnedComment: post.pinnedComment ?? null,
     }
   })
 

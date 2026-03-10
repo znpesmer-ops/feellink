@@ -247,39 +247,30 @@ export default function PostCard({ post, onLike, onDelete }: PostCardProps) {
                   }}
                 />
                 
-                {/* Modern Hover Overlay - Glass Effect - Düşük z-index ile menü butonlarının altında */}
-                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover/image:opacity-100 transition-all duration-200 flex items-center justify-center rounded-2xl z-[5]">
+                {/* Modern Hover Overlay - Beğeni, yorum ve sabitlenen yorum (hover'da) */}
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover/image:opacity-100 transition-all duration-200 flex flex-col items-center justify-center gap-4 rounded-2xl z-[5] p-4">
                   <div className="flex items-center gap-8">
-                    {/* Likes */}
                     <div className="flex items-center gap-2 text-white text-lg font-semibold">
                       <Heart className="w-6 h-6" fill={isLiked ? "currentColor" : "none"} />
                       <span>{likesCount}</span>
                     </div>
-                    
-                    {/* Comments */}
                     <div className="flex items-center gap-2 text-white text-lg font-semibold">
                       <MessageCircle className="w-6 h-6" />
                       <span>{(post as any)._count?.comments || (post as any).commentCount || 0}</span>
                     </div>
                   </div>
-                </div>
-
-                {/* Sabitlenen yorum önizlemesi - sadece pinnedComment varken, altta blur şerit */}
-                {post.pinnedComment && (
-                  <div className="absolute bottom-0 left-0 right-0 z-[6] bg-black/50 backdrop-blur-sm rounded-b-2xl px-3 py-2 text-left">
-                    <div className="flex items-start gap-2">
-                      <Pin className="w-4 h-4 text-brand-orange mt-0.5 shrink-0 drop-shadow" fill="currentColor" />
-                      <div className="min-w-0 flex-1">
-                        <span className="block text-xs font-medium text-white/90 mb-0.5 drop-shadow-sm">
-                          Sabitlenen · @{post.pinnedComment.user}
-                        </span>
-                        <p className="line-clamp-2 text-white/85 text-sm leading-relaxed" title={post.pinnedComment.text}>
-                          {post.pinnedComment.text}
-                        </p>
+                  {post.pinnedComment && (
+                    <div className="w-full max-w-[90%] text-center">
+                      <div className="flex items-center justify-center gap-1.5 text-white/95 text-xs font-medium mb-1">
+                        <Pin className="w-3.5 h-3.5 text-brand-orange shrink-0" fill="currentColor" />
+                        <span>Sabitlenen · @{post.pinnedComment.user}</span>
                       </div>
+                      <p className="line-clamp-2 text-white/90 text-sm leading-snug" title={post.pinnedComment.text}>
+                        {post.pinnedComment.text}
+                      </p>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </>
             )
           })()}
