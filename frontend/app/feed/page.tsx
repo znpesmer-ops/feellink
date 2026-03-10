@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
-// ⚠️ Socket.IO devre dışı - Vercel serverless'ta çalışmaz
+import { useQuery } from '@tanstack/react-query'
 import { AuthGuard } from '@/lib/auth-guard'
 import HighlightsRow from '@/components/highlights-row'
 import PostCard from '@/components/PostCard'
@@ -14,95 +14,45 @@ import { PostCardSkeleton } from '@/components/ui/Skeleton'
 function FeedContent() {
   const router = useRouter()
   const { accessToken, user } = useAuthStore()
-  const [feedPosts, setFeedPosts] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (!accessToken) {
-      router.push('/login')
-      return
+    if (!accessToken) router.push('/login')
+  }, [accessToken, router])
+
+  const { data: feedData, isLoading } = useQuery({
+    queryKey: ['feed', user?.id],
+    queryFn: async () => {
+      const res = await api.get('/feed')
+      return res.data
+    },
+    enabled: !!accessToken && !!user?.id,
+  })
+
+  const posts = feedData?.posts ?? feedData ?? []
+  const transformedPosts = posts.map((post: any) => {
+    let mediaUrl: string | null = null
+    if (post.media?.length > 0) {
+      const first = post.media[0]
+      mediaUrl = first.url || first.path || first.fileName || null
+      if (mediaUrl && !mediaUrl.startsWith('http')) mediaUrl = resolveImageUrl(mediaUrl)
+      else if (mediaUrl) mediaUrl = resolveImageUrl(mediaUrl)
     }
-
-    // Fetch feed posts
-    const fetchFeed = async () => {
-      try {
-        setIsLoading(true)
-        const res = await api.get('/feed')
-        const posts = res.data.posts || res.data || []
-
-        // 🔍 DEBUG: Feed response'u logla
-        console.log('[FEED] 📊 Ana Sayfa API yanıtı:', {
-          toplam: posts.length,
-          rawData: res.data,
-          posts: posts,
-        })
-        
-        if (posts.length === 0) {
-          console.warn('[FEED] ⚠️ ANA SAYFA BOŞ! Kimseyi takip etmiyorsun veya takip ettiklerinin postu yok.')
-        }
-
-        // 🔍 DEBUG: İlk post'un media yapısını logla
-        if (posts.length > 0 && posts[0].media) {
-          console.log('[FEED] First post media structure:', {
-            postId: posts[0].id,
-            hasMedia: !!posts[0].media,
-            mediaLength: posts[0].media?.length || 0,
-            media: posts[0].media,
-            firstMediaUrl: posts[0].media?.[0]?.url,
-            firstMediaPath: posts[0].media?.[0]?.path,
-            firstMediaFileName: posts[0].media?.[0]?.fileName,
-          })
-        }
-
-        // Transform backend post format to PostCard format
-        const transformedPosts = posts.map((post: any) => {
-          // ✅ Backend'den gelen media URL'ini resolve et
-          // Backend şu alanları döndürebilir: url, path, fileName
-          let mediaUrl: string | null = null
-          if (post.media && post.media.length > 0) {
-            const firstMedia = post.media[0]
-            // Önce url field'ını kontrol et, yoksa path veya fileName kullan
-            mediaUrl = firstMedia.url || firstMedia.path || firstMedia.fileName || null
-            // Relative path ise resolveImageUrl ile absolute URL'e çevir
-            if (mediaUrl && !mediaUrl.startsWith('http')) {
-              mediaUrl = resolveImageUrl(mediaUrl)
-            } else if (mediaUrl) {
-              // Zaten absolute URL ise resolveImageUrl ile normalize et
-              mediaUrl = resolveImageUrl(mediaUrl)
-            }
-          }
-
-          return {
-            id: post.id,
-            title: post.caption || 'Gönderi',
-            content: post.caption || '',
-            cover: mediaUrl, // ✅ Resolved URL kullan
-            author: post.user?.fullName || post.user?.username || 'Kullanıcı',
-            authorUsername: post.user?.username,
-            authorAvatar: post.user?.avatar ? resolveImageUrl(post.user.avatar) : null,
-            authorId: post.user?.id,
-            userId: post.userId || post.user?.id,
-            likes: post._count?.likes || 0,
-            likedBy: post.isLiked ? [user?.id] : [],
-            date: post.createdAt,
-            createdAt: post.createdAt,
-          }
-        })
-
-        setFeedPosts(transformedPosts)
-      } catch (error) {
-        console.error('Feed posts alınamadı:', error)
-        setFeedPosts([])
-      } finally {
-        setIsLoading(false)
-      }
+    return {
+      id: post.id,
+      title: post.caption || 'Gönderi',
+      content: post.caption || '',
+      cover: mediaUrl,
+      author: post.user?.fullName || post.user?.username || 'Kullanıcı',
+      authorUsername: post.user?.username,
+      authorAvatar: post.user?.avatar ? resolveImageUrl(post.user.avatar) : null,
+      authorId: post.user?.id,
+      userId: post.userId || post.user?.id,
+      likes: post._count?.likes ?? 0,
+      likedBy: post.isLiked ? [user?.id] : [],
+      date: post.createdAt,
+      createdAt: post.createdAt,
     }
-
-    fetchFeed()
-
-    // ⚠️ Socket.IO devre dışı - Vercel serverless'ta çalışmaz
-    // Yeni post'lar için feed'i manuel refresh etmek gerekir
-  }, [accessToken, router, user?.id])
+  })
 
   // ✅ Optimistic render - UI hemen görünsün, fetch arkada devam etsin
   return (
@@ -124,7 +74,7 @@ function FeedContent() {
                 <PostCardSkeleton key={i} />
               ))}
             </div>
-          ) : feedPosts.length === 0 ? (
+          ) : transformedPosts.length === 0 ? (
             <div className="text-center py-12 md:py-20 bg-white dark:bg-gray-950 rounded-2xl border border-gray-100 dark:border-gray-900 px-4">
               <p className="text-gray-500 dark:text-gray-400 text-base md:text-lg mb-2">
                 Henüz keşfedecek gönderi yok
@@ -141,7 +91,7 @@ function FeedContent() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              {feedPosts.map((post) => (
+              {transformedPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
             </div>

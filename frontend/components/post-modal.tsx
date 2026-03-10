@@ -172,50 +172,42 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
     }
   }, [highlightCommentId, post?.comments])
 
-  // Like mutation — backend kalıcı yazar, response ile senkronize et
+  // Like mutation — tıklanma anındaki state ile toggle (stale closure yok), backend tek kaynak
   const likeMutation = useMutation<
     { liked: boolean; likeCount: number },
     Error,
-    void
+    { currentIsLiked: boolean; currentCount: number }
   >({
-    mutationFn: async () => {
-      if (post?.isLiked) {
-        const { data } = await api.delete<{ liked: boolean; likeCount: number }>(`/posts/${postId}/like`)
-        return { liked: false, likeCount: data?.likeCount ?? Math.max(0, (post?._count?.likes ?? 0) - 1) }
-      } else {
-        const { data } = await api.post<{ liked: boolean; likeCount: number }>(`/posts/${postId}/like`)
-        return { liked: true, likeCount: data?.likeCount ?? (post?._count?.likes ?? 0) + 1 }
+    mutationFn: async ({ currentIsLiked, currentCount }) => {
+      const res = currentIsLiked
+        ? await api.delete<{ liked?: boolean; likeCount?: number }>(`/posts/${postId}/like`)
+        : await api.post<{ liked?: boolean; likeCount?: number }>(`/posts/${postId}/like`)
+      const likeCount = typeof res.data?.likeCount === 'number' ? res.data.likeCount : (currentCount + (currentIsLiked ? -1 : 1))
+      return {
+        liked: currentIsLiked ? false : true,
+        likeCount: Math.max(0, likeCount),
       }
     },
-    onMutate: async () => {
-      // ⚡ OPTIMISTIC UPDATE - Anında UI güncelle
-      const newLikedState = !post?.isLiked
-      const likeDelta = newLikedState ? 1 : -1
-      
-      console.log(`⚡ [PostModal] OPTIMISTIC UPDATE: ${post?.isLiked} → ${newLikedState}`);
-      
+    onMutate: async ({ currentIsLiked, currentCount }) => {
+      const newLiked = !currentIsLiked
+      const newCount = Math.max(0, currentCount + (newLiked ? 1 : -1))
       queryClient.setQueryData(['post', postId], (old: any) => {
         if (!old) return old
         return {
           ...old,
-          isLiked: newLikedState,
-          _count: {
-            ...old._count,
-            likes: Math.max(0, (old._count?.likes || 0) + likeDelta),
-          },
+          isLiked: newLiked,
+          _count: { ...old._count, likes: newCount },
         }
       })
-      
-      console.log(`✅ [PostModal] UI updated! New count: ${Math.max(0, (post?._count?.likes || 0) + likeDelta)}`);
     },
     onSuccess: (data) => {
-      // Tek kaynak: backend response — cache'i sadece bununla güncelle; refetch tetikleme (stale response UI'ı geri almasın)
       queryClient.setQueryData(['post', postId], (old: any) => {
         if (!old) return old
+        const safeCount = typeof data.likeCount === 'number' ? data.likeCount : (old._count?.likes ?? 0)
         return {
           ...old,
           isLiked: data.liked,
-          _count: { ...old._count, likes: data.likeCount },
+          _count: { ...old._count, likes: Math.max(0, safeCount) },
         }
       })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
@@ -486,7 +478,10 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
   })
 
   const handleLike = () => {
-    likeMutation.mutate(undefined)
+    likeMutation.mutate({
+      currentIsLiked: !!post?.isLiked,
+      currentCount: post?._count?.likes ?? 0,
+    })
     if (!post?.isLiked) {
       setAnimateLike(true)
       setTimeout(() => setAnimateLike(false), 400)
