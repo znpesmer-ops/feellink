@@ -454,12 +454,16 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
     },
     onSuccess: (newComment) => {
       toast.success('Yorum eklendi! ✅')
-      // Optimistic: hemen listeye ekle (anlık his)
+      // Optimistic: en yeni üstte (backend ile aynı sıra — pinned sonra createdAt DESC)
       queryClient.setQueryData(['post', postId], (old: any) => {
         if (!old) return old
+        const list = old.comments || []
+        const pinned = list.filter((c: any) => c.isPinned)
+        const rest = list.filter((c: any) => !c.isPinned)
+        const nextComments = [...pinned, newComment, ...rest]
         return {
           ...old,
-          comments: [...(old.comments || []), newComment],
+          comments: nextComments,
           _count: {
             ...old._count,
             comments: (old._count?.comments || 0) + 1,

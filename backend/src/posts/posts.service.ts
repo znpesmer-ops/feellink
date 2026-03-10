@@ -366,8 +366,9 @@ export class PostsService {
           orderBy: { createdAt: 'asc' },
         },
       },
+      // Tek tutarlı sıra: en yeni üstte (pinned önce, sonra createdAt DESC)
       orderBy: [
-        { isPinned: 'desc' }, // Sabitlenmiş yorumlar en üstte
+        { isPinned: 'desc' },
         { createdAt: 'desc' },
       ],
     });
