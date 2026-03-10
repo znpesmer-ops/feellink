@@ -381,26 +381,26 @@ export class PostsService {
     let isSaved = false;
     
     if (currentUserId) {
-      // 🔥 MongoDB: Compound unique için findFirst kullan
-      // ✅ KRİTİK: Hem SavedPost HEM SavedArtwork kontrol et!
-      // Artwork'ler SavedArtwork tablosunda, normal postlar SavedPost tablosunda!
+      const pid = String(postId);
+      const uid = String(currentUserId);
+      // Like kalıcı: (postId, userId) unique — getPost'ta doğru isLiked ve sayı
       const [like, savedPost, savedArtwork] = await Promise.all([
         this.prisma.like.findFirst({
           where: {
-            postId,
-            userId: currentUserId,
+            postId: pid,
+            userId: uid,
           },
         }),
         this.prisma.savedPost.findFirst({
           where: {
-            userId: currentUserId,
-            postId,
+            userId: uid,
+            postId: pid,
           },
         }),
         this.prisma.savedArtwork.findFirst({
           where: {
-            userId: currentUserId,
-            postId,
+            userId: uid,
+            postId: pid,
           },
         }),
       ]);
@@ -414,10 +414,10 @@ export class PostsService {
       }
     }
 
-    // 🔥 MongoDB: Manuel count (daha güvenilir)
+    const pidForCount = String(postId);
     const [likeCount, commentCount] = await Promise.all([
-      this.prisma.like.count({ where: { postId } }),
-      this.prisma.comment.count({ where: { postId, parentId: null } }),
+      this.prisma.like.count({ where: { postId: pidForCount } }),
+      this.prisma.comment.count({ where: { postId: pidForCount, parentId: null } }),
     ]);
 
     // Avatar URL'lerini formatla
@@ -618,35 +618,36 @@ export class PostsService {
   }
 
   async likePost(postId: string, userId: string) {
+    const pid = String(postId);
+    const uid = String(userId);
     console.log(`❤️ [likePost] ========== START ==========`);
-    console.log(`❤️ [likePost] User ${userId} liking post ${postId}`);
-    
+    console.log(`❤️ [likePost] User ${uid} liking post ${pid}`);
+
     const post = await this.prisma.post.findUnique({
-      where: { id: postId },
+      where: { id: pid },
     });
 
     if (!post) {
-      console.error(`❌ [likePost] Post ${postId} NOT FOUND!`);
+      console.error(`❌ [likePost] Post ${pid} NOT FOUND!`);
       throw new NotFoundException('Post not found');
     }
 
     console.log(`✅ [likePost] Post found: ${post.id}`);
 
-    // 🔥 MongoDB: Compound unique için findFirst kullan
+    // Kalıcı kayıt: (postId, userId) unique — aynı kullanıcı aynı posta tek like
     const existingLike = await this.prisma.like.findFirst({
       where: {
-        postId,
-        userId,
+        postId: pid,
+        userId: uid,
       },
     });
 
     if (!existingLike) {
-      // Like yoksa oluştur
       console.log(`💾 [likePost] Creating new like...`);
       await this.prisma.like.create({
         data: {
-          postId,
-          userId,
+          postId: pid,
+          userId: uid,
         },
       });
       console.log(`✅ [likePost] Like created successfully!`);
@@ -654,9 +655,8 @@ export class PostsService {
       console.log(`⚠️ [likePost] Like already exists - skipping create`);
     }
 
-    // 🔥 MongoDB: Manuel count (daha güvenilir)
     const likeCount = await this.prisma.like.count({
-      where: { postId },
+      where: { postId: pid },
     });
     
     console.log(`✅ [likePost] Total likes: ${likeCount}`);
@@ -715,32 +715,33 @@ export class PostsService {
   }
 
   async unlikePost(postId: string, userId: string) {
+    const pid = String(postId);
+    const uid = String(userId);
     console.log(`💔 [unlikePost] ========== START ==========`);
-    console.log(`💔 [unlikePost] User ${userId} unliking post ${postId}`);
-    
+    console.log(`💔 [unlikePost] User ${uid} unliking post ${pid}`);
+
     const post = await this.prisma.post.findUnique({
-      where: { id: postId },
+      where: { id: pid },
     });
 
     if (!post) {
-      console.error(`❌ [unlikePost] Post ${postId} NOT FOUND!`);
+      console.error(`❌ [unlikePost] Post ${pid} NOT FOUND!`);
       throw new NotFoundException('Post not found');
     }
 
     console.log(`✅ [unlikePost] Post found: ${post.id}`);
-    
+
     const deleteResult = await this.prisma.like.deleteMany({
       where: {
-        postId,
-        userId,
+        postId: pid,
+        userId: uid,
       },
     });
 
     console.log(`🗑️ [unlikePost] Deleted ${deleteResult.count} like(s)`);
 
-    // 🔥 MongoDB: Manuel count (daha güvenilir)
     const likeCount = await this.prisma.like.count({
-      where: { postId },
+      where: { postId: pid },
     });
     
     console.log(`✅ [unlikePost] Total likes: ${likeCount}`);

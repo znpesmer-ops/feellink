@@ -172,26 +172,19 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
     }
   }, [highlightCommentId, post?.comments])
 
-  // Like mutation
+  // Like mutation — backend kalıcı yazar, response ile senkronize et
   const likeMutation = useMutation<
-    { liked: boolean },
+    { liked: boolean; likeCount: number },
     Error,
     void
   >({
     mutationFn: async () => {
-      console.log(`❤️ [PostModal] ========== LIKE MUTATION START ==========`);
-      console.log(`❤️ [PostModal] Current state: isLiked=${post?.isLiked}`);
-      
       if (post?.isLiked) {
-        console.log(`💔 [PostModal] UNLIKE → DELETE /posts/${postId}/like`);
-        await api.delete(`/posts/${postId}/like`)
-        console.log(`✅ [PostModal] UNLIKE successful!`);
-        return { liked: false }
+        const { data } = await api.delete<{ liked: boolean; likeCount: number }>(`/posts/${postId}/like`)
+        return { liked: false, likeCount: data?.likeCount ?? Math.max(0, (post?._count?.likes ?? 0) - 1) }
       } else {
-        console.log(`❤️ [PostModal] LIKE → POST /posts/${postId}/like`);
-        await api.post(`/posts/${postId}/like`)
-        console.log(`✅ [PostModal] LIKE successful!`);
-        return { liked: true }
+        const { data } = await api.post<{ liked: boolean; likeCount: number }>(`/posts/${postId}/like`)
+        return { liked: true, likeCount: data?.likeCount ?? (post?._count?.likes ?? 0) + 1 }
       }
     },
     onMutate: async () => {
@@ -215,9 +208,16 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       
       console.log(`✅ [PostModal] UI updated! New count: ${Math.max(0, (post?._count?.likes || 0) + likeDelta)}`);
     },
-    onSuccess: () => {
-      console.log(`✅ [PostModal] ========== LIKE MUTATION SUCCESS ==========`);
-      // Backend kalıcı kaydetti; cache'i sunucu verisiyle senkronize et (kalıcılık + isSaved korunur)
+    onSuccess: (data) => {
+      // Backend kalıcı kaydetti — cache'i response ile hemen güncelle, sonra refetch ile doğrula
+      queryClient.setQueryData(['post', postId], (old: any) => {
+        if (!old) return old
+        return {
+          ...old,
+          isLiked: data.liked,
+          _count: { ...old._count, likes: data.likeCount },
+        }
+      })
       queryClient.invalidateQueries({ queryKey: ['post', postId] })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       queryClient.invalidateQueries({ queryKey: ['feed'] })

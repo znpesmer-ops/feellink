@@ -63,7 +63,7 @@ export default function PostCard({ post, onLike, onDelete }: PostCardProps) {
   // ⚠️ Socket.IO devre dışı - Vercel serverless'ta çalışmaz
   // Like işlemleri REST API üzerinden çalışıyor (likeMutation)
 
-  // Like mutation - Backend API
+  // Like mutation — backend kalıcı yazar; success'te cache invalidate (tek kaynak backend)
   const likeMutation = useMutation({
     mutationFn: async () => {
       if (isLiked) {
@@ -74,8 +74,11 @@ export default function PostCard({ post, onLike, onDelete }: PostCardProps) {
         return { liked: true }
       }
     },
-    // ✅ onSuccess kaldırıldı - handleLike'da zaten optimistic update var
-    // ✅ onError rollback'i handleLike içindeki mutate callback'inde yapılıyor
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['post', post.id] })
+      queryClient.invalidateQueries({ queryKey: ['feed'] })
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
+    },
   })
 
   const handleLike = (e: React.MouseEvent) => {
