@@ -25,6 +25,7 @@ type FeedPost = {
   likedBy?: string[]
   date: string
   createdAt: string
+  _count?: { likes: number; comments: number }
 }
 
 function FeedContent() {
@@ -67,6 +68,10 @@ function FeedContent() {
       likedBy: post.isLiked ? [user?.id] : [],
       date: post.createdAt,
       createdAt: post.createdAt,
+      _count: {
+        likes: post._count?.likes ?? 0,
+        comments: post._count?.comments ?? 0,
+      },
     }
   })
 

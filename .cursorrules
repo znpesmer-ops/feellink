@@ -39,6 +39,11 @@
 - `backend/` — NestJS API
 - `backend/prisma/` — Prisma schema ve migrations
 
+## Vercel Redeploy
+- **Kod değişikliği yaptıktan sonra** Vercel'de otomatik redeploy tetiklemek için değişiklikleri **commit edip main'e push et**.
+- Push sonrası: Frontend (feellink) ve backend (feellink-backend) Vercel projeleri Git'e bağlıysa deploy tetiklenir; `backend/**` değiştiyse `.github/workflows/deploy-backend-vercel.yml` deploy hook ile backend redeploy yapar.
+- İstersen: Vercel Dashboard → Deployments → "..." → Redeploy ile manuel tetikleme de yapılabilir.
+
 
 
 
