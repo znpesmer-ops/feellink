@@ -497,30 +497,6 @@ export class PostsService {
         comments: commentCount,
       },
     };
-    
-    // 🔥 DEBUG: Response'u logla
-    console.log(`✅ [getPost] Post ${postId} response: ${formattedComments.length} yorum döndürülüyor`)
-    
-    return {
-      ...post,
-      id: post.id,
-      userId: post.userId,
-      caption: post.caption,
-      title: post.title,
-      location: post.location,
-      type: post.type,
-      createdAt: post.createdAt instanceof Date ? post.createdAt.toISOString() : post.createdAt,
-      updatedAt: post.updatedAt instanceof Date ? post.updatedAt.toISOString() : post.updatedAt,
-      media: transformedMedia,
-      user: transformedUser,
-      comments: formattedComments, // ✅ MongoDB'den gelen yorumlar formatlanmış şekilde
-      isLiked,
-      isSaved,
-      _count: {
-        likes: likeCount,
-        comments: commentCount,
-      },
-    };
   }
 
   async updatePost(postId: string, userId: string, data: { caption?: string; title?: string }) {
@@ -993,24 +969,29 @@ export class PostsService {
     const CDN_BASE_RESPONSE = this.configService.get('CDN_BASE_URL') || 
       `http://${this.configService.get('MINIO_ENDPOINT')}:${this.configService.get('MINIO_PORT')}/${this.configService.get('MINIO_BUCKET_NAME')}`;
 
+    // Frontend PostModal ile aynı formatta dön (getPost comments ile uyumlu)
+    const avatarUrl = comment.user.avatar
+      ? (comment.user.avatar.startsWith('http') ? comment.user.avatar : `${CDN_BASE_RESPONSE}/${comment.user.avatar}`)
+      : null;
     return {
       id: comment.id,
       postId: comment.postId,
+      userId: comment.userId,
       content: comment.content,
       createdAt: comment.createdAt.toISOString(),
-      parentId: comment.parentId,
+      updatedAt: comment.updatedAt instanceof Date ? comment.updatedAt.toISOString() : (comment.updatedAt as string),
+      parentId: comment.parentId ?? undefined,
+      isPinned: comment.isPinned ?? false,
+      isLikedByCurrentUser: false,
+      likesCount: 0,
       user: {
         id: comment.user.id,
         username: comment.user.username,
         fullName: comment.user.fullName,
-        avatar: comment.user.avatar ? (comment.user.avatar.startsWith('http') ? comment.user.avatar : `${CDN_BASE_RESPONSE}/${comment.user.avatar}`) : null,
-        avatarUrl: comment.user.avatar ? (comment.user.avatar.startsWith('http') ? comment.user.avatar : `${CDN_BASE_RESPONSE}/${comment.user.avatar}`) : null,
-        isVerified: comment.user.isVerified,
+        avatar: avatarUrl,
+        isVerified: comment.user.isVerified ?? false,
       },
-      _count: {
-        likes: 0,
-        replies: comment._count.replies || 0,
-      },
+      replies: [],
     };
   }
 

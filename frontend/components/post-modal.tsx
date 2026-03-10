@@ -139,14 +139,15 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
     }
   }, [showDeleteConfirm])
 
-  // Fetch post details
-  const { data: post, isLoading } = useQuery<Post>({
+  // Fetch post details — modal açıldığında her zaman backend'den güncel veri (kalıcı like/comment için)
+  const { data: post, isLoading, refetch: refetchPost } = useQuery<Post>({
     queryKey: ['post', postId],
     queryFn: async () => {
       const response = await api.get(`/posts/${postId}`)
       return response.data
     },
     enabled: !!accessToken && !!postId,
+    staleTime: 0, // Her modal açılışında güncel veri al
   })
 
   // Yorum odaklaması - highlightCommentId varsa yorumu scroll et
@@ -216,10 +217,8 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
     },
     onSuccess: () => {
       console.log(`✅ [PostModal] ========== LIKE MUTATION SUCCESS ==========`);
-      
-      // ✅ SADECE LIST CACHE'LERİNİ INVALIDATE ET
-      // ❌ POST CACHE'İNİ INVALIDATE ETME! (optimistic update var)
-      // Aksi halde: backend'den fresh data gelir → isSaved kaybolur
+      // Backend kalıcı kaydetti; cache'i sunucu verisiyle senkronize et (kalıcılık + isSaved korunur)
+      queryClient.invalidateQueries({ queryKey: ['post', postId] })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       queryClient.invalidateQueries({ queryKey: ['feed'] })
     },
@@ -454,15 +453,12 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       return response.data
     },
     onSuccess: (newComment) => {
-      // ✅ Kullanıcıya BAŞARILI bildirimi göster!
       toast.success('Yorum eklendi! ✅')
-      
-      // ✅ SADECE COMMENTS ARRAY'İNİ GÜNCELLE
-      // ❌ POST CACHE'İNİ INVALIDATE ETME! (Like/Save kaybolur)
+      // Optimistic: hemen listeye ekle (anlık his)
       queryClient.setQueryData(['post', postId], (old: any) => {
         if (!old) return old
         return {
-          ...old, // ✅ Like/Save korunuyor!
+          ...old,
           comments: [...(old.comments || []), newComment],
           _count: {
             ...old._count,
@@ -470,10 +466,12 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
           },
         }
       })
-      queryClient.invalidateQueries({ queryKey: ['profile'] })
       setCommentText('')
       setReplyingTo(null)
       setIsPostingComment(false)
+      // Backend'e kalıcı yazıldı; sunucu verisiyle senkronize et
+      queryClient.invalidateQueries({ queryKey: ['post', postId] })
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
     },
     onError: (error: any) => {
       // ❌ KULLANICIYA HATA BİLDİRİMİ GÖSTER!
