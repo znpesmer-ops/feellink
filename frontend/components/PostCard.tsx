@@ -78,6 +78,7 @@ export default function PostCard({ post, onLike, onDelete }: PostCardProps) {
       queryClient.invalidateQueries({ queryKey: ['post', post.id] })
       queryClient.invalidateQueries({ queryKey: ['feed'] })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
+      queryClient.invalidateQueries({ queryKey: ['explore'] })
     },
   })
 

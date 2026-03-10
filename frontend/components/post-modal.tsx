@@ -212,6 +212,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       queryClient.invalidateQueries({ queryKey: ['feed'] })
+      queryClient.invalidateQueries({ queryKey: ['explore'] })
     },
     onError: (error: any) => {
       console.error(`❌ [PostModal] ========== LIKE MUTATION ERROR ==========`);
@@ -467,6 +468,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       // Backend'e kalıcı yazıldı; sunucu verisiyle senkronize et
       queryClient.invalidateQueries({ queryKey: ['post', postId] })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
+      queryClient.invalidateQueries({ queryKey: ['explore'] })
     },
     onError: (error: any) => {
       // ❌ KULLANICIYA HATA BİLDİRİMİ GÖSTER!
@@ -552,6 +554,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
         }
       })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
+      queryClient.invalidateQueries({ queryKey: ['explore'] })
       setCommentMenuOpen(null)
     },
   })
