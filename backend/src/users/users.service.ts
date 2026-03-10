@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, InternalServerErrorException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { ensureRoleAssignment, computeCapabilities, getRoleOverview, getSidebarVisibility } from '../roles/roles.utils';
@@ -1474,7 +1474,6 @@ export class UsersService {
   }
 
   async deleteAccount(userId: string) {
-    // 🔥 KRİTİK: Kullanıcının var olduğunu kontrol et
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true },
@@ -1484,15 +1483,16 @@ export class UsersService {
       throw new NotFoundException('Kullanıcı bulunamadı.');
     }
 
-    // 🔥 KRİTİK: Transaction ile tüm ilişkili verileri sil
-    // Prisma schema'da çoğu ilişki onDelete: Cascade ile tanımlı,
-    // ancak bazı manuel silmeler gerekebilir
-    await this.prisma.$transaction(async (tx) => {
-      // User'ı sil - CASCADE ile ilişkili tüm veriler otomatik silinir
-      await tx.user.delete({
-        where: { id: userId },
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.user.delete({
+          where: { id: userId },
+        });
       });
-    });
+    } catch (err: any) {
+      console.error('[UsersService] deleteAccount error:', err?.message || err);
+      throw new InternalServerErrorException('Hesap silinirken bir sorun oluştu. Lütfen tekrar deneyin.');
+    }
 
     return { message: 'Hesap başarıyla silindi.' };
   }

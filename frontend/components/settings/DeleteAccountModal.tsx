@@ -1,11 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useMutation } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
+import { disconnectSocket } from '@/lib/socket'
 import toast from 'react-hot-toast'
+
+const DELETE_ERROR_MESSAGE = 'Hesap silinirken bir sorun oluştu. Lütfen tekrar deneyin.'
 
 interface DeleteAccountModalProps {
   isOpen: boolean
@@ -15,7 +17,6 @@ interface DeleteAccountModalProps {
 export function DeleteAccountModal({ isOpen, onClose }: DeleteAccountModalProps) {
   const [isConfirmed, setIsConfirmed] = useState(false)
   const [password, setPassword] = useState('')
-  const router = useRouter()
   const { clearAuth } = useAuthStore()
 
   const deleteMutation = useMutation({
@@ -24,14 +25,15 @@ export function DeleteAccountModal({ isOpen, onClose }: DeleteAccountModalProps)
     },
     onSuccess: () => {
       toast.success('Hesabınız başarıyla silindi.')
-      // Auth state'i temizle (logout)
+      disconnectSocket()
       clearAuth()
-      // Ana sayfaya yönlendir
-      router.push('/')
+      onClose()
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login'
+      }
     },
-    onError: (error: any) => {
-      const errorMessage = error?.response?.data?.message || error?.message || 'Hesap silinirken bir hata oluştu'
-      toast.error(errorMessage)
+    onError: () => {
+      toast.error(DELETE_ERROR_MESSAGE)
     },
   })
 
