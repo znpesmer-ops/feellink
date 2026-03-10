@@ -11,6 +11,22 @@ import api from '@/lib/api'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import { PostCardSkeleton } from '@/components/ui/Skeleton'
 
+type FeedPost = {
+  id: string
+  title: string
+  content: string
+  cover?: string | null
+  author: string
+  authorUsername?: string
+  authorAvatar?: string | null
+  authorId?: string
+  userId?: string
+  likes: number
+  likedBy?: string[]
+  date: string
+  createdAt: string
+}
+
 function FeedContent() {
   const router = useRouter()
   const { accessToken, user } = useAuthStore()
@@ -29,7 +45,7 @@ function FeedContent() {
   })
 
   const posts = feedData?.posts ?? feedData ?? []
-  const transformedPosts = posts.map((post: any) => {
+  const transformedPosts: FeedPost[] = posts.map((post: any) => {
     let mediaUrl: string | null = null
     if (post.media?.length > 0) {
       const first = post.media[0]

@@ -4,6 +4,9 @@ import './globals.css'
 import { Providers } from './providers'
 import { LayoutConditional } from '@/components/layout-conditional'
 
+// Vercel build: "Failed to collect page data" / next-url.js hatasını önler
+export const dynamic = 'force-dynamic'
+
 const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
