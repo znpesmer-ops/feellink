@@ -602,8 +602,7 @@ export class ChatService {
       throw new ForbiddenException('Access denied');
     }
 
-    // Mesajları okundu olarak işaretle
-    await this.prisma.message.updateMany({
+    const updated = await this.prisma.message.updateMany({
       where: {
         conversationId,
         senderId: { not: userId },
@@ -613,6 +612,9 @@ export class ChatService {
         read: true,
       },
     });
+
+    // Gönderene anlık "görüldü" bildirimi (REST ile açıldığında da socket ile güncellenir)
+    await this.chatGateway.markMessagesAsRead(conversationId, userId);
 
     return { success: true };
   }

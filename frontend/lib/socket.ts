@@ -110,13 +110,8 @@ export const initSocket = (token: string): Socket => {
 }
 
 export const initChatSocket = (token: string): Socket => {
-  // 🔴 PRODUCTION: Socket.IO Vercel serverless ile uyumsuz - disable edildi
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    console.warn('[ChatSocket] Socket.IO disabled in production (Vercel serverless incompatible)')
-    // Mock socket döndür
-    return { on: () => {}, off: () => {}, emit: () => {}, connected: false } as any
-  }
-  
+  // Chat socket: Backend WebSocket destekliyorsa (örn. Railway) production'da da bağlanır.
+  // Vercel serverless backend kullanıyorsan socket bağlanamaz; mesajlar REST/polling ile çalışır.
   // Eğer socket zaten bağlıysa ve token aynıysa, mevcut socket'i döndür
   const currentAuth = chatSocket?.auth as { token?: string } | undefined
   if (chatSocket?.connected && currentAuth?.token === token) {

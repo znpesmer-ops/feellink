@@ -24,7 +24,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   @WebSocketServer()
   server: Server;
 
-  private userSockets: Map<string, string> = new Map(); // userId -> socketId
+  // Çoklu sekme/cihaz: bir kullanıcının birden fazla socket'i olabilir; hepsi kapanınca offline
+  private userSockets: Map<string, Set<string>> = new Map(); // userId -> Set<socketId>
   private socketToUser: Map<string, string> = new Map(); // socketId -> userId
 
   constructor(
@@ -50,22 +51,27 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       const payload = this.jwtService.verify(token);
       const userId = payload.userId;
 
-      this.userSockets.set(userId, client.id);
+      let socketIds = this.userSockets.get(userId);
+      if (!socketIds) {
+        socketIds = new Set();
+        this.userSockets.set(userId, socketIds);
+      }
+      const wasEmpty = socketIds.size === 0;
+      socketIds.add(client.id);
       this.socketToUser.set(client.id, userId);
 
       // Kullanıcıyı kendi odasına ekle (kişisel bildirimler için)
       client.join(`user_${userId}`);
 
-      // Kullanıcıyı çevrim içi olarak işaretle
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { isOnline: true },
-      });
-
-      console.log(`✅ ${userId} çevrim içi`);
-
-      // Tüm kullanıcılara durum güncellemesi gönder
-      this.broadcastUserStatus(userId, true);
+      // Sadece ilk bağlantıda (veya tekrar çevrimiçi olunca) DB ve broadcast güncelle
+      if (wasEmpty) {
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { isOnline: true },
+        });
+        console.log(`✅ ${userId} çevrim içi`);
+        this.broadcastUserStatus(userId, true);
+      }
     } catch (error) {
       client.disconnect();
     }
@@ -74,22 +80,20 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   async handleDisconnect(client: Socket) {
     const userId = this.socketToUser.get(client.id);
     if (userId) {
-      this.userSockets.delete(userId);
+      const socketIds = this.userSockets.get(userId);
+      if (socketIds) {
+        socketIds.delete(client.id);
+        if (socketIds.size === 0) {
+          this.userSockets.delete(userId);
+          await this.prisma.user.update({
+            where: { id: userId },
+            data: { isOnline: false, lastSeen: new Date() },
+          });
+          console.log(`❌ ${userId} çevrim dışı`);
+          this.broadcastUserStatus(userId, false);
+        }
+      }
       this.socketToUser.delete(client.id);
-
-      // Kullanıcıyı çevrim dışı olarak işaretle ve son görülme zamanını güncelle
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { 
-          isOnline: false,
-          lastSeen: new Date(),
-        },
-      });
-
-      console.log(`❌ ${userId} çevrim dışı`);
-
-      // Tüm kullanıcılara durum güncellemesi gönder
-      this.broadcastUserStatus(userId, false);
     }
   }
 
@@ -376,62 +380,23 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     });
     console.log(`📤 [ChatGateway] Sent to conversation room: conversation_${conversationId}`);
     
-    // 🔥 2. Her katılımcıya GARANTİLİ gönderim (3 yöntemle)
+    // 🔥 2. Her katılımcıya user_ odası ile gönder (çoklu sekme/cihaz dahil tüm tab'lar alır)
     conversation.participants.forEach((participant: any) => {
       const participantUserId = participant.userId;
-      const participantSocketId = this.userSockets.get(participantUserId);
-      
-      // Receiver için (sender hariç)
-      if (participantUserId !== userId) {
-        console.log(`📤 [ChatGateway] Sending to RECEIVER: ${participantUserId}, Socket ID: ${participantSocketId || 'NOT FOUND'}`);
-        
-        // ✅ KRİTİK: Receiver'a MUTLAKA gönder (3 yöntemle garantili)
-        // YÖNTEM 1: Socket ID'ye direkt gönder (en hızlı)
-        if (participantSocketId) {
-          this.server.to(participantSocketId).emit('receive_message', message);
-          this.server.to(participantSocketId).emit('new_message', {
-            conversationId: conversationId,
-            message,
-            conversation: updatedConversation,
-          });
-          this.server.to(participantSocketId).emit('conversation_updated', updatedConversation);
-          console.log(`✅ [ChatGateway] Message sent to receiver socket ID: ${participantSocketId} (userId: ${participantUserId})`);
-        } else {
-          console.warn(`⚠️ [ChatGateway] Receiver socket ID not found for userId: ${participantUserId} - using user room fallback`);
-        }
-        
-        // YÖNTEM 2: User room'a gönder (her zaman aktif - reconnect olduğunda alır)
-        // ✅ KRİTİK: User room'a MUTLAKA gönder (receiver bağlı olmasa bile reconnect olduğunda alır)
-        this.server.to(`user_${participantUserId}`).emit('receive_message', message);
-        this.server.to(`user_${participantUserId}`).emit('new_message', {
-          conversationId: conversationId,
-          message,
-          conversation: updatedConversation,
-        });
-        this.server.to(`user_${participantUserId}`).emit('conversation_updated', updatedConversation);
-        console.log(`✅ [ChatGateway] Message sent to receiver user room: user_${participantUserId}`);
-        
-        // YÖNTEM 3: Conversation room'a gönder (receiver join olmuşsa alır)
-        this.server.to(`conversation_${conversationId}`).emit('receive_message', message);
-        this.server.to(`conversation_${conversationId}`).emit('new_message', {
-          conversationId: conversationId,
-          message,
-          conversation: updatedConversation,
-        });
-        this.server.to(`conversation_${conversationId}`).emit('conversation_updated', updatedConversation);
-        console.log(`✅ [ChatGateway] Message sent to conversation room: conversation_${conversationId}`);
-      } else {
-        // Sender için de gönder (optimistic update için)
-        if (participantSocketId) {
-          this.server.to(participantSocketId).emit('receive_message', message);
-          this.server.to(participantSocketId).emit('new_message', {
-            conversationId: conversationId,
-            message,
-            conversation: updatedConversation,
-          });
-          console.log(`✅ [ChatGateway] Message sent to sender socket ID: ${participantSocketId}`);
-        }
-      }
+      this.server.to(`user_${participantUserId}`).emit('receive_message', message);
+      this.server.to(`user_${participantUserId}`).emit('new_message', {
+        conversationId: conversationId,
+        message,
+        conversation: updatedConversation,
+      });
+      this.server.to(`user_${participantUserId}`).emit('conversation_updated', updatedConversation);
+      this.server.to(`conversation_${conversationId}`).emit('receive_message', message);
+      this.server.to(`conversation_${conversationId}`).emit('new_message', {
+        conversationId: conversationId,
+        message,
+        conversation: updatedConversation,
+      });
+      this.server.to(`conversation_${conversationId}`).emit('conversation_updated', updatedConversation);
     });
 
     console.log(`✅ [ChatGateway] Message ${message.id} broadcasted to all participants of conversation ${conversationId} (IMMEDIATE)`);
@@ -475,13 +440,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         },
       });
 
-      // Conversation update event'ini gönder
+      // Conversation update event'ini gönder (user_ odası = tüm sekme/cihaz)
       if (updatedConversation) {
         updatedConversation.participants.forEach((participant: any) => {
-          const participantSocketId = this.userSockets.get(participant.userId);
-          if (participantSocketId) {
-            this.server.to(participantSocketId).emit('conversation_updated', updatedConversation);
-          }
           this.server.to(`user_${participant.userId}`).emit('conversation_updated', updatedConversation);
         });
         console.log(`✅ [ChatGateway] Conversation update sent for conversation ${conversationId}`);
@@ -531,16 +492,13 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         return { error: 'Access denied' };
       }
 
-      // Diğer katılımcılara typing_start olayını gönder
+      // Diğer katılımcılara typing_start olayını gönder (user_ odası = tüm sekmeler)
       conversation.participants.forEach((participant) => {
         if (participant.userId !== userId) {
-          const targetSocketId = this.userSockets.get(participant.userId);
-          if (targetSocketId) {
-            this.server.to(targetSocketId).emit('typing_start', {
-              conversationId: data.conversationId,
-              userId,
-            });
-          }
+          this.server.to(`user_${participant.userId}`).emit('typing_start', {
+            conversationId: data.conversationId,
+            userId,
+          });
         }
       });
 
@@ -574,16 +532,13 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         return { error: 'Access denied' };
       }
 
-      // Diğer katılımcılara typing_stop olayını gönder
+      // Diğer katılımcılara typing_stop olayını gönder (user_ odası = tüm sekmeler)
       conversation.participants.forEach((participant) => {
         if (participant.userId !== userId) {
-          const targetSocketId = this.userSockets.get(participant.userId);
-          if (targetSocketId) {
-            this.server.to(targetSocketId).emit('typing_stop', {
-              conversationId: data.conversationId,
-              userId,
-            });
-          }
+          this.server.to(`user_${participant.userId}`).emit('typing_stop', {
+            conversationId: data.conversationId,
+            userId,
+          });
         }
       });
 
@@ -644,15 +599,12 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         },
       });
 
-      // Gönderene okundu bilgisini bildir
-      const senderSocketId = this.userSockets.get(message.senderId);
-      if (senderSocketId) {
-        this.server.to(senderSocketId).emit('message_read_update', {
-          messageId: data.messageId,
-          conversationId: data.conversationId,
-          readBy: userId,
-        });
-      }
+      // Gönderene okundu bilgisini bildir (user_ odası = tüm sekmelerde görüldü güncellenir)
+      this.server.to(`user_${message.senderId}`).emit('message_read_update', {
+        messageId: data.messageId,
+        conversationId: data.conversationId,
+        readBy: userId,
+      });
 
       return { success: true, message: updatedMessage };
     } catch (error) {
@@ -673,27 +625,39 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       },
     });
 
-    // Okundu bilgisini diğer kullanıcılara bildir
+    // Okundu bilgisini konuşma odasına ve gönderenin tüm sekmelerine (user_ odası) bildir
     this.server.to(`conversation_${conversationId}`).emit('messages_read', {
       conversationId,
       userId,
       count: updatedCount.count,
     });
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: { participants: true },
+    });
+    if (conversation) {
+      const senderParticipant = conversation.participants.find((p) => p.userId !== userId);
+      if (senderParticipant) {
+        this.server.to(`user_${senderParticipant.userId}`).emit('messages_read', {
+          conversationId,
+          userId,
+          count: updatedCount.count,
+        });
+      }
+    }
 
     return updatedCount;
   }
 
-  // Online kullanıcıları kontrol etme
+  // Online kullanıcıları kontrol etme (en az bir socket varsa online)
   isUserOnline(userId: string): boolean {
-    return this.userSockets.has(userId);
+    const set = this.userSockets.get(userId);
+    return !!set && set.size > 0;
   }
 
-  // Kullanıcıya direkt mesaj gönderme (bildirimler için)
+  // Kullanıcıya direkt mesaj gönderme (user_ odası = tüm sekmeler)
   sendToUser(userId: string, event: string, data: any) {
-    const socketId = this.userSockets.get(userId);
-    if (socketId) {
-      this.server.to(socketId).emit(event, data);
-    }
+    this.server.to(`user_${userId}`).emit(event, data);
   }
 
   // Mesaj düzenlendiğinde broadcast et
