@@ -254,6 +254,8 @@ function ExploreContent() {
               createdAt: post.createdAt,
               _count: post._count,
               type: post.type,
+              pinnedComment: post.pinnedComment ?? null,
+              recentComments: post.recentComments ?? [],
             }
 
             return (

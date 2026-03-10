@@ -202,10 +202,13 @@ export class ExploreService {
           ...post.user,
           avatar: this.transformAvatarUrl(post.user.avatar),
         },
-        pinnedComment: post.comments && post.comments.length > 0 && post.comments[0].isPinned ? {
-          user: post.comments[0].user.username || post.comments[0].user.fullName || 'Kullanıcı',
-          text: post.comments[0].content,
-        } : null,
+        pinnedComment: (() => {
+          const pinned = post.comments?.find((c: any) => c.isPinned);
+          return pinned ? {
+            user: pinned.user?.username || pinned.user?.fullName || 'Kullanıcı',
+            text: pinned.content,
+          } : null;
+        })(),
         recentComments: post.comments
           ? post.comments
               .filter((c: any) => !c.isPinned) // Exclude pinned comments

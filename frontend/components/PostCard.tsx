@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Heart, MoreVertical, Trash2, MessageCircle } from 'lucide-react'
+import { Heart, MoreVertical, Trash2, MessageCircle, Pin } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/lib/store'
@@ -26,6 +26,8 @@ interface PostCardProps {
     likedBy?: string[]
     date: string
     createdAt: string
+    pinnedComment?: { user: string; text: string } | null
+    recentComments?: Array<{ id: string; content: string; isPinned?: boolean; user?: { username: string } }>
   }
   onLike?: (id: string) => void
   onDelete?: (id: string) => void
@@ -261,6 +263,23 @@ export default function PostCard({ post, onLike, onDelete }: PostCardProps) {
                     </div>
                   </div>
                 </div>
+
+                {/* Sabitlenen yorum önizlemesi - sadece pinnedComment varken, altta blur şerit */}
+                {post.pinnedComment && (
+                  <div className="absolute bottom-0 left-0 right-0 z-[6] bg-black/50 backdrop-blur-sm rounded-b-2xl px-3 py-2 text-left">
+                    <div className="flex items-start gap-2">
+                      <Pin className="w-4 h-4 text-brand-orange mt-0.5 shrink-0 drop-shadow" fill="currentColor" />
+                      <div className="min-w-0 flex-1">
+                        <span className="block text-xs font-medium text-white/90 mb-0.5 drop-shadow-sm">
+                          Sabitlenen · @{post.pinnedComment.user}
+                        </span>
+                        <p className="line-clamp-2 text-white/85 text-sm leading-relaxed" title={post.pinnedComment.text}>
+                          {post.pinnedComment.text}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             )
           })()}
