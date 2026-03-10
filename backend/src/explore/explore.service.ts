@@ -176,9 +176,23 @@ export class ExploreService {
 
     const likedPostIds = new Set(likes.map(l => l.postId));
 
+    // Like ve comment sayılarını manuel hesapla (MongoDB _count tutarlılığı için)
+    const [allLikes, allComments] = await Promise.all([
+      this.prisma.like.findMany({ where: { postId: { in: postIds } }, select: { postId: true } }),
+      this.prisma.comment.findMany({ where: { postId: { in: postIds }, parentId: null }, select: { postId: true } }),
+    ]);
+    const likeCountMap = new Map<string, number>();
+    const commentCountMap = new Map<string, number>();
+    allLikes.forEach((l) => likeCountMap.set(l.postId, (likeCountMap.get(l.postId) ?? 0) + 1));
+    allComments.forEach((c) => commentCountMap.set(c.postId, (commentCountMap.get(c.postId) ?? 0) + 1));
+
     return {
       posts: filteredPosts.map((post: any) => ({
         ...post,
+        _count: {
+          likes: likeCountMap.get(post.id) ?? 0,
+          comments: commentCountMap.get(post.id) ?? 0,
+        },
         isLiked: likedPostIds.has(post.id),
         media: post.media?.map((m: any) => ({
           ...m,

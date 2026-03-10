@@ -104,7 +104,7 @@ function CommentPreview({
 
 function ExploreContent() {
   const router = useRouter()
-  const { accessToken } = useAuthStore()
+  const { accessToken, user } = useAuthStore()
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<string>('Tümü')
   const [hoveredPostId, setHoveredPostId] = useState<string | null>(null)
@@ -248,8 +248,8 @@ function ExploreContent() {
               authorAvatar: post.user?.avatar,
               authorId: post.user?.id,
               userId: post.userId || post.user?.id,
-              likes: post._count?.likes || 0,
-              likedBy: post.isLiked ? [post.user?.id] : [],
+              likes: post._count?.likes ?? 0,
+              likedBy: post.isLiked && user?.id ? [user.id] : [],
               date: post.createdAt,
               createdAt: post.createdAt,
               _count: post._count,
