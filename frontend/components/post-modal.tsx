@@ -139,15 +139,15 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
     }
   }, [showDeleteConfirm])
 
-  // Fetch post details — modal açıldığında her zaman backend'den güncel veri (kalıcı like/comment için)
-  const { data: post, isLoading, refetch: refetchPost } = useQuery<Post>({
+  // Post detay — tek istek (post + yorumlar); staleTime ile gereksiz refetch azaltılır, like sonrası refetch yok
+  const { data: post, isLoading } = useQuery<Post>({
     queryKey: ['post', postId],
     queryFn: async () => {
       const response = await api.get(`/posts/${postId}`)
       return response.data
     },
     enabled: !!accessToken && !!postId,
-    staleTime: 0, // Her modal açılışında güncel veri al
+    staleTime: 60 * 1000, // 1 dk cache — like/comment mutation cache'i günceller, sayfa geç yüklenmez
   })
 
   // Yorum odaklaması - highlightCommentId varsa yorumu scroll et
@@ -209,7 +209,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       console.log(`✅ [PostModal] UI updated! New count: ${Math.max(0, (post?._count?.likes || 0) + likeDelta)}`);
     },
     onSuccess: (data) => {
-      // Backend kalıcı kaydetti — cache'i response ile hemen güncelle, sonra refetch ile doğrula
+      // Tek kaynak: backend response — cache'i sadece bununla güncelle; refetch tetikleme (stale response UI'ı geri almasın)
       queryClient.setQueryData(['post', postId], (old: any) => {
         if (!old) return old
         return {
@@ -218,7 +218,6 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
           _count: { ...old._count, likes: data.likeCount },
         }
       })
-      queryClient.invalidateQueries({ queryKey: ['post', postId] })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       queryClient.invalidateQueries({ queryKey: ['feed'] })
     },
