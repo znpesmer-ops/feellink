@@ -1,4 +1,6 @@
 "use client";
+// Vercel/SSR: sayfanın her zaman dinamik render alması için
+export const dynamic = "force-dynamic";
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -67,62 +69,38 @@ function EventsContent() {
   useEffect(() => {
     async function fetchEvents() {
       try {
-        // Genel etkinlikleri çek
-        const res = await api.get("/events/all");
-
-        // 🔒 GÜVENLİ VERİ NORMALİZASYONU - Backend response format'larını handle et
-        // Backend ne dönerse dönsün, UI asla patlamaz
-        const safeEventsData = (() => {
-          // Response data kontrolü
-          if (!res.data) return [];
-
-          // Array ise direkt döndür
-          if (Array.isArray(res.data)) {
-            return res.data;
-          }
-
-          // { events: [...] } formatında gelebilir
-          if (res.data.events && Array.isArray(res.data.events)) {
-            return res.data.events;
-          }
-
-          // { data: [...] } formatında gelebilir
-          if (res.data.data && Array.isArray(res.data.data)) {
-            return res.data.data;
-          }
-
-          // Hiçbiri değilse boş array
+        const normalizeList = (data: any): any[] => {
+          if (!data) return [];
+          if (Array.isArray(data)) return data;
+          if (data.events && Array.isArray(data.events)) return data.events;
+          if (data.data && Array.isArray(data.data)) return data.data;
           return [];
-        })();
+        };
 
-        setEvents(safeEventsData);
-        setFiltered(safeEventsData);
-
-        // Kullanıcının etkinliklerini çek (giriş yapmışsa)
         if (user) {
+          const [allRes, myRes] = await Promise.all([
+            api.get("/events/all").catch((e: any) => (e?.response?.status === 404 || e?.code === "ERR_NETWORK" ? api.get("/events") : Promise.reject(e))),
+            api.get("/events/my").catch(() => ({ data: [] })),
+          ]);
+          const safeEventsData = normalizeList(allRes?.data);
+          const safeMyEventsData = normalizeList(myRes?.data);
+          setEvents(safeEventsData);
+          setFiltered(safeEventsData);
+          setMyEvents(safeMyEventsData);
+        } else {
+          let res: { data: any };
           try {
-            const myRes = await api.get("/events/my");
-
-            // 🔒 GÜVENLİ VERİ NORMALİZASYONU - Kendi etkinliklerim için de
-            const safeMyEventsData = (() => {
-              if (!myRes.data) return [];
-              if (Array.isArray(myRes.data)) return myRes.data;
-              if (myRes.data.events && Array.isArray(myRes.data.events)) return myRes.data.events;
-              if (myRes.data.data && Array.isArray(myRes.data.data)) return myRes.data.data;
-              return [];
-            })();
-
-            setMyEvents(safeMyEventsData);
-          } catch (err: any) {
-            console.error("Kendi etkinliklerim alınamadı:", err);
-            // 500 hatası durumunda sessizce devam et, boş array kullan
-            setMyEvents([]);
-
-            // Sadece kritik olmayan hatalarda kullanıcıya bilgi ver
-            if (err?.response?.status !== 500) {
-              toast.error("Etkinlikleriniz yüklenemedi. Lütfen sayfayı yenileyin.");
+            res = await api.get("/events/all");
+          } catch (allErr: any) {
+            if (allErr?.response?.status === 404 || allErr?.code === "ERR_NETWORK") {
+              res = await api.get("/events");
+            } else {
+              throw allErr;
             }
           }
+          const safeEventsData = normalizeList(res?.data);
+          setEvents(safeEventsData);
+          setFiltered(safeEventsData);
         }
       } catch (err: any) {
         console.error("Etkinlikler alınamadı:", err);
@@ -404,7 +382,7 @@ function EventsContent() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mt-8" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
-            {filtered.map((ev) => {
+            {(filtered ?? []).map((ev) => {
               // "Etkinliklerim" sekmesinde düzenleme/silme butonları göster
               if (activeTab === "mine") {
                 return (

@@ -68,6 +68,8 @@ export default function AdminUsersPage() {
   const [suspendDuration, setSuspendDuration] = useState<'24h' | '7d' | '30d' | 'indefinite'>('7d')
   const [suspendReason, setSuspendReason] = useState('')
   const [suspendNote, setSuspendNote] = useState('')
+  const [suspendSubmitting, setSuspendSubmitting] = useState(false)
+  const [unsuspendingId, setUnsuspendingId] = useState<string | null>(null)
   
   // Filter states
   const [cityFilter, setCityFilter] = useState('')
@@ -80,9 +82,9 @@ export default function AdminUsersPage() {
     fetchUsers()
   }, [page, searchQuery, cityFilter, genderFilter, ageMin, ageMax])
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (silent = false) => {
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       const params = new URLSearchParams()
       params.append('page', page.toString())
       params.append('limit', '20')
@@ -98,7 +100,7 @@ export default function AdminUsersPage() {
     } catch (err) {
       console.error('Error fetching users:', err)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
@@ -153,35 +155,51 @@ export default function AdminUsersPage() {
   const handleSuspendConfirm = async () => {
     if (!selectedUser || !suspendReason) return
 
+    const now = new Date()
+    let until: Date | null = null
+    if (suspendDuration === '24h') {
+      until = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+    } else if (suspendDuration === '7d') {
+      until = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    } else if (suspendDuration === '30d') {
+      until = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+    }
+
     try {
-      const now = new Date()
-      let until: Date | null = null
-
-      if (suspendDuration === '24h') {
-        until = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-      } else if (suspendDuration === '7d') {
-        until = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-      } else if (suspendDuration === '30d') {
-        until = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-      } else {
-        until = null // Süresiz
-      }
-
-      await api.patch(`/admin/users/${selectedUser.id}/suspend`, {
+      setSuspendSubmitting(true)
+      const { data } = await api.patch(`/admin/users/${selectedUser.id}/suspend`, {
         until: until ? until.toISOString() : null,
         reason: suspendReason,
         note: suspendNote || undefined,
       })
 
+      const updated = data?.user
+      if (updated) {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === selectedUser.id
+              ? {
+                  ...u,
+                  accountStatus: updated.accountStatus ?? 'SUSPENDED',
+                  suspendedAt: updated.suspendedAt ?? now.toISOString(),
+                  suspendedUntil: updated.suspendedUntil ?? (until?.toISOString() ?? null),
+                  suspensionReason: updated.suspensionReason ?? suspendReason,
+                }
+              : u
+          )
+        )
+      }
       setSuspendModalOpen(false)
       setSelectedUser(null)
       setSuspendReason('')
       setSuspendNote('')
-      await fetchUsers()
+      await fetchUsers(true)
     } catch (error: any) {
       console.error('Error suspending user:', error)
       const errorMessage = error?.response?.data?.message || error?.message || 'Kullanıcı askıya alınamadı'
       alert(errorMessage)
+    } finally {
+      setSuspendSubmitting(false)
     }
   }
 
@@ -189,12 +207,31 @@ export default function AdminUsersPage() {
     if (!confirm('Kullanıcının askısını kaldırmak istediğinize emin misiniz?')) return
 
     try {
-      await api.patch(`/admin/users/${userId}/unsuspend`)
-      await fetchUsers()
+      setUnsuspendingId(userId)
+      const { data } = await api.patch(`/admin/users/${userId}/unsuspend`)
+      const updated = data?.user
+      if (updated) {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === userId
+              ? {
+                  ...u,
+                  accountStatus: updated.accountStatus ?? 'ACTIVE',
+                  suspendedAt: null,
+                  suspendedUntil: null,
+                  suspensionReason: null,
+                }
+              : u
+          )
+        )
+      }
+      await fetchUsers(true)
     } catch (error: any) {
       console.error('Error unsuspending user:', error)
       const errorMessage = error?.response?.data?.message || error?.message || 'Askı kaldırılamadı'
       alert(errorMessage)
+    } finally {
+      setUnsuspendingId(null)
     }
   }
 
@@ -552,10 +589,15 @@ export default function AdminUsersPage() {
                       {user.accountStatus === 'SUSPENDED' ? (
                         <button
                           onClick={() => handleUnsuspend(user.id)}
-                          className="p-2 rounded-lg transition-colors text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
+                          disabled={unsuspendingId === user.id}
+                          className="p-2 rounded-lg transition-colors text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Askıyı kaldır"
                         >
-                          <Unlock className="w-5 h-5" />
+                          {unsuspendingId === user.id ? (
+                            <span className="inline-block w-5 h-5 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Unlock className="w-5 h-5" />
+                          )}
                         </button>
                       ) : (
                         <button
@@ -708,10 +750,10 @@ export default function AdminUsersPage() {
               </button>
               <button
                 onClick={handleSuspendConfirm}
-                disabled={!suspendReason}
+                disabled={!suspendReason || suspendSubmitting}
                 className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Askıya Al
+                {suspendSubmitting ? 'İşleniyor...' : 'Askıya Al'}
               </button>
             </div>
           </div>

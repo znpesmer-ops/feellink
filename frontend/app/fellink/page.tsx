@@ -591,7 +591,6 @@ function FellinkContent() {
 
     async function checkApplications() {
       if (!accessToken) return
-
       try {
         const applied = await api.get('/jobs/me/applications')
         if (mounted && applied.data) {
@@ -599,14 +598,15 @@ function FellinkContent() {
           setAppliedJobs(new Set(jobIds))
         }
       } catch (err) {
-        if (mounted) {
-          setAppliedJobs(new Set())
-        }
+        if (mounted) setAppliedJobs(new Set())
       }
     }
 
-    fetchJobs()
-    checkApplications()
+    if (accessToken) {
+      Promise.all([fetchJobs(), checkApplications()])
+    } else {
+      fetchJobs()
+    }
 
     return () => {
       mounted = false

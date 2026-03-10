@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from './store'
 import api from './api'
@@ -8,6 +8,8 @@ import api from './api'
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
   const { 
     accessToken, 
     isAuthenticated, 
@@ -205,7 +207,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [loading, isAuthenticated, hasInitialized, router]) // ⛔️ pathname dependency kaldırıldı - loop önleme
 
-  // ⛔️ Loading state EKLENMEDEN redirect YAPILMAYACAK
+  // Token varsa içeriği hemen göster (sadece client mount sonrası, hydration uyumu için)
+  const hasToken = mounted && !!(accessToken || (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null))
+  if (hasToken) return <>{children}</>
+
+  // Token yoksa sadece ilk doğrulama bitene kadar spinner
   if (loading || !hasInitialized) {
     return (
       <div className="flex items-center justify-center min-h-screen">

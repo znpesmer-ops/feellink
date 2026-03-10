@@ -12,12 +12,11 @@ export class EventsController {
   async getAllEvents() {
     try {
       const events = await this.eventsService.getAllEvents();
-      // Güvenli response - her zaman array döndür
-      return Array.isArray(events) ? events : [];
+      const list = Array.isArray(events) ? events : [];
+      return { events: list };
     } catch (error) {
       console.error('Error in getAllEvents controller:', error);
-      // Hata durumunda boş array döndür
-      return [];
+      return { events: [] };
     }
   }
 
