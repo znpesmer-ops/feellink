@@ -228,6 +228,87 @@ export class MailService {
     }
   }
 
+  /** Yeni kayıt olan kullanıcıya hoş geldin e-postası. Kayıt akışını bloklamaz. */
+  async sendWelcomeEmail(user: { email: string; fullName?: string | null; username: string }) {
+    const mailMode = process.env.MAIL_MODE || 'dev';
+    if (mailMode !== 'prod') {
+      this.logger.log(`[DEV] Hoş geldin maili atlandı (MAIL_MODE=${mailMode}). Alıcı: ${user.email}`);
+      return;
+    }
+
+    if (!this.transporter) {
+      this.logger.warn('Mail transporter not configured. Skipping welcome email.');
+      return;
+    }
+
+    const mailFromName = process.env.MAIL_FROM_NAME || 'Feellink';
+    const mailFrom = process.env.MAIL_FROM || 'noreply@feellink.io';
+    const from = `"${mailFromName}" <${mailFrom}>`;
+    const appUrl = process.env.APP_URL || 'https://feellink.io';
+    const exploreUrl = `${appUrl}/explore`;
+    const name = user.fullName?.trim() || user.username || 'Üye';
+
+    const subject = "Feellink'e hoş geldin ✨";
+
+    const text =
+      `Merhaba ${name},\n\nFeellink'e katıldığın için çok mutluyuz. Hesabın başarıyla oluşturuldu ve artık topluluğun bir parçasısın.\n\n` +
+      `Burada ilham veren paylaşımları keşfedebilir, kendi üretimlerini paylaşabilir ve etkileşim kurabilirsin.\n\n` +
+      `Başlamak için: ${exploreUrl}\n\nSevgiyle,\nFeellink Ekibi`;
+
+    const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f0f;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0f0f0f;padding:40px 16px;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="max-width:520px;background:#1a1a1a;border-radius:16px;overflow:hidden;border:1px solid #2a2a2a;">
+        <tr>
+          <td align="center" style="padding:32px 24px 24px;">
+            <img src="${this.logoUrl}" width="88" height="32" alt="Feellink" style="display:block;outline:none;border:0;" />
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 32px 24px;">
+            <h1 style="margin:0 0 8px;font-size:22px;font-weight:600;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Merhaba ${name},</h1>
+            <p style="margin:0 0 20px;font-size:16px;line-height:1.5;color:#a0a0a0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Feellink'e katıldığın için çok mutluyuz. Hesabın başarıyla oluşturuldu ve artık topluluğun bir parçasısın.</p>
+            <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#b0b0b0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Burada ilham veren paylaşımları keşfedebilir, kendi üretimlerini paylaşabilir ve etkileşim kurabilirsin. Keşfetmeye başla, profilini düzenle ve ilk paylaşımını oluştur.</p>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto;">
+              <tr>
+                <td style="border-radius:10px;background:#ff7b00;">
+                  <a href="${exploreUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Feellink'i Keşfet</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:24px 32px 32px;border-top:1px solid #2a2a2a;">
+            <p style="margin:0;font-size:12px;color:#666;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Bu e-posta, Feellink hesabın oluşturulduğu için gönderildi.</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+
+    try {
+      await this.transporter.sendMail({
+        from,
+        to: user.email,
+        subject,
+        text,
+        html,
+      });
+      this.logger.log(`✅ Hoş geldin e-postası gönderildi: ${user.email}`);
+    } catch (error: any) {
+      this.logger.warn(`Hoş geldin e-postası gönderilemedi (${user.email}):`, error?.message || error);
+    }
+  }
+
   async sendEvent24HourReminder(params: {
     to: string;
     name: string;

@@ -490,6 +490,7 @@ function FellinkContent() {
   const [myJobsLoading, setMyJobsLoading] = useState(false)
   const [applicationsLoading, setApplicationsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
   const [applyModalOpen, setApplyModalOpen] = useState<string | null>(null)
   const [appliedJobs, setAppliedJobs] = useState<Set<string>>(new Set())
 
@@ -567,6 +568,7 @@ function FellinkContent() {
 
     async function fetchJobs() {
       try {
+        setError(null)
         setLoading(true)
         const response = await api.get<PublicJobListing[]>('/jobs/public')
         if (mounted) {
@@ -574,7 +576,10 @@ function FellinkContent() {
         }
       } catch (err: any) {
         if (mounted) {
-          const message = err?.response?.data?.message ?? err?.message ?? 'İlanlar yüklenirken bir sorun oluştu.'
+          const isNetworkError = !err?.response || err?.code === 'ERR_NETWORK' || err?.message === 'Network Error'
+          const message = isNetworkError
+            ? 'İlanlar şu an yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin.'
+            : (err?.response?.data?.message ?? err?.message ?? 'İlanlar yüklenirken bir sorun oluştu.')
           setError(Array.isArray(message) ? message.join(' ') : message)
         }
       } finally {
@@ -606,7 +611,7 @@ function FellinkContent() {
     return () => {
       mounted = false
     }
-  }, [accessToken])
+  }, [accessToken, retryCount])
 
   useEffect(() => {
     if (activeTab !== 'applications' || !accessToken) return
@@ -757,8 +762,15 @@ function FellinkContent() {
               <Loader2 className="h-6 w-6 animate-spin text-brand-orange" />
             </div>
           ) : error ? (
-            <div className="rounded-3xl border border-red-200 bg-red-50 px-6 py-8 text-center text-sm text-red-600 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
-              {error}
+            <div className="rounded-3xl border border-red-200 bg-red-50 px-6 py-8 text-center dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
+              <p className="text-sm text-red-600 dark:text-red-200">{error}</p>
+              <button
+                type="button"
+                onClick={() => setRetryCount((c) => c + 1)}
+                className="mt-4 px-4 py-2 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors"
+              >
+                Tekrar dene
+              </button>
             </div>
           ) : jobs.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-gray-300/70 bg-white/90 px-6 py-16 text-center text-gray-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-gray-300">

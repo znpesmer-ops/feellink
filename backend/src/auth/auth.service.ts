@@ -236,6 +236,11 @@ export class AuthService {
         // Continue even if indexing fails
       }
 
+      // Hoş geldin e-postası (fire-and-forget; kayıt akışını bloklamaz)
+      this.mailService
+        .sendWelcomeEmail({ email: user.email, fullName: user.fullName, username: user.username })
+        .catch((err) => this.logger.warn('Welcome email failed', err));
+
       const payload = this.hydrateAuthUser(user);
       const needsRoleSelection = (user.roles?.length ?? 0) === 0;
 

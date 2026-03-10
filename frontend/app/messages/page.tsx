@@ -6,7 +6,7 @@ import api from '@/lib/api'
 import { initChatSocket } from '@/lib/socket'
 import { useAuthStore } from '@/lib/store'
 import { ProRoleBadge } from '@/components/ProRoleBadge'
-import { Send, Search, Image as ImageIcon, X, Edit, Trash2, MoreVertical, Paperclip, Download, FileText, Loader2 } from 'lucide-react'
+import { Send, Search, Image as ImageIcon, X, Edit, Trash2, MoreVertical, Paperclip, Download, FileText, Loader2, MessageCircle } from 'lucide-react'
 import { NewMessageModal } from '@/components/new-message-modal'
 
 const formatTimeAgo = (date: string | Date) => {
@@ -1223,11 +1223,7 @@ function MessagesContent() {
                             Henüz mesaj yok
                           </p>
                         )}
-                        {isOnline ? (
-                          <span className="text-xs text-green-500 dark:text-green-400 whitespace-nowrap">
-                            Aktif şimdi
-                          </span>
-                        ) : (() => {
+                        {!isOnline && (() => {
                           const displayDate = userLastSeen[otherUser?.user?.id || ''] ?? (otherUser?.user as { lastActiveAt?: string | Date })?.lastActiveAt ?? (otherUser?.user as { lastSeen?: string | Date })?.lastSeen
                           return displayDate ? (
                             <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
@@ -1302,9 +1298,7 @@ function MessagesContent() {
                       )}
                       {isTyping ? (
                         <p className="text-xs text-brand-orange">Yazıyor...</p>
-                      ) : isOnline ? (
-                        <p className="text-xs text-green-500 dark:text-green-400">Aktif şimdi</p>
-                      ) : lastSeenDate ? (
+                      ) : !isOnline && lastSeenDate ? (
                         <p className="text-xs text-gray-500 dark:text-gray-400">
                           {formatLastSeen(lastSeenDate)}
                         </p>
@@ -1582,10 +1576,17 @@ function MessagesContent() {
             )}
           </>
         ) : (
-          <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-            <div className="text-center">
-              <p className="text-lg mb-2">💬</p>
-              <p>Bir sohbet seçin</p>
+          <div className="flex items-center justify-center h-full min-h-[320px] px-6">
+            <div className="text-center max-w-sm">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 mb-5">
+                <MessageCircle className="w-7 h-7 text-gray-400 dark:text-gray-500" strokeWidth={1.5} />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                Bir sohbet seçin
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                Mesajlarınızı görüntülemek veya yeni bir konuşma başlatmak için soldan bir sohbet seçin.
+              </p>
             </div>
           </div>
         )}
@@ -1651,9 +1652,7 @@ function MessagesContent() {
                         )}
                         {isTyping ? (
                           <p className="text-xs text-brand-orange">Yazıyor...</p>
-                        ) : isOnline ? (
-                          <p className="text-xs text-green-500 dark:text-green-400">Aktif şimdi</p>
-                        ) : lastSeenDate ? (
+                        ) : !isOnline && lastSeenDate ? (
                           <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                             {formatLastSeen(lastSeenDate)}
                           </p>
@@ -2025,8 +2024,18 @@ function MessagesContent() {
             )}
           </>
         ) : (
-          <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-            <p>Bir sohbet seçin</p>
+          <div className="flex items-center justify-center h-full min-h-[280px] px-6">
+            <div className="text-center max-w-[280px]">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 mb-4">
+                <MessageCircle className="w-6 h-6 text-gray-400 dark:text-gray-500" strokeWidth={1.5} />
+              </div>
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1.5">
+                Bir sohbet seçin
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                Başlamak için soldaki listeden bir konuşma açın.
+              </p>
+            </div>
           </div>
         )}
       </div>

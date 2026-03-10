@@ -1,0 +1,292 @@
+import { PrismaService } from '../prisma/prisma.service';
+import { ChatGateway } from './chat.gateway';
+export declare class ChatService {
+    private prisma;
+    private chatGateway;
+    constructor(prisma: PrismaService, chatGateway: ChatGateway);
+    getConversations(userId: string): Promise<{
+        unreadCount: number;
+        messages: ({
+            sender: {
+                id: string;
+                username: string;
+                avatar: string;
+            };
+        } & {
+            id: string;
+            isDeleted: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            content: string;
+            fileName: string;
+            fileType: string;
+            imageUrl: string;
+            fileUrl: string;
+            context: import(".prisma/client").$Enums.ConversationContext;
+            jobId: string;
+            applicationId: string;
+            read: boolean;
+            isEdited: boolean;
+            isRequest: boolean;
+            conversationId: string;
+            senderId: string;
+        })[];
+        participants: ({
+            user: {
+                id: string;
+                username: string;
+                fullName: string;
+                avatar: string;
+                isOnline: boolean;
+                lastSeen: Date;
+            };
+        } & {
+            id: string;
+            isDeleted: boolean;
+            createdAt: Date;
+            userId: string;
+            conversationId: string;
+        })[];
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        context: import(".prisma/client").$Enums.ConversationContext;
+        jobId: string;
+        applicationId: string;
+        lastMessage: string;
+    }[]>;
+    getUnreadMessageCount(userId: string): Promise<number>;
+    getConversation(conversationId: string, userId: string): Promise<{
+        participants: ({
+            user: {
+                id: string;
+                username: string;
+                fullName: string;
+                avatar: string;
+                isPrivate: boolean;
+                isOnline: boolean;
+                lastSeen: Date;
+            };
+        } & {
+            id: string;
+            isDeleted: boolean;
+            createdAt: Date;
+            userId: string;
+            conversationId: string;
+        })[];
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        context: import(".prisma/client").$Enums.ConversationContext;
+        jobId: string;
+        applicationId: string;
+        lastMessage: string;
+    }>;
+    getMessages(conversationId: string, userId: string, limit?: number, cursor?: string): Promise<{
+        messages: ({
+            sender: {
+                id: string;
+                username: string;
+                fullName: string;
+                avatar: string;
+            };
+        } & {
+            id: string;
+            isDeleted: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            content: string;
+            fileName: string;
+            fileType: string;
+            imageUrl: string;
+            fileUrl: string;
+            context: import(".prisma/client").$Enums.ConversationContext;
+            jobId: string;
+            applicationId: string;
+            read: boolean;
+            isEdited: boolean;
+            isRequest: boolean;
+            conversationId: string;
+            senderId: string;
+        })[];
+        hasMore: boolean;
+        nextCursor: string;
+    }>;
+    createMessage(userId: string, conversationId: string, content?: string, imageUrl?: string, fileUrl?: string, fileName?: string, fileType?: string): Promise<{
+        sender: {
+            id: string;
+            username: string;
+            fullName: string;
+            avatar: string;
+        };
+    } & {
+        id: string;
+        isDeleted: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        content: string;
+        fileName: string;
+        fileType: string;
+        imageUrl: string;
+        fileUrl: string;
+        context: import(".prisma/client").$Enums.ConversationContext;
+        jobId: string;
+        applicationId: string;
+        read: boolean;
+        isEdited: boolean;
+        isRequest: boolean;
+        conversationId: string;
+        senderId: string;
+    }>;
+    createConversation(userId: string, participantIds: string[], context?: 'DIRECT' | 'JOB_APPLICATION', jobId?: string, applicationId?: string): Promise<{
+        participants: ({
+            user: {
+                id: string;
+                username: string;
+                fullName: string;
+                avatar: string;
+                isOnline: boolean;
+                lastSeen: Date;
+            };
+        } & {
+            id: string;
+            isDeleted: boolean;
+            createdAt: Date;
+            userId: string;
+            conversationId: string;
+        })[];
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        context: import(".prisma/client").$Enums.ConversationContext;
+        jobId: string;
+        applicationId: string;
+        lastMessage: string;
+    }>;
+    markAsRead(conversationId: string, userId: string): Promise<{
+        success: boolean;
+    }>;
+    deleteConversation(conversationId: string, userId: string): Promise<{
+        success: boolean;
+    }>;
+    editMessage(messageId: string, userId: string, newContent: string): Promise<{
+        conversation: {
+            id: string;
+        };
+        sender: {
+            id: string;
+            username: string;
+            avatar: string;
+        };
+    } & {
+        id: string;
+        isDeleted: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        content: string;
+        fileName: string;
+        fileType: string;
+        imageUrl: string;
+        fileUrl: string;
+        context: import(".prisma/client").$Enums.ConversationContext;
+        jobId: string;
+        applicationId: string;
+        read: boolean;
+        isEdited: boolean;
+        isRequest: boolean;
+        conversationId: string;
+        senderId: string;
+    }>;
+    deleteMessage(messageId: string, userId: string): Promise<{
+        id: string;
+        isDeleted: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        content: string;
+        fileName: string;
+        fileType: string;
+        imageUrl: string;
+        fileUrl: string;
+        context: import(".prisma/client").$Enums.ConversationContext;
+        jobId: string;
+        applicationId: string;
+        read: boolean;
+        isEdited: boolean;
+        isRequest: boolean;
+        conversationId: string;
+        senderId: string;
+    }>;
+    getMedia(conversationId: string, userId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        imageUrl: string;
+        senderId: string;
+    }[]>;
+    getFiles(conversationId: string, userId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        fileName: string;
+        fileType: string;
+        fileUrl: string;
+        senderId: string;
+    }[]>;
+    getMessageRequests(userId: string): Promise<({
+        messages: ({
+            sender: {
+                id: string;
+                username: string;
+                avatar: string;
+            };
+        } & {
+            id: string;
+            isDeleted: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            content: string;
+            fileName: string;
+            fileType: string;
+            imageUrl: string;
+            fileUrl: string;
+            context: import(".prisma/client").$Enums.ConversationContext;
+            jobId: string;
+            applicationId: string;
+            read: boolean;
+            isEdited: boolean;
+            isRequest: boolean;
+            conversationId: string;
+            senderId: string;
+        })[];
+        participants: ({
+            user: {
+                id: string;
+                username: string;
+                fullName: string;
+                avatar: string;
+                isOnline: boolean;
+                lastSeen: Date;
+            };
+        } & {
+            id: string;
+            isDeleted: boolean;
+            createdAt: Date;
+            userId: string;
+            conversationId: string;
+        })[];
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        context: import(".prisma/client").$Enums.ConversationContext;
+        jobId: string;
+        applicationId: string;
+        lastMessage: string;
+    })[]>;
+    acceptMessageRequest(conversationId: string, userId: string): Promise<{
+        success: boolean;
+    }>;
+    declineMessageRequest(conversationId: string, userId: string): Promise<{
+        success: boolean;
+    }>;
+}
