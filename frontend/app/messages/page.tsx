@@ -1227,11 +1227,14 @@ function MessagesContent() {
                           <span className="text-xs text-green-500 dark:text-green-400 whitespace-nowrap">
                             Aktif şimdi
                           </span>
-                        ) : userLastSeen[otherUser?.user?.id || ''] ? (
-                          <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                            {formatLastSeen(userLastSeen[otherUser.user.id])}
-                          </span>
-                        ) : null}
+                        ) : (() => {
+                          const displayDate = userLastSeen[otherUser?.user?.id || ''] ?? (otherUser?.user as { lastActiveAt?: string | Date })?.lastActiveAt ?? (otherUser?.user as { lastSeen?: string | Date })?.lastSeen
+                          return displayDate ? (
+                            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                              {formatLastSeen(displayDate)}
+                            </span>
+                          ) : null
+                        })()}
                       </div>
                     </div>
                     {/* ✅ Sohbet Silme Menüsü */}
@@ -1263,10 +1266,10 @@ function MessagesContent() {
                 const otherUser = getOtherParticipant(activeConversation)
                 if (!otherUser?.user) return null
 
-                // Online durumunu kontrol et - önce state'ten, sonra backend'den gelen veriden
-                const userWithExtras = otherUser?.user as typeof otherUser.user & { isOnline?: boolean; lastSeen?: string | Date }
+                // Online durumunu kontrol et - önce state'ten, sonra backend'den gelen veriden; son aktif = lastSeen ?? lastActiveAt
+                const userWithExtras = otherUser?.user as typeof otherUser.user & { isOnline?: boolean; lastSeen?: string | Date; lastActiveAt?: string | Date }
                 const isOnline = onlineUsers[otherUser?.user?.id] ?? userWithExtras?.isOnline ?? false
-                const lastSeenDate = userLastSeen[otherUser?.user?.id] || userWithExtras?.lastSeen
+                const lastSeenDate = userLastSeen[otherUser?.user?.id] ?? userWithExtras?.lastActiveAt ?? userWithExtras?.lastSeen
 
                 return (
                   <div className="flex items-center gap-3">
@@ -1317,8 +1320,7 @@ function MessagesContent() {
               <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950 p-4 space-y-3">
                 {messages.map((message, index) => {
                   const isOwn = message.senderId === user?.id
-                  const isLastMessage = index === messages.length - 1
-                  const showReadReceipt = isOwn && isLastMessage && message.read
+                  const showReadReceipt = isOwn && message.read
 
                   return (
                     <div
@@ -1607,10 +1609,10 @@ function MessagesContent() {
                 const otherUser = getOtherParticipant(activeConversation)
                 if (!otherUser?.user) return null
 
-                // Online durumunu kontrol et - önce state'ten, sonra backend'den gelen veriden
-                const userWithExtras = otherUser?.user as typeof otherUser.user & { isOnline?: boolean; lastSeen?: string | Date }
+                // Online durumunu kontrol et - önce state'ten, sonra backend'den gelen veriden; son aktif = lastSeen ?? lastActiveAt
+                const userWithExtras = otherUser?.user as typeof otherUser.user & { isOnline?: boolean; lastSeen?: string | Date; lastActiveAt?: string | Date }
                 const isOnline = onlineUsers[otherUser?.user?.id] ?? userWithExtras?.isOnline ?? false
-                const lastSeenDate = userLastSeen[otherUser?.user?.id] || userWithExtras?.lastSeen
+                const lastSeenDate = userLastSeen[otherUser?.user?.id] ?? userWithExtras?.lastActiveAt ?? userWithExtras?.lastSeen
 
                 return (
                   <>
@@ -1787,8 +1789,7 @@ function MessagesContent() {
               <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950 p-4 space-y-3">
                 {messages.map((message, index) => {
                   const isOwn = message.senderId === user?.id
-                  const isLastMessage = index === messages.length - 1
-                  const showReadReceipt = isOwn && isLastMessage && message.read
+                  const showReadReceipt = isOwn && message.read
 
                   return (
                     <div

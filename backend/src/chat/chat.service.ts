@@ -87,7 +87,7 @@ export class ChatService {
 
     console.log(`📋 [ChatService] Returning ${filteredConversations.length} conversations for user ${userId} (with messages)`);
 
-    // Her konuşma için okunmamış mesaj sayısını ekle
+    // Her konuşma için okunmamış mesaj sayısı + diğer katılımcı için lastActiveAt
     const conversationsWithUnread = await Promise.all(
       filteredConversations.map(async (conv) => {
         const unreadCount = await this.prisma.message.count({
@@ -99,8 +99,25 @@ export class ChatService {
           },
         });
 
+        const participantsWithLastActive = await Promise.all(
+          conv.participants.map(async (p) => {
+            const u = p.user as { id: string; username: string; avatar?: string; fullName?: string; isOnline: boolean; lastSeen: Date | null };
+            if (u.id === userId) {
+              return { ...p, user: { ...u, lastActiveAt: u.lastSeen ?? null } };
+            }
+            const lastMsg = await this.prisma.message.findFirst({
+              where: { conversationId: conv.id, senderId: u.id, isDeleted: false },
+              orderBy: { updatedAt: 'desc' },
+              select: { updatedAt: true },
+            });
+            const lastActiveAt = u.lastSeen ?? lastMsg?.updatedAt ?? conv.updatedAt ?? null;
+            return { ...p, user: { ...u, lastActiveAt } };
+          }),
+        );
+
         return {
           ...conv,
+          participants: participantsWithLastActive,
           unreadCount,
         };
       }),
@@ -176,7 +193,23 @@ export class ChatService {
       throw new ForbiddenException('Access denied');
     }
 
-    return conversation;
+    const participantsWithLastActive = await Promise.all(
+      conversation.participants.map(async (p) => {
+        const u = p.user as { id: string; username: string; avatar?: string; fullName?: string; isPrivate?: boolean; isOnline: boolean; lastSeen: Date | null };
+        if (u.id === userId) {
+          return { ...p, user: { ...u, lastActiveAt: u.lastSeen ?? null } };
+        }
+        const lastMsg = await this.prisma.message.findFirst({
+          where: { conversationId, senderId: u.id, isDeleted: false },
+          orderBy: { updatedAt: 'desc' },
+          select: { updatedAt: true },
+        });
+        const lastActiveAt = u.lastSeen ?? lastMsg?.updatedAt ?? conversation.updatedAt ?? null;
+        return { ...p, user: { ...u, lastActiveAt } };
+      }),
+    );
+
+    return { ...conversation, participants: participantsWithLastActive };
   }
 
   async getMessages(conversationId: string, userId: string, limit: number = 50, cursor?: string) {
