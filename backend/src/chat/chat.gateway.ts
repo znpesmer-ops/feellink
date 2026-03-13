@@ -13,6 +13,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlocksService } from '../blocks/blocks.service';
 import { FollowService } from '../follow/follow.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 import { getWebSocketCorsConfig } from '../common/utils/websocket-cors.util';
 
@@ -33,6 +34,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     private prisma: PrismaService,
     private blocksService: BlocksService,
     private followService: FollowService,
+    private notificationsService: NotificationsService,
   ) {}
 
   afterInit(server: Server) {
@@ -265,6 +267,20 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       // 🔥 KRİTİK: Socket event'lerini HEMEN gönder (gecikme yok - anlık)
       // DB güncellemelerini arka planda yap, socket event'lerini önce gönder
       this.broadcastMessageImmediately(message, conversation, userId, data.conversationId);
+
+      // ✅ Alıcıya anlık bildirim: mesaj oluşturulduğunda notification oluştur ve socket ile gönder (refresh ile değil)
+      const receiverParticipant = conversation.participants.find((p: any) => p.userId !== userId);
+      if (receiverParticipant) {
+        this.notificationsService.createNotificationSync({
+          userId: receiverParticipant.userId,
+          type: 'message',
+          fromUserId: userId,
+          targetPath: '/messages',
+          targetUrl: '/messages',
+        }).catch((err) => {
+          console.warn('[ChatGateway] Message notification failed:', err?.message || err);
+        });
+      }
 
       // ✅ KRİTİK: Conversation metadata güncelle (sol panel için - lastMessage)
       // MongoDB'de manuel yapmak ZORUNLU (Postgres otomatik yapıyordu)

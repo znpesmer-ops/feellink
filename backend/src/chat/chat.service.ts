@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChatGateway } from './chat.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ChatService {
   constructor(
     private prisma: PrismaService,
     @Inject(forwardRef(() => ChatGateway)) private chatGateway: ChatGateway,
+    private notificationsService: NotificationsService,
   ) {}
 
   async getConversations(userId: string) {
@@ -405,6 +407,20 @@ export class ChatService {
         // Socket event gönderilemezse sessizce devam et (REST API fallback var)
         console.warn('[ChatService] Failed to broadcast message via socket:', error);
       }
+    }
+
+    // Alıcıya anlık bildirim: mesaj oluşturulduğunda notification oluştur ve socket ile gönder (refresh ile değil)
+    const recipient = conversation.participants.find((p) => p.userId !== userId);
+    if (recipient) {
+      this.notificationsService.createNotificationSync({
+        userId: recipient.userId,
+        type: 'message',
+        fromUserId: userId,
+        targetPath: '/messages',
+        targetUrl: '/messages',
+      }).catch((err) => {
+        console.warn('[ChatService] Message notification failed:', err?.message || err);
+      });
     }
 
     return message;
