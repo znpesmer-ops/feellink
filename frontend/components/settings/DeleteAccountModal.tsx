@@ -24,7 +24,7 @@ export function DeleteAccountModal({ isOpen, onClose }: DeleteAccountModalProps)
       await api.delete('/users/account')
     },
     onSuccess: () => {
-      toast.success('Hesabınız başarıyla silindi.')
+      toast.success('Hesabınız silme sürecine alındı. 15 gün içinde giriş yaparak hesabınızı yeniden aktif hale getirebilirsiniz.')
       disconnectSocket()
       clearAuth()
       onClose()
@@ -82,13 +82,14 @@ export function DeleteAccountModal({ isOpen, onClose }: DeleteAccountModalProps)
         {/* Açıklama */}
         <div className="space-y-3 mb-6">
           <p className="text-sm text-gray-400 leading-relaxed">
-            Hesabınızı sildiğinizde:
+            Hesabınız hemen görünmez hale gelir ve oturumunuz kapatılır.
           </p>
-          <ul className="text-sm text-gray-400 space-y-2 ml-4 list-disc">
-            <li>Tüm eserleriniz, temalarınız ve etkileşimleriniz kalıcı olarak silinir</li>
-            <li>Bu işlem geri alınamaz</li>
-            <li>Aynı e-posta ile tekrar kayıt olabilirsiniz, ancak verileriniz geri gelmez</li>
-          </ul>
+          <p className="text-sm text-gray-400 leading-relaxed">
+            15 gün içinde tekrar giriş yaparsanız hesabınız yeniden aktif hale gelir.
+          </p>
+          <p className="text-sm text-gray-400 leading-relaxed">
+            15 günün sonunda hesabınız kalıcı olarak silinir.
+          </p>
           <p className="text-xs text-gray-500 mt-4">
             Yasal gereklilikler kapsamında bazı kayıtlar anonimleştirilerek saklanabilir.
           </p>
@@ -104,7 +105,7 @@ export function DeleteAccountModal({ isOpen, onClose }: DeleteAccountModalProps)
               className="mt-1 w-4 h-4 rounded border-gray-600 bg-gray-800 text-red-500 focus:ring-2 focus:ring-red-500 focus:ring-offset-0 focus:ring-offset-gray-900"
             />
             <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
-              Hesabımı kalıcı olarak silmek istediğimi anlıyorum
+              Hesabım için 15 günlük silme sürecini başlatmak istediğimi anlıyorum
             </span>
           </label>
         </div>

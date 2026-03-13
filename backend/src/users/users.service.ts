@@ -1483,18 +1483,53 @@ export class UsersService {
       throw new NotFoundException('Kullanıcı bulunamadı.');
     }
 
+    const now = new Date();
+    const scheduledDeletionAt = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+
     try {
       await this.prisma.$transaction(async (tx) => {
-        await tx.user.delete({
+        await tx.user.update({
           where: { id: userId },
+          data: {
+            accountStatus: 'PENDING_DELETION',
+            deletionRequestedAt: now,
+            scheduledDeletionAt,
+          },
         });
+        await tx.refreshToken.deleteMany({ where: { userId } });
       });
     } catch (err: any) {
       console.error('[UsersService] deleteAccount error:', err?.message || err);
       throw new InternalServerErrorException('Hesap silinirken bir sorun oluştu. Lütfen tekrar deneyin.');
     }
 
-    return { message: 'Hesap başarıyla silindi.' };
+    return { message: 'Hesabınız silme sürecine alındı. 15 gün içinde giriş yaparak hesabınızı yeniden aktif hale getirebilirsiniz.' };
+  }
+
+  /** Kalıcı silme: 15 gün dolan PENDING_DELETION hesaplarını siler (cron tarafından çağrılır). */
+  async purgeScheduledDeletions(): Promise<number> {
+    const now = new Date();
+    const usersToPurge = await this.prisma.user.findMany({
+      where: {
+        accountStatus: 'PENDING_DELETION',
+        scheduledDeletionAt: { lte: now },
+      },
+      select: { id: true },
+    });
+
+    let purged = 0;
+    for (const u of usersToPurge) {
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          await tx.refreshToken.deleteMany({ where: { userId: u.id } });
+          await tx.user.delete({ where: { id: u.id } });
+        });
+        purged++;
+      } catch (err: any) {
+        console.error('[UsersService] purgeScheduledDeletions error for', u.id, err?.message || err);
+      }
+    }
+    return purged;
   }
 
   async getSavedArtworks(userId: string) {

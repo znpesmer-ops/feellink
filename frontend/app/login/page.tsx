@@ -10,6 +10,7 @@ import Image from 'next/image'
 import api, { getErrorMessage } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { getDashboardRouteFromUser } from '@/lib/role-utils'
+import toast from 'react-hot-toast'
 
 const unicodeEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u
 
@@ -151,10 +152,13 @@ export default function LoginPage() {
         capabilities: caps,
         sidebar,
         needsRoleSelection,
+        reactivated,
       } = response.data
 
       setAuth(loggedUser, newAccessToken, newRefreshToken, caps ?? null, sidebar ?? null)
-
+      if (reactivated) {
+        toast.success('Hesabınız yeniden aktif hale getirildi.')
+      }
       handlePostAuthNavigation(loggedUser, caps ?? undefined, needsRoleSelection)
     } catch (err: any) {
       console.error('Login error:', err)

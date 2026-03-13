@@ -51,6 +51,10 @@ export class AuthService {
     isAdmin: true,
     superAdmin: true, // 🔥 GOD-MODE
     profileCompleted: true,
+    dateOfBirth: true,
+    country: true,
+    city: true,
+    gender: true,
     createdAt: true,
   } as const;
 
@@ -163,6 +167,11 @@ export class AuthService {
         superAdmin: user.superAdmin ?? false, // 🔥 GOD-MODE
         createdAt: user.createdAt ?? new Date(),
         activeRole: activeRole || null, // 🎯 Aktif rol (profil header'da gösterilecek)
+        profileCompleted: user.profileCompleted ?? false,
+        dateOfBirth: user.dateOfBirth ?? null,
+        country: user.country ?? null,
+        city: user.city ?? null,
+        gender: user.gender ?? null,
       },
       capabilities,
       dashboard,
@@ -537,6 +546,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    let reactivated = false;
+
     // 🔒 Hesap askıya alınmışsa giriş yapılamaz
     // ⚠️ accountStatus null ise ACTIVE kabul et (eski kullanıcılar için)
     if (user.accountStatus === 'SUSPENDED') {
@@ -567,6 +578,30 @@ export class AuthService {
       }
     }
 
+    // 🔒 PENDING_DELETION: 15 gün içinde girişle hesap yeniden aktifleşir; süre dolmuşsa kalıcı silinmiş sayılır
+    if (user.accountStatus === 'PENDING_DELETION') {
+      const now = new Date();
+      const scheduledAt = user.scheduledDeletionAt ? new Date(user.scheduledDeletionAt) : null;
+      if (scheduledAt && scheduledAt > now) {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            accountStatus: 'ACTIVE',
+            deletionRequestedAt: null,
+            scheduledDeletionAt: null,
+          },
+        });
+        this.logger.log(`[LOGIN] Account reactivated (was pending deletion): ${user.email || user.username}`);
+        reactivated = true;
+      } else {
+        this.logger.warn(`[LOGIN] Account permanently deleted (grace period expired): ${user.email || user.username}`);
+        throw new ForbiddenException({
+          code: 'ACCOUNT_PERMANENTLY_DELETED',
+          message: 'Bu hesap kalıcı olarak silinmiştir.',
+        });
+      }
+    }
+
     // Generate tokens
     const tokens = await this.generateTokens(user.id);
 
@@ -578,6 +613,7 @@ export class AuthService {
       ...payload,
       ...tokens,
       needsRoleSelection,
+      ...(reactivated && { reactivated: true }),
     };
   }
 
@@ -622,6 +658,7 @@ export class AuthService {
           accountStatus: true,
           suspendedUntil: true,
           suspensionReason: true,
+          scheduledDeletionAt: true,
         },
       });
       
@@ -642,6 +679,7 @@ export class AuthService {
             accountStatus: true,
             suspendedUntil: true,
             suspensionReason: true,
+            scheduledDeletionAt: true,
           },
         });
       }
@@ -663,6 +701,7 @@ export class AuthService {
             accountStatus: true,
             suspendedUntil: true,
             suspensionReason: true,
+            scheduledDeletionAt: true,
           },
         });
         
@@ -682,6 +721,7 @@ export class AuthService {
               accountStatus: true,
               suspendedUntil: true,
               suspensionReason: true,
+              scheduledDeletionAt: true,
             },
           });
         }

@@ -37,6 +37,14 @@ export class AccountStatusGuard implements CanActivate {
           },
         });
 
+        // 🔒 Hesap silme sürecindeyse (PENDING_DELETION) korumalı rotalara erişim yok; giriş ekranından şifreyle yeniden aktifleştirilebilir
+        if (dbUser?.accountStatus === 'PENDING_DELETION') {
+          throw new ForbiddenException({
+            code: 'ACCOUNT_PENDING_DELETION',
+            message: 'Hesabınız silme sürecindedir. Yeniden aktifleştirmek için giriş yapın.',
+          });
+        }
+
         if (!dbUser) {
           return true; // Kullanıcı bulunamadı, auth guard zaten kontrol ediyor
         }

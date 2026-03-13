@@ -26,6 +26,7 @@ enum UserRole {
 enum AccountStatus {
   ACTIVE
   SUSPENDED
+  PENDING_DELETION // Kullanıcı hesap silme talebi; 15 gün içinde girişle geri alınabilir
 }
 
 model User {
@@ -72,6 +73,8 @@ model User {
   suspensionReason          String? // 🔒 Askıya alma nedeni
   suspensionNote            String? // 🔒 Admin iç notu
   suspendedByAdminId        String?          @db.ObjectId // 🔒 Askıya alan admin ID
+  deletionRequestedAt       DateTime? // 🔒 Kullanıcı hesap silme talebi tarihi
+  scheduledDeletionAt       DateTime? // 🔒 Kalıcı silme tarihi (deletionRequestedAt + 15 gün)
   isDeleted                 Boolean          @default(false) // 🗑️ Soft delete flag
   deletedAt                 DateTime? // 🗑️ Soft delete timestamp
   deletedBy                 String?          @db.ObjectId // 🗑️ Admin who deleted
