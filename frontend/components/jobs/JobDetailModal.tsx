@@ -32,6 +32,10 @@ interface JobDetailModalProps {
   open: boolean
   onClose: () => void
   job: PublicJobListing | null
+  currentUserId?: string | null
+  hasApplied?: boolean
+  applicationStatus?: string | null
+  onApply?: (jobId: string) => void
 }
 
 // Modern Premium Bölüm Başlık Component'i (ikon kaldırıldı - daha temiz görünüm)
@@ -54,7 +58,7 @@ function JobSectionTitle({ icon: Icon, children, showIcon = false }: { icon: Luc
   )
 }
 
-export function JobDetailModal({ open, onClose, job }: JobDetailModalProps) {
+export function JobDetailModal({ open, onClose, job, currentUserId, hasApplied, applicationStatus, onApply }: JobDetailModalProps) {
   if (!open || !job) return null
 
   // Markdown işaretlerini temizleme fonksiyonu
@@ -246,6 +250,33 @@ export function JobDetailModal({ open, onClose, job }: JobDetailModalProps) {
                     )
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* Başvuru kutusu - ilan sahibi değilse ve giriş yapmışsa */}
+            {currentUserId && job.createdBy?.id !== currentUserId && (hasApplied !== undefined || onApply) && (
+              <div className="mt-6 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-gray-800/50 px-4 py-3">
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">Bu ilana başvur</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">İlan sahibiyle bağlantı kurmak için başvurunu gönder.</p>
+                {hasApplied ? (
+                  <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium ${
+                    applicationStatus === 'ACCEPTED' ? 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400' :
+                    applicationStatus === 'REJECTED' ? 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400' :
+                    'bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400'
+                  }`}>
+                    {applicationStatus === 'ACCEPTED' && 'Başvurunuz onaylandı'}
+                    {applicationStatus === 'REJECTED' && 'Başvurunuz reddedildi'}
+                    {(applicationStatus === 'PENDING' || applicationStatus === 'REVIEWED' || !applicationStatus) && 'Başvurunuz beklemede'}
+                  </span>
+                ) : onApply ? (
+                  <button
+                    type="button"
+                    onClick={() => onApply(job.id)}
+                    className="rounded-lg bg-brand-orange hover:bg-brand-orange/90 text-white text-sm font-medium px-4 py-2 transition"
+                  >
+                    Başvur
+                  </button>
+                ) : null}
               </div>
             )}
 

@@ -529,6 +529,7 @@ function FellinkContent() {
   const [myJobsRetry, setMyJobsRetry] = useState(0)
   const [applyModalOpen, setApplyModalOpen] = useState<string | null>(null)
   const [appliedJobs, setAppliedJobs] = useState<Set<string>>(new Set())
+  const [applicationStatusByJobId, setApplicationStatusByJobId] = useState<Record<string, string>>({})
 
   // Tab state
   const tabFromUrl = searchParams?.get('tab')
@@ -574,6 +575,8 @@ function FellinkContent() {
       setMyJobs((prev) => prev.filter((job) => job.id !== selectedJobId))
       setApplications((prev) => prev.filter((app) => app.jobListing.id !== selectedJobId))
       setDeleteModalOpen(false)
+      setDetailModalOpen(false)
+      setSelectedJob(null)
       setOpenMenuId(null)
       setSelectedJobId(null)
       toast.success('İlan başarıyla silindi')
@@ -637,11 +640,21 @@ function FellinkContent() {
       try {
         const applied = await api.get('/jobs/me/applications')
         if (mounted && applied.data) {
-          const jobIds = applied.data.map((app: any) => app.jobListing?.id || app.jobListingId)
-          setAppliedJobs(new Set(jobIds))
+          const list = Array.isArray(applied.data) ? applied.data : []
+          const jobIds = new Set(list.map((app: any) => app.jobListing?.id || app.jobListingId))
+          const statusMap: Record<string, string> = {}
+          list.forEach((app: any) => {
+            const jid = app.jobListing?.id || app.jobListingId
+            if (jid && app.status) statusMap[jid] = app.status
+          })
+          setAppliedJobs(jobIds)
+          setApplicationStatusByJobId(statusMap)
         }
       } catch (err) {
-        if (mounted) setAppliedJobs(new Set())
+        if (mounted) {
+          setAppliedJobs(new Set())
+          setApplicationStatusByJobId({})
+        }
       }
     }
 
@@ -924,6 +937,37 @@ function FellinkContent() {
                       </div>
 
                       <div className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-800">
+                        {!isOwner && canApply && (
+                          <div
+                            className="mb-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-gray-800/50 px-3 py-2.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 mb-0.5">Bu ilana başvur</p>
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">İlan sahibiyle bağlantı kurmak için başvurunu gönder.</p>
+                            {!hasApplied ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setApplyModalOpen(job.id)
+                                }}
+                                className="w-full rounded-lg bg-brand-orange hover:bg-brand-orange/90 text-white text-xs font-medium py-2 transition"
+                              >
+                                Başvur
+                              </button>
+                            ) : (
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                                applicationStatusByJobId[job.id] === 'ACCEPTED' ? 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400' :
+                                applicationStatusByJobId[job.id] === 'REJECTED' ? 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400' :
+                                'bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400'
+                              }`}>
+                                {applicationStatusByJobId[job.id] === 'ACCEPTED' && 'Başvurunuz onaylandı'}
+                                {applicationStatusByJobId[job.id] === 'REJECTED' && 'Başvurunuz reddedildi'}
+                                {(applicationStatusByJobId[job.id] === 'PENDING' || applicationStatusByJobId[job.id] === 'REVIEWED' || !applicationStatusByJobId[job.id]) && 'Başvurunuz beklemede'}
+                              </span>
+                            )}
+                          </div>
+                        )}
                         <div className="flex items-center justify-between">
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             {new Date(job.createdAt).toLocaleDateString('tr-TR', {
@@ -990,7 +1034,11 @@ function FellinkContent() {
               open={!!applyModalOpen}
               onClose={() => setApplyModalOpen(null)}
               onSuccess={() => {
-                setAppliedJobs((prev) => new Set(prev).add(applyModalOpen))
+                const jid = applyModalOpen
+                if (jid) {
+                  setAppliedJobs((prev) => new Set(prev).add(jid))
+                  setApplicationStatusByJobId((prev) => ({ ...prev, [jid]: 'PENDING' }))
+                }
                 setApplyModalOpen(null)
               }}
             />
@@ -1015,6 +1063,10 @@ function FellinkContent() {
               setSelectedJob(null)
             }}
             job={selectedJob}
+            currentUserId={user?.id}
+            hasApplied={selectedJob ? appliedJobs.has(selectedJob.id) : false}
+            applicationStatus={selectedJob ? applicationStatusByJobId[selectedJob.id] : null}
+            onApply={selectedJob ? (jobId) => { setApplyModalOpen(jobId); setDetailModalOpen(false); setSelectedJob(null); } : undefined}
           />
         </>
       )}
