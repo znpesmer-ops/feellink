@@ -25,11 +25,12 @@ let EventsController = class EventsController {
     async getAllEvents() {
         try {
             const events = await this.eventsService.getAllEvents();
-            return Array.isArray(events) ? events : [];
+            const list = Array.isArray(events) ? events : [];
+            return { events: list };
         }
         catch (error) {
             console.error('Error in getAllEvents controller:', error);
-            return [];
+            return { events: [] };
         }
     }
     async getMyEvents(user) {

@@ -4,4 +4,13 @@ export declare class HealthController {
         timestamp: string;
         service: string;
     };
+    mailStatus(): {
+        mailMode: string;
+        smtpConfigured: boolean;
+        smtpHost: string;
+        resetLinkBase: string;
+        willActuallySendMails: boolean;
+        envNamesNote: string;
+        hint: string;
+    };
 }

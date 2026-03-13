@@ -38,6 +38,15 @@ let UsersController = class UsersController {
         }
         return this.usersService.getColorSignature(username);
     }
+    async getProfileAnalysis(username, user) {
+        if (!username || username === 'undefined' || username === 'null' || username === '[object Object]') {
+            throw new common_1.NotFoundException('Geçersiz kullanıcı adı. Lütfen tekrar deneyin.');
+        }
+        if (!user?.id) {
+            throw new common_1.NotFoundException('Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın.');
+        }
+        return this.usersService.getProfileAnalysis(username, user.id);
+    }
     async getProfile(username, user) {
         if (!username || username === 'undefined' || username === 'null' || username === '[object Object]') {
             throw new common_1.NotFoundException('Geçersiz kullanıcı adı. Lütfen tekrar deneyin.');
@@ -165,6 +174,15 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "getColorSignature", null);
+__decorate([
+    (0, common_1.Get)('profile/:username/analysis'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    __param(0, (0, common_1.Param)('username')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "getProfileAnalysis", null);
 __decorate([
     (0, common_1.Get)('profile/:username'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

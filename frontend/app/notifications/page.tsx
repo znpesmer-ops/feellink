@@ -517,7 +517,7 @@ function NotificationsContent() {
                       }
                       
                       if (notification.postId) {
-                        router.push(`/posts/${notification.postId}`)
+                        router.push(`/posts/${notification.postId}?from=${encodeURIComponent('/notifications')}`)
                         return
                       }
                       

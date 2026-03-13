@@ -44,7 +44,11 @@ export declare class AdminController {
             city: string;
             gender: string;
             profileCompleted: boolean;
+            termsAcceptedAt: Date;
             accountStatus: import(".prisma/client").$Enums.AccountStatus;
+            suspendedAt: Date;
+            suspendedUntil: Date;
+            suspensionReason: string;
             isDeleted: boolean;
             deletedAt: Date;
             createdAt: Date;
@@ -71,10 +75,24 @@ export declare class AdminController {
     }, admin: any): Promise<{
         success: boolean;
         message: string;
+        user: {
+            id: string;
+            accountStatus: import(".prisma/client").$Enums.AccountStatus;
+            suspendedAt: Date;
+            suspendedUntil: Date;
+            suspensionReason: string;
+        };
     }>;
     unsuspendUser(userId: string): Promise<{
         success: boolean;
         message: string;
+        user: {
+            id: string;
+            accountStatus: import(".prisma/client").$Enums.AccountStatus;
+            suspendedAt: Date;
+            suspendedUntil: Date;
+            suspensionReason: string;
+        };
     }>;
     updateUserRoles(userId: string, data: {
         roles: string[];
@@ -104,16 +122,16 @@ export declare class AdminController {
                 fullName: string;
             };
         } & {
-            message: string;
             id: string;
             createdAt: Date;
             updatedAt: Date;
             userId: string;
-            requestedRole: import(".prisma/client").$Enums.UserRole;
             status: string;
-            reviewedBy: string;
+            message: string;
+            requestedRole: import(".prisma/client").$Enums.UserRole;
             reviewedAt: Date;
             reviewNote: string;
+            reviewedBy: string;
         })[];
         total: number;
         page: number;
@@ -149,10 +167,10 @@ export declare class AdminController {
                 likes: number;
             };
             media: {
+                url: string;
                 id: string;
                 type: string;
                 order: number;
-                url: string;
                 thumbnailUrl: string;
             }[];
         } & {
@@ -162,9 +180,9 @@ export declare class AdminController {
             createdAt: Date;
             updatedAt: Date;
             userId: string;
-            type: string;
             title: string;
             location: string;
+            type: string;
             caption: string;
             code: string;
             colors: string[];
@@ -191,10 +209,10 @@ export declare class AdminController {
                 likes: number;
             };
             media: {
+                url: string;
                 id: string;
                 type: string;
                 order: number;
-                url: string;
                 thumbnailUrl: string;
             }[];
         } & {
@@ -204,9 +222,9 @@ export declare class AdminController {
             createdAt: Date;
             updatedAt: Date;
             userId: string;
-            type: string;
             title: string;
             location: string;
+            type: string;
             caption: string;
             code: string;
             colors: string[];
@@ -262,11 +280,11 @@ export declare class AdminController {
             title: string;
             coverImage: string;
             content: string;
-            authorId: string;
             excerpt: string;
             isPublished: boolean;
             scheduledAt: Date;
             views: number;
+            authorId: string;
         })[];
         total: number;
         page: number;
@@ -287,20 +305,20 @@ export declare class AdminController {
                 avatar: string;
             };
         } & {
+            date: Date;
             id: string;
             isDeleted: boolean;
             deletedAt: Date;
             createdAt: Date;
             updatedAt: Date;
-            description: string;
             title: string;
+            description: string;
+            location: string;
             coverImage: string;
-            date: Date;
             participantCount: number;
             ticketUrl: string;
             price: number;
             isFree: boolean;
-            location: string;
             ownerId: string;
             reminderMailSent: boolean;
         })[];
@@ -325,8 +343,8 @@ export declare class AdminController {
                 createdAt: Date;
                 updatedAt: Date;
                 type: string;
-                price: number;
                 eventId: string;
+                price: number;
                 capacity: number;
                 sold: number;
                 qrCodeUrl: string;
@@ -372,8 +390,8 @@ export declare class AdminController {
         } & {
             id: string;
             createdAt: Date;
-            target: string;
             action: string;
+            target: string;
             meta: import("@prisma/client/runtime/library").JsonValue;
             ip: string;
             userAgent: string;
@@ -417,28 +435,28 @@ export declare class AdminController {
     }>;
     getReports(status?: string, page?: string, limit?: string): Promise<{
         reports: ({
-            reportedUser: {
-                id: string;
-                username: string;
-                fullName: string;
-                avatar: string;
-            };
             reporter: {
                 id: string;
                 username: string;
                 fullName: string;
                 avatar: string;
             };
+            reportedUser: {
+                id: string;
+                username: string;
+                fullName: string;
+                avatar: string;
+            };
         } & {
+            messageId: string;
             id: string;
             createdAt: Date;
             status: string;
-            messageId: string;
             conversationId: string;
+            reporterId: string;
+            reportedUserId: string;
             reason: import(".prisma/client").$Enums.ReportReason;
             note: string;
-            reportedUserId: string;
-            reporterId: string;
         })[];
         total: number;
         page: number;
@@ -446,38 +464,32 @@ export declare class AdminController {
         totalPages: number;
     }>;
     getReportById(reportId: string): Promise<{
-        reportedUser: {
-            id: string;
-            username: string;
-            fullName: string;
-            avatar: string;
-        };
         reporter: {
             id: string;
             username: string;
             fullName: string;
             avatar: string;
         };
-    } & {
-        id: string;
-        createdAt: Date;
-        status: string;
-        messageId: string;
-        conversationId: string;
-        reason: import(".prisma/client").$Enums.ReportReason;
-        note: string;
-        reportedUserId: string;
-        reporterId: string;
-    }>;
-    updateReportStatus(reportId: string, body: {
-        status: string;
-    }): Promise<{
         reportedUser: {
             id: string;
             username: string;
             fullName: string;
             avatar: string;
         };
+    } & {
+        messageId: string;
+        id: string;
+        createdAt: Date;
+        status: string;
+        conversationId: string;
+        reporterId: string;
+        reportedUserId: string;
+        reason: import(".prisma/client").$Enums.ReportReason;
+        note: string;
+    }>;
+    updateReportStatus(reportId: string, body: {
+        status: string;
+    }): Promise<{
         reporter: {
             id: string;
             username: string;
@@ -485,16 +497,22 @@ export declare class AdminController {
             fullName: string;
             avatar: string;
         };
+        reportedUser: {
+            id: string;
+            username: string;
+            fullName: string;
+            avatar: string;
+        };
     } & {
+        messageId: string;
         id: string;
         createdAt: Date;
         status: string;
-        messageId: string;
         conversationId: string;
+        reporterId: string;
+        reportedUserId: string;
         reason: import(".prisma/client").$Enums.ReportReason;
         note: string;
-        reportedUserId: string;
-        reporterId: string;
     }>;
     updateSiteName(body: {
         value: string;

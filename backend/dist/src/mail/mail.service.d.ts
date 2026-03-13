@@ -3,7 +3,14 @@ export declare class MailService {
     private readonly logger;
     private readonly logoUrl;
     constructor();
+    private isProductionMailMode;
+    private ensureTransporter;
     sendPasswordResetMail(to: string, resetUrl: string): Promise<any>;
+    sendWelcomeEmail(user: {
+        email: string;
+        fullName?: string | null;
+        username: string;
+    }): Promise<void>;
     sendEvent24HourReminder(params: {
         to: string;
         name: string;

@@ -383,6 +383,7 @@ export function ArtistHighlights({ username, userId, isOwnProfile = false }: Art
         <HighlightDetailModal
           highlight={activeHighlight}
           onClose={() => setActiveHighlight(null)}
+          returnTo={`/profile/${username}`}
         />
       )}
 

@@ -7,7 +7,7 @@ import { Bookmark, Heart, MessageCircle, Image as ImageIcon } from 'lucide-react
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/lib/store'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 
 interface SavedArtworksProps {
   userId: string
@@ -17,6 +17,7 @@ export function SavedArtworks({ userId }: SavedArtworksProps) {
   const { user } = useAuthStore()
   const queryClient = useQueryClient()
   const router = useRouter()
+  const pathname = usePathname()
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
 
   // Fetch saved items (both posts and artworks)
@@ -63,7 +64,8 @@ export function SavedArtworks({ userId }: SavedArtworksProps) {
     if (item.type === 'artwork') {
       router.push(`/profile/${item.user?.username || 'me'}?artwork=${item.id}`)
     } else {
-      router.push(`/posts/${item.id}`)
+      const from = pathname ? encodeURIComponent(pathname) : encodeURIComponent('/saved')
+      router.push(`/posts/${item.id}?from=${from}`)
     }
   }
 

@@ -155,9 +155,21 @@ let ExploreService = class ExploreService {
             })
             : [];
         const likedPostIds = new Set(likes.map(l => l.postId));
+        const [allLikes, allComments] = await Promise.all([
+            this.prisma.like.findMany({ where: { postId: { in: postIds } }, select: { postId: true } }),
+            this.prisma.comment.findMany({ where: { postId: { in: postIds }, parentId: null }, select: { postId: true } }),
+        ]);
+        const likeCountMap = new Map();
+        const commentCountMap = new Map();
+        allLikes.forEach((l) => likeCountMap.set(l.postId, (likeCountMap.get(l.postId) ?? 0) + 1));
+        allComments.forEach((c) => commentCountMap.set(c.postId, (commentCountMap.get(c.postId) ?? 0) + 1));
         return {
             posts: filteredPosts.map((post) => ({
                 ...post,
+                _count: {
+                    likes: likeCountMap.get(post.id) ?? 0,
+                    comments: commentCountMap.get(post.id) ?? 0,
+                },
                 isLiked: likedPostIds.has(post.id),
                 media: post.media?.map((m) => ({
                     ...m,
@@ -167,10 +179,13 @@ let ExploreService = class ExploreService {
                     ...post.user,
                     avatar: this.transformAvatarUrl(post.user.avatar),
                 },
-                pinnedComment: post.comments && post.comments.length > 0 && post.comments[0].isPinned ? {
-                    user: post.comments[0].user.username || post.comments[0].user.fullName || 'Kullanıcı',
-                    text: post.comments[0].content,
-                } : null,
+                pinnedComment: (() => {
+                    const pinned = post.comments?.find((c) => c.isPinned);
+                    return pinned ? {
+                        user: pinned.user?.username || pinned.user?.fullName || 'Kullanıcı',
+                        text: pinned.content,
+                    } : null;
+                })(),
                 recentComments: post.comments
                     ? post.comments
                         .filter((c) => !c.isPinned)

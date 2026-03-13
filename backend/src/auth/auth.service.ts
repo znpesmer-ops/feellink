@@ -982,44 +982,30 @@ export class AuthService {
         },
       });
 
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl =
+        process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:3000';
       const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
-      // Gerçek mail gönderimi (MAIL_MODE=prod ise)
-      const mailMode = process.env.MAIL_MODE || 'dev';
-      let mailSent = false;
-      let mailError: any = null;
-      
-      if (mailMode === 'prod') {
-        // Production modunda SMTP ile mail gönder
-        try {
-          await this.mailService.sendPasswordResetMail(email, resetUrl);
-          this.logger.log(`✅ Password reset email sent successfully to ${email}`);
-          mailSent = true;
-        } catch (error: any) {
-          mailError = error;
-          this.logger.error(`❌ Failed to send password reset email to ${email}:`, error.message || error);
-          
-          // SMTP kimlik doğrulama hatası için özel log
-          if (error.code === 'EAUTH' || error.responseCode === 535) {
-            this.logger.error('🔴 SMTP kimlik doğrulama hatası!');
-            this.logger.error('Lütfen backend/.env dosyasındaki SMTP ayarlarını kontrol edin:');
-            this.logger.error('- SMTP_USER: Tam e-posta adresi (örn: info@feellink.io)');
-            this.logger.error('- SMTP_PASS: Gmail App Password (normal şifre değil!)');
-            this.logger.error('- Gmail için: https://myaccount.google.com/apppasswords adresinden App Password oluşturun');
-          }
-        }
-      } else {
-        // Development modunda mail gönderme, sadece logla
-        this.logger.log(`[DEV] Mail gönderimi atlandı (MAIL_MODE=${mailMode})`);
-        this.logger.log(`[DEV] Reset URL for ${email}: ${resetUrl}`);
-        mailSent = false; // Development modunda mail gönderilmedi
-      }
+      // Mail gönderimi: Sadece MAIL_MODE=dev ise atlanır. Beklenen env: SMTP_USER, SMTP_PASS (veya MAIL_*), FRONTEND_URL/APP_URL.
+      // Eski dist'te fallback vardı: mailMode === 'prod' olmazsa mail atılmıyordu (MAIL_MODE=production bile yetmiyordu). Yeni kod: her zaman sendPasswordResetMail çağrılır; MailService içinde MAIL_MODE=dev ise return.
+      const explicitlyDev = process.env.MAIL_MODE?.toLowerCase() === 'dev';
+      this.logger.log(`ForgotPassword: sending reset mail to ${email} (MAIL_MODE=dev? ${explicitlyDev})`);
 
-      // 🔥 Development modunda reset URL'i sadece console'da logla (kullanıcıya gösterilmez)
-      if (mailMode !== 'prod') {
-        this.logger.log(`[DEV] Reset URL for ${email}: ${resetUrl}`);
-        this.logger.log(`[DEV] Reset Token: ${resetToken}`);
+      try {
+        await this.mailService.sendPasswordResetMail(email, resetUrl);
+        this.logger.log(`✅ Password reset email sent successfully to ${email}`);
+      } catch (error: any) {
+        this.logger.error(`❌ Failed to send password reset email to ${email}:`, error?.message || error);
+        this.logger.error(`❌ Error code: ${error?.code || 'n/a'}, responseCode: ${error?.responseCode || 'n/a'}`);
+        if (error?.code === 'EAUTH' || error?.responseCode === 535) {
+          this.logger.error('🔴 SMTP kimlik doğrulama hatası! SMTP_USER tam e-posta, SMTP_PASS Gmail App Password (16 karakter, boşluksuz) olmalı.');
+          this.logger.error('https://myaccount.google.com/apppasswords');
+        }
+        // Sadece MAIL_MODE=dev ise token'ı logla (güvenlik)
+        if (explicitlyDev) {
+          this.logger.log(`[DEV] Reset URL for ${email}: ${resetUrl}`);
+          this.logger.log(`[DEV] Reset Token: ${resetToken}`);
+        }
       }
 
       // ✅ Sadece success mesajı döndür (reset URL kullanıcıya gösterilmez)

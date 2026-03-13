@@ -329,23 +329,25 @@ let PostsService = class PostsService {
         let isLiked = false;
         let isSaved = false;
         if (currentUserId) {
+            const pid = String(postId);
+            const uid = String(currentUserId);
             const [like, savedPost, savedArtwork] = await Promise.all([
                 this.prisma.like.findFirst({
                     where: {
-                        postId,
-                        userId: currentUserId,
+                        postId: pid,
+                        userId: uid,
                     },
                 }),
                 this.prisma.savedPost.findFirst({
                     where: {
-                        userId: currentUserId,
-                        postId,
+                        userId: uid,
+                        postId: pid,
                     },
                 }),
                 this.prisma.savedArtwork.findFirst({
                     where: {
-                        userId: currentUserId,
-                        postId,
+                        userId: uid,
+                        postId: pid,
                     },
                 }),
             ]);
@@ -355,9 +357,10 @@ let PostsService = class PostsService {
                 console.log(`✅ [getPost] Post ${postId} isSaved=true (savedPost: ${!!savedPost}, savedArtwork: ${!!savedArtwork})`);
             }
         }
+        const pidForCount = String(postId);
         const [likeCount, commentCount] = await Promise.all([
-            this.prisma.like.count({ where: { postId } }),
-            this.prisma.comment.count({ where: { postId, parentId: null } }),
+            this.prisma.like.count({ where: { postId: pidForCount } }),
+            this.prisma.comment.count({ where: { postId: pidForCount, parentId: null } }),
         ]);
         const CDN_BASE = this.configService.get('CDN_BASE_URL') ||
             `http://${this.configService.get('MINIO_ENDPOINT')}:${this.configService.get('MINIO_PORT')}/${this.configService.get('MINIO_BUCKET_NAME')}`;
@@ -407,27 +410,6 @@ let PostsService = class PostsService {
             ...post.user,
             avatar: this.transformAvatarUrl(post.user.avatar),
         };
-        return {
-            ...post,
-            id: post.id,
-            userId: post.userId,
-            caption: post.caption,
-            title: post.title,
-            location: post.location,
-            type: post.type,
-            createdAt: post.createdAt instanceof Date ? post.createdAt.toISOString() : post.createdAt,
-            updatedAt: post.updatedAt instanceof Date ? post.updatedAt.toISOString() : post.updatedAt,
-            media: transformedMedia,
-            user: transformedUser,
-            comments: formattedComments,
-            isLiked,
-            isSaved,
-            _count: {
-                likes: likeCount,
-                comments: commentCount,
-            },
-        };
-        console.log(`✅ [getPost] Post ${postId} response: ${formattedComments.length} yorum döndürülüyor`);
         return {
             ...post,
             id: post.id,
@@ -544,28 +526,30 @@ let PostsService = class PostsService {
         }
     }
     async likePost(postId, userId) {
+        const pid = String(postId);
+        const uid = String(userId);
         console.log(`❤️ [likePost] ========== START ==========`);
-        console.log(`❤️ [likePost] User ${userId} liking post ${postId}`);
+        console.log(`❤️ [likePost] User ${uid} liking post ${pid}`);
         const post = await this.prisma.post.findUnique({
-            where: { id: postId },
+            where: { id: pid },
         });
         if (!post) {
-            console.error(`❌ [likePost] Post ${postId} NOT FOUND!`);
+            console.error(`❌ [likePost] Post ${pid} NOT FOUND!`);
             throw new common_1.NotFoundException('Post not found');
         }
         console.log(`✅ [likePost] Post found: ${post.id}`);
         const existingLike = await this.prisma.like.findFirst({
             where: {
-                postId,
-                userId,
+                postId: pid,
+                userId: uid,
             },
         });
         if (!existingLike) {
             console.log(`💾 [likePost] Creating new like...`);
             await this.prisma.like.create({
                 data: {
-                    postId,
-                    userId,
+                    postId: pid,
+                    userId: uid,
                 },
             });
             console.log(`✅ [likePost] Like created successfully!`);
@@ -574,7 +558,7 @@ let PostsService = class PostsService {
             console.log(`⚠️ [likePost] Like already exists - skipping create`);
         }
         const likeCount = await this.prisma.like.count({
-            where: { postId },
+            where: { postId: pid },
         });
         console.log(`✅ [likePost] Total likes: ${likeCount}`);
         console.log(`❤️ [likePost] ========== SUCCESS ==========`);
@@ -623,25 +607,27 @@ let PostsService = class PostsService {
         return { success: true, liked: true, likeCount: likeCount };
     }
     async unlikePost(postId, userId) {
+        const pid = String(postId);
+        const uid = String(userId);
         console.log(`💔 [unlikePost] ========== START ==========`);
-        console.log(`💔 [unlikePost] User ${userId} unliking post ${postId}`);
+        console.log(`💔 [unlikePost] User ${uid} unliking post ${pid}`);
         const post = await this.prisma.post.findUnique({
-            where: { id: postId },
+            where: { id: pid },
         });
         if (!post) {
-            console.error(`❌ [unlikePost] Post ${postId} NOT FOUND!`);
+            console.error(`❌ [unlikePost] Post ${pid} NOT FOUND!`);
             throw new common_1.NotFoundException('Post not found');
         }
         console.log(`✅ [unlikePost] Post found: ${post.id}`);
         const deleteResult = await this.prisma.like.deleteMany({
             where: {
-                postId,
-                userId,
+                postId: pid,
+                userId: uid,
             },
         });
         console.log(`🗑️ [unlikePost] Deleted ${deleteResult.count} like(s)`);
         const likeCount = await this.prisma.like.count({
-            where: { postId },
+            where: { postId: pid },
         });
         console.log(`✅ [unlikePost] Total likes: ${likeCount}`);
         console.log(`💔 [unlikePost] ========== SUCCESS ==========`);
@@ -828,24 +814,28 @@ let PostsService = class PostsService {
         }
         const CDN_BASE_RESPONSE = this.configService.get('CDN_BASE_URL') ||
             `http://${this.configService.get('MINIO_ENDPOINT')}:${this.configService.get('MINIO_PORT')}/${this.configService.get('MINIO_BUCKET_NAME')}`;
+        const avatarUrl = comment.user.avatar
+            ? (comment.user.avatar.startsWith('http') ? comment.user.avatar : `${CDN_BASE_RESPONSE}/${comment.user.avatar}`)
+            : null;
         return {
             id: comment.id,
             postId: comment.postId,
+            userId: comment.userId,
             content: comment.content,
             createdAt: comment.createdAt.toISOString(),
-            parentId: comment.parentId,
+            updatedAt: comment.updatedAt instanceof Date ? comment.updatedAt.toISOString() : comment.updatedAt,
+            parentId: comment.parentId ?? undefined,
+            isPinned: comment.isPinned ?? false,
+            isLikedByCurrentUser: false,
+            likesCount: 0,
             user: {
                 id: comment.user.id,
                 username: comment.user.username,
                 fullName: comment.user.fullName,
-                avatar: comment.user.avatar ? (comment.user.avatar.startsWith('http') ? comment.user.avatar : `${CDN_BASE_RESPONSE}/${comment.user.avatar}`) : null,
-                avatarUrl: comment.user.avatar ? (comment.user.avatar.startsWith('http') ? comment.user.avatar : `${CDN_BASE_RESPONSE}/${comment.user.avatar}`) : null,
-                isVerified: comment.user.isVerified,
+                avatar: avatarUrl,
+                isVerified: comment.user.isVerified ?? false,
             },
-            _count: {
-                likes: 0,
-                replies: comment._count.replies || 0,
-            },
+            replies: [],
         };
     }
     async getUserComments(userId) {

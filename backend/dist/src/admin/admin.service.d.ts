@@ -45,7 +45,11 @@ export declare class AdminService {
             city: string;
             gender: string;
             profileCompleted: boolean;
+            termsAcceptedAt: Date;
             accountStatus: import(".prisma/client").$Enums.AccountStatus;
+            suspendedAt: Date;
+            suspendedUntil: Date;
+            suspensionReason: string;
             isDeleted: boolean;
             deletedAt: Date;
             createdAt: Date;
@@ -90,10 +94,10 @@ export declare class AdminService {
                 likes: number;
             };
             media: {
+                url: string;
                 id: string;
                 type: string;
                 order: number;
-                url: string;
                 thumbnailUrl: string;
             }[];
         } & {
@@ -103,9 +107,9 @@ export declare class AdminService {
             createdAt: Date;
             updatedAt: Date;
             userId: string;
-            type: string;
             title: string;
             location: string;
+            type: string;
             caption: string;
             code: string;
             colors: string[];
@@ -128,10 +132,10 @@ export declare class AdminService {
                 likes: number;
             };
             media: {
+                url: string;
                 id: string;
                 type: string;
                 order: number;
-                url: string;
                 thumbnailUrl: string;
             }[];
         } & {
@@ -141,9 +145,9 @@ export declare class AdminService {
             createdAt: Date;
             updatedAt: Date;
             userId: string;
-            type: string;
             title: string;
             location: string;
+            type: string;
             caption: string;
             code: string;
             colors: string[];
@@ -203,11 +207,11 @@ export declare class AdminService {
             title: string;
             coverImage: string;
             content: string;
-            authorId: string;
             excerpt: string;
             isPublished: boolean;
             scheduledAt: Date;
             views: number;
+            authorId: string;
         })[];
         total: number;
         page: number;
@@ -228,20 +232,20 @@ export declare class AdminService {
                 avatar: string;
             };
         } & {
+            date: Date;
             id: string;
             isDeleted: boolean;
             deletedAt: Date;
             createdAt: Date;
             updatedAt: Date;
-            description: string;
             title: string;
+            description: string;
+            location: string;
             coverImage: string;
-            date: Date;
             participantCount: number;
             ticketUrl: string;
             price: number;
             isFree: boolean;
-            location: string;
             ownerId: string;
             reminderMailSent: boolean;
         })[];
@@ -266,8 +270,8 @@ export declare class AdminService {
                 createdAt: Date;
                 updatedAt: Date;
                 type: string;
-                price: number;
                 eventId: string;
+                price: number;
                 capacity: number;
                 sold: number;
                 qrCodeUrl: string;
@@ -310,8 +314,8 @@ export declare class AdminService {
         } & {
             id: string;
             createdAt: Date;
-            target: string;
             action: string;
+            target: string;
             meta: Prisma.JsonValue;
             ip: string;
             userAgent: string;
@@ -331,8 +335,8 @@ export declare class AdminService {
     }): Promise<{
         id: string;
         createdAt: Date;
-        target: string;
         action: string;
+        target: string;
         meta: Prisma.JsonValue;
         ip: string;
         userAgent: string;
@@ -382,10 +386,24 @@ export declare class AdminService {
     }): Promise<{
         success: boolean;
         message: string;
+        user: {
+            id: string;
+            accountStatus: import(".prisma/client").$Enums.AccountStatus;
+            suspendedAt: Date;
+            suspendedUntil: Date;
+            suspensionReason: string;
+        };
     }>;
     unsuspendUser(userId: string): Promise<{
         success: boolean;
         message: string;
+        user: {
+            id: string;
+            accountStatus: import(".prisma/client").$Enums.AccountStatus;
+            suspendedAt: Date;
+            suspendedUntil: Date;
+            suspensionReason: string;
+        };
     }>;
     getRoleChangeRequests(status?: string, page?: number, limit?: number): Promise<{
         requests: ({
@@ -396,16 +414,16 @@ export declare class AdminService {
                 fullName: string;
             };
         } & {
-            message: string;
             id: string;
             createdAt: Date;
             updatedAt: Date;
             userId: string;
-            requestedRole: import(".prisma/client").$Enums.UserRole;
             status: string;
-            reviewedBy: string;
+            message: string;
+            requestedRole: import(".prisma/client").$Enums.UserRole;
             reviewedAt: Date;
             reviewNote: string;
+            reviewedBy: string;
         })[];
         total: number;
         page: number;

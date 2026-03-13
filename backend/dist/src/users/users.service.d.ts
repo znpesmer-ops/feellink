@@ -176,12 +176,12 @@ export declare class UsersService {
             likes: number;
         };
         media: {
+            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
             order: number;
-            url: string;
             thumbnailUrl: string;
         }[];
         id: string;
@@ -190,9 +190,9 @@ export declare class UsersService {
         createdAt: Date;
         updatedAt: Date;
         userId: string;
-        type: string;
         title: string;
         location: string;
+        type: string;
         caption: string;
         code: string;
         colors: string[];
@@ -213,12 +213,12 @@ export declare class UsersService {
             likes: number;
         };
         media: {
+            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
             order: number;
-            url: string;
             thumbnailUrl: string;
         }[];
         id: string;
@@ -227,9 +227,9 @@ export declare class UsersService {
         createdAt: Date;
         updatedAt: Date;
         userId: string;
-        type: string;
         title: string;
         location: string;
+        type: string;
         caption: string;
         code: string;
         colors: string[];
@@ -249,6 +249,31 @@ export declare class UsersService {
     }>;
     getColorSignature(username: string): Promise<{
         topColors: string[];
+    }>;
+    getProfileAnalysis(username: string, currentUserId: string): Promise<{
+        userId: string;
+        username: string;
+        visibility: 'public' | 'private';
+        palette: string[];
+        colorProfile?: {
+            warmRatio: number;
+            coolRatio: number;
+            avgBrightness: number;
+            avgSaturation: number;
+            dominantMood?: string;
+        };
+        productionProfile: {
+            totalPosts: number;
+            activeMonth: string | null;
+            postingFrequency: 'low' | 'medium' | 'high';
+        };
+        engagement: {
+            totalLikes: number;
+            totalComments: number;
+            avgLikesPerPost: number;
+            mostEngagedPostId: string | null;
+        };
+        summary: string;
     }>;
     createRoleChangeRequest(userId: string, dto: {
         requestedRole: string;

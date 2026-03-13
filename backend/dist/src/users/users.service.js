@@ -1195,11 +1195,17 @@ let UsersService = class UsersService {
         if (!user) {
             throw new common_1.NotFoundException('Kullanıcı bulunamadı.');
         }
-        await this.prisma.$transaction(async (tx) => {
-            await tx.user.delete({
-                where: { id: userId },
+        try {
+            await this.prisma.$transaction(async (tx) => {
+                await tx.user.delete({
+                    where: { id: userId },
+                });
             });
-        });
+        }
+        catch (err) {
+            console.error('[UsersService] deleteAccount error:', err?.message || err);
+            throw new common_1.InternalServerErrorException('Hesap silinirken bir sorun oluştu. Lütfen tekrar deneyin.');
+        }
         return { message: 'Hesap başarıyla silindi.' };
     }
     async getSavedArtworks(userId) {
@@ -1488,6 +1494,192 @@ let UsersService = class UsersService {
             .slice(0, 5)
             .map(([color]) => color);
         return { topColors };
+    }
+    async getProfileAnalysis(username, currentUserId) {
+        const isObjectId = /^[0-9a-fA-F]{24}$/.test(username);
+        let user = null;
+        if (isObjectId) {
+            user = await this.prisma.user.findFirst({
+                where: { id: username },
+                select: { id: true, username: true, isPrivate: true },
+            });
+        }
+        else {
+            const found = await this.prisma.user.findFirst({
+                where: { username: { equals: username, mode: 'insensitive' } },
+                select: { id: true, username: true, isPrivate: true },
+            });
+            user = found;
+        }
+        if (!user) {
+            throw new common_1.NotFoundException('Kullanıcı bulunamadı');
+        }
+        if (user.isPrivate && currentUserId !== user.id) {
+            throw new common_1.ForbiddenException('Bu profil gizli; analiz yalnızca profil sahibi tarafından görüntülenebilir.');
+        }
+        const posts = await this.prisma.post.findMany({
+            where: { userId: user.id, isDeleted: false },
+            select: {
+                id: true,
+                colorPalette: true,
+                colors: true,
+                createdAt: true,
+            },
+        });
+        const postIds = posts.map((p) => p.id);
+        const [likesByPost, commentsByPost] = await Promise.all([
+            postIds.length > 0
+                ? this.prisma.like.findMany({
+                    where: { postId: { in: postIds } },
+                    select: { postId: true },
+                })
+                : [],
+            postIds.length > 0
+                ? this.prisma.comment.findMany({
+                    where: { postId: { in: postIds } },
+                    select: { postId: true },
+                })
+                : [],
+        ]);
+        const likeCountByPost = {};
+        const commentCountByPost = {};
+        for (const id of postIds) {
+            likeCountByPost[id] = 0;
+            commentCountByPost[id] = 0;
+        }
+        for (const l of likesByPost) {
+            if (likeCountByPost[l.postId] !== undefined)
+                likeCountByPost[l.postId]++;
+        }
+        for (const c of commentsByPost) {
+            if (commentCountByPost[c.postId] !== undefined)
+                commentCountByPost[c.postId]++;
+        }
+        const totalPosts = posts.length;
+        const totalLikes = Object.values(likeCountByPost).reduce((a, b) => a + b, 0);
+        const totalComments = Object.values(commentCountByPost).reduce((a, b) => a + b, 0);
+        const avgLikesPerPost = totalPosts > 0 ? totalLikes / totalPosts : 0;
+        const postEngagement = postIds.map((id) => ({
+            id,
+            score: (likeCountByPost[id] ?? 0) + (commentCountByPost[id] ?? 0),
+        }));
+        postEngagement.sort((a, b) => b.score - a.score);
+        const mostEngagedPostId = postEngagement.length > 0 && postEngagement[0].score > 0 ? postEngagement[0].id : null;
+        const allColors = [];
+        for (const post of posts) {
+            if (post.colorPalette?.length)
+                allColors.push(...post.colorPalette);
+            else if (post.colors?.length)
+                allColors.push(...post.colors);
+        }
+        const colorFreq = {};
+        for (const c of allColors) {
+            if (c && typeof c === 'string' && c.trim())
+                colorFreq[c] = (colorFreq[c] || 0) + 1;
+        }
+        const palette = Object.entries(colorFreq)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 6)
+            .map(([color]) => color);
+        const MONTH_NAMES_TR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+        const monthCounts = {};
+        for (const p of posts) {
+            const m = new Date(p.createdAt).getMonth();
+            monthCounts[m] = (monthCounts[m] || 0) + 1;
+        }
+        const activeMonthEntry = Object.entries(monthCounts).sort((a, b) => b[1] - a[1])[0];
+        const activeMonth = activeMonthEntry ? MONTH_NAMES_TR[Number(activeMonthEntry[0])] ?? null : null;
+        const now = new Date();
+        const firstPost = posts.length ? new Date(Math.min(...posts.map((p) => p.createdAt.getTime()))) : now;
+        const monthsDiff = Math.max(1, (now.getFullYear() - firstPost.getFullYear()) * 12 + (now.getMonth() - firstPost.getMonth()));
+        const postsPerMonth = totalPosts / monthsDiff;
+        const postingFrequency = postsPerMonth < 2 ? 'low' : postsPerMonth < 6 ? 'medium' : 'high';
+        function hexToHsl(hex) {
+            const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            if (!match)
+                return null;
+            const r = parseInt(match[1], 16) / 255;
+            const g = parseInt(match[2], 16) / 255;
+            const b = parseInt(match[3], 16) / 255;
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            let h = 0;
+            const l = (max + min) / 2;
+            if (max !== min) {
+                const d = max - min;
+                const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                if (max === r)
+                    h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+                else if (max === g)
+                    h = ((b - r) / d + 2) / 6;
+                else
+                    h = ((r - g) / d + 4) / 6;
+                return { h: h * 360, s: s ?? 0, l };
+            }
+            return { h: 0, s: 0, l };
+        }
+        let colorProfile;
+        if (palette.length > 0) {
+            const hslList = palette.map(hexToHsl).filter((x) => x != null);
+            if (hslList.length > 0) {
+                const warmCount = hslList.filter((hsl) => (hsl.h >= 0 && hsl.h < 60) || (hsl.h >= 300 && hsl.h <= 360)).length;
+                const coolCount = hslList.filter((hsl) => hsl.h >= 120 && hsl.h < 300).length;
+                const total = hslList.length;
+                const warmRatio = total ? warmCount / total : 0.5;
+                const coolRatio = total ? coolCount / total : 0.5;
+                const avgBrightness = hslList.reduce((s, x) => s + x.l, 0) / hslList.length;
+                const avgSaturation = hslList.reduce((s, x) => s + x.s, 0) / hslList.length;
+                let dominantMood = 'balanced';
+                if (warmRatio > 0.6 && avgSaturation > 0.5)
+                    dominantMood = 'warm-vivid';
+                else if (coolRatio > 0.6 && avgSaturation > 0.5)
+                    dominantMood = 'cool-vivid';
+                else if (warmRatio > 0.6)
+                    dominantMood = 'warm';
+                else if (coolRatio > 0.6)
+                    dominantMood = 'cool';
+                colorProfile = { warmRatio, coolRatio, avgBrightness, avgSaturation, dominantMood };
+            }
+        }
+        const parts = [];
+        if (colorProfile) {
+            if (colorProfile.dominantMood === 'warm-vivid')
+                parts.push('Üretimlerinde sıcak ve yüksek doygunluklu tonlar öne çıkıyor.');
+            else if (colorProfile.dominantMood === 'cool-vivid')
+                parts.push('Soğuk ve canlı renk paleti görsel dilini yansıtıyor.');
+            else if (colorProfile.dominantMood === 'warm')
+                parts.push('Sıcak tonlar ağırlıklı.');
+            else if (colorProfile.dominantMood === 'cool')
+                parts.push('Soğuk ton eğilimi belirgin.');
+            else if (colorProfile.avgSaturation > 0.6)
+                parts.push('Yüksek doygunluklu renkler kullanılıyor.');
+        }
+        if (postingFrequency === 'high')
+            parts.push('Üretim ritmi yoğun.');
+        else if (postingFrequency === 'medium')
+            parts.push('Düzenli paylaşım ritmi görülüyor.');
+        if (totalLikes + totalComments > 0)
+            parts.push('Etkileşim alan paylaşımlar öne çıkıyor.');
+        const summary = parts.length > 0 ? parts.join(' ') : 'Profil analizi henüz yeterli veriyle zenginleştirilecek.';
+        return {
+            userId: user.id,
+            username: user.username,
+            visibility: user.isPrivate ? 'private' : 'public',
+            palette,
+            colorProfile,
+            productionProfile: {
+                totalPosts,
+                activeMonth,
+                postingFrequency,
+            },
+            engagement: {
+                totalLikes,
+                totalComments,
+                avgLikesPerPost: Math.round(avgLikesPerPost * 10) / 10,
+                mostEngagedPostId,
+            },
+            summary,
+        };
     }
     async createRoleChangeRequest(userId, dto) {
         const user = await this.prisma.user.findUnique({

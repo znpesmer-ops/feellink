@@ -54,9 +54,9 @@ __decorate([
 ], RegisterDto.prototype, "role", void 0);
 __decorate([
     (0, class_transformer_1.Transform)(({ value }) => {
-        if (value === true || value === 'true' || value === 1)
+        if (value === true || value === 'true' || value === 1 || value === '1' || value === 'on')
             return true;
-        if (value === false || value === 'false' || value === 0)
+        if (value === false || value === 'false' || value === 0 || value === '0' || value === '' || value == null)
             return false;
         return value;
     }),

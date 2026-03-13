@@ -60,7 +60,7 @@ export function ProfileCommentsList({ username, userId }: ProfileCommentsListPro
         <div
           key={comment.id}
           className="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-100 dark:border-gray-800 hover:border-[#ff7b00]/50 transition-all cursor-pointer"
-          onClick={() => comment.postId && router.push(`/posts/${comment.postId}`)}
+          onClick={() => comment.postId && router.push(`/posts/${comment.postId}?from=${encodeURIComponent(`/profile/${username}`)}`)}
         >
           <div className="flex items-start gap-3">
             {/* Kullanıcı Avatar */}

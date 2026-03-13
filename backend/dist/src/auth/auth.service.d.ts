@@ -82,6 +82,7 @@ export declare class AuthService {
         };
         sidebar: import("../roles/roles.types").SidebarVisibility;
     }>;
+    checkDatabase(): Promise<boolean>;
     private generateTokens;
     refreshTokens(refreshToken: string): Promise<{
         accessToken: string;

@@ -16,24 +16,24 @@ export declare class JobsService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
-        location: string;
-        tags: string[];
+        description: string;
         company: string;
+        location: string;
         salary: string;
+        tags: string[];
         createdById: string;
     }>;
     update(jobId: string, userId: string, dto: CreateJobDto): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
-        location: string;
-        tags: string[];
+        description: string;
         company: string;
+        location: string;
         salary: string;
+        tags: string[];
         createdById: string;
     }>;
     getAll(): Promise<({
@@ -47,12 +47,12 @@ export declare class JobsService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
-        location: string;
-        tags: string[];
+        description: string;
         company: string;
+        location: string;
         salary: string;
+        tags: string[];
         createdById: string;
     })[]>;
     getMyJobs(userId: string): Promise<({
@@ -69,12 +69,12 @@ export declare class JobsService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
-        location: string;
-        tags: string[];
+        description: string;
         company: string;
+        location: string;
         salary: string;
+        tags: string[];
         createdById: string;
     })[]>;
     getById(jobId: string, userId: string): Promise<{
@@ -88,12 +88,12 @@ export declare class JobsService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
-        location: string;
-        tags: string[];
+        description: string;
         company: string;
+        location: string;
         salary: string;
+        tags: string[];
         createdById: string;
     }>;
     applyToJob(jobListingId: string, userId: string, dto: CreateJobApplicationDto): Promise<{
@@ -109,35 +109,28 @@ export declare class JobsService {
         createdAt: Date;
         updatedAt: Date;
         expiresAt: Date;
-        status: import(".prisma/client").$Enums.ApplicationStatus;
-        reminderSentAt: Date;
         tags: string[];
-        conversationId: string;
+        jobListingId: string;
+        applicantId: string;
         coverLetter: string;
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
+        status: import(".prisma/client").$Enums.ApplicationStatus;
+        conversationId: string;
+        reminderSentAt: Date;
         adminNote: string;
-        jobListingId: string;
-        applicantId: string;
     }>;
     getApplicationsForJob(jobListingId: string, ownerId: string): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
         expiresAt: Date;
-        status: import(".prisma/client").$Enums.ApplicationStatus;
         coverLetter: string;
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
-        activities: {
-            id: string;
-            createdAt: Date;
-            applicationId: string;
-            action: string;
-            details: string;
-        }[];
+        status: import(".prisma/client").$Enums.ApplicationStatus;
         applicant: {
             id: string;
             username: string;
@@ -146,17 +139,28 @@ export declare class JobsService {
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
         };
+        activities: {
+            id: string;
+            createdAt: Date;
+            applicationId: string;
+            action: string;
+            details: string;
+        }[];
     }[]>;
     getMyApplications(userId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        expiresAt: Date;
         jobListing: {
             id: string;
             createdAt: Date;
-            description: string;
             title: string;
-            location: string;
-            tags: string[];
+            description: string;
             company: string;
+            location: string;
             salary: string;
+            tags: string[];
             createdBy: {
                 id: string;
                 username: string;
@@ -164,15 +168,11 @@ export declare class JobsService {
                 avatar: string;
             };
         };
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        expiresAt: Date;
-        status: import(".prisma/client").$Enums.ApplicationStatus;
         coverLetter: string;
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
+        status: import(".prisma/client").$Enums.ApplicationStatus;
     }[]>;
     updateApplicationStatus(applicationId: string, ownerId: string, status: ApplicationStatus): Promise<{
         jobListing: {
@@ -194,17 +194,17 @@ export declare class JobsService {
         createdAt: Date;
         updatedAt: Date;
         expiresAt: Date;
-        status: import(".prisma/client").$Enums.ApplicationStatus;
-        reminderSentAt: Date;
         tags: string[];
-        conversationId: string;
+        jobListingId: string;
+        applicantId: string;
         coverLetter: string;
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
+        status: import(".prisma/client").$Enums.ApplicationStatus;
+        conversationId: string;
+        reminderSentAt: Date;
         adminNote: string;
-        jobListingId: string;
-        applicantId: string;
     }>;
     checkUserApplication(jobListingId: string, userId: string): Promise<{
         hasApplied: boolean;
@@ -213,17 +213,17 @@ export declare class JobsService {
             createdAt: Date;
             updatedAt: Date;
             expiresAt: Date;
-            status: import(".prisma/client").$Enums.ApplicationStatus;
-            reminderSentAt: Date;
             tags: string[];
-            conversationId: string;
+            jobListingId: string;
+            applicantId: string;
             coverLetter: string;
             portfolioUrl: string;
             portfolioFileUrl: string;
             cvUrl: string;
+            status: import(".prisma/client").$Enums.ApplicationStatus;
+            conversationId: string;
+            reminderSentAt: Date;
             adminNote: string;
-            jobListingId: string;
-            applicantId: string;
         };
     }>;
     updateAdminNote(applicationId: string, ownerId: string, note: string | null): Promise<{
@@ -231,34 +231,34 @@ export declare class JobsService {
         createdAt: Date;
         updatedAt: Date;
         expiresAt: Date;
-        status: import(".prisma/client").$Enums.ApplicationStatus;
-        reminderSentAt: Date;
         tags: string[];
-        conversationId: string;
+        jobListingId: string;
+        applicantId: string;
         coverLetter: string;
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
+        status: import(".prisma/client").$Enums.ApplicationStatus;
+        conversationId: string;
+        reminderSentAt: Date;
         adminNote: string;
-        jobListingId: string;
-        applicantId: string;
     }>;
     updateTags(applicationId: string, ownerId: string, tags: string[]): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
         expiresAt: Date;
-        status: import(".prisma/client").$Enums.ApplicationStatus;
-        reminderSentAt: Date;
         tags: string[];
-        conversationId: string;
+        jobListingId: string;
+        applicantId: string;
         coverLetter: string;
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
+        status: import(".prisma/client").$Enums.ApplicationStatus;
+        conversationId: string;
+        reminderSentAt: Date;
         adminNote: string;
-        jobListingId: string;
-        applicantId: string;
     }>;
     getApplicationActivities(applicationId: string, ownerId: string): Promise<{
         id: string;

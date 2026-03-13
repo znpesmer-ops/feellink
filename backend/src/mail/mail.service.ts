@@ -3,7 +3,7 @@ import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService {
-  private transporter: nodemailer.Transporter;
+  private transporter: nodemailer.Transporter | null = null;
   private readonly logger = new Logger(MailService.name);
   // Logo URL: HARDCODED HTTPS URL (Gmail için zorunlu)
   // ❌ ÇALIŞMAZ: /logo.png, localhost, relative path, ${BASE_URL}, process.env birleştirme
@@ -15,14 +15,32 @@ export class MailService {
 
   constructor() {
     try {
-      // SMTP ayarları: MAIL_* veya SMTP_* (geriye uyumluluk için)
-      const mailHost = process.env.MAIL_HOST || process.env.SMTP_HOST || 'smtp.gmail.com';
-      const mailPort = Number(process.env.MAIL_PORT || process.env.SMTP_PORT) || 587;
-      const mailUser = process.env.MAIL_USER || process.env.SMTP_USER;
-      const mailPass = process.env.MAIL_PASS || process.env.SMTP_PASS;
+      // SMTP ayarları: MAIL_* veya SMTP_* (SNTP_* yazım hatası da kabul edilir)
+      const mailHost =
+        process.env.MAIL_HOST ||
+        process.env.SMTP_HOST ||
+        process.env.SNTP_HOST ||
+        'smtp.gmail.com';
+      const mailPort =
+        Number(
+          process.env.MAIL_PORT ||
+            process.env.SMTP_PORT ||
+            process.env.SNTP_PORT,
+        ) || 587;
+      const mailUser =
+        process.env.MAIL_USER ||
+        process.env.SMTP_USER ||
+        process.env.SNTP_USER;
+      const mailPass =
+        process.env.MAIL_PASS ||
+        process.env.SMTP_PASS ||
+        process.env.SNTP_PASS;
 
       if (!mailUser || !mailPass) {
         this.logger.warn('Mail credentials not configured. Email sending will be disabled.');
+        this.logger.warn(
+          `MailService init: MAIL_MODE="${process.env.MAIL_MODE ?? '(not set)'}", transporter=null (no SMTP_USER/SMTP_PASS).`,
+        );
         this.transporter = null;
         return;
       }
@@ -47,6 +65,10 @@ export class MailService {
         }),
       });
 
+      this.logger.log(
+        `MailService init: MAIL_MODE="${process.env.MAIL_MODE ?? '(not set)'}", transporter=configured.`,
+      );
+
       // 👉 SMTP bağlantısını doğrula (async, bloklamaz, hata durumunda throw etmez)
       this.transporter.verify((error, success) => {
         if (error) {
@@ -68,23 +90,85 @@ export class MailService {
     } catch (error: any) {
       // Constructor'da hata olursa sessizce devam et
       this.logger.error('MailService constructor error:', error?.message || error);
+      this.logger.warn(
+        `MailService init: MAIL_MODE="${process.env.MAIL_MODE ?? '(not set)'}", transporter=null (error).`,
+      );
       this.logger.warn('Email sending will be disabled due to initialization error.');
       this.transporter = null;
     }
   }
 
+  /** Mail gönder: MAIL_MODE=prod/production veya NODE_ENV=production; sadece MAIL_MODE=dev yazılıysa atlama */
+  private isProductionMailMode(): boolean {
+    const mode = (process.env.MAIL_MODE || 'dev').toLowerCase();
+    const explicitlyDev = process.env.MAIL_MODE?.toLowerCase() === 'dev';
+    return (
+      mode === 'prod' ||
+      mode === 'production' ||
+      (process.env.NODE_ENV === 'production' && !explicitlyDev)
+    );
+  }
+
+  /** İlk gönderimde transporter yoksa env'den tekrar dene (Vercel serverless bazen constructor'da env vermiyor) */
+  private ensureTransporter(): nodemailer.Transporter | null {
+    if (this.transporter) return this.transporter;
+    const mailUser =
+      process.env.MAIL_USER ||
+      process.env.SMTP_USER ||
+      process.env.SNTP_USER;
+    const mailPass =
+      process.env.MAIL_PASS ||
+      process.env.SMTP_PASS ||
+      process.env.SNTP_PASS;
+    if (!mailUser || !mailPass) {
+      this.logger.warn('ensureTransporter: MAIL_USER/SMTP_USER veya MAIL_PASS/SMTP_PASS env\'de yok.');
+      return null;
+    }
+    const mailHost =
+      process.env.MAIL_HOST ||
+      process.env.SMTP_HOST ||
+      process.env.SNTP_HOST ||
+      'smtp.gmail.com';
+    const mailPort =
+      Number(
+        process.env.MAIL_PORT ||
+          process.env.SMTP_PORT ||
+          process.env.SNTP_PORT,
+      ) || 587;
+    const isGmail = mailHost.includes('gmail.com');
+    try {
+      this.transporter = nodemailer.createTransport({
+        host: mailHost,
+        port: mailPort,
+        secure: mailPort === 465,
+        auth: { user: mailUser, pass: mailPass },
+        ...(isGmail && {
+          service: 'gmail',
+          tls: { rejectUnauthorized: false },
+        }),
+      });
+      this.logger.log('MailService: transporter created lazily from env.');
+      return this.transporter;
+    } catch (err: any) {
+      this.logger.error('ensureTransporter: createTransport hatası:', err?.message || err);
+      this.transporter = null;
+      return null;
+    }
+  }
+
   async sendPasswordResetMail(to: string, resetUrl: string) {
-    // 🔥 MAIL_MODE=dev ise mail gönderme, sadece logla
-    const mailMode = process.env.MAIL_MODE || 'dev';
-    if (mailMode !== 'prod') {
-      this.logger.log(`[DEV] Mail gönderimi atlandı (MAIL_MODE=${mailMode})`);
-      this.logger.log(`[DEV] Reset URL for ${to}: ${resetUrl}`);
+    const explicitlyDev = process.env.MAIL_MODE?.toLowerCase() === 'dev';
+    if (explicitlyDev) {
+      this.logger.log(`[DEV] Mail atlandı (MAIL_MODE=dev). to=${to}`);
       return;
     }
 
-    if (!this.transporter) {
-      this.logger.warn('Mail transporter not configured. Skipping email send.');
-      return;
+    const transport = this.transporter || this.ensureTransporter();
+    if (!transport) {
+      this.logger.error(
+        'Mail transporter yok. SMTP_USER ve SMTP_PASS (veya MAIL_USER/MAIL_PASS) Vercel env’de tanımlı mı? Production ortamı seçili mi? Redeploy yaptın mı?',
+      );
+      throw new Error('Mail transporter not configured. Set SMTP_USER and SMTP_PASS in environment.');
     }
 
     // Mail gönderen adresi: MAIL_FROM_NAME ve MAIL_FROM kullan
@@ -205,7 +289,8 @@ export class MailService {
     `;
 
     try {
-      const result = await this.transporter.sendMail({
+      this.logger.log(`Sending password reset email to ${to}...`);
+      const result = await transport.sendMail({
         from,
         to,
         subject,
@@ -231,7 +316,7 @@ export class MailService {
   /** Yeni kayıt olan kullanıcıya hoş geldin e-postası. Kayıt akışını bloklamaz. */
   async sendWelcomeEmail(user: { email: string; fullName?: string | null; username: string }) {
     const mailMode = process.env.MAIL_MODE || 'dev';
-    if (mailMode !== 'prod') {
+    if (!this.isProductionMailMode()) {
       this.logger.log(`[DEV] Hoş geldin maili atlandı (MAIL_MODE=${mailMode}). Alıcı: ${user.email}`);
       return;
     }
@@ -319,7 +404,7 @@ export class MailService {
   }) {
     // 🔥 MAIL_MODE=dev ise mail gönderme, sadece logla
     const mailMode = process.env.MAIL_MODE || 'dev';
-    if (mailMode !== 'prod') {
+    if (!this.isProductionMailMode()) {
       this.logger.log(`[DEV] 24h reminder mail gönderimi atlandı (MAIL_MODE=${mailMode})`);
       this.logger.log(`[DEV] 24h reminder for ${params.to}: ${params.eventTitle}`);
       return;
@@ -1468,10 +1553,10 @@ Feellink – Sanat daha anlamlı.`;
     const mailMode = process.env.MAIL_MODE || 'dev';
     this.logger.log(`📧 [PASSWORD CHANGE MAIL] MAIL_MODE=${mailMode}`);
     
-    if (mailMode !== 'prod') {
-      this.logger.warn(`⚠️ [PASSWORD CHANGE MAIL] Mail gönderimi atlandı (MAIL_MODE=${mailMode} - production için 'prod' olmalı)`);
+    if (!this.isProductionMailMode()) {
+      this.logger.warn(`⚠️ [PASSWORD CHANGE MAIL] Mail gönderimi atlandı (MAIL_MODE=${mailMode} - production için 'prod' veya 'production' olmalı)`);
       this.logger.warn(`⚠️ [PASSWORD CHANGE MAIL] Dev mode: Mail would be sent to ${params.to}`);
-      this.logger.warn(`⚠️ [PASSWORD CHANGE MAIL] To enable mail sending, set MAIL_MODE=prod in .env`);
+      this.logger.warn(`⚠️ [PASSWORD CHANGE MAIL] To enable mail sending, set MAIL_MODE=prod or MAIL_MODE=production in .env`);
       return;
     }
 

@@ -15,15 +15,26 @@ const common_1 = require("@nestjs/common");
 const nodemailer = require("nodemailer");
 let MailService = MailService_1 = class MailService {
     constructor() {
+        this.transporter = null;
         this.logger = new common_1.Logger(MailService_1.name);
         this.logoUrl = 'https://feellink.io/logo.png';
         try {
-            const mailHost = process.env.MAIL_HOST || process.env.SMTP_HOST || 'smtp.gmail.com';
-            const mailPort = Number(process.env.MAIL_PORT || process.env.SMTP_PORT) || 587;
-            const mailUser = process.env.MAIL_USER || process.env.SMTP_USER;
-            const mailPass = process.env.MAIL_PASS || process.env.SMTP_PASS;
+            const mailHost = process.env.MAIL_HOST ||
+                process.env.SMTP_HOST ||
+                process.env.SNTP_HOST ||
+                'smtp.gmail.com';
+            const mailPort = Number(process.env.MAIL_PORT ||
+                process.env.SMTP_PORT ||
+                process.env.SNTP_PORT) || 587;
+            const mailUser = process.env.MAIL_USER ||
+                process.env.SMTP_USER ||
+                process.env.SNTP_USER;
+            const mailPass = process.env.MAIL_PASS ||
+                process.env.SMTP_PASS ||
+                process.env.SNTP_PASS;
             if (!mailUser || !mailPass) {
                 this.logger.warn('Mail credentials not configured. Email sending will be disabled.');
+                this.logger.warn(`MailService init: MAIL_MODE="${process.env.MAIL_MODE ?? '(not set)'}", transporter=null (no SMTP_USER/SMTP_PASS).`);
                 this.transporter = null;
                 return;
             }
@@ -43,6 +54,7 @@ let MailService = MailService_1 = class MailService {
                     },
                 }),
             });
+            this.logger.log(`MailService init: MAIL_MODE="${process.env.MAIL_MODE ?? '(not set)'}", transporter=configured.`);
             this.transporter.verify((error, success) => {
                 if (error) {
                     this.logger.error('SMTP bağlantı hatası:', error.message || error);
@@ -64,20 +76,69 @@ let MailService = MailService_1 = class MailService {
         }
         catch (error) {
             this.logger.error('MailService constructor error:', error?.message || error);
+            this.logger.warn(`MailService init: MAIL_MODE="${process.env.MAIL_MODE ?? '(not set)'}", transporter=null (error).`);
             this.logger.warn('Email sending will be disabled due to initialization error.');
             this.transporter = null;
         }
     }
+    isProductionMailMode() {
+        const mode = (process.env.MAIL_MODE || 'dev').toLowerCase();
+        const explicitlyDev = process.env.MAIL_MODE?.toLowerCase() === 'dev';
+        return (mode === 'prod' ||
+            mode === 'production' ||
+            (process.env.NODE_ENV === 'production' && !explicitlyDev));
+    }
+    ensureTransporter() {
+        if (this.transporter)
+            return this.transporter;
+        const mailUser = process.env.MAIL_USER ||
+            process.env.SMTP_USER ||
+            process.env.SNTP_USER;
+        const mailPass = process.env.MAIL_PASS ||
+            process.env.SMTP_PASS ||
+            process.env.SNTP_PASS;
+        if (!mailUser || !mailPass) {
+            this.logger.warn('ensureTransporter: MAIL_USER/SMTP_USER veya MAIL_PASS/SMTP_PASS env\'de yok.');
+            return null;
+        }
+        const mailHost = process.env.MAIL_HOST ||
+            process.env.SMTP_HOST ||
+            process.env.SNTP_HOST ||
+            'smtp.gmail.com';
+        const mailPort = Number(process.env.MAIL_PORT ||
+            process.env.SMTP_PORT ||
+            process.env.SNTP_PORT) || 587;
+        const isGmail = mailHost.includes('gmail.com');
+        try {
+            this.transporter = nodemailer.createTransport({
+                host: mailHost,
+                port: mailPort,
+                secure: mailPort === 465,
+                auth: { user: mailUser, pass: mailPass },
+                ...(isGmail && {
+                    service: 'gmail',
+                    tls: { rejectUnauthorized: false },
+                }),
+            });
+            this.logger.log('MailService: transporter created lazily from env.');
+            return this.transporter;
+        }
+        catch (err) {
+            this.logger.error('ensureTransporter: createTransport hatası:', err?.message || err);
+            this.transporter = null;
+            return null;
+        }
+    }
     async sendPasswordResetMail(to, resetUrl) {
-        const mailMode = process.env.MAIL_MODE || 'dev';
-        if (mailMode !== 'prod') {
-            this.logger.log(`[DEV] Mail gönderimi atlandı (MAIL_MODE=${mailMode})`);
-            this.logger.log(`[DEV] Reset URL for ${to}: ${resetUrl}`);
+        const explicitlyDev = process.env.MAIL_MODE?.toLowerCase() === 'dev';
+        if (explicitlyDev) {
+            this.logger.log(`[DEV] Mail atlandı (MAIL_MODE=dev). to=${to}`);
             return;
         }
-        if (!this.transporter) {
-            this.logger.warn('Mail transporter not configured. Skipping email send.');
-            return;
+        const transport = this.transporter || this.ensureTransporter();
+        if (!transport) {
+            this.logger.error('Mail transporter yok. SMTP_USER ve SMTP_PASS (veya MAIL_USER/MAIL_PASS) Vercel env’de tanımlı mı? Production ortamı seçili mi? Redeploy yaptın mı?');
+            throw new Error('Mail transporter not configured. Set SMTP_USER and SMTP_PASS in environment.');
         }
         const mailFromName = process.env.MAIL_FROM_NAME || 'feellink';
         const mailFrom = process.env.MAIL_FROM || 'info@feellink.io';
@@ -189,7 +250,8 @@ let MailService = MailService_1 = class MailService {
       </html>
     `;
         try {
-            const result = await this.transporter.sendMail({
+            this.logger.log(`Sending password reset email to ${to}...`);
+            const result = await transport.sendMail({
                 from,
                 to,
                 subject,
@@ -212,9 +274,82 @@ let MailService = MailService_1 = class MailService {
             throw error;
         }
     }
+    async sendWelcomeEmail(user) {
+        const mailMode = process.env.MAIL_MODE || 'dev';
+        if (!this.isProductionMailMode()) {
+            this.logger.log(`[DEV] Hoş geldin maili atlandı (MAIL_MODE=${mailMode}). Alıcı: ${user.email}`);
+            return;
+        }
+        if (!this.transporter) {
+            this.logger.warn('Mail transporter not configured. Skipping welcome email.');
+            return;
+        }
+        const mailFromName = process.env.MAIL_FROM_NAME || 'Feellink';
+        const mailFrom = process.env.MAIL_FROM || 'noreply@feellink.io';
+        const from = `"${mailFromName}" <${mailFrom}>`;
+        const appUrl = process.env.APP_URL || 'https://feellink.io';
+        const exploreUrl = `${appUrl}/explore`;
+        const name = user.fullName?.trim() || user.username || 'Üye';
+        const subject = "Feellink'e hoş geldin ✨";
+        const text = `Merhaba ${name},\n\nFeellink'e katıldığın için çok mutluyuz. Hesabın başarıyla oluşturuldu ve artık topluluğun bir parçasısın.\n\n` +
+            `Burada ilham veren paylaşımları keşfedebilir, kendi üretimlerini paylaşabilir ve etkileşim kurabilirsin.\n\n` +
+            `Başlamak için: ${exploreUrl}\n\nSevgiyle,\nFeellink Ekibi`;
+        const html = `
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f0f;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0f0f0f;padding:40px 16px;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="max-width:520px;background:#1a1a1a;border-radius:16px;overflow:hidden;border:1px solid #2a2a2a;">
+        <tr>
+          <td align="center" style="padding:32px 24px 24px;">
+            <img src="${this.logoUrl}" width="88" height="32" alt="Feellink" style="display:block;outline:none;border:0;" />
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 32px 24px;">
+            <h1 style="margin:0 0 8px;font-size:22px;font-weight:600;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Merhaba ${name},</h1>
+            <p style="margin:0 0 20px;font-size:16px;line-height:1.5;color:#a0a0a0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Feellink'e katıldığın için çok mutluyuz. Hesabın başarıyla oluşturuldu ve artık topluluğun bir parçasısın.</p>
+            <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#b0b0b0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Burada ilham veren paylaşımları keşfedebilir, kendi üretimlerini paylaşabilir ve etkileşim kurabilirsin. Keşfetmeye başla, profilini düzenle ve ilk paylaşımını oluştur.</p>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto;">
+              <tr>
+                <td style="border-radius:10px;background:#ff7b00;">
+                  <a href="${exploreUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Feellink'i Keşfet</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:24px 32px 32px;border-top:1px solid #2a2a2a;">
+            <p style="margin:0;font-size:12px;color:#666;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Bu e-posta, Feellink hesabın oluşturulduğu için gönderildi.</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+        try {
+            await this.transporter.sendMail({
+                from,
+                to: user.email,
+                subject,
+                text,
+                html,
+            });
+            this.logger.log(`✅ Hoş geldin e-postası gönderildi: ${user.email}`);
+        }
+        catch (error) {
+            this.logger.warn(`Hoş geldin e-postası gönderilemedi (${user.email}):`, error?.message || error);
+        }
+    }
     async sendEvent24HourReminder(params) {
         const mailMode = process.env.MAIL_MODE || 'dev';
-        if (mailMode !== 'prod') {
+        if (!this.isProductionMailMode()) {
             this.logger.log(`[DEV] 24h reminder mail gönderimi atlandı (MAIL_MODE=${mailMode})`);
             this.logger.log(`[DEV] 24h reminder for ${params.to}: ${params.eventTitle}`);
             return;
@@ -1261,10 +1396,10 @@ Feellink – Sanat daha anlamlı.`;
         this.logger.log(`📧 [PASSWORD CHANGE MAIL] Starting mail send to: ${params.to}`);
         const mailMode = process.env.MAIL_MODE || 'dev';
         this.logger.log(`📧 [PASSWORD CHANGE MAIL] MAIL_MODE=${mailMode}`);
-        if (mailMode !== 'prod') {
-            this.logger.warn(`⚠️ [PASSWORD CHANGE MAIL] Mail gönderimi atlandı (MAIL_MODE=${mailMode} - production için 'prod' olmalı)`);
+        if (!this.isProductionMailMode()) {
+            this.logger.warn(`⚠️ [PASSWORD CHANGE MAIL] Mail gönderimi atlandı (MAIL_MODE=${mailMode} - production için 'prod' veya 'production' olmalı)`);
             this.logger.warn(`⚠️ [PASSWORD CHANGE MAIL] Dev mode: Mail would be sent to ${params.to}`);
-            this.logger.warn(`⚠️ [PASSWORD CHANGE MAIL] To enable mail sending, set MAIL_MODE=prod in .env`);
+            this.logger.warn(`⚠️ [PASSWORD CHANGE MAIL] To enable mail sending, set MAIL_MODE=prod or MAIL_MODE=production in .env`);
             return;
         }
         if (!this.transporter) {

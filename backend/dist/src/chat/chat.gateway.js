@@ -41,15 +41,23 @@ let ChatGateway = class ChatGateway {
             }
             const payload = this.jwtService.verify(token);
             const userId = payload.userId;
-            this.userSockets.set(userId, client.id);
+            let socketIds = this.userSockets.get(userId);
+            if (!socketIds) {
+                socketIds = new Set();
+                this.userSockets.set(userId, socketIds);
+            }
+            const wasEmpty = socketIds.size === 0;
+            socketIds.add(client.id);
             this.socketToUser.set(client.id, userId);
             client.join(`user_${userId}`);
-            await this.prisma.user.update({
-                where: { id: userId },
-                data: { isOnline: true },
-            });
-            console.log(`✅ ${userId} çevrim içi`);
-            this.broadcastUserStatus(userId, true);
+            if (wasEmpty) {
+                await this.prisma.user.update({
+                    where: { id: userId },
+                    data: { isOnline: true },
+                });
+                console.log(`✅ ${userId} çevrim içi`);
+                this.broadcastUserStatus(userId, true);
+            }
         }
         catch (error) {
             client.disconnect();
@@ -58,17 +66,20 @@ let ChatGateway = class ChatGateway {
     async handleDisconnect(client) {
         const userId = this.socketToUser.get(client.id);
         if (userId) {
-            this.userSockets.delete(userId);
+            const socketIds = this.userSockets.get(userId);
+            if (socketIds) {
+                socketIds.delete(client.id);
+                if (socketIds.size === 0) {
+                    this.userSockets.delete(userId);
+                    await this.prisma.user.update({
+                        where: { id: userId },
+                        data: { isOnline: false, lastSeen: new Date() },
+                    });
+                    console.log(`❌ ${userId} çevrim dışı`);
+                    this.broadcastUserStatus(userId, false);
+                }
+            }
             this.socketToUser.delete(client.id);
-            await this.prisma.user.update({
-                where: { id: userId },
-                data: {
-                    isOnline: false,
-                    lastSeen: new Date(),
-                },
-            });
-            console.log(`❌ ${userId} çevrim dışı`);
-            this.broadcastUserStatus(userId, false);
         }
     }
     async handleJoinConversation(data, client) {
@@ -279,50 +290,20 @@ let ChatGateway = class ChatGateway {
         console.log(`📤 [ChatGateway] Sent to conversation room: conversation_${conversationId}`);
         conversation.participants.forEach((participant) => {
             const participantUserId = participant.userId;
-            const participantSocketId = this.userSockets.get(participantUserId);
-            if (participantUserId !== userId) {
-                console.log(`📤 [ChatGateway] Sending to RECEIVER: ${participantUserId}, Socket ID: ${participantSocketId || 'NOT FOUND'}`);
-                if (participantSocketId) {
-                    this.server.to(participantSocketId).emit('receive_message', message);
-                    this.server.to(participantSocketId).emit('new_message', {
-                        conversationId: conversationId,
-                        message,
-                        conversation: updatedConversation,
-                    });
-                    this.server.to(participantSocketId).emit('conversation_updated', updatedConversation);
-                    console.log(`✅ [ChatGateway] Message sent to receiver socket ID: ${participantSocketId} (userId: ${participantUserId})`);
-                }
-                else {
-                    console.warn(`⚠️ [ChatGateway] Receiver socket ID not found for userId: ${participantUserId} - using user room fallback`);
-                }
-                this.server.to(`user_${participantUserId}`).emit('receive_message', message);
-                this.server.to(`user_${participantUserId}`).emit('new_message', {
-                    conversationId: conversationId,
-                    message,
-                    conversation: updatedConversation,
-                });
-                this.server.to(`user_${participantUserId}`).emit('conversation_updated', updatedConversation);
-                console.log(`✅ [ChatGateway] Message sent to receiver user room: user_${participantUserId}`);
-                this.server.to(`conversation_${conversationId}`).emit('receive_message', message);
-                this.server.to(`conversation_${conversationId}`).emit('new_message', {
-                    conversationId: conversationId,
-                    message,
-                    conversation: updatedConversation,
-                });
-                this.server.to(`conversation_${conversationId}`).emit('conversation_updated', updatedConversation);
-                console.log(`✅ [ChatGateway] Message sent to conversation room: conversation_${conversationId}`);
-            }
-            else {
-                if (participantSocketId) {
-                    this.server.to(participantSocketId).emit('receive_message', message);
-                    this.server.to(participantSocketId).emit('new_message', {
-                        conversationId: conversationId,
-                        message,
-                        conversation: updatedConversation,
-                    });
-                    console.log(`✅ [ChatGateway] Message sent to sender socket ID: ${participantSocketId}`);
-                }
-            }
+            this.server.to(`user_${participantUserId}`).emit('receive_message', message);
+            this.server.to(`user_${participantUserId}`).emit('new_message', {
+                conversationId: conversationId,
+                message,
+                conversation: updatedConversation,
+            });
+            this.server.to(`user_${participantUserId}`).emit('conversation_updated', updatedConversation);
+            this.server.to(`conversation_${conversationId}`).emit('receive_message', message);
+            this.server.to(`conversation_${conversationId}`).emit('new_message', {
+                conversationId: conversationId,
+                message,
+                conversation: updatedConversation,
+            });
+            this.server.to(`conversation_${conversationId}`).emit('conversation_updated', updatedConversation);
         });
         console.log(`✅ [ChatGateway] Message ${message.id} broadcasted to all participants of conversation ${conversationId} (IMMEDIATE)`);
     }
@@ -364,10 +345,6 @@ let ChatGateway = class ChatGateway {
             });
             if (updatedConversation) {
                 updatedConversation.participants.forEach((participant) => {
-                    const participantSocketId = this.userSockets.get(participant.userId);
-                    if (participantSocketId) {
-                        this.server.to(participantSocketId).emit('conversation_updated', updatedConversation);
-                    }
                     this.server.to(`user_${participant.userId}`).emit('conversation_updated', updatedConversation);
                 });
                 console.log(`✅ [ChatGateway] Conversation update sent for conversation ${conversationId}`);
@@ -405,13 +382,10 @@ let ChatGateway = class ChatGateway {
             }
             conversation.participants.forEach((participant) => {
                 if (participant.userId !== userId) {
-                    const targetSocketId = this.userSockets.get(participant.userId);
-                    if (targetSocketId) {
-                        this.server.to(targetSocketId).emit('typing_start', {
-                            conversationId: data.conversationId,
-                            userId,
-                        });
-                    }
+                    this.server.to(`user_${participant.userId}`).emit('typing_start', {
+                        conversationId: data.conversationId,
+                        userId,
+                    });
                 }
             });
             return { success: true };
@@ -438,13 +412,10 @@ let ChatGateway = class ChatGateway {
             }
             conversation.participants.forEach((participant) => {
                 if (participant.userId !== userId) {
-                    const targetSocketId = this.userSockets.get(participant.userId);
-                    if (targetSocketId) {
-                        this.server.to(targetSocketId).emit('typing_stop', {
-                            conversationId: data.conversationId,
-                            userId,
-                        });
-                    }
+                    this.server.to(`user_${participant.userId}`).emit('typing_stop', {
+                        conversationId: data.conversationId,
+                        userId,
+                    });
                 }
             });
             return { success: true };
@@ -490,14 +461,11 @@ let ChatGateway = class ChatGateway {
                     },
                 },
             });
-            const senderSocketId = this.userSockets.get(message.senderId);
-            if (senderSocketId) {
-                this.server.to(senderSocketId).emit('message_read_update', {
-                    messageId: data.messageId,
-                    conversationId: data.conversationId,
-                    readBy: userId,
-                });
-            }
+            this.server.to(`user_${message.senderId}`).emit('message_read_update', {
+                messageId: data.messageId,
+                conversationId: data.conversationId,
+                readBy: userId,
+            });
             return { success: true, message: updatedMessage };
         }
         catch (error) {
@@ -520,16 +488,28 @@ let ChatGateway = class ChatGateway {
             userId,
             count: updatedCount.count,
         });
+        const conversation = await this.prisma.conversation.findUnique({
+            where: { id: conversationId },
+            include: { participants: true },
+        });
+        if (conversation) {
+            const senderParticipant = conversation.participants.find((p) => p.userId !== userId);
+            if (senderParticipant) {
+                this.server.to(`user_${senderParticipant.userId}`).emit('messages_read', {
+                    conversationId,
+                    userId,
+                    count: updatedCount.count,
+                });
+            }
+        }
         return updatedCount;
     }
     isUserOnline(userId) {
-        return this.userSockets.has(userId);
+        const set = this.userSockets.get(userId);
+        return !!set && set.size > 0;
     }
     sendToUser(userId, event, data) {
-        const socketId = this.userSockets.get(userId);
-        if (socketId) {
-            this.server.to(socketId).emit(event, data);
-        }
+        this.server.to(`user_${userId}`).emit(event, data);
     }
     async broadcastMessageEdited(message) {
         const conversation = await this.prisma.conversation.findUnique({

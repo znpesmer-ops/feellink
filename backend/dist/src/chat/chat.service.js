@@ -94,8 +94,22 @@ let ChatService = class ChatService {
                     isDeleted: false,
                 },
             });
+            const participantsWithLastActive = await Promise.all(conv.participants.map(async (p) => {
+                const u = p.user;
+                if (u.id === userId) {
+                    return { ...p, user: { ...u, lastActiveAt: u.lastSeen ?? null } };
+                }
+                const lastMsg = await this.prisma.message.findFirst({
+                    where: { conversationId: conv.id, senderId: u.id, isDeleted: false },
+                    orderBy: { updatedAt: 'desc' },
+                    select: { updatedAt: true },
+                });
+                const lastActiveAt = u.lastSeen ?? lastMsg?.updatedAt ?? conv.updatedAt ?? null;
+                return { ...p, user: { ...u, lastActiveAt } };
+            }));
             return {
                 ...conv,
+                participants: participantsWithLastActive,
                 unreadCount,
             };
         }));
@@ -157,7 +171,20 @@ let ChatService = class ChatService {
         if (!hasAccess) {
             throw new common_1.ForbiddenException('Access denied');
         }
-        return conversation;
+        const participantsWithLastActive = await Promise.all(conversation.participants.map(async (p) => {
+            const u = p.user;
+            if (u.id === userId) {
+                return { ...p, user: { ...u, lastActiveAt: u.lastSeen ?? null } };
+            }
+            const lastMsg = await this.prisma.message.findFirst({
+                where: { conversationId, senderId: u.id, isDeleted: false },
+                orderBy: { updatedAt: 'desc' },
+                select: { updatedAt: true },
+            });
+            const lastActiveAt = u.lastSeen ?? lastMsg?.updatedAt ?? conversation.updatedAt ?? null;
+            return { ...p, user: { ...u, lastActiveAt } };
+        }));
+        return { ...conversation, participants: participantsWithLastActive };
     }
     async getMessages(conversationId, userId, limit = 50, cursor) {
         const conversation = await this.prisma.conversation.findUnique({
@@ -486,7 +513,7 @@ let ChatService = class ChatService {
         if (!hasAccess) {
             throw new common_1.ForbiddenException('Access denied');
         }
-        await this.prisma.message.updateMany({
+        const updated = await this.prisma.message.updateMany({
             where: {
                 conversationId,
                 senderId: { not: userId },
@@ -496,6 +523,7 @@ let ChatService = class ChatService {
                 read: true,
             },
         });
+        await this.chatGateway.markMessagesAsRead(conversationId, userId);
         return { success: true };
     }
     async deleteConversation(conversationId, userId) {

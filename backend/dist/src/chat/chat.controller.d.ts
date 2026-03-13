@@ -3,6 +3,22 @@ export declare class ChatController {
     private chatService;
     constructor(chatService: ChatService);
     getConversations(user: any): Promise<{
+        participants: {
+            user: {
+                lastActiveAt: Date;
+                id: string;
+                username: string;
+                avatar?: string;
+                fullName?: string;
+                isOnline: boolean;
+                lastSeen: Date;
+            };
+            id: string;
+            isDeleted: boolean;
+            createdAt: Date;
+            userId: string;
+            conversationId: string;
+        }[];
         unreadCount: number;
         messages: ({
             sender: {
@@ -15,70 +31,53 @@ export declare class ChatController {
             isDeleted: boolean;
             createdAt: Date;
             updatedAt: Date;
-            content: string;
-            fileName: string;
-            fileType: string;
-            imageUrl: string;
-            fileUrl: string;
+            conversationId: string;
+            applicationId: string;
             context: import(".prisma/client").$Enums.ConversationContext;
             jobId: string;
-            applicationId: string;
+            content: string;
+            imageUrl: string;
+            fileUrl: string;
+            fileName: string;
+            fileType: string;
             read: boolean;
             isEdited: boolean;
             isRequest: boolean;
-            conversationId: string;
             senderId: string;
         })[];
-        participants: ({
-            user: {
-                id: string;
-                username: string;
-                fullName: string;
-                avatar: string;
-                isOnline: boolean;
-                lastSeen: Date;
-            };
-        } & {
-            id: string;
-            isDeleted: boolean;
-            createdAt: Date;
-            userId: string;
-            conversationId: string;
-        })[];
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        context: import(".prisma/client").$Enums.ConversationContext;
-        jobId: string;
         applicationId: string;
         lastMessage: string;
+        context: import(".prisma/client").$Enums.ConversationContext;
+        jobId: string;
     }[]>;
     getConversation(id: string, user: any): Promise<{
-        participants: ({
+        participants: {
             user: {
+                lastActiveAt: Date;
                 id: string;
                 username: string;
-                fullName: string;
-                avatar: string;
-                isPrivate: boolean;
+                avatar?: string;
+                fullName?: string;
+                isPrivate?: boolean;
                 isOnline: boolean;
                 lastSeen: Date;
             };
-        } & {
             id: string;
             isDeleted: boolean;
             createdAt: Date;
             userId: string;
             conversationId: string;
-        })[];
-    } & {
+        }[];
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        context: import(".prisma/client").$Enums.ConversationContext;
-        jobId: string;
         applicationId: string;
         lastMessage: string;
+        context: import(".prisma/client").$Enums.ConversationContext;
+        jobId: string;
     }>;
     getMessages(id: string, limit?: string, cursor?: string, user?: any): Promise<{
         messages: ({
@@ -93,18 +92,18 @@ export declare class ChatController {
             isDeleted: boolean;
             createdAt: Date;
             updatedAt: Date;
-            content: string;
-            fileName: string;
-            fileType: string;
-            imageUrl: string;
-            fileUrl: string;
+            conversationId: string;
+            applicationId: string;
             context: import(".prisma/client").$Enums.ConversationContext;
             jobId: string;
-            applicationId: string;
+            content: string;
+            imageUrl: string;
+            fileUrl: string;
+            fileName: string;
+            fileType: string;
             read: boolean;
             isEdited: boolean;
             isRequest: boolean;
-            conversationId: string;
             senderId: string;
         })[];
         hasMore: boolean;
@@ -136,10 +135,10 @@ export declare class ChatController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        context: import(".prisma/client").$Enums.ConversationContext;
-        jobId: string;
         applicationId: string;
         lastMessage: string;
+        context: import(".prisma/client").$Enums.ConversationContext;
+        jobId: string;
     }>;
     markAsRead(id: string, user: any): Promise<{
         success: boolean;
@@ -150,31 +149,31 @@ export declare class ChatController {
     editMessage(id: string, body: {
         content: string;
     }, user: any): Promise<{
-        conversation: {
-            id: string;
-        };
         sender: {
             id: string;
             username: string;
             avatar: string;
+        };
+        conversation: {
+            id: string;
         };
     } & {
         id: string;
         isDeleted: boolean;
         createdAt: Date;
         updatedAt: Date;
-        content: string;
-        fileName: string;
-        fileType: string;
-        imageUrl: string;
-        fileUrl: string;
+        conversationId: string;
+        applicationId: string;
         context: import(".prisma/client").$Enums.ConversationContext;
         jobId: string;
-        applicationId: string;
+        content: string;
+        imageUrl: string;
+        fileUrl: string;
+        fileName: string;
+        fileType: string;
         read: boolean;
         isEdited: boolean;
         isRequest: boolean;
-        conversationId: string;
         senderId: string;
     }>;
     deleteMessage(id: string, user: any): Promise<{
@@ -182,18 +181,18 @@ export declare class ChatController {
         isDeleted: boolean;
         createdAt: Date;
         updatedAt: Date;
-        content: string;
-        fileName: string;
-        fileType: string;
-        imageUrl: string;
-        fileUrl: string;
+        conversationId: string;
+        applicationId: string;
         context: import(".prisma/client").$Enums.ConversationContext;
         jobId: string;
-        applicationId: string;
+        content: string;
+        imageUrl: string;
+        fileUrl: string;
+        fileName: string;
+        fileType: string;
         read: boolean;
         isEdited: boolean;
         isRequest: boolean;
-        conversationId: string;
         senderId: string;
     }>;
     createMessage(body: {
@@ -215,18 +214,18 @@ export declare class ChatController {
         isDeleted: boolean;
         createdAt: Date;
         updatedAt: Date;
-        content: string;
-        fileName: string;
-        fileType: string;
-        imageUrl: string;
-        fileUrl: string;
+        conversationId: string;
+        applicationId: string;
         context: import(".prisma/client").$Enums.ConversationContext;
         jobId: string;
-        applicationId: string;
+        content: string;
+        imageUrl: string;
+        fileUrl: string;
+        fileName: string;
+        fileType: string;
         read: boolean;
         isEdited: boolean;
         isRequest: boolean;
-        conversationId: string;
         senderId: string;
     }>;
     getMedia(conversationId: string, user: any): Promise<{
@@ -238,9 +237,9 @@ export declare class ChatController {
     getFiles(conversationId: string, user: any): Promise<{
         id: string;
         createdAt: Date;
+        fileUrl: string;
         fileName: string;
         fileType: string;
-        fileUrl: string;
         senderId: string;
     }[]>;
     getMessageRequests(user: any): Promise<({
@@ -255,18 +254,18 @@ export declare class ChatController {
             isDeleted: boolean;
             createdAt: Date;
             updatedAt: Date;
-            content: string;
-            fileName: string;
-            fileType: string;
-            imageUrl: string;
-            fileUrl: string;
+            conversationId: string;
+            applicationId: string;
             context: import(".prisma/client").$Enums.ConversationContext;
             jobId: string;
-            applicationId: string;
+            content: string;
+            imageUrl: string;
+            fileUrl: string;
+            fileName: string;
+            fileType: string;
             read: boolean;
             isEdited: boolean;
             isRequest: boolean;
-            conversationId: string;
             senderId: string;
         })[];
         participants: ({
@@ -289,10 +288,10 @@ export declare class ChatController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        context: import(".prisma/client").$Enums.ConversationContext;
-        jobId: string;
         applicationId: string;
         lastMessage: string;
+        context: import(".prisma/client").$Enums.ConversationContext;
+        jobId: string;
     })[]>;
     acceptMessageRequest(conversationId: string, user: any): Promise<{
         success: boolean;

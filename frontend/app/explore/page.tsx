@@ -268,6 +268,7 @@ function ExploreContent() {
               >
                 <PostCard
                   post={postCardData}
+                  returnTo="/explore"
                 />
               </motion.div>
             )

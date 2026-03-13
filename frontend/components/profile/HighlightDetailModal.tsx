@@ -28,9 +28,10 @@ interface Highlight {
 interface HighlightDetailModalProps {
   highlight: Highlight
   onClose: () => void
+  returnTo?: string
 }
 
-export function HighlightDetailModal({ highlight, onClose }: HighlightDetailModalProps) {
+export function HighlightDetailModal({ highlight, onClose, returnTo = '/feed' }: HighlightDetailModalProps) {
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60" onClick={onClose}>
       <div
@@ -75,7 +76,7 @@ export function HighlightDetailModal({ highlight, onClose }: HighlightDetailModa
               return (
                 <Link
                   key={item.id}
-                  href={`/posts/${item.post.id}`}
+                  href={`/posts/${item.post.id}?from=${encodeURIComponent(returnTo)}`}
                   prefetch={false}
                   className="relative aspect-[3/4] rounded-xl overflow-hidden bg-neutral-800 dark:bg-gray-800 group cursor-pointer hover:scale-[1.02] transition-transform block"
                   onClick={(e) => {

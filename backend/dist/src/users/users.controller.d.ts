@@ -43,6 +43,31 @@ export declare class UsersController {
     getColorSignature(username: string): Promise<{
         topColors: string[];
     }>;
+    getProfileAnalysis(username: string, user: any): Promise<{
+        userId: string;
+        username: string;
+        visibility: "public" | "private";
+        palette: string[];
+        colorProfile?: {
+            warmRatio: number;
+            coolRatio: number;
+            avgBrightness: number;
+            avgSaturation: number;
+            dominantMood?: string;
+        };
+        productionProfile: {
+            totalPosts: number;
+            activeMonth: string;
+            postingFrequency: "low" | "medium" | "high";
+        };
+        engagement: {
+            totalLikes: number;
+            totalComments: number;
+            avgLikesPerPost: number;
+            mostEngagedPostId: string;
+        };
+        summary: string;
+    }>;
     getProfile(username: string, user: any): Promise<any>;
     updateUsername(user: any, data: UpdateUsernameDto): Promise<{
         id: string;
@@ -177,12 +202,12 @@ export declare class UsersController {
             likes: number;
         };
         media: {
+            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
             order: number;
-            url: string;
             thumbnailUrl: string;
         }[];
         id: string;
@@ -191,9 +216,9 @@ export declare class UsersController {
         createdAt: Date;
         updatedAt: Date;
         userId: string;
-        type: string;
         title: string;
         location: string;
+        type: string;
         caption: string;
         code: string;
         colors: string[];
@@ -214,12 +239,12 @@ export declare class UsersController {
             likes: number;
         };
         media: {
+            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
             order: number;
-            url: string;
             thumbnailUrl: string;
         }[];
         id: string;
@@ -228,9 +253,9 @@ export declare class UsersController {
         createdAt: Date;
         updatedAt: Date;
         userId: string;
-        type: string;
         title: string;
         location: string;
+        type: string;
         caption: string;
         code: string;
         colors: string[];

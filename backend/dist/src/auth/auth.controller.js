@@ -57,6 +57,10 @@ let AuthController = AuthController_1 = class AuthController {
         }
         return result;
     }
+    async dbCheck() {
+        const ok = await this.authService.checkDatabase();
+        return { ok };
+    }
     async login(loginDto, res) {
         const result = await this.authService.login(loginDto);
         res.cookie('refreshToken', result.refreshToken, {
@@ -152,6 +156,12 @@ __decorate([
     __metadata("design:paramtypes", [register_dto_1.RegisterDto, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "registerCorporate", null);
+__decorate([
+    (0, common_1.Get)('db-check'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "dbCheck", null);
 __decorate([
     (0, common_1.Post)('login'),
     __param(0, (0, common_1.Body)()),

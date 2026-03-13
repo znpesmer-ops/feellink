@@ -225,7 +225,7 @@ export function ProfileArtworksGrid({ artworks, username, userId }: ProfileArtwo
         <div
           key={artwork.id}
           className={`artwork-card aspect-square relative cursor-pointer group overflow-hidden rounded-xl transition-all duration-300 hover:ring-2 hover:ring-brand-orange hover:ring-offset-2 hover:ring-offset-white dark:hover:ring-offset-gray-950 ${colorClass} ${hoverColorClass}`}
-          onClick={() => router.push(`/posts/${artwork.id}`)}
+          onClick={() => router.push(`/posts/${artwork.id}?from=${encodeURIComponent(`/profile/${username}`)}`)}
         >
           {/* İçerik container - overflow-hidden burada, görselleri sınırlıyor */}
           <div className="w-full h-full rounded-xl overflow-hidden">

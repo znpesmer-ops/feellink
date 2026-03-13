@@ -15,22 +15,27 @@ const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 let PrismaService = PrismaService_1 = class PrismaService extends client_1.PrismaClient {
     constructor() {
+        const url = process.env.DATABASE_URL ||
+            process.env.MONGODB_URI ||
+            process.env.DATABASE_URI;
         super({
             datasources: {
-                db: {
-                    url: process.env.DATABASE_URL,
-                },
+                db: { url: url || undefined },
             },
         });
         this.logger = new common_1.Logger(PrismaService_1.name);
     }
     async onModuleInit() {
-        if (!process.env.DATABASE_URL) {
-            this.logger.warn('⚠️ DATABASE_URL is missing');
+        const url = process.env.DATABASE_URL ||
+            process.env.MONGODB_URI ||
+            process.env.DATABASE_URI;
+        if (!url || url.trim() === '') {
+            this.logger.warn('⚠️ DATABASE_URL (veya MONGODB_URI / DATABASE_URI) eksik');
             if (process.env.VERCEL)
                 return;
             throw new Error('DATABASE_URL is not set');
         }
+        this.logger.log(`📦 Prisma bağlantı denenecek (env: ${process.env.DATABASE_URL ? 'DATABASE_URL' : process.env.MONGODB_URI ? 'MONGODB_URI' : 'DATABASE_URI'})`);
         try {
             await this.$connect();
             this.logger.log('✅ Prisma connected');

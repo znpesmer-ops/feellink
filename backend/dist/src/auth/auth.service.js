@@ -148,8 +148,16 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async register(registerDto) {
         const { email, username, password, fullName, role, termsAccepted } = registerDto;
+        if (!this.configService.get('JWT_SECRET')) {
+            throw new common_1.BadRequestException('Sunucu yapılandırma hatası (JWT_SECRET eksik). Lütfen destek ile iletişime geçin.');
+        }
         if (termsAccepted !== true) {
             throw new common_1.BadRequestException('Kullanıcı sözleşmesi kabul edilmeden kayıt olunamaz.');
+        }
+        const dbOk = await this.checkDatabase();
+        if (!dbOk) {
+            this.logger.warn('[REGISTER] DB check failed before create');
+            throw new common_1.BadRequestException('Kayıt işlemi şu anda tamamlanamıyor. Lütfen daha sonra tekrar deneyin.');
         }
         try {
             this.logger.log(`[REGISTER DEBUG] Starting registration for: ${email}`);
@@ -184,6 +192,9 @@ let AuthService = AuthService_1 = class AuthService {
             catch (error) {
                 this.logger.warn(`[REGISTER DEBUG] Error indexing new user (non-critical): ${error instanceof Error ? error.message : error}`);
             }
+            this.mailService
+                .sendWelcomeEmail({ email: user.email, fullName: user.fullName, username: user.username })
+                .catch((err) => this.logger.warn('Welcome email failed', err));
             const payload = this.hydrateAuthUser(user);
             const needsRoleSelection = (user.roles?.length ?? 0) === 0;
             this.logger.log(`[REGISTER DEBUG] Registration successful for: ${email}`);
@@ -196,7 +207,7 @@ let AuthService = AuthService_1 = class AuthService {
         catch (err) {
             if (err instanceof library_1.PrismaClientKnownRequestError && err.code === 'P2002') {
                 const target = err.meta?.target || [];
-                this.logger.warn(`[REGISTER DEBUG] Unique constraint violation: ${JSON.stringify(target)}`);
+                this.logger.warn(`[REGISTER] Unique constraint: ${JSON.stringify(target)}`);
                 if (target.includes('email')) {
                     throw new common_1.ConflictException('Bu e-posta adresi zaten kullanımda');
                 }
@@ -205,13 +216,22 @@ let AuthService = AuthService_1 = class AuthService {
                 }
                 throw new common_1.ConflictException('Bu bilgilerle kayıtlı bir kullanıcı zaten var');
             }
-            this.logger.error(`[REGISTER DEBUG] Registration error for ${email}:`, err);
-            this.logger.error(`[REGISTER DEBUG] Error details:`, {
-                message: err instanceof Error ? err.message : String(err),
-                stack: err instanceof Error ? err.stack : undefined,
-                code: err instanceof library_1.PrismaClientKnownRequestError ? err.code : undefined,
-            });
-            throw new common_1.BadRequestException('Kayıt işlemi sırasında bir hata oluştu');
+            const errMessage = typeof err?.message === 'string'
+                ? err.message
+                : err?.error?.message ?? err?.response?.data?.message ?? String(err);
+            const isDbError = !errMessage ||
+                errMessage.includes('DATABASE_URL') ||
+                errMessage.includes("Can't reach") ||
+                errMessage.includes('connection') ||
+                errMessage.includes('ECONNREFUSED') ||
+                errMessage.includes('connect');
+            const isAuthFailed = errMessage.includes('AuthenticationFailed') ||
+                errMessage.includes('bad auth') ||
+                errMessage.includes('SCRAM failure') ||
+                errMessage.includes('authentication failed');
+            this.logger.error(`[REGISTER] Error for ${email}:`, errMessage);
+            const userMessage = 'Kayıt işlemi şu anda tamamlanamıyor. Lütfen daha sonra tekrar deneyin.';
+            throw new common_1.BadRequestException(userMessage);
         }
     }
     async login(loginDto) {
@@ -303,6 +323,16 @@ let AuthService = AuthService_1 = class AuthService {
             ...tokens,
             needsRoleSelection,
         };
+    }
+    async checkDatabase() {
+        try {
+            await this.prisma.$connect();
+            await this.prisma.user.findFirst({ select: { id: true }, take: 1 });
+            return true;
+        }
+        catch {
+            return false;
+        }
     }
     async generateTokens(userId) {
         const accessToken = this.jwtService.sign({ userId }, {
@@ -728,37 +758,25 @@ let AuthService = AuthService_1 = class AuthService {
                     passwordResetExpires: expires,
                 },
             });
-            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+            const frontendUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:3000';
             const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
-            const mailMode = process.env.MAIL_MODE || 'dev';
-            let mailSent = false;
-            let mailError = null;
-            if (mailMode === 'prod') {
-                try {
-                    await this.mailService.sendPasswordResetMail(email, resetUrl);
-                    this.logger.log(`✅ Password reset email sent successfully to ${email}`);
-                    mailSent = true;
-                }
-                catch (error) {
-                    mailError = error;
-                    this.logger.error(`❌ Failed to send password reset email to ${email}:`, error.message || error);
-                    if (error.code === 'EAUTH' || error.responseCode === 535) {
-                        this.logger.error('🔴 SMTP kimlik doğrulama hatası!');
-                        this.logger.error('Lütfen backend/.env dosyasındaki SMTP ayarlarını kontrol edin:');
-                        this.logger.error('- SMTP_USER: Tam e-posta adresi (örn: info@feellink.io)');
-                        this.logger.error('- SMTP_PASS: Gmail App Password (normal şifre değil!)');
-                        this.logger.error('- Gmail için: https://myaccount.google.com/apppasswords adresinden App Password oluşturun');
-                    }
-                }
+            const explicitlyDev = process.env.MAIL_MODE?.toLowerCase() === 'dev';
+            this.logger.log(`ForgotPassword: sending reset mail to ${email} (MAIL_MODE=dev? ${explicitlyDev})`);
+            try {
+                await this.mailService.sendPasswordResetMail(email, resetUrl);
+                this.logger.log(`✅ Password reset email sent successfully to ${email}`);
             }
-            else {
-                this.logger.log(`[DEV] Mail gönderimi atlandı (MAIL_MODE=${mailMode})`);
-                this.logger.log(`[DEV] Reset URL for ${email}: ${resetUrl}`);
-                mailSent = false;
-            }
-            if (mailMode !== 'prod') {
-                this.logger.log(`[DEV] Reset URL for ${email}: ${resetUrl}`);
-                this.logger.log(`[DEV] Reset Token: ${resetToken}`);
+            catch (error) {
+                this.logger.error(`❌ Failed to send password reset email to ${email}:`, error?.message || error);
+                this.logger.error(`❌ Error code: ${error?.code || 'n/a'}, responseCode: ${error?.responseCode || 'n/a'}`);
+                if (error?.code === 'EAUTH' || error?.responseCode === 535) {
+                    this.logger.error('🔴 SMTP kimlik doğrulama hatası! SMTP_USER tam e-posta, SMTP_PASS Gmail App Password (16 karakter, boşluksuz) olmalı.');
+                    this.logger.error('https://myaccount.google.com/apppasswords');
+                }
+                if (explicitlyDev) {
+                    this.logger.log(`[DEV] Reset URL for ${email}: ${resetUrl}`);
+                    this.logger.log(`[DEV] Reset Token: ${resetToken}`);
+                }
             }
             return {
                 message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',

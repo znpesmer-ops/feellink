@@ -160,6 +160,10 @@ let AdminService = class AdminService {
                     isDeleted: true,
                     deletedAt: true,
                     accountStatus: true,
+                    suspendedAt: true,
+                    suspendedUntil: true,
+                    suspensionReason: true,
+                    termsAcceptedAt: true,
                 },
             }),
             this.prisma.user.count({ where }),
@@ -960,28 +964,46 @@ let AdminService = class AdminService {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user)
             throw new common_1.NotFoundException('User not found');
-        await this.prisma.user.update({
+        const updated = await this.prisma.user.update({
             where: { id: userId },
             data: {
+                accountStatus: 'SUSPENDED',
+                suspendedAt: new Date(),
                 suspendedUntil: data.until,
                 suspensionReason: data.reason,
                 suspensionNote: data.note,
                 suspendedByAdminId: actorId,
             },
+            select: {
+                id: true,
+                accountStatus: true,
+                suspendedAt: true,
+                suspendedUntil: true,
+                suspensionReason: true,
+            },
         });
-        return { success: true, message: 'User suspended' };
+        return { success: true, message: 'User suspended', user: updated };
     }
     async unsuspendUser(userId) {
-        await this.prisma.user.update({
+        const updated = await this.prisma.user.update({
             where: { id: userId },
             data: {
+                accountStatus: 'ACTIVE',
+                suspendedAt: null,
                 suspendedUntil: null,
                 suspensionReason: null,
                 suspensionNote: null,
                 suspendedByAdminId: null,
             },
+            select: {
+                id: true,
+                accountStatus: true,
+                suspendedAt: true,
+                suspendedUntil: true,
+                suspensionReason: true,
+            },
         });
-        return { success: true, message: 'User unsuspended' };
+        return { success: true, message: 'User unsuspended', user: updated };
     }
     async getRoleChangeRequests(status, page = 1, limit = 20) {
         const where = {};

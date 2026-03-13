@@ -73,6 +73,9 @@ export declare class AuthController {
         };
         sidebar: import("../roles/roles.types").SidebarVisibility;
     }>;
+    dbCheck(): Promise<{
+        ok: boolean;
+    }>;
     login(loginDto: LoginDto, res: Response): Promise<any>;
     corporateLogin(loginDto: LoginDto, res: Response): Promise<{
         needsRoleSelection: boolean;

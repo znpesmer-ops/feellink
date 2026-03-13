@@ -31,9 +31,10 @@ interface PostCardProps {
   }
   onLike?: (id: string) => void
   onDelete?: (id: string) => void
+  returnTo?: string
 }
 
-export default function PostCard({ post, onLike, onDelete }: PostCardProps) {
+export default function PostCard({ post, onLike, onDelete, returnTo }: PostCardProps) {
   const router = useRouter()
   const { user, accessToken } = useAuthStore()
   const queryClient = useQueryClient()
@@ -121,7 +122,10 @@ export default function PostCard({ post, onLike, onDelete }: PostCardProps) {
   }
 
   const handleCardClick = () => {
-    router.push(`/posts/${post.id}`)
+    const url = returnTo
+      ? `/posts/${post.id}?from=${encodeURIComponent(returnTo)}`
+      : `/posts/${post.id}`
+    router.push(url)
   }
 
   // Delete mutation

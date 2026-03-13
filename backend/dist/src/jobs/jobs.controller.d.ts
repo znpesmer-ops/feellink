@@ -16,12 +16,12 @@ export declare class JobsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
-        location: string;
-        tags: string[];
+        description: string;
         company: string;
+        location: string;
         salary: string;
+        tags: string[];
         createdById: string;
     }>;
     getPublicListings(): Promise<({
@@ -35,12 +35,12 @@ export declare class JobsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
-        location: string;
-        tags: string[];
+        description: string;
         company: string;
+        location: string;
         salary: string;
+        tags: string[];
         createdById: string;
     })[]>;
     getMyListingsAnalytics(user: CurrentUserPayload): Promise<{
@@ -63,15 +63,19 @@ export declare class JobsController {
         }[];
     }>;
     getMyApplications(user: CurrentUserPayload): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        expiresAt: Date;
         jobListing: {
             id: string;
             createdAt: Date;
-            description: string;
             title: string;
-            location: string;
-            tags: string[];
+            description: string;
             company: string;
+            location: string;
             salary: string;
+            tags: string[];
             createdBy: {
                 id: string;
                 username: string;
@@ -79,15 +83,11 @@ export declare class JobsController {
                 avatar: string;
             };
         };
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        expiresAt: Date;
-        status: import(".prisma/client").$Enums.ApplicationStatus;
         coverLetter: string;
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
+        status: import(".prisma/client").$Enums.ApplicationStatus;
     }[]>;
     getMyJobs(user: CurrentUserPayload): Promise<({
         _count: {
@@ -103,12 +103,12 @@ export declare class JobsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
-        location: string;
-        tags: string[];
+        description: string;
         company: string;
+        location: string;
         salary: string;
+        tags: string[];
         createdById: string;
     })[]>;
     updateAdminNote(applicationId: string, user: CurrentUserPayload, body: {
@@ -118,17 +118,17 @@ export declare class JobsController {
         createdAt: Date;
         updatedAt: Date;
         expiresAt: Date;
-        status: import(".prisma/client").$Enums.ApplicationStatus;
-        reminderSentAt: Date;
         tags: string[];
-        conversationId: string;
+        jobListingId: string;
+        applicantId: string;
         coverLetter: string;
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
+        status: import(".prisma/client").$Enums.ApplicationStatus;
+        conversationId: string;
+        reminderSentAt: Date;
         adminNote: string;
-        jobListingId: string;
-        applicantId: string;
     }>;
     getApplicationActivities(applicationId: string, user: CurrentUserPayload): Promise<{
         id: string;
@@ -157,17 +157,17 @@ export declare class JobsController {
         createdAt: Date;
         updatedAt: Date;
         expiresAt: Date;
-        status: import(".prisma/client").$Enums.ApplicationStatus;
-        reminderSentAt: Date;
         tags: string[];
-        conversationId: string;
+        jobListingId: string;
+        applicantId: string;
         coverLetter: string;
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
+        status: import(".prisma/client").$Enums.ApplicationStatus;
+        conversationId: string;
+        reminderSentAt: Date;
         adminNote: string;
-        jobListingId: string;
-        applicantId: string;
     }>;
     getJob(jobId: string, user: CurrentUserPayload): Promise<{
         createdBy: {
@@ -180,12 +180,12 @@ export declare class JobsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
-        location: string;
-        tags: string[];
+        description: string;
         company: string;
+        location: string;
         salary: string;
+        tags: string[];
         createdById: string;
     }>;
     applyToJob(jobListingId: string, user: CurrentUserPayload, dto: CreateJobApplicationDto): Promise<{
@@ -201,35 +201,28 @@ export declare class JobsController {
         createdAt: Date;
         updatedAt: Date;
         expiresAt: Date;
-        status: import(".prisma/client").$Enums.ApplicationStatus;
-        reminderSentAt: Date;
         tags: string[];
-        conversationId: string;
+        jobListingId: string;
+        applicantId: string;
         coverLetter: string;
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
+        status: import(".prisma/client").$Enums.ApplicationStatus;
+        conversationId: string;
+        reminderSentAt: Date;
         adminNote: string;
-        jobListingId: string;
-        applicantId: string;
     }>;
     getApplicationsForJob(jobListingId: string, user: CurrentUserPayload): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
         expiresAt: Date;
-        status: import(".prisma/client").$Enums.ApplicationStatus;
         coverLetter: string;
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
-        activities: {
-            id: string;
-            createdAt: Date;
-            applicationId: string;
-            action: string;
-            details: string;
-        }[];
+        status: import(".prisma/client").$Enums.ApplicationStatus;
         applicant: {
             id: string;
             username: string;
@@ -238,6 +231,13 @@ export declare class JobsController {
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
         };
+        activities: {
+            id: string;
+            createdAt: Date;
+            applicationId: string;
+            action: string;
+            details: string;
+        }[];
     }[]>;
     checkApplication(jobListingId: string, user: CurrentUserPayload): Promise<{
         hasApplied: boolean;
@@ -246,29 +246,29 @@ export declare class JobsController {
             createdAt: Date;
             updatedAt: Date;
             expiresAt: Date;
-            status: import(".prisma/client").$Enums.ApplicationStatus;
-            reminderSentAt: Date;
             tags: string[];
-            conversationId: string;
+            jobListingId: string;
+            applicantId: string;
             coverLetter: string;
             portfolioUrl: string;
             portfolioFileUrl: string;
             cvUrl: string;
+            status: import(".prisma/client").$Enums.ApplicationStatus;
+            conversationId: string;
+            reminderSentAt: Date;
             adminNote: string;
-            jobListingId: string;
-            applicantId: string;
         };
     }>;
     updateJob(jobId: string, user: CurrentUserPayload, dto: CreateJobDto): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
-        location: string;
-        tags: string[];
+        description: string;
         company: string;
+        location: string;
         salary: string;
+        tags: string[];
         createdById: string;
     }>;
     deleteJob(jobId: string, user: CurrentUserPayload): Promise<{

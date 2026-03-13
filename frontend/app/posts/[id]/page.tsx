@@ -1,23 +1,32 @@
 'use client'
 
 import { useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
 import { AuthGuard } from '@/lib/auth-guard'
 import { PostModal } from '@/components/post-modal'
 
+function isSafeReturnPath(path: string | null): path is string {
+  if (!path || typeof path !== 'string') return false
+  if (!path.startsWith('/')) return false
+  if (path.includes('//')) return false
+  return true
+}
+
 export default function PostDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { accessToken } = useAuthStore()
   const [showModal, setShowModal] = useState(true)
 
   const postId = params?.id as string
+  const from = searchParams.get('from')
 
-  // Redirect to feed if modal is closed
   const handleClose = () => {
     setShowModal(false)
-    router.push('/feed')
+    const returnTo = isSafeReturnPath(from) ? from : '/feed'
+    router.push(returnTo)
   }
 
   if (!postId || !accessToken) {
