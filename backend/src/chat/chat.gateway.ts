@@ -297,7 +297,6 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
       // ✅ ARKA PLANDA: Receiver için conversation kaydı MUTLAKA oluştur (Instagram gibi)
       // Sadece receiver için silinmiş sohbeti geri getir (sender zaten mesaj gönderiyor, conversation'ı silmemiş demektir)
-      const receiverParticipant = conversation.participants.find((p) => p.userId !== userId);
       if (receiverParticipant) {
         this.prisma.userConversation.upsert({
           where: {
