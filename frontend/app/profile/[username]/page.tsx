@@ -12,7 +12,7 @@ import { PostModal } from '@/components/post-modal'
 import UserArticles from '@/components/user-articles'
 import DraftArticles from '@/components/draft-articles'
 import { Plus, Grid, FileText, Calendar, Image as ImageIcon, Heart, MessageCircle, MoreVertical, Trash2, Clock } from 'lucide-react'
-import { FiGrid, FiFileText, FiMessageCircle, FiImage, FiCalendar, FiClock, FiBookmark } from 'react-icons/fi'
+import { FiGrid, FiFileText, FiMessageCircle, FiImage, FiCalendar, FiClock, FiBookmark, FiBarChart2 } from 'react-icons/fi'
 import { initPostsSocket, initCommentsSocket } from '@/lib/socket'
 import UserBadge from '@/components/UserBadge'
 import { UserBadges } from '@/components/profile/UserBadges'
@@ -23,6 +23,7 @@ import { ProfileArtworksGrid } from '@/components/profile/ProfileArtworksGrid'
 import toast from 'react-hot-toast'
 import { ProfileCommentsList } from '@/components/profile/ProfileCommentsList'
 import { ArtistHighlights } from '@/components/profile/ArtistHighlights'
+import { ProfileAnalysisPanel } from '@/components/profile/ProfileAnalysisPanel'
 import ZoomModal from '@/components/common/ZoomModal'
 
 // 🔖 Kaydedilenler Grid Component
@@ -324,7 +325,7 @@ function ProfileContent() {
   const [postType, setPostType] = useState<'post' | 'artwork'>('post')
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
   const [creatingConversation, setCreatingConversation] = useState(false)
-  const [activeTab, setActiveTab] = useState<'posts' | 'articles' | 'comments' | 'artworks' | 'events' | 'drafts' | 'saved'>('posts')
+  const [activeTab, setActiveTab] = useState<'posts' | 'articles' | 'comments' | 'artworks' | 'events' | 'drafts' | 'saved' | 'analysis'>('posts')
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
   const [profilePosts, setProfilePosts] = useState<any[]>([])
   const [zoomImage, setZoomImage] = useState<string | null>(null)
@@ -435,6 +436,9 @@ function ProfileContent() {
       })()
     : false
   
+  // Analiz sekmesi: açık profil => herkes, gizli profil => sadece kendisi
+  const canViewAnalysis = Boolean(profile && (profile.isOwnProfile || !profile.isPrivate))
+
   // Tab yapısı - Tüm sekmeler (herkes için görünür, plan kontrolü kaldırıldı)
   const allTabs = [
     { key: 'posts', label: 'Gönderiler', icon: FiGrid },
@@ -444,6 +448,8 @@ function ProfileContent() {
     { key: 'events', label: 'Etkinlikler', icon: FiCalendar },
     // 🔖 Kaydedilenler - SADECE kendi profilinde
     ...(profile?.isOwnProfile ? [{ key: 'saved', label: 'Kaydedilenler', icon: FiBookmark }] : []),
+    // 📊 Analiz - açık profil herkes, gizli sadece sahip
+    ...(canViewAnalysis ? [{ key: 'analysis', label: 'Analiz', icon: FiBarChart2 }] : []),
   ]
   
   // Plan kontrolü kaldırıldı - artık tüm sekmeler herkes için görünür
@@ -1246,6 +1252,8 @@ function ProfileContent() {
           </div>
         ) : activeTab === 'saved' && profile.isOwnProfile ? (
           <SavedPostsGrid />
+        ) : activeTab === 'analysis' && canViewAnalysis ? (
+          <ProfileAnalysisPanel username={username} />
         ) : !profile.canViewPosts && profile.isPrivate && !profile.isOwnProfile ? (
           <div className="text-center py-12 border border-gray-100 dark:border-gray-900 rounded-2xl bg-white dark:bg-gray-950 transition-colors shadow-sm">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
