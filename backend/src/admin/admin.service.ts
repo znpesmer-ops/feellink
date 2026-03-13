@@ -201,6 +201,8 @@ export class AdminService {
           suspendedAt: true,
           suspendedUntil: true,
           suspensionReason: true,
+          deletionRequestedAt: true,
+          scheduledDeletionAt: true,
           termsAcceptedAt: true,
         },
       }),

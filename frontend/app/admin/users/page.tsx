@@ -30,10 +30,12 @@ interface User {
   gender?: string | null
   profileCompleted?: boolean
   termsAcceptedAt?: string | null // ✅ Kullanıcı sözleşmesi onay tarihi
-  accountStatus?: 'ACTIVE' | 'SUSPENDED' // 🔒 Hesap durumu
+  accountStatus?: 'ACTIVE' | 'SUSPENDED' | 'PENDING_DELETION' // 🔒 Hesap durumu
   suspendedAt?: string | null // 🔒 Askıya alma tarihi
   suspendedUntil?: string | null // 🔒 Askıya alma bitiş tarihi
   suspensionReason?: string | null // 🔒 Askıya alma nedeni
+  deletionRequestedAt?: string | null // 🔒 Hesap kapatma talebi tarihi
+  scheduledDeletionAt?: string | null // 🔒 Kalıcı silme tarihi
 }
 
 // Util: Yaş hesaplama
@@ -521,7 +523,24 @@ export default function AdminUsersPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {user.accountStatus === 'SUSPENDED' ? (
+                    {user.accountStatus === 'PENDING_DELETION' ? (
+                      <div className="flex items-center gap-2">
+                        <Trash2 className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-amber-600 dark:text-amber-400">Silme sürecinde</span>
+                          {user.deletionRequestedAt && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              Kapatma tarihi: {new Date(user.deletionRequestedAt).toLocaleDateString('tr-TR')}
+                            </span>
+                          )}
+                          {user.scheduledDeletionAt && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              Kalıcı silme: {new Date(user.scheduledDeletionAt).toLocaleDateString('tr-TR')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : user.accountStatus === 'SUSPENDED' ? (
                       <div className="flex items-center gap-2">
                         <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
                         <div className="flex flex-col">

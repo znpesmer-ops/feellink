@@ -74,11 +74,15 @@ interface JobApplication {
 function MyApplicationsTab({
   applications,
   loading,
-  onExploreClick
+  error,
+  onExploreClick,
+  onRetry
 }: {
   applications: JobApplication[]
   loading: boolean
+  error?: string | null
   onExploreClick: () => void
+  onRetry?: () => void
 }) {
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -195,10 +199,27 @@ function MyApplicationsTab({
     )
   }
 
+  if (error) {
+    return (
+      <div className="rounded-3xl border border-red-200 bg-red-50 px-6 py-8 text-center text-sm text-red-600 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
+        <p>{error}</p>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-4 px-4 py-2 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors"
+          >
+            Tekrar dene
+          </button>
+        )}
+      </div>
+    )
+  }
+
   if (!applications || applications.length === 0) {
     return (
       <div className="text-center text-gray-500 dark:text-gray-400 mt-20">
-        <p className="text-lg font-medium mb-2">Henüz başvurduğun bir ilan yok.</p>
+        <p className="text-lg font-medium mb-2">Henüz yaptığınız bir başvuru yok.</p>
         <button
           onClick={onExploreClick}
           className="text-brand-orange hover:underline inline-flex items-center gap-1 mt-1"
@@ -273,6 +294,7 @@ function MyJobsTab({
   error,
   onJobClick,
   onDeleteClick,
+  onRetry,
   openMenuId,
   setOpenMenuId,
   user,
@@ -283,6 +305,7 @@ function MyJobsTab({
   error: string | null
   onJobClick: (job: MyJobListing) => void
   onDeleteClick: (jobId: string) => void
+  onRetry?: () => void
   openMenuId: string | null
   setOpenMenuId: (id: string | null) => void
   user: any
@@ -307,7 +330,16 @@ function MyJobsTab({
   if (error) {
     return (
       <div className="rounded-3xl border border-red-200 bg-red-50 px-6 py-8 text-center text-sm text-red-600 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
-        {error}
+        <p>{error}</p>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-4 px-4 py-2 bg-brand-orange text-white text-sm font-medium rounded-lg hover:bg-brand-orange/90 transition-colors"
+          >
+            Tekrar dene
+          </button>
+        )}
       </div>
     )
   }
@@ -315,7 +347,7 @@ function MyJobsTab({
   if (jobs.length === 0) {
     return (
       <div className="rounded-3xl border border-dashed border-gray-300/70 bg-white/90 px-6 py-16 text-center text-gray-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
-        <p className="text-lg font-medium">Henüz hiç ilan açmadınız.</p>
+        <p className="text-lg font-medium">Henüz oluşturduğunuz bir ilan yok.</p>
         <Link
           href="/jobs/new"
           className="mt-4 inline-block rounded-xl bg-brand-orange px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-orange/90"
@@ -489,8 +521,12 @@ function FellinkContent() {
   const [loading, setLoading] = useState(true)
   const [myJobsLoading, setMyJobsLoading] = useState(false)
   const [applicationsLoading, setApplicationsLoading] = useState(false)
+  const [applicationsError, setApplicationsError] = useState<string | null>(null)
+  const [myJobsError, setMyJobsError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
+  const [applicationsRetry, setApplicationsRetry] = useState(0)
+  const [myJobsRetry, setMyJobsRetry] = useState(0)
   const [applyModalOpen, setApplyModalOpen] = useState<string | null>(null)
   const [appliedJobs, setAppliedJobs] = useState<Set<string>>(new Set())
 
@@ -556,6 +592,13 @@ function FellinkContent() {
 
   const handleTabChange = (tab: 'explore' | 'applications' | 'my-jobs') => {
     setActiveTab(tab)
+    if (tab === 'applications') {
+      setApplicationsLoading(true)
+      setApplicationsError(null)
+    } else if (tab === 'my-jobs') {
+      setMyJobsLoading(true)
+      setMyJobsError(null)
+    }
     if (tab === 'explore') {
       router.push('/fellink', { scroll: false })
     } else {
@@ -621,13 +664,16 @@ function FellinkContent() {
     async function fetchApplications() {
       try {
         setApplicationsLoading(true)
+        setApplicationsError(null)
         const response = await api.get<JobApplication[]>('/jobs/me/applications')
         if (mounted) {
-          setApplications(response.data || [])
+          setApplications(Array.isArray(response.data) ? response.data : [])
         }
       } catch (err: any) {
         if (mounted) {
-          console.error('Başvurular yüklenirken hata:', err)
+          const msg = err?.response?.data?.message ?? err?.message
+          const safe = typeof msg === 'string' ? msg : 'Başvurular yüklenirken bir sorun oluştu.'
+          setApplicationsError(safe)
           setApplications([])
         }
       } finally {
@@ -642,7 +688,7 @@ function FellinkContent() {
     return () => {
       mounted = false
     }
-  }, [activeTab, accessToken])
+  }, [activeTab, accessToken, applicationsRetry])
 
   useEffect(() => {
     if (activeTab !== 'my-jobs' || !accessToken) return
@@ -652,13 +698,16 @@ function FellinkContent() {
     async function fetchMyJobs() {
       try {
         setMyJobsLoading(true)
+        setMyJobsError(null)
         const response = await api.get<MyJobListing[]>('/jobs/me')
         if (mounted) {
-          setMyJobs(response.data || [])
+          setMyJobs(Array.isArray(response.data) ? response.data : [])
         }
       } catch (err: any) {
         if (mounted) {
-          console.error('İşlerim yüklenirken hata:', err)
+          const msg = err?.response?.data?.message ?? err?.message
+          const safe = typeof msg === 'string' ? msg : 'İlanlarınız yüklenirken bir sorun oluştu.'
+          setMyJobsError(safe)
           setMyJobs([])
         }
       } finally {
@@ -673,7 +722,7 @@ function FellinkContent() {
     return () => {
       mounted = false
     }
-  }, [activeTab, accessToken])
+  }, [activeTab, accessToken, myJobsRetry])
 
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-12 text-gray-900 dark:text-gray-100">
@@ -741,15 +790,18 @@ function FellinkContent() {
         <MyApplicationsTab
           applications={applications}
           loading={applicationsLoading}
+          error={applicationsError}
           onExploreClick={() => handleTabChange('explore')}
+          onRetry={() => setApplicationsRetry((c) => c + 1)}
         />
       ) : activeTab === 'my-jobs' ? (
         <MyJobsTab
           jobs={myJobs}
           loading={myJobsLoading}
-          error={null}
+          error={myJobsError}
           onJobClick={handleJobClick}
           onDeleteClick={openDeleteModal}
+          onRetry={() => setMyJobsRetry((c) => c + 1)}
           openMenuId={openMenuId}
           setOpenMenuId={setOpenMenuId}
           user={user}
