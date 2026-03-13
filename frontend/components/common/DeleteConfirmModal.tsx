@@ -5,11 +5,12 @@ import { X } from "lucide-react"
 interface DeleteConfirmModalProps {
   open: boolean
   onClose: () => void
-  onConfirm: () => void
+  onConfirm: () => void | Promise<void>
   title?: string
   message?: string
   confirmText?: string
   cancelText?: string
+  loading?: boolean
 }
 
 export default function DeleteConfirmModal({
@@ -20,6 +21,7 @@ export default function DeleteConfirmModal({
   message = "Bu işlemi geri alamazsınız. Emin misiniz?",
   confirmText = "Sil",
   cancelText = "İptal",
+  loading = false,
 }: DeleteConfirmModalProps) {
   if (!open) return null
 
@@ -51,7 +53,8 @@ export default function DeleteConfirmModal({
         <div className="flex items-center justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors font-medium"
+            disabled={loading}
+            className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors font-medium disabled:opacity-50"
           >
             {cancelText}
           </button>
@@ -59,11 +62,12 @@ export default function DeleteConfirmModal({
           <button
             onClick={() => {
               onConfirm()
-              onClose()
+              // Parent is responsible for calling onClose() after async work (e.g. delete) succeeds
             }}
-            className="px-4 py-2 rounded-lg bg-[#ff7b00] hover:bg-[#e36f00] transition-colors text-white font-medium"
+            disabled={loading}
+            className="px-4 py-2 rounded-lg bg-[#ff7b00] hover:bg-[#e36f00] transition-colors text-white font-medium disabled:opacity-50"
           >
-            {confirmText}
+            {loading ? "Siliniyor…" : confirmText}
           </button>
         </div>
       </div>

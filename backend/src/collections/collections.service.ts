@@ -111,9 +111,10 @@ export class CollectionsService {
       throw new ForbiddenException('You do not have permission to delete this collection');
     }
 
-    await this.prisma.collection.delete({
-      where: { id },
-    });
+    await this.prisma.$transaction([
+      this.prisma.collectionItem.deleteMany({ where: { collectionId: id } }),
+      this.prisma.collection.delete({ where: { id } }),
+    ]);
 
     return { success: true };
   }

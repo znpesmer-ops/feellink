@@ -11,6 +11,7 @@ import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import toast from 'react-hot-toast'
 import { PostModal } from '@/components/post-modal'
 import { AddItemModal } from '@/components/collections/AddItemModal'
+import DeleteConfirmModal from '@/components/common/DeleteConfirmModal'
 
 interface CollectionItem {
   id: string
@@ -64,6 +65,8 @@ export default function CollectionDetailPage() {
   const [removingItem, setRemovingItem] = useState<string | null>(null)
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const roles = capabilities?.roles ?? user?.roles ?? []
   const canManageCollections = roles.includes('corporate') || roles.includes('collector')
@@ -121,6 +124,21 @@ export default function CollectionDetailPage() {
       toast.error(error?.response?.data?.message || 'Eser çıkarılamadı')
     } finally {
       setRemovingItem(null)
+    }
+  }
+
+  const handleDeleteCollection = async () => {
+    if (!collectionId) return
+    try {
+      setDeleting(true)
+      await api.delete(`/collections/${collectionId}`)
+      toast.success('Koleksiyon silindi')
+      setDeleteModalOpen(false)
+      router.push('/collections')
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Koleksiyon silinemedi. Lütfen tekrar deneyin.')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -194,6 +212,13 @@ export default function CollectionDetailPage() {
                 >
                   <Plus size={18} />
                   Eser Ekle
+                </button>
+                <button
+                  onClick={() => setDeleteModalOpen(true)}
+                  className="px-4 py-2 rounded-lg border border-red-500/50 text-red-600 dark:text-red-400 hover:bg-red-500/10 font-medium transition shadow-sm flex items-center gap-2"
+                >
+                  <Trash2 size={18} />
+                  Koleksiyonu Sil
                 </button>
               </div>
             )}
@@ -304,6 +329,18 @@ export default function CollectionDetailPage() {
             setCollection(res.data)
           })
         }}
+      />
+
+      {/* Koleksiyon silme onay modal */}
+      <DeleteConfirmModal
+        open={deleteModalOpen}
+        onClose={() => !deleting && setDeleteModalOpen(false)}
+        onConfirm={handleDeleteCollection}
+        title="Koleksiyonu sil"
+        message="Bu koleksiyon kalıcı olarak silinecek. Koleksiyon içindeki içerikler platformdan kaldırılmaz."
+        confirmText="Koleksiyonu Sil"
+        cancelText="İptal"
+        loading={deleting}
       />
     </div>
   )

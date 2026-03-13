@@ -1,12 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Plus, Loader2, UserCircle2, Sparkles } from "lucide-react";
+import { Plus, Loader2, UserCircle2, Sparkles, Trash2 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import api from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
 import CreateCollectionModal from "@/components/collections/CreateCollectionModal";
+import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import { ProRoleBadge } from "@/components/ProRoleBadge";
+import toast from "react-hot-toast";
 
 interface Collection {
   id: string;
@@ -32,6 +34,8 @@ export default function CollectionsPage() {
   const [filteredCollections, setFilteredCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deleteModalCollectionId, setDeleteModalCollectionId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>("Tümü");
   const { user, capabilities, accessToken } = useAuthStore();
 
@@ -116,11 +120,35 @@ export default function CollectionsPage() {
 
   const handleRefresh = async () => {
     try {
-      const res = await api.get<Collection[]>("/collections/public");
-      setCollections(res.data || []);
-      setFilteredCollections(res.data || []);
+      const [publicRes, myRes] = await Promise.all([
+        api.get<Collection[]>("/collections/public"),
+        accessToken && canCreateCollection ? api.get<Collection[]>("/collections/my") : Promise.resolve({ data: [] as Collection[] }),
+      ]);
+      setCollections(publicRes.data || []);
+      setMyCollections((myRes?.data) || []);
+      setFilteredCollections(publicRes.data || []);
     } catch (error) {
       console.error("Koleksiyonlar alınamadı:", error);
+    }
+  };
+
+  const isOwnerOf = (col: Collection) => user?.id && col.owner?.id === user.id;
+
+  const handleDeleteCollection = async () => {
+    const id = deleteModalCollectionId;
+    if (!id) return;
+    try {
+      setDeleting(true);
+      await api.delete(`/collections/${id}`);
+      setCollections((prev) => prev.filter((c) => c.id !== id));
+      setMyCollections((prev) => prev.filter((c) => c.id !== id));
+      setFilteredCollections((prev) => prev.filter((c) => c.id !== id));
+      toast.success("Koleksiyon silindi");
+      setDeleteModalCollectionId(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Koleksiyon silinemedi. Lütfen tekrar deneyin.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -228,6 +256,20 @@ export default function CollectionsPage() {
                       <Sparkles className="w-12 h-12 text-[#ff7b00]/40" />
                     </div>
                   )}
+                  {isOwnerOf(col) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDeleteModalCollectionId(col.id);
+                      }}
+                      className="absolute top-2 right-2 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+                      title="Koleksiyonu sil"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Koleksiyon Bilgileri */}
@@ -281,6 +323,18 @@ export default function CollectionsPage() {
             onCreated={handleRefresh}
           />
         )}
+
+        {/* Koleksiyon silme onay modal */}
+        <DeleteConfirmModal
+          open={deleteModalCollectionId !== null}
+          onClose={() => !deleting && setDeleteModalCollectionId(null)}
+          onConfirm={handleDeleteCollection}
+          title="Koleksiyonu sil"
+          message="Bu koleksiyon kalıcı olarak silinecek. Koleksiyon içindeki içerikler platformdan kaldırılmaz."
+          confirmText="Koleksiyonu Sil"
+          cancelText="İptal"
+          loading={deleting}
+        />
       </div>
     </div>
   );
