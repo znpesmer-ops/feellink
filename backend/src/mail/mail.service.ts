@@ -315,13 +315,14 @@ export class MailService {
 
   /** Yeni kayıt olan kullanıcıya hoş geldin e-postası. Kayıt akışını bloklamaz. */
   async sendWelcomeEmail(user: { email: string; fullName?: string | null; username: string }) {
-    const mailMode = process.env.MAIL_MODE || 'dev';
-    if (!this.isProductionMailMode()) {
-      this.logger.log(`[DEV] Hoş geldin maili atlandı (MAIL_MODE=${mailMode}). Alıcı: ${user.email}`);
+    const explicitlyDev = process.env.MAIL_MODE?.toLowerCase() === 'dev';
+    if (explicitlyDev) {
+      this.logger.log(`[DEV] Hoş geldin maili atlandı (MAIL_MODE=dev). Alıcı: ${user.email}`);
       return;
     }
 
-    if (!this.transporter) {
+    const transport = this.transporter || this.ensureTransporter();
+    if (!transport) {
       this.logger.warn('Mail transporter not configured. Skipping welcome email.');
       return;
     }
@@ -329,7 +330,7 @@ export class MailService {
     const mailFromName = process.env.MAIL_FROM_NAME || 'Feellink';
     const mailFrom = process.env.MAIL_FROM || 'noreply@feellink.io';
     const from = `"${mailFromName}" <${mailFrom}>`;
-    const appUrl = process.env.APP_URL || 'https://feellink.io';
+    const appUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'https://feellink.io';
     const exploreUrl = `${appUrl}/explore`;
     const name = user.fullName?.trim() || user.username || 'Üye';
 
@@ -381,7 +382,7 @@ export class MailService {
 </html>`;
 
     try {
-      await this.transporter.sendMail({
+      await transport.sendMail({
         from,
         to: user.email,
         subject,

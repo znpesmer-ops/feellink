@@ -98,8 +98,11 @@ const api = axios.create({
   maxBodyLength: 100 * 1024 * 1024, // 100MB
 })
 
-// Add token to requests
+// Add token to requests + client-side'da her istekte güncel base URL kullan (SSR'da yanlış baseURL olmasın)
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  if (typeof window !== 'undefined') {
+    config.baseURL = getBaseURL()
+  }
   const state = useAuthStore.getState()
   if (state.accessToken) {
     config.headers.Authorization = `Bearer ${state.accessToken}`
