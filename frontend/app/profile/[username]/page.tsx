@@ -11,8 +11,8 @@ import { CreatePostModal } from '@/components/create-post-modal'
 import { PostModal } from '@/components/post-modal'
 import UserArticles from '@/components/user-articles'
 import DraftArticles from '@/components/draft-articles'
-import { Plus, Grid, FileText, Calendar, Image as ImageIcon, Heart, MessageCircle, MoreVertical, Trash2, Clock } from 'lucide-react'
-import { FiGrid, FiFileText, FiMessageCircle, FiImage, FiCalendar, FiClock, FiBookmark, FiBarChart2 } from 'react-icons/fi'
+import { Plus, Grid, FileText, Calendar, Image as ImageIcon, Heart, MessageCircle, MoreVertical, Trash2, Clock, BarChart3 } from 'lucide-react'
+import { FiGrid, FiFileText, FiMessageCircle, FiImage, FiCalendar, FiClock, FiBookmark } from 'react-icons/fi'
 import { initPostsSocket, initCommentsSocket } from '@/lib/socket'
 import UserBadge from '@/components/UserBadge'
 import { UserBadges } from '@/components/profile/UserBadges'
@@ -436,41 +436,48 @@ function ProfileContent() {
       })()
     : false
   
-  // Analiz sekmesi: açık profil => herkes, gizli profil => sadece kendisi
-  const canViewAnalysis = Boolean(profile && (profile.isOwnProfile || !profile.isPrivate))
+  const isOwnProfile = Boolean(profile?.isOwnProfile)
 
-  // Tab yapısı - Tüm sekmeler (herkes için görünür, plan kontrolü kaldırıldı)
-  const allTabs = [
-    { key: 'posts', label: 'Gönderiler', icon: FiGrid },
-    { key: 'artworks', label: 'Eserler', icon: FiImage },
-    { key: 'articles', label: 'Yazılar', icon: FiFileText },
-    { key: 'comments', label: 'Yorumlar', icon: FiMessageCircle },
-    { key: 'events', label: 'Etkinlikler', icon: FiCalendar },
-    // 🔖 Kaydedilenler - SADECE kendi profilinde
-    ...(profile?.isOwnProfile ? [{ key: 'saved', label: 'Kaydedilenler', icon: FiBookmark }] : []),
-    // 📊 Analiz - açık profil herkes, gizli sadece sahip
-    ...(canViewAnalysis ? [{ key: 'analysis', label: 'Analiz', icon: FiBarChart2 }] : []),
-  ]
-  
-  // Plan kontrolü kaldırıldı - artık tüm sekmeler herkes için görünür
-  const tabs = allTabs
+  // Tek config: saved ve analytics sadece kendi profilde görünür
+  const profileTabs = [
+    { key: 'posts', label: 'Gönderiler', icon: FiGrid, visible: true },
+    { key: 'artworks', label: 'Eserler', icon: FiImage, visible: true },
+    { key: 'articles', label: 'Yazılar', icon: FiFileText, visible: true },
+    { key: 'comments', label: 'Yorumlar', icon: FiMessageCircle, visible: true },
+    { key: 'events', label: 'Etkinlikler', icon: FiCalendar, visible: true },
+    { key: 'saved', label: 'Kaydedilenler', icon: FiBookmark, visible: isOwnProfile },
+    { key: 'analysis', label: 'Analiz', icon: BarChart3, visible: isOwnProfile },
+  ].filter((tab) => tab.visible)
+
+  const tabs = profileTabs
+
+  // Geçersiz activeTab ise posts'a düş (örn. başkasının profiline geçince saved/analysis kalkar)
+  useEffect(() => {
+    if (!profile) return
+    const allowedKeys = [
+      'posts',
+      'artworks',
+      'articles',
+      'comments',
+      'events',
+      ...(isOwnProfile ? ['saved', 'analysis'] : []),
+    ]
+    if (!allowedKeys.includes(activeTab)) {
+      setActiveTab('posts')
+    }
+  }, [profile?.id, isOwnProfile, activeTab])
   
   // Debug: Tab'ların oluşturulmasını kontrol et (development'ta)
   useEffect(() => {
     if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && profile) {
       console.log('🔍 Profile Tab Debug:', {
         hasProfile: !!profile,
+        isOwnProfile,
         profileRole: profile?.role,
-        profileRoles: profile?.roles,
-        profilePlan: profile?.plan,
-        isProArtist,
-        allTabsCount: allTabs.length,
-        filteredTabsCount: tabs.length,
         tabKeys: tabs.map(t => t.key),
-        tabs: tabs.map(t => ({ key: t.key, label: t.label, requiresPro: (t as any).requiresPro || false }))
       })
     }
-  }, [profile, isProArtist])
+  }, [profile, isOwnProfile])
 
   // Get user posts - with fallback endpoint support
   const { data: userPostsData, isLoading: isLoadingPosts, error: postsError } = useQuery({
@@ -1101,8 +1108,8 @@ function ProfileContent() {
         {/* Öne Çıkan Temalar - Tüm kullanıcılarda görünür */}
         <ArtistHighlights username={username} userId={profile?.id} isOwnProfile={profile.isOwnProfile} />
 
-        {/* Sekme Butonları - Instagram Tarzı İkonlu Sekmeler - Rol bazlı görünürlük */}
-        <div className="flex justify-center gap-10 mb-6 border-b border-gray-200 dark:border-gray-700 pb-3 relative">
+        {/* Sekme Butonları - Tek config'den; flex+gap (sabit grid yok); saved/analytics sadece kendi profilde */}
+        <div className="flex items-center justify-center gap-6 md:gap-10 overflow-x-auto pb-3 mb-6 border-b border-gray-200 dark:border-gray-700 relative">
           {tabs.map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.key
@@ -1250,9 +1257,9 @@ function ProfileContent() {
           <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-100 dark:border-gray-900 shadow-sm transition-colors">
             <DraftArticles authorId={profile.id} />
           </div>
-        ) : activeTab === 'saved' && profile.isOwnProfile ? (
+        ) : activeTab === 'saved' && isOwnProfile ? (
           <SavedPostsGrid />
-        ) : activeTab === 'analysis' && canViewAnalysis ? (
+        ) : activeTab === 'analysis' && isOwnProfile ? (
           <ProfileAnalysisPanel username={username} />
         ) : !profile.canViewPosts && profile.isPrivate && !profile.isOwnProfile ? (
           <div className="text-center py-12 border border-gray-100 dark:border-gray-900 rounded-2xl bg-white dark:bg-gray-950 transition-colors shadow-sm">
