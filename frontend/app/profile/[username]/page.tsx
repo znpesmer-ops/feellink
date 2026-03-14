@@ -11,7 +11,7 @@ import { CreatePostModal } from '@/components/create-post-modal'
 import { PostModal } from '@/components/post-modal'
 import UserArticles from '@/components/user-articles'
 import DraftArticles from '@/components/draft-articles'
-import { Plus, Grid, FileText, Calendar, Image as ImageIcon, Heart, MessageCircle, MoreVertical, Trash2, Clock, BarChart3 } from 'lucide-react'
+import { Plus, Grid, FileText, Calendar, Image as ImageIcon, Heart, MessageCircle, MoreVertical, Trash2, Clock, BarChart3, Lock } from 'lucide-react'
 import { FiGrid, FiFileText, FiMessageCircle, FiImage, FiCalendar, FiClock, FiBookmark } from 'react-icons/fi'
 import { initPostsSocket, initCommentsSocket } from '@/lib/socket'
 import UserBadge from '@/components/UserBadge'
@@ -437,8 +437,12 @@ function ProfileContent() {
     : false
   
   const isOwnProfile = Boolean(profile?.isOwnProfile)
+  const canViewAnalytics =
+    isOwnProfile ||
+    !profile?.isPrivate ||
+    Boolean(profile?.isFollowing)
 
-  // Tek config: saved ve analytics sadece kendi profilde görünür
+  // Tab config: saved sadece kendi profilde; analiz herkeste görünür (içerik erişimi ayrı)
   const profileTabs = [
     { key: 'posts', label: 'Gönderiler', icon: FiGrid, visible: true },
     { key: 'artworks', label: 'Eserler', icon: FiImage, visible: true },
@@ -446,12 +450,12 @@ function ProfileContent() {
     { key: 'comments', label: 'Yorumlar', icon: FiMessageCircle, visible: true },
     { key: 'events', label: 'Etkinlikler', icon: FiCalendar, visible: true },
     { key: 'saved', label: 'Kaydedilenler', icon: FiBookmark, visible: isOwnProfile },
-    { key: 'analysis', label: 'Analiz', icon: BarChart3, visible: isOwnProfile },
+    { key: 'analysis', label: 'Analiz', icon: BarChart3, visible: true },
   ].filter((tab) => tab.visible)
 
   const tabs = profileTabs
 
-  // Geçersiz activeTab ise posts'a düş (örn. başkasının profiline geçince saved/analysis kalkar)
+  // Geçersiz activeTab ise posts'a düş (saved sadece kendi profilde; analysis herkeste)
   useEffect(() => {
     if (!profile) return
     const allowedKeys = [
@@ -460,7 +464,8 @@ function ProfileContent() {
       'articles',
       'comments',
       'events',
-      ...(isOwnProfile ? ['saved', 'analysis'] : []),
+      'analysis',
+      ...(isOwnProfile ? ['saved'] : []),
     ]
     if (!allowedKeys.includes(activeTab)) {
       setActiveTab('posts')
@@ -1259,8 +1264,22 @@ function ProfileContent() {
           </div>
         ) : activeTab === 'saved' && isOwnProfile ? (
           <SavedPostsGrid />
-        ) : activeTab === 'analysis' && isOwnProfile ? (
-          <ProfileAnalysisPanel username={username} />
+        ) : activeTab === 'analysis' ? (
+          canViewAnalytics ? (
+            <ProfileAnalysisPanel username={username} />
+          ) : (
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-8 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/60">
+                <Lock size={22} className="text-gray-400 dark:text-gray-500" />
+              </div>
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                Analiz içeriği gizli
+              </h3>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                Bu hesabın analiz bölümü yalnızca profil sahibi ve takipçileri tarafından görüntülenebilir.
+              </p>
+            </div>
+          )
         ) : !profile.canViewPosts && profile.isPrivate && !profile.isOwnProfile ? (
           <div className="text-center py-12 border border-gray-100 dark:border-gray-900 rounded-2xl bg-white dark:bg-gray-950 transition-colors shadow-sm">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">

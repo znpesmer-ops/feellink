@@ -1958,10 +1958,21 @@ export class UsersService {
       throw new NotFoundException('Kullanıcı bulunamadı');
     }
 
-    if (user.isPrivate && currentUserId !== user.id) {
-      throw new ForbiddenException(
-        'Bu profil gizli; analiz yalnızca profil sahibi tarafından görüntülenebilir.',
-      );
+    const isOwnProfile = currentUserId === user.id;
+    if (user.isPrivate && !isOwnProfile) {
+      const acceptedFollow = await this.prisma.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: currentUserId,
+            followingId: user.id,
+          },
+        },
+      });
+      if (!acceptedFollow) {
+        throw new ForbiddenException(
+          'Bu hesabın analiz bilgileri yalnızca takipçilerine açıktır.',
+        );
+      }
     }
 
     const posts = await this.prisma.post.findMany({
