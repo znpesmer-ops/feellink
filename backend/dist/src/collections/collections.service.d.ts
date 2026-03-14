@@ -11,17 +11,17 @@ export declare class CollectionsService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
+        description: string;
         coverImage: string;
         ownerId: string;
         isPublic: boolean;
     }[]>;
     getAllCollections(): Promise<({
         owner: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
         };
@@ -29,8 +29,8 @@ export declare class CollectionsService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
+        description: string;
         coverImage: string;
         ownerId: string;
         isPublic: boolean;
@@ -43,8 +43,8 @@ export declare class CollectionsService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
+        description: string;
         coverImage: string;
         ownerId: string;
         isPublic: boolean;
@@ -57,8 +57,8 @@ export declare class CollectionsService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
+        description: string;
         coverImage: string;
         ownerId: string;
         isPublic: boolean;

@@ -100,9 +100,10 @@ let CollectionsService = class CollectionsService {
         if (collection.ownerId !== userId) {
             throw new common_1.ForbiddenException('You do not have permission to delete this collection');
         }
-        await this.prisma.collection.delete({
-            where: { id },
-        });
+        await this.prisma.$transaction([
+            this.prisma.collectionItem.deleteMany({ where: { collectionId: id } }),
+            this.prisma.collection.delete({ where: { id } }),
+        ]);
         return { success: true };
     }
     async getCollectionById(id) {

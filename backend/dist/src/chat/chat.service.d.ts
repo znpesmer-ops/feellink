@@ -1,9 +1,11 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { ChatGateway } from './chat.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 export declare class ChatService {
     private prisma;
     private chatGateway;
-    constructor(prisma: PrismaService, chatGateway: ChatGateway);
+    private notificationsService;
+    constructor(prisma: PrismaService, chatGateway: ChatGateway, notificationsService: NotificationsService);
     getConversations(userId: string): Promise<{
         participants: {
             user: {
@@ -24,8 +26,8 @@ export declare class ChatService {
         unreadCount: number;
         messages: ({
             sender: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
         } & {
@@ -85,9 +87,9 @@ export declare class ChatService {
     getMessages(conversationId: string, userId: string, limit?: number, cursor?: string): Promise<{
         messages: ({
             sender: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
             };
         } & {
@@ -114,9 +116,9 @@ export declare class ChatService {
     }>;
     createMessage(userId: string, conversationId: string, content?: string, imageUrl?: string, fileUrl?: string, fileName?: string, fileType?: string): Promise<{
         sender: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {
@@ -141,9 +143,9 @@ export declare class ChatService {
     createConversation(userId: string, participantIds: string[], context?: 'DIRECT' | 'JOB_APPLICATION', jobId?: string, applicationId?: string): Promise<{
         participants: ({
             user: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
                 isOnline: boolean;
                 lastSeen: Date;
@@ -172,8 +174,8 @@ export declare class ChatService {
     }>;
     editMessage(messageId: string, userId: string, newContent: string): Promise<{
         sender: {
-            id: string;
             username: string;
+            id: string;
             avatar: string;
         };
         conversation: {
@@ -234,8 +236,8 @@ export declare class ChatService {
     getMessageRequests(userId: string): Promise<({
         messages: ({
             sender: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
         } & {
@@ -259,9 +261,9 @@ export declare class ChatService {
         })[];
         participants: ({
             user: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
                 isOnline: boolean;
                 lastSeen: Date;

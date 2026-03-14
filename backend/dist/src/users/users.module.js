@@ -10,6 +10,7 @@ exports.UsersModule = void 0;
 const common_1 = require("@nestjs/common");
 const users_controller_1 = require("./users.controller");
 const users_service_1 = require("./users.service");
+const users_scheduler_1 = require("./users.scheduler");
 const prisma_module_1 = require("../prisma/prisma.module");
 const notifications_module_1 = require("../notifications/notifications.module");
 let UsersModule = class UsersModule {
@@ -22,7 +23,7 @@ exports.UsersModule = UsersModule = __decorate([
             (0, common_1.forwardRef)(() => notifications_module_1.NotificationsModule),
         ],
         controllers: [users_controller_1.UsersController],
-        providers: [users_service_1.UsersService],
+        providers: [users_service_1.UsersService, users_scheduler_1.UsersScheduler],
         exports: [users_service_1.UsersService],
     })
 ], UsersModule);

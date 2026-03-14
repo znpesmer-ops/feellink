@@ -31,9 +31,9 @@ export declare class FollowService {
     }>;
     getFollowRequests(userId: string): Promise<({
         requester: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -44,16 +44,16 @@ export declare class FollowService {
         requestedId: string;
     })[]>;
     getFollowers(userId: string, currentUserId?: string): Promise<{
-        id: string;
         username: string;
         fullName: string;
+        id: string;
         avatar: string;
         isVerified: boolean;
     }[]>;
     getFollowing(userId: string, currentUserId?: string): Promise<{
-        id: string;
         username: string;
         fullName: string;
+        id: string;
         avatar: string;
         isVerified: boolean;
     }[]>;

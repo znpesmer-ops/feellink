@@ -6,6 +6,8 @@ export declare class MailService {
     private isProductionMailMode;
     private ensureTransporter;
     sendPasswordResetMail(to: string, resetUrl: string): Promise<any>;
+    sendSignupOtpMail(to: string, code: string): Promise<void>;
+    sendPasswordResetOtpMail(to: string, code: string): Promise<void>;
     sendWelcomeEmail(user: {
         email: string;
         fullName?: string | null;

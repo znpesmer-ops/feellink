@@ -102,13 +102,20 @@ export default function RegisterPage() {
       console.log('Endpoint:', endpoint)
       
       const response = await api.post(endpoint, payload)
+      const resData = response.data
+
+      if (resData.needsEmailVerification && resData.email) {
+        router.push(`/verify-email?email=${encodeURIComponent(resData.email)}`)
+        return
+      }
+
       const {
         user: registeredUser,
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
         capabilities: caps,
         sidebar,
-      } = response.data
+      } = resData
       setAuth(registeredUser, newAccessToken, newRefreshToken, caps ?? null, sidebar ?? null)
 
       if (!caps || !caps.roles || caps.roles.length === 0) {

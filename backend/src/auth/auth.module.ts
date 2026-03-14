@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { OtpService } from './otp.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AccountStatusGuard } from './guards/account-status.guard';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -34,7 +35,7 @@ import { MailModule } from '../mail/mail.module';
     SearchModule,
     MailModule,
   ],
-  providers: [AuthService, JwtStrategy, AccountStatusGuard],
+  providers: [AuthService, OtpService, JwtStrategy, AccountStatusGuard],
   controllers: [AuthController],
   exports: [AuthService, AccountStatusGuard],
 })

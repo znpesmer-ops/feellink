@@ -10,11 +10,11 @@ export declare class HighlightsController {
             post: {
                 id: string;
                 title: string;
-                media: {
-                    type: string;
-                    url: string;
-                }[];
                 caption: string;
+                media: {
+                    url: string;
+                    type: string;
+                }[];
             };
         } & {
             id: string;
@@ -25,8 +25,8 @@ export declare class HighlightsController {
         coverPost: {
             id: string;
             media: {
-                type: string;
                 url: string;
+                type: string;
             }[];
         };
     } & {
@@ -42,11 +42,11 @@ export declare class HighlightsController {
             post: {
                 id: string;
                 title: string;
-                media: {
-                    type: string;
-                    url: string;
-                }[];
                 caption: string;
+                media: {
+                    url: string;
+                    type: string;
+                }[];
             };
         } & {
             id: string;
@@ -57,8 +57,8 @@ export declare class HighlightsController {
         coverPost: {
             id: string;
             media: {
-                type: string;
                 url: string;
+                type: string;
             }[];
         };
     } & {
@@ -82,8 +82,8 @@ export declare class HighlightsController {
         coverPost: {
             id: string;
             media: {
-                type: string;
                 url: string;
+                type: string;
             }[];
         };
     } & {

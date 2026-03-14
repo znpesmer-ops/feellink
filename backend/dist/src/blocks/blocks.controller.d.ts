@@ -22,9 +22,9 @@ export declare class BlocksController {
     }>;
     getBlockedUsers(user: any): Promise<({
         blocked: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {

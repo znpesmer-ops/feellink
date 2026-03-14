@@ -27,6 +27,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const publicRoutes = [
     '/login',
     '/register',
+    '/verify-email',
     '/forgot-password',
     '/reset-password',
     '/onboarding',

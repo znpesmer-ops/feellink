@@ -10,18 +10,18 @@ export declare class NotificationsProcessor extends WorkerHost {
     constructor(notificationsService: NotificationsService, notificationsGateway: NotificationsGateway, prisma: PrismaService);
     process(job: Job<any>): Promise<{
         fromUser: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
     } & {
-        message: string;
         id: string;
         createdAt: Date;
         userId: string;
         type: string;
+        message: string;
         fromUserId: string;
         postId: string;
         articleId: string;

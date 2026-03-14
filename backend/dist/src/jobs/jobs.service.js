@@ -490,6 +490,19 @@ let JobsService = JobsService_1 = class JobsService {
         if (jobListing.createdById !== userId && !isAdminUser) {
             throw new common_1.ForbiddenException('Bu ilanı silme yetkiniz yok');
         }
+        const applications = await this.prisma.jobApplication.findMany({
+            where: { jobListingId: jobId },
+            select: { id: true },
+        });
+        const applicationIds = applications.map((a) => a.id);
+        if (applicationIds.length > 0) {
+            await this.prisma.applicationActivity.deleteMany({
+                where: { applicationId: { in: applicationIds } },
+            });
+            await this.prisma.jobApplication.deleteMany({
+                where: { jobListingId: jobId },
+            });
+        }
         await this.prisma.jobListing.delete({
             where: { id: jobId },
         });

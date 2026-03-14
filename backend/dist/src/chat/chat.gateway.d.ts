@@ -4,15 +4,17 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlocksService } from '../blocks/blocks.service';
 import { FollowService } from '../follow/follow.service';
+import { NotificationsService } from '../notifications/notifications.service';
 export declare class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
     private jwtService;
     private prisma;
     private blocksService;
     private followService;
+    private notificationsService;
     server: Server;
     private userSockets;
     private socketToUser;
-    constructor(jwtService: JwtService, prisma: PrismaService, blocksService: BlocksService, followService: FollowService);
+    constructor(jwtService: JwtService, prisma: PrismaService, blocksService: BlocksService, followService: FollowService, notificationsService: NotificationsService);
     afterInit(server: Server): void;
     handleConnection(client: Socket): Promise<void>;
     handleDisconnect(client: Socket): Promise<void>;
@@ -44,8 +46,8 @@ export declare class ChatGateway implements OnGatewayInit, OnGatewayConnection, 
         success: boolean;
         message: {
             sender: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
         } & {
@@ -104,8 +106,8 @@ export declare class ChatGateway implements OnGatewayInit, OnGatewayConnection, 
         success: boolean;
         message: {
             sender: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
         } & {

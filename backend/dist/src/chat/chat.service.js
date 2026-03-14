@@ -16,10 +16,12 @@ exports.ChatService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const chat_gateway_1 = require("./chat.gateway");
+const notifications_service_1 = require("../notifications/notifications.service");
 let ChatService = class ChatService {
-    constructor(prisma, chatGateway) {
+    constructor(prisma, chatGateway, notificationsService) {
         this.prisma = prisma;
         this.chatGateway = chatGateway;
+        this.notificationsService = notificationsService;
     }
     async getConversations(userId) {
         console.log(`📋 [ChatService] getConversations called for user: ${userId}`);
@@ -339,6 +341,18 @@ let ChatService = class ChatService {
             catch (error) {
                 console.warn('[ChatService] Failed to broadcast message via socket:', error);
             }
+        }
+        const recipient = conversation.participants.find((p) => p.userId !== userId);
+        if (recipient) {
+            this.notificationsService.createNotificationSync({
+                userId: recipient.userId,
+                type: 'message',
+                fromUserId: userId,
+                targetPath: '/messages',
+                targetUrl: '/messages',
+            }).catch((err) => {
+                console.warn('[ChatService] Message notification failed:', err?.message || err);
+            });
         }
         return message;
     }
@@ -855,6 +869,7 @@ exports.ChatService = ChatService = __decorate([
     (0, common_1.Injectable)(),
     __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => chat_gateway_1.ChatGateway))),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        chat_gateway_1.ChatGateway])
+        chat_gateway_1.ChatGateway,
+        notifications_service_1.NotificationsService])
 ], ChatService);
 //# sourceMappingURL=chat.service.js.map

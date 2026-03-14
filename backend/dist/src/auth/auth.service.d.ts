@@ -9,17 +9,26 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SubscriptionPlanCode, UserRoleCode } from '../roles/roles.types';
 import { MailService } from '../mail/mail.service';
+import { OtpService } from './otp.service';
 export declare class AuthService {
     private prisma;
     private jwtService;
     private configService;
     private searchService;
     private mailService;
-    constructor(prisma: PrismaService, jwtService: JwtService, configService: ConfigService, searchService: SearchService, mailService: MailService);
+    private otpService;
+    constructor(prisma: PrismaService, jwtService: JwtService, configService: ConfigService, searchService: SearchService, mailService: MailService, otpService: OtpService);
     private readonly logger;
     private readonly authSelect;
     private hydrateAuthUser;
     register(registerDto: RegisterDto): Promise<{
+        needsEmailVerification: boolean;
+        email: string;
+    }>;
+    sendSignupOtp(email: string): Promise<{
+        message: string;
+    }>;
+    verifySignupOtp(email: string, code: string): Promise<{
         needsRoleSelection: boolean;
         accessToken: string;
         refreshToken: string;
@@ -40,6 +49,11 @@ export declare class AuthService {
             superAdmin: any;
             createdAt: any;
             activeRole: string;
+            profileCompleted: any;
+            dateOfBirth: any;
+            country: any;
+            city: any;
+            gender: any;
         };
         capabilities: import("../roles/roles.types").CapabilitySummary;
         dashboard: {
@@ -72,6 +86,11 @@ export declare class AuthService {
             superAdmin: any;
             createdAt: any;
             activeRole: string;
+            profileCompleted: any;
+            dateOfBirth: any;
+            country: any;
+            city: any;
+            gender: any;
         };
         capabilities: import("../roles/roles.types").CapabilitySummary;
         dashboard: {
@@ -104,6 +123,11 @@ export declare class AuthService {
             superAdmin: any;
             createdAt: any;
             activeRole: string;
+            profileCompleted: any;
+            dateOfBirth: any;
+            country: any;
+            city: any;
+            gender: any;
         };
         capabilities: import("../roles/roles.types").CapabilitySummary;
         dashboard: {
@@ -121,6 +145,7 @@ export declare class AuthService {
         message: string;
     }>;
     loginUnified(loginDto: LoginDto): Promise<{
+        reactivated: boolean;
         needsRoleSelection: boolean;
         accessToken: string;
         refreshToken: string;
@@ -141,6 +166,11 @@ export declare class AuthService {
             superAdmin: any;
             createdAt: any;
             activeRole: string;
+            profileCompleted: any;
+            dateOfBirth: any;
+            country: any;
+            city: any;
+            gender: any;
         };
         capabilities: import("../roles/roles.types").CapabilitySummary;
         dashboard: {
@@ -172,6 +202,11 @@ export declare class AuthService {
             superAdmin: any;
             createdAt: any;
             activeRole: string;
+            profileCompleted: any;
+            dateOfBirth: any;
+            country: any;
+            city: any;
+            gender: any;
         };
         capabilities: import("../roles/roles.types").CapabilitySummary;
         dashboard: {
@@ -202,6 +237,11 @@ export declare class AuthService {
             superAdmin: any;
             createdAt: any;
             activeRole: string;
+            profileCompleted: any;
+            dateOfBirth: any;
+            country: any;
+            city: any;
+            gender: any;
         };
         capabilities: import("../roles/roles.types").CapabilitySummary;
         dashboard: {
@@ -214,6 +254,12 @@ export declare class AuthService {
     }>;
     private createPasswordResetToken;
     forgotPassword(dto: ForgotPasswordDto): Promise<{
+        message: string;
+    }>;
+    verifyResetOtp(email: string, code: string): Promise<{
+        resetToken: string;
+    }>;
+    resetPasswordWithOtp(resetToken: string, newPassword: string): Promise<{
         message: string;
     }>;
     resetPassword(dto: ResetPasswordDto): Promise<{

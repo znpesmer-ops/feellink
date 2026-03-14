@@ -13,6 +13,7 @@ const passport_1 = require("@nestjs/passport");
 const config_1 = require("@nestjs/config");
 const auth_service_1 = require("./auth.service");
 const auth_controller_1 = require("./auth.controller");
+const otp_service_1 = require("./otp.service");
 const jwt_strategy_1 = require("./strategies/jwt.strategy");
 const account_status_guard_1 = require("./guards/account-status.guard");
 const prisma_module_1 = require("../prisma/prisma.module");
@@ -46,7 +47,7 @@ exports.AuthModule = AuthModule = __decorate([
             search_module_1.SearchModule,
             mail_module_1.MailModule,
         ],
-        providers: [auth_service_1.AuthService, jwt_strategy_1.JwtStrategy, account_status_guard_1.AccountStatusGuard],
+        providers: [auth_service_1.AuthService, otp_service_1.OtpService, jwt_strategy_1.JwtStrategy, account_status_guard_1.AccountStatusGuard],
         controllers: [auth_controller_1.AuthController],
         exports: [auth_service_1.AuthService, account_status_guard_1.AccountStatusGuard],
     })

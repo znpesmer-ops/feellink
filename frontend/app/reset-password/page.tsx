@@ -2,35 +2,61 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import api from '@/lib/api';
+import Link from 'next/link';
+import api, { getErrorMessage } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-
 import { Suspense } from 'react';
+
+const RESET_TOKEN_KEY = 'feellink_reset_token';
 
 function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get('token') || '';
+  const urlToken = searchParams.get('token') || '';
   const clearAuth = useAuthStore((state: any) => state.clearAuth);
 
+  const [resetToken, setResetToken] = useState<string | null>(null);
+  const [tokenSource, setTokenSource] = useState<'none' | 'session' | 'url'>('none');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
-  // 🔒 Güvenlik: Reset sayfası yüklendiğinde mevcut auth state'i temizle
-  // Bu sayede reset linkiyle gelen biri asla logged-in state'e düşmez
   useEffect(() => {
     clearAuth();
   }, [clearAuth]);
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(RESET_TOKEN_KEY);
+      if (stored) {
+        setResetToken(stored);
+        setTokenSource('session');
+      } else if (urlToken) {
+        setResetToken(urlToken);
+        setTokenSource('url');
+      } else {
+        setResetToken('');
+        setTokenSource('none');
+      }
+    } catch (_) {
+      if (urlToken) {
+        setResetToken(urlToken);
+        setTokenSource('url');
+      } else {
+        setResetToken('');
+        setTokenSource('none');
+      }
+    }
+  }, [urlToken]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!token) {
-      setError('Geçersiz veya eksik bağlantı. Lütfen e-postanızdaki linki kullanın.');
+    if (!resetToken) {
+      setError('Şifre sıfırlama oturumu bulunamadı. Lütfen şifremi unuttum adımından tekrar doğrulama kodu alın.');
       return;
     }
 
@@ -47,24 +73,57 @@ function ResetPasswordContent() {
     setIsLoading(true);
 
     try {
-      const res = await api.post('/auth/reset-password', { token, password });
-      setMessage(res.data?.message || 'Şifreniz başarıyla güncellendi.');
-
-      // ✅ Reset sonrası sadece login sayfasına yönlendir
-      // ❌ Auth state set etme, token oluşturma, session başlatma YAPILMAZ
-      setTimeout(() => {
-        router.replace('/login?reset=success');
-      }, 2000);
+      const isOtpFlow = tokenSource === 'session' || resetToken.includes('.'); // JWT from verify-reset-otp
+      if (isOtpFlow) {
+        const res = await api.post('/auth/reset-password-with-otp', {
+          resetToken,
+          newPassword: password,
+        });
+        setMessage(res.data?.message || 'Şifreniz başarıyla güncellendi.');
+        try {
+          sessionStorage.removeItem(RESET_TOKEN_KEY);
+        } catch (_) {}
+      } else {
+        const res = await api.post('/auth/reset-password', { token: resetToken, password });
+        setMessage(res.data?.message || 'Şifreniz başarıyla güncellendi.');
+      }
+      setTimeout(() => router.replace('/login?reset=success'), 2000);
     } catch (err: any) {
-      console.error(err);
-      setError(
-        err?.response?.data?.message ||
-        'Bağlantınız geçersiz veya süresi dolmuş olabilir. Lütfen yeniden şifre sıfırlama talebi oluşturun.'
-      );
+      setError(getErrorMessage(err) || 'Bağlantınız geçersiz veya süresi dolmuş olabilir. Lütfen şifremi unuttum adımlarını tekrarlayın.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (resetToken === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0d0d0d] text-white">
+        Yükleniyor...
+      </div>
+    );
+  }
+
+  if (resetToken === '') {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-[#0d0d0d] p-4 z-50">
+        <div className="w-full max-w-md rounded-2xl bg-[#111111] p-6 shadow-xl border border-white/5 text-center">
+          <h1 className="text-xl font-semibold text-white mb-2">Şifre sıfırlama</h1>
+          <p className="text-sm text-gray-400 mb-6">
+            Şifrenizi sıfırlamak için önce e-posta adresinize giden doğrulama kodunu kullanmanız gerekiyor.
+          </p>
+          <Link
+            href="/forgot-password"
+            className="inline-block rounded-xl bg-amber-500 hover:bg-amber-400 text-sm font-medium text-black py-2 px-6"
+          >
+            Şifremi unuttum
+          </Link>
+          <p className="mt-4 text-xs text-gray-500">
+            <Link href="/login" className="text-amber-400 hover:text-amber-300">Giriş sayfasına dön</Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-[#0d0d0d] p-4 z-50">
@@ -81,7 +140,7 @@ function ResetPasswordContent() {
               type="password"
               required
               value={password}
-              onChange={(e: any) => setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-xl bg-[#1a1a1a] border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-amber-400"
               placeholder="Yeni şifreniz"
             />
@@ -93,7 +152,7 @@ function ResetPasswordContent() {
               type="password"
               required
               value={passwordConfirm}
-              onChange={(e: any) => setPasswordConfirm(e.target.value)}
+              onChange={(e) => setPasswordConfirm(e.target.value)}
               className="w-full rounded-xl bg-[#1a1a1a] border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-amber-400"
               placeholder="Yeni şifrenizi tekrar girin"
             />
@@ -120,6 +179,5 @@ export default function ResetPasswordPage() {
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#0d0d0d] text-white">Yükleniyor...</div>}>
       <ResetPasswordContent />
     </Suspense>
-  )
+  );
 }
-

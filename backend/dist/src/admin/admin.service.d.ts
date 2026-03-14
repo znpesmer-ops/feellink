@@ -26,10 +26,10 @@ export declare class AdminService {
     }>;
     getUsers(page?: number, limit?: number, search?: string, role?: string, city?: string, gender?: string, ageMin?: number, ageMax?: number): Promise<{
         users: {
-            id: string;
-            username: string;
             email: string;
+            username: string;
             fullName: string;
+            id: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
             plan: import(".prisma/client").$Enums.SubscriptionPlan;
@@ -50,6 +50,8 @@ export declare class AdminService {
             suspendedAt: Date;
             suspendedUntil: Date;
             suspensionReason: string;
+            deletionRequestedAt: Date;
+            scheduledDeletionAt: Date;
             isDeleted: boolean;
             deletedAt: Date;
             createdAt: Date;
@@ -63,10 +65,10 @@ export declare class AdminService {
         isVerified?: boolean;
         isAdmin?: boolean;
     }, actorId: string): Promise<{
-        id: string;
-        username: string;
         email: string;
+        username: string;
         fullName: string;
+        id: string;
         roles: import(".prisma/client").$Enums.UserRole[];
     }>;
     getRoleHistory(userId: string): Promise<{
@@ -85,8 +87,8 @@ export declare class AdminService {
     getPosts(page?: number, limit?: number): Promise<{
         posts: ({
             user: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
             _count: {
@@ -122,9 +124,9 @@ export declare class AdminService {
     getArtworks(page?: number, limit?: number, search?: string, userId?: string): Promise<{
         artworks: ({
             user: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
             };
             _count: {
@@ -168,8 +170,8 @@ export declare class AdminService {
     getComments(page?: number, limit?: number): Promise<{
         comments: ({
             user: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
             post: {
@@ -196,8 +198,8 @@ export declare class AdminService {
     getArticles(page?: number, limit?: number): Promise<{
         articles: ({
             author: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
         } & {
@@ -227,8 +229,8 @@ export declare class AdminService {
                 tickets: number;
             };
             owner: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
         } & {
@@ -256,8 +258,8 @@ export declare class AdminService {
     getTickets(page?: number, limit?: number): Promise<{
         tickets: ({
             user: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
             ticket: {
@@ -307,15 +309,15 @@ export declare class AdminService {
     getAuditLogs(page?: number, limit?: number): Promise<{
         logs: ({
             actor: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
         } & {
             id: string;
             createdAt: Date;
-            action: string;
             target: string;
+            action: string;
             meta: Prisma.JsonValue;
             ip: string;
             userAgent: string;
@@ -335,8 +337,8 @@ export declare class AdminService {
     }): Promise<{
         id: string;
         createdAt: Date;
-        action: string;
         target: string;
+        action: string;
         meta: Prisma.JsonValue;
         ip: string;
         userAgent: string;
@@ -408,10 +410,10 @@ export declare class AdminService {
     getRoleChangeRequests(status?: string, page?: number, limit?: number): Promise<{
         requests: ({
             user: {
-                id: string;
-                username: string;
                 email: string;
+                username: string;
                 fullName: string;
+                id: string;
             };
         } & {
             id: string;

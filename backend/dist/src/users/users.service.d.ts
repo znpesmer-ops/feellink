@@ -45,10 +45,10 @@ export declare class UsersService {
         };
     }>;
     updateUsername(userId: string, newUsername: string): Promise<{
-        id: string;
-        username: string;
         email: string;
+        username: string;
         fullName: string;
+        id: string;
         bio: string;
         avatar: string;
         roles: import(".prisma/client").$Enums.UserRole[];
@@ -72,10 +72,10 @@ export declare class UsersService {
     completeOnboarding(userId: string, data: CompleteOnboardingDto): Promise<{
         success: boolean;
         user: {
-            id: string;
-            username: string;
             email: string;
+            username: string;
             fullName: string;
+            id: string;
             bio: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
@@ -102,9 +102,9 @@ export declare class UsersService {
         isVerified: boolean;
     }[]>;
     getHighlights(userId: string): Promise<{
-        id: string;
         username: string;
         fullName: string;
+        id: string;
         avatar: string;
         isVerified: boolean;
     }[]>;
@@ -116,10 +116,10 @@ export declare class UsersService {
         message: string;
         user: {
             activeRole: string;
-            id: string;
-            username: string;
             email: string;
+            username: string;
             fullName: string;
+            id: string;
             roles: import(".prisma/client").$Enums.UserRole[];
             extras: string[];
             plan: import(".prisma/client").$Enums.SubscriptionPlan;
@@ -133,8 +133,8 @@ export declare class UsersService {
     updatePlan(userId: string, plan: SubscriptionPlanCode): Promise<{
         message: string;
         user: {
-            id: string;
             username: string;
+            id: string;
             roles: import(".prisma/client").$Enums.UserRole[];
             extras: string[];
             plan: import(".prisma/client").$Enums.SubscriptionPlan;
@@ -161,13 +161,14 @@ export declare class UsersService {
     deleteAccount(userId: string): Promise<{
         message: string;
     }>;
+    purgeScheduledDeletions(): Promise<number>;
     getSavedArtworks(userId: string): Promise<{
         isLiked: boolean;
         savedAt: Date;
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -202,9 +203,9 @@ export declare class UsersService {
         isLiked: boolean;
         savedAt: Date;
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };

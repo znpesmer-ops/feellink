@@ -7,6 +7,10 @@ import { RefreshDto } from './dto/refresh.dto';
 import { SetRoleDto } from './dto/role.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { SendSignupOtpDto } from './dto/send-signup-otp.dto';
+import { VerifySignupOtpDto } from './dto/verify-signup-otp.dto';
+import { VerifyResetOtpDto } from './dto/verify-reset-otp.dto';
+import { ResetPasswordWithOtpDto } from './dto/reset-password-with-otp.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
@@ -23,36 +27,31 @@ export class AuthController {
     this.logger.log(`Register DTO (after validation): ${JSON.stringify(registerDto, null, 2)}`);
     
     const result = await this.authService.register(registerDto);
-    
-    // Set refreshToken as HTTP-only cookie if registration includes auto-login
-    if (result.refreshToken) {
+    // OTP akışında token dönülmez; cookie sadece verify-signup-otp sonrası set edilir
+    if ('refreshToken' in result && result.refreshToken) {
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
-        secure: false, // LOCAL DEVELOPMENT - set to true in production with HTTPS
-        sameSite: 'lax', // Works with mobile browsers
+        secure: false,
+        sameSite: 'lax',
         path: '/',
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        maxAge: 30 * 24 * 60 * 60 * 1000,
       });
     }
-    
     return result;
   }
 
   @Post('register-corporate')
   async registerCorporate(@Body() registerDto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.register({ ...registerDto, role: 'corporate' });
-    
-    // Set refreshToken as HTTP-only cookie if registration includes auto-login
-    if (result.refreshToken) {
+    if ('refreshToken' in result && result.refreshToken) {
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
-        secure: false, // LOCAL DEVELOPMENT - set to true in production with HTTPS
-        sameSite: 'lax', // Works with mobile browsers
+        secure: false,
+        sameSite: 'lax',
         path: '/',
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        maxAge: 30 * 24 * 60 * 60 * 1000,
       });
     }
-    
     return result;
   }
 
@@ -170,9 +169,39 @@ export class AuthController {
     return this.authService.getUserProfile(user.id);
   }
 
+  @Post('send-signup-otp')
+  async sendSignupOtp(@Body() dto: SendSignupOtpDto) {
+    return this.authService.sendSignupOtp(dto.email);
+  }
+
+  @Post('verify-signup-otp')
+  async verifySignupOtp(@Body() dto: VerifySignupOtpDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.verifySignupOtp(dto.email, dto.code);
+    if (result.refreshToken) {
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+    }
+    return result;
+  }
+
   @Post('forgot-password')
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
+  }
+
+  @Post('verify-reset-otp')
+  async verifyResetOtp(@Body() dto: VerifyResetOtpDto) {
+    return this.authService.verifyResetOtp(dto.email, dto.code);
+  }
+
+  @Post('reset-password-with-otp')
+  async resetPasswordWithOtp(@Body() dto: ResetPasswordWithOtpDto) {
+    return this.authService.resetPasswordWithOtp(dto.resetToken, dto.newPassword);
   }
 
   @Post('reset-password')

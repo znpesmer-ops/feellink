@@ -22,6 +22,10 @@ const refresh_dto_1 = require("./dto/refresh.dto");
 const role_dto_1 = require("./dto/role.dto");
 const forgot_password_dto_1 = require("./dto/forgot-password.dto");
 const reset_password_dto_1 = require("./dto/reset-password.dto");
+const send_signup_otp_dto_1 = require("./dto/send-signup-otp.dto");
+const verify_signup_otp_dto_1 = require("./dto/verify-signup-otp.dto");
+const verify_reset_otp_dto_1 = require("./dto/verify-reset-otp.dto");
+const reset_password_with_otp_dto_1 = require("./dto/reset-password-with-otp.dto");
 const jwt_auth_guard_1 = require("./guards/jwt-auth.guard");
 const current_user_decorator_1 = require("./decorators/current-user.decorator");
 let AuthController = AuthController_1 = class AuthController {
@@ -33,7 +37,7 @@ let AuthController = AuthController_1 = class AuthController {
         this.logger.log(`Register RAW request body: ${JSON.stringify(req.body, null, 2)}`);
         this.logger.log(`Register DTO (after validation): ${JSON.stringify(registerDto, null, 2)}`);
         const result = await this.authService.register(registerDto);
-        if (result.refreshToken) {
+        if ('refreshToken' in result && result.refreshToken) {
             res.cookie('refreshToken', result.refreshToken, {
                 httpOnly: true,
                 secure: false,
@@ -46,7 +50,7 @@ let AuthController = AuthController_1 = class AuthController {
     }
     async registerCorporate(registerDto, res) {
         const result = await this.authService.register({ ...registerDto, role: 'corporate' });
-        if (result.refreshToken) {
+        if ('refreshToken' in result && result.refreshToken) {
             res.cookie('refreshToken', result.refreshToken, {
                 httpOnly: true,
                 secure: false,
@@ -131,8 +135,30 @@ let AuthController = AuthController_1 = class AuthController {
     async getCurrentUser(user) {
         return this.authService.getUserProfile(user.id);
     }
+    async sendSignupOtp(dto) {
+        return this.authService.sendSignupOtp(dto.email);
+    }
+    async verifySignupOtp(dto, res) {
+        const result = await this.authService.verifySignupOtp(dto.email, dto.code);
+        if (result.refreshToken) {
+            res.cookie('refreshToken', result.refreshToken, {
+                httpOnly: true,
+                secure: false,
+                sameSite: 'lax',
+                path: '/',
+                maxAge: 30 * 24 * 60 * 60 * 1000,
+            });
+        }
+        return result;
+    }
     async forgotPassword(dto) {
         return this.authService.forgotPassword(dto);
+    }
+    async verifyResetOtp(dto) {
+        return this.authService.verifyResetOtp(dto.email, dto.code);
+    }
+    async resetPasswordWithOtp(dto) {
+        return this.authService.resetPasswordWithOtp(dto.resetToken, dto.newPassword);
     }
     async resetPassword(dto) {
         return this.authService.resetPassword(dto);
@@ -228,12 +254,41 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "getCurrentUser", null);
 __decorate([
+    (0, common_1.Post)('send-signup-otp'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [send_signup_otp_dto_1.SendSignupOtpDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "sendSignupOtp", null);
+__decorate([
+    (0, common_1.Post)('verify-signup-otp'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)({ passthrough: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [verify_signup_otp_dto_1.VerifySignupOtpDto, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "verifySignupOtp", null);
+__decorate([
     (0, common_1.Post)('forgot-password'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [forgot_password_dto_1.ForgotPasswordDto]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "forgotPassword", null);
+__decorate([
+    (0, common_1.Post)('verify-reset-otp'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [verify_reset_otp_dto_1.VerifyResetOtpDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "verifyResetOtp", null);
+__decorate([
+    (0, common_1.Post)('reset-password-with-otp'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [reset_password_with_otp_dto_1.ResetPasswordWithOtpDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "resetPasswordWithOtp", null);
 __decorate([
     (0, common_1.Post)('reset-password'),
     __param(0, (0, common_1.Body)()),

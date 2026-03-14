@@ -313,6 +313,110 @@ export class MailService {
     }
   }
 
+  /** E-posta doğrulama kodu (kayıt) – tek kullanımlık 6 haneli OTP */
+  async sendSignupOtpMail(to: string, code: string) {
+    const explicitlyDev = process.env.MAIL_MODE?.toLowerCase() === 'dev';
+    if (explicitlyDev) {
+      this.logger.log(`[DEV] Signup OTP mail atlandı (MAIL_MODE=dev). to=${to}, code=${code}`);
+      return;
+    }
+    const transport = this.transporter || this.ensureTransporter();
+    if (!transport) {
+      this.logger.warn('Mail transporter not configured. Skipping signup OTP email.');
+      return;
+    }
+    const mailFromName = process.env.MAIL_FROM_NAME || 'Feellink';
+    const mailFrom = process.env.MAIL_FROM || 'noreply@feellink.io';
+    const from = `"${mailFromName}" <${mailFrom}>`;
+    const subject = 'Feellink – E-posta doğrulama kodunuz';
+    const text =
+      `Doğrulama Kodunuz: ${code}\n\nBu kod 10 dakika boyunca geçerlidir.\nBu isteği siz yapmadıysanız bu e-postayı dikkate almayın.\n\n© Feellink`;
+    const html = `
+      <!DOCTYPE html>
+      <html lang="tr">
+      <body style="margin:0;padding:0;background:#0f0f0f;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0f0f0f;padding:40px 16px;">
+        <tr><td align="center">
+          <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="max-width:520px;background:#1a1a1a;border-radius:16px;overflow:hidden;border:1px solid #2a2a2a;">
+            <tr><td align="center" style="padding:32px 24px 24px;">
+              <img src="${this.logoUrl}" width="88" height="32" alt="Feellink" style="display:block;outline:none;border:0;" />
+            </td></tr>
+            <tr><td align="center" style="padding:0 32px 16px;">
+              <h1 style="margin:0;font-size:20px;font-weight:600;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Doğrulama Kodunuz</h1>
+            </td></tr>
+            <tr><td align="center" style="padding:8px 32px 24px;">
+              <p style="margin:0;font-size:32px;font-weight:700;letter-spacing:8px;color:#ff7b00;font-family:monospace;">${code}</p>
+            </td></tr>
+            <tr><td style="padding:0 32px 24px;">
+              <p style="margin:0;font-size:14px;line-height:1.5;color:#a0a0a0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Bu kod 10 dakika boyunca geçerlidir.</p>
+              <p style="margin:12px 0 0;font-size:13px;color:#666;">Bu isteği siz yapmadıysanız bu e-postayı dikkate almayın.</p>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+      </body>
+      </html>`;
+    try {
+      await transport.sendMail({ from, to, subject, text, html });
+      this.logger.log(`✅ Signup OTP email sent to ${to}`);
+    } catch (error: any) {
+      this.logger.error(`Failed to send signup OTP to ${to}:`, error?.message || error);
+      throw error;
+    }
+  }
+
+  /** Şifre sıfırlama doğrulama kodu – tek kullanımlık 6 haneli OTP */
+  async sendPasswordResetOtpMail(to: string, code: string) {
+    const explicitlyDev = process.env.MAIL_MODE?.toLowerCase() === 'dev';
+    if (explicitlyDev) {
+      this.logger.log(`[DEV] Password reset OTP mail atlandı (MAIL_MODE=dev). to=${to}, code=${code}`);
+      return;
+    }
+    const transport = this.transporter || this.ensureTransporter();
+    if (!transport) {
+      this.logger.warn('Mail transporter not configured. Skipping password reset OTP email.');
+      return;
+    }
+    const mailFromName = process.env.MAIL_FROM_NAME || 'Feellink';
+    const mailFrom = process.env.MAIL_FROM || 'noreply@feellink.io';
+    const from = `"${mailFromName}" <${mailFrom}>`;
+    const subject = 'Feellink – Şifre sıfırlama doğrulama kodunuz';
+    const text =
+      `Şifre sıfırlama doğrulama kodunuz: ${code}\n\nBu kod 10 dakika boyunca geçerlidir.\nBu isteği siz yapmadıysanız bu e-postayı dikkate almayın.\n\n© Feellink`;
+    const html = `
+      <!DOCTYPE html>
+      <html lang="tr">
+      <body style="margin:0;padding:0;background:#0f0f0f;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0f0f0f;padding:40px 16px;">
+        <tr><td align="center">
+          <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="max-width:520px;background:#1a1a1a;border-radius:16px;overflow:hidden;border:1px solid #2a2a2a;">
+            <tr><td align="center" style="padding:32px 24px 24px;">
+              <img src="${this.logoUrl}" width="88" height="32" alt="Feellink" style="display:block;outline:none;border:0;" />
+            </td></tr>
+            <tr><td align="center" style="padding:0 32px 16px;">
+              <h1 style="margin:0;font-size:20px;font-weight:600;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Şifre Sıfırlama Doğrulama Kodunuz</h1>
+            </td></tr>
+            <tr><td align="center" style="padding:8px 32px 24px;">
+              <p style="margin:0;font-size:32px;font-weight:700;letter-spacing:8px;color:#ff7b00;font-family:monospace;">${code}</p>
+            </td></tr>
+            <tr><td style="padding:0 32px 24px;">
+              <p style="margin:0;font-size:14px;line-height:1.5;color:#a0a0a0;">Bu kod 10 dakika boyunca geçerlidir.</p>
+              <p style="margin:12px 0 0;font-size:13px;color:#666;">Bu isteği siz yapmadıysanız bu e-postayı dikkate almayın.</p>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+      </body>
+      </html>`;
+    try {
+      await transport.sendMail({ from, to, subject, text, html });
+      this.logger.log(`✅ Password reset OTP email sent to ${to}`);
+    } catch (error: any) {
+      this.logger.error(`Failed to send password reset OTP to ${to}:`, error?.message || error);
+      throw error;
+    }
+  }
+
   /** Yeni kayıt olan kullanıcıya hoş geldin e-postası. Kayıt akışını bloklamaz. */
   async sendWelcomeEmail(user: { email: string; fullName?: string | null; username: string }) {
     const explicitlyDev = process.env.MAIL_MODE?.toLowerCase() === 'dev';

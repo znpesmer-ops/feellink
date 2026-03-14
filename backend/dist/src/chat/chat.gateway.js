@@ -19,13 +19,15 @@ const jwt_1 = require("@nestjs/jwt");
 const prisma_service_1 = require("../prisma/prisma.service");
 const blocks_service_1 = require("../blocks/blocks.service");
 const follow_service_1 = require("../follow/follow.service");
+const notifications_service_1 = require("../notifications/notifications.service");
 const websocket_cors_util_1 = require("../common/utils/websocket-cors.util");
 let ChatGateway = class ChatGateway {
-    constructor(jwtService, prisma, blocksService, followService) {
+    constructor(jwtService, prisma, blocksService, followService, notificationsService) {
         this.jwtService = jwtService;
         this.prisma = prisma;
         this.blocksService = blocksService;
         this.followService = followService;
+        this.notificationsService = notificationsService;
         this.userSockets = new Map();
         this.socketToUser = new Map();
     }
@@ -202,6 +204,18 @@ let ChatGateway = class ChatGateway {
             });
             console.log(`✅ [ChatGateway] Message created in DB: ${message.id}, conversation: ${data.conversationId}, sender: ${userId}`);
             this.broadcastMessageImmediately(message, conversation, userId, data.conversationId);
+            const receiverParticipant = conversation.participants.find((p) => p.userId !== userId);
+            if (receiverParticipant) {
+                this.notificationsService.createNotificationSync({
+                    userId: receiverParticipant.userId,
+                    type: 'message',
+                    fromUserId: userId,
+                    targetPath: '/messages',
+                    targetUrl: '/messages',
+                }).catch((err) => {
+                    console.warn('[ChatGateway] Message notification failed:', err?.message || err);
+                });
+            }
             const lastMessageText = message.content ?? (message.imageUrl ? '📷 Fotoğraf' : (message.fileUrl ? '📎 Dosya' : 'Yeni mesaj'));
             await this.prisma.conversation.update({
                 where: { id: data.conversationId },
@@ -211,7 +225,6 @@ let ChatGateway = class ChatGateway {
                 },
             });
             console.log(`✅ [ChatGateway] Conversation lastMessage updated: ${lastMessageText.substring(0, 50)}...`);
-            const receiverParticipant = conversation.participants.find((p) => p.userId !== userId);
             if (receiverParticipant) {
                 this.prisma.userConversation.upsert({
                     where: {
@@ -635,6 +648,7 @@ exports.ChatGateway = ChatGateway = __decorate([
     __metadata("design:paramtypes", [jwt_1.JwtService,
         prisma_service_1.PrismaService,
         blocks_service_1.BlocksService,
-        follow_service_1.FollowService])
+        follow_service_1.FollowService,
+        notifications_service_1.NotificationsService])
 ], ChatGateway);
 //# sourceMappingURL=chat.gateway.js.map

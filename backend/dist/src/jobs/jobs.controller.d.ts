@@ -26,9 +26,9 @@ export declare class JobsController {
     }>;
     getPublicListings(): Promise<({
         createdBy: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {
@@ -77,9 +77,9 @@ export declare class JobsController {
             salary: string;
             tags: string[];
             createdBy: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
             };
         };
@@ -94,9 +94,9 @@ export declare class JobsController {
             applications: number;
         };
         createdBy: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {
@@ -147,10 +147,10 @@ export declare class JobsController {
             };
         };
         applicant: {
-            id: string;
-            username: string;
             email: string;
+            username: string;
             fullName: string;
+            id: string;
         };
     } & {
         id: string;
@@ -171,9 +171,9 @@ export declare class JobsController {
     }>;
     getJob(jobId: string, user: CurrentUserPayload): Promise<{
         createdBy: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {
@@ -190,10 +190,10 @@ export declare class JobsController {
     }>;
     applyToJob(jobListingId: string, user: CurrentUserPayload, dto: CreateJobApplicationDto): Promise<{
         applicant: {
-            id: string;
-            username: string;
             email: string;
+            username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {
@@ -224,10 +224,10 @@ export declare class JobsController {
         cvUrl: string;
         status: import(".prisma/client").$Enums.ApplicationStatus;
         applicant: {
-            id: string;
-            username: string;
             email: string;
+            username: string;
             fullName: string;
+            id: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
         };

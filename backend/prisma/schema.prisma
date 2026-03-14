@@ -29,6 +29,11 @@ enum AccountStatus {
   PENDING_DELETION // Kullanıcı hesap silme talebi; 15 gün içinde girişle geri alınabilir
 }
 
+enum OtpPurpose {
+  signup_verification
+  password_reset
+}
+
 model User {
   id                        String           @id @default(auto()) @map("_id") @db.ObjectId
   username                  String           @unique
@@ -931,6 +936,24 @@ model PhoneVerification {
   @@index([code])
   @@index([expiresAt])
   @@map("phone_verifications")
+}
+
+// Tek kullanımlık e-posta doğrulama kodu (kayıt + şifre sıfırlama)
+model EmailOtp {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  email       String
+  purpose     OtpPurpose
+  codeHash    String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  attemptCount Int       @default(0)
+  createdAt   DateTime   @default(now())
+
+  @@index([email])
+  @@index([purpose])
+  @@index([email, purpose])
+  @@index([expiresAt])
+  @@map("email_otps")
 }
 
 model RoleChangeLog {

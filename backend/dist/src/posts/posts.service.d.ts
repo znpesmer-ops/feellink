@@ -30,9 +30,9 @@ export declare class PostsService {
     private transformAvatarUrl;
     createPost(userId: string, dto: CreatePostDto): Promise<{
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -76,9 +76,9 @@ export declare class PostsService {
         media: any[];
         user: {
             avatar: string;
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             isVerified: boolean;
         };
         comments: {
@@ -130,9 +130,9 @@ export declare class PostsService {
         title?: string;
     }): Promise<{
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
         _count: {
@@ -199,9 +199,9 @@ export declare class PostsService {
     }>;
     getUserComments(userId: string): Promise<({
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -229,9 +229,9 @@ export declare class PostsService {
     })[]>;
     getComments(postId: string, parentId?: string): Promise<({
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -281,9 +281,9 @@ export declare class PostsService {
         updatedAt: Date;
         createdAt: Date;
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -314,9 +314,9 @@ export declare class PostsService {
             comments: number;
         };
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -357,9 +357,9 @@ export declare class PostsService {
             comments: number;
         };
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -404,9 +404,9 @@ export declare class PostsService {
         isLiked: boolean;
         savedAt: Date;
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -445,9 +445,9 @@ export declare class PostsService {
             comments: number;
         };
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -484,9 +484,9 @@ export declare class PostsService {
         isPinned: boolean;
         createdAt: Date;
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
             plan: import(".prisma/client").$Enums.SubscriptionPlan;

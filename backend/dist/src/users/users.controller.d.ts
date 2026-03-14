@@ -70,10 +70,10 @@ export declare class UsersController {
     }>;
     getProfile(username: string, user: any): Promise<any>;
     updateUsername(user: any, data: UpdateUsernameDto): Promise<{
-        id: string;
-        username: string;
         email: string;
+        username: string;
         fullName: string;
+        id: string;
         bio: string;
         avatar: string;
         roles: import(".prisma/client").$Enums.UserRole[];
@@ -97,10 +97,10 @@ export declare class UsersController {
     completeOnboarding(user: any, data: CompleteOnboardingDto): Promise<{
         success: boolean;
         user: {
-            id: string;
-            username: string;
             email: string;
+            username: string;
             fullName: string;
+            id: string;
             bio: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
@@ -130,9 +130,9 @@ export declare class UsersController {
         message: string;
     }>;
     getHighlights(user: any): Promise<{
-        id: string;
         username: string;
         fullName: string;
+        id: string;
         avatar: string;
         isVerified: boolean;
     }[]>;
@@ -140,10 +140,10 @@ export declare class UsersController {
         message: string;
         user: {
             activeRole: string;
-            id: string;
-            username: string;
             email: string;
+            username: string;
             fullName: string;
+            id: string;
             roles: import(".prisma/client").$Enums.UserRole[];
             extras: string[];
             plan: import(".prisma/client").$Enums.SubscriptionPlan;
@@ -158,8 +158,8 @@ export declare class UsersController {
     }): Promise<{
         message: string;
         user: {
-            id: string;
             username: string;
+            id: string;
             roles: import(".prisma/client").$Enums.UserRole[];
             extras: string[];
             plan: import(".prisma/client").$Enums.SubscriptionPlan;
@@ -191,9 +191,9 @@ export declare class UsersController {
         isLiked: boolean;
         savedAt: Date;
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -228,9 +228,9 @@ export declare class UsersController {
         isLiked: boolean;
         savedAt: Date;
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };

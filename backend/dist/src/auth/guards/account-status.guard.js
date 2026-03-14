@@ -37,6 +37,12 @@ let AccountStatusGuard = class AccountStatusGuard {
                         suspensionReason: true,
                     },
                 });
+                if (dbUser?.accountStatus === 'PENDING_DELETION') {
+                    throw new common_1.ForbiddenException({
+                        code: 'ACCOUNT_PENDING_DELETION',
+                        message: 'Hesabınız silme sürecindedir. Yeniden aktifleştirmek için giriş yapın.',
+                    });
+                }
                 if (!dbUser) {
                     return true;
                 }

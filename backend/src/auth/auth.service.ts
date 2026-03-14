@@ -22,7 +22,8 @@ import { SubscriptionPlanCode, UserRoleCode } from '../roles/roles.types';
 import { getDashboardSnapshot } from '../dashboard/dashboard.features';
 import { getBadgesFromSelection } from '../users/users.service';
 import { MailService } from '../mail/mail.service';
-import { Inject, forwardRef } from '@nestjs/common';
+import { OtpService } from './otp.service';
+import { OtpPurpose } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -32,6 +33,7 @@ export class AuthService {
     private configService: ConfigService,
     private searchService: SearchService,
     private mailService: MailService,
+    private otpService: OtpService,
   ) {}
 
   private readonly logger = new Logger(AuthService.name);
@@ -232,10 +234,6 @@ export class AuthService {
 
       this.logger.log(`[REGISTER DEBUG] User created successfully: ${user.id}`);
 
-      // Generate tokens
-      const tokens = await this.generateTokens(user.id);
-      this.logger.log(`[REGISTER DEBUG] Tokens generated`);
-
       // Index user in Meilisearch for fast search
       try {
         await this.searchService.indexUser(user);
@@ -245,20 +243,19 @@ export class AuthService {
         // Continue even if indexing fails
       }
 
-      // Hoş geldin e-postası (fire-and-forget; kayıt akışını bloklamaz)
-      this.mailService
-        .sendWelcomeEmail({ email: user.email, fullName: user.fullName, username: user.username })
-        .catch((err) => this.logger.warn('Welcome email failed', err));
+      // E-posta doğrulama OTP gönder (kayıt sonrası hesap aktifleşene kadar token verilmez)
+      try {
+        const code = await this.otpService.createOtp(user.email, OtpPurpose.signup_verification);
+        await this.mailService.sendSignupOtpMail(user.email, code);
+      } catch (otpErr: any) {
+        this.logger.warn(`[REGISTER] Signup OTP send failed (non-blocking): ${otpErr?.message || otpErr}`);
+      }
 
-      const payload = this.hydrateAuthUser(user);
-      const needsRoleSelection = (user.roles?.length ?? 0) === 0;
-
-      this.logger.log(`[REGISTER DEBUG] Registration successful for: ${email}`);
+      this.logger.log(`[REGISTER DEBUG] Registration successful for: ${email}, needsEmailVerification`);
 
       return {
-        ...payload,
-        ...tokens,
-        needsRoleSelection,
+        needsEmailVerification: true,
+        email: user.email,
       };
     } catch (err: any) {
       // Prisma unique constraint (email/username zaten var)
@@ -300,6 +297,41 @@ export class AuthService {
     }
   }
 
+  async sendSignupOtp(email: string) {
+    const normalized = email.trim().toLowerCase();
+    const canResend = await this.otpService.canResend(normalized, OtpPurpose.signup_verification);
+    if (!canResend) {
+      throw new BadRequestException('Yeni kod için lütfen 1 dakika bekleyin.');
+    }
+    const code = await this.otpService.createOtp(normalized, OtpPurpose.signup_verification);
+    await this.mailService.sendSignupOtpMail(normalized, code);
+    return { message: 'Doğrulama kodu e-posta adresinize gönderildi.' };
+  }
+
+  async verifySignupOtp(email: string, code: string) {
+    const normalized = email.trim().toLowerCase();
+    await this.otpService.verifyOtp(normalized, OtpPurpose.signup_verification, code);
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalized },
+      select: { ...this.authSelect },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Kullanıcı bulunamadı.');
+    }
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { isVerified: true },
+    });
+    const updated = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { ...this.authSelect },
+    });
+    const tokens = await this.generateTokens(user.id);
+    const payload = this.hydrateAuthUser(updated!);
+    const needsRoleSelection = ((updated?.roles?.length) ?? 0) === 0;
+    return { ...payload, ...tokens, needsRoleSelection };
+  }
+
   async login(loginDto: LoginDto) {
     const loginIdentifier = loginDto.emailOrUsername || loginDto.email || loginDto.username;
     this.logger.log(`[LOGIN] Login attempt for: ${loginIdentifier}`);
@@ -339,6 +371,17 @@ export class AuthService {
       // Frontend'de bu mesaj "E-posta adresi veya şifre hatalı." olarak gösterilecek
       this.logger.warn(`[LOGIN] User not found or password invalid for: ${loginIdentifier}`);
       throw new UnauthorizedException('E-posta veya şifre hatalı');
+    }
+
+    // E-posta doğrulanmamışsa giriş engelle (yeni kayıtlar OTP ile doğrulanır).
+    // Mevcut kullanıcıları kilitlememek için: prisma.user.updateMany({ where: { isVerified: false }, data: { isVerified: true } }) bir kez çalıştırılabilir.
+    if (user.isVerified === false) {
+      this.logger.warn(`[LOGIN] Email not verified for: ${user.email || user.username}`);
+      throw new UnauthorizedException({
+        message: 'Lütfen e-posta adresinizi doğrulayın. Size gönderilen kodu kullanın veya yeniden kod gönderin.',
+        needsEmailVerification: true,
+        email: user.email,
+      });
     }
 
     this.logger.log(`[LOGIN] User found: ${user.email || user.username}, accountStatus: ${user.accountStatus || 'ACTIVE (default)'}`);
@@ -409,6 +452,14 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException('Kurumsal hesap bulunamadı veya yetkisiz.');
+    }
+
+    if (user.isVerified === false) {
+      throw new UnauthorizedException({
+        message: 'Lütfen e-posta adresinizi doğrulayın. Size gönderilen kodu kullanın veya yeniden kod gönderin.',
+        needsEmailVerification: true,
+        email: user.email,
+      });
     }
 
     // Generate tokens
@@ -546,6 +597,14 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (user.isVerified === false) {
+      throw new UnauthorizedException({
+        message: 'Lütfen e-posta adresinizi doğrulayın. Size gönderilen kodu kullanın veya yeniden kod gönderin.',
+        needsEmailVerification: true,
+        email: user.email,
+      });
+    }
+
     let reactivated = false;
 
     // 🔒 Hesap askıya alınmışsa giriş yapılamaz
@@ -659,6 +718,7 @@ export class AuthService {
           suspendedUntil: true,
           suspensionReason: true,
           scheduledDeletionAt: true,
+          isVerified: true,
         },
       });
       
@@ -680,6 +740,7 @@ export class AuthService {
             suspendedUntil: true,
             suspensionReason: true,
             scheduledDeletionAt: true,
+            isVerified: true,
           },
         });
       }
@@ -702,6 +763,7 @@ export class AuthService {
             suspendedUntil: true,
             suspensionReason: true,
             scheduledDeletionAt: true,
+            isVerified: true,
           },
         });
         
@@ -722,6 +784,7 @@ export class AuthService {
               suspendedUntil: true,
               suspensionReason: true,
               scheduledDeletionAt: true,
+              isVerified: true,
             },
           });
         }
@@ -991,86 +1054,57 @@ export class AuthService {
 
   async forgotPassword(dto: ForgotPasswordDto) {
     const { email } = dto;
-
+    const normalized = email.trim().toLowerCase();
     try {
       const user = await this.prisma.user.findUnique({
-        where: { email },
+        where: { email: normalized },
       });
-
-      // Kullanıcı yoksa bile "başarılı" dön -> güvenlik
-      // Development modunda kullanıcı yoksa bile reset URL'i döndür (test için)
-      const isDevelopment = process.env.NODE_ENV !== 'production';
       if (!user) {
-        if (isDevelopment) {
-      // Kullanıcı yoksa sadece success mesajı döndür (reset URL gösterilmez)
-      return {
-        message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı gönderildi.',
-      };
-        }
-        return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı gönderildi.' };
+        return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.' };
       }
-
-      const { resetToken, hashedToken } = this.createPasswordResetToken();
-      const expires = new Date();
-      expires.setHours(expires.getHours() + 1); // 1 saat geçerli
-
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          passwordResetToken: hashedToken,
-          passwordResetExpires: expires,
-        },
-      });
-
-      const frontendUrl =
-        process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:3000';
-      const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
-
-      // Mail gönderimi: Sadece MAIL_MODE=dev ise atlanır. Beklenen env: SMTP_USER, SMTP_PASS (veya MAIL_*), FRONTEND_URL/APP_URL.
-      // Eski dist'te fallback vardı: mailMode === 'prod' olmazsa mail atılmıyordu (MAIL_MODE=production bile yetmiyordu). Yeni kod: her zaman sendPasswordResetMail çağrılır; MailService içinde MAIL_MODE=dev ise return.
-      const explicitlyDev = process.env.MAIL_MODE?.toLowerCase() === 'dev';
-      this.logger.log(`ForgotPassword: sending reset mail to ${email} (MAIL_MODE=dev? ${explicitlyDev})`);
-
-      try {
-        await this.mailService.sendPasswordResetMail(email, resetUrl);
-        this.logger.log(`✅ Password reset email sent successfully to ${email}`);
-      } catch (error: any) {
-        this.logger.error(`❌ Failed to send password reset email to ${email}:`, error?.message || error);
-        this.logger.error(`❌ Error code: ${error?.code || 'n/a'}, responseCode: ${error?.responseCode || 'n/a'}`);
-        if (error?.code === 'EAUTH' || error?.responseCode === 535) {
-          this.logger.error('🔴 SMTP kimlik doğrulama hatası! SMTP_USER tam e-posta, SMTP_PASS Gmail App Password (16 karakter, boşluksuz) olmalı.');
-          this.logger.error('https://myaccount.google.com/apppasswords');
-        }
-        // Sadece MAIL_MODE=dev ise token'ı logla (güvenlik)
-        if (explicitlyDev) {
-          this.logger.log(`[DEV] Reset URL for ${email}: ${resetUrl}`);
-          this.logger.log(`[DEV] Reset Token: ${resetToken}`);
-        }
-      }
-
-      // ✅ Sadece success mesajı döndür (reset URL kullanıcıya gösterilmez)
-      return {
-        message:
-          'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',
-      };
-    } catch (error) {
-      // 🔥 DB bağlantı hatası veya prepared statement hatası durumunda graceful handling
-      this.logger.error(`Database error in forgotPassword for ${email}:`, error);
-      
-      // Development modunda DB hatası olsa bile reset URL döndür (test için)
-      const isDevelopment = process.env.NODE_ENV !== 'production';
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      
-      // DB hatası olsa bile sadece success mesajı döndür (reset URL gösterilmez)
-      // Güvenlik için her zaman başarılı mesajı dön (user enumeration önleme)
-      if (isDevelopment) {
-        this.logger.warn(`[DEV] Database error in forgotPassword for ${email} - reset URL not shown to user`);
-      }
-      return {
-        message:
-          'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',
-      };
+      const code = await this.otpService.createOtp(normalized, OtpPurpose.password_reset);
+      await this.mailService.sendPasswordResetOtpMail(normalized, code);
+      this.logger.log(`✅ Password reset OTP sent to ${normalized}`);
+      return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.' };
+    } catch (error: any) {
+      this.logger.error(`forgotPassword for ${normalized}:`, error?.message || error);
+      return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.' };
     }
+  }
+
+  async verifyResetOtp(email: string, code: string) {
+    const normalized = email.trim().toLowerCase();
+    await this.otpService.verifyOtp(normalized, OtpPurpose.password_reset, code);
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalized },
+      select: { id: true },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Kullanıcı bulunamadı.');
+    }
+    const resetToken = this.jwtService.sign(
+      { sub: user.id, email: normalized, purpose: 'password_reset' },
+      { expiresIn: '15m' },
+    );
+    return { resetToken };
+  }
+
+  async resetPasswordWithOtp(resetToken: string, newPassword: string) {
+    let payload: { sub?: string; purpose?: string };
+    try {
+      payload = this.jwtService.verify(resetToken);
+    } catch {
+      throw new UnauthorizedException('Geçersiz veya süresi dolmuş bağlantı. Lütfen şifre sıfırlama adımlarını tekrarlayın.');
+    }
+    if (payload.purpose !== 'password_reset' || !payload.sub) {
+      throw new UnauthorizedException('Geçersiz bağlantı.');
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: payload.sub },
+      data: { password: hashedPassword },
+    });
+    return { message: 'Şifreniz başarıyla güncellendi. Şimdi giriş yapabilirsiniz.' };
   }
 
   async resetPassword(dto: ResetPasswordDto) {

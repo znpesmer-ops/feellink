@@ -7,15 +7,15 @@ export declare class ReportsService {
     constructor(prisma: PrismaService, mailService: MailService);
     createReport(reporterId: string, reportedUserId: string, reason: ReportReason, conversationId?: string, messageId?: string, note?: string): Promise<{
         reporter: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
         reportedUser: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {
@@ -32,15 +32,15 @@ export declare class ReportsService {
     getReports(status?: string, page?: number, limit?: number): Promise<{
         reports: ({
             reporter: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
             };
             reportedUser: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
             };
         } & {
@@ -61,16 +61,16 @@ export declare class ReportsService {
     }>;
     updateReportStatus(reportId: string, status: string): Promise<{
         reporter: {
-            id: string;
-            username: string;
             email: string;
+            username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
         reportedUser: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {
@@ -87,15 +87,15 @@ export declare class ReportsService {
     private sendReportResolvedEmail;
     getReportById(reportId: string): Promise<{
         reporter: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
         reportedUser: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {

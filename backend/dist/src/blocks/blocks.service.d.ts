@@ -23,9 +23,9 @@ export declare class BlocksService {
     }>;
     getBlockedUsers(userId: string): Promise<({
         blocked: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {

@@ -14,6 +14,7 @@ const chat_gateway_1 = require("./chat.gateway");
 const prisma_module_1 = require("../prisma/prisma.module");
 const blocks_module_1 = require("../blocks/blocks.module");
 const follow_module_1 = require("../follow/follow.module");
+const notifications_module_1 = require("../notifications/notifications.module");
 const jwt_1 = require("@nestjs/jwt");
 const config_1 = require("@nestjs/config");
 let ChatModule = class ChatModule {
@@ -25,6 +26,7 @@ exports.ChatModule = ChatModule = __decorate([
             prisma_module_1.PrismaModule,
             blocks_module_1.BlocksModule,
             follow_module_1.FollowModule,
+            notifications_module_1.NotificationsModule,
             jwt_1.JwtModule.registerAsync({
                 imports: [config_1.ConfigModule],
                 useFactory: async (configService) => ({

@@ -19,9 +19,9 @@ export declare class ExploreController {
             media: any[];
             user: {
                 avatar: string;
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 isVerified: boolean;
             };
             _count: {

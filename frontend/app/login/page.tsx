@@ -162,6 +162,15 @@ export default function LoginPage() {
       handlePostAuthNavigation(loggedUser, caps ?? undefined, needsRoleSelection)
     } catch (err: any) {
       console.error('Login error:', err)
+      const data = err?.response?.data
+      if (err?.response?.status === 401 && data?.needsEmailVerification && data?.email) {
+        setError('E-posta adresinizi doğrulamanız gerekiyor. Lütfen size gönderilen kodu kullanın veya yeni kod isteyin.')
+        const verifyUrl = `/verify-email?email=${encodeURIComponent(data.email)}`
+        setTimeout(() => {
+          router.push(verifyUrl)
+        }, 1500)
+        return
+      }
       setError(getErrorMessage(err))
     }
   }

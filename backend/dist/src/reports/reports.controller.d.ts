@@ -15,15 +15,15 @@ export declare class ReportsController {
     getReports(status?: string, page?: string, limit?: string): Promise<{
         reports: ({
             reporter: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
             };
             reportedUser: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
             };
         } & {
@@ -44,15 +44,15 @@ export declare class ReportsController {
     }>;
     getReportById(reportId: string): Promise<{
         reporter: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
         reportedUser: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {
@@ -70,16 +70,16 @@ export declare class ReportsController {
         status: string;
     }): Promise<{
         reporter: {
-            id: string;
-            username: string;
             email: string;
+            username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
         reportedUser: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {

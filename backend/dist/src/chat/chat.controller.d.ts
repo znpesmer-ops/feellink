@@ -22,8 +22,8 @@ export declare class ChatController {
         unreadCount: number;
         messages: ({
             sender: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
         } & {
@@ -82,9 +82,9 @@ export declare class ChatController {
     getMessages(id: string, limit?: string, cursor?: string, user?: any): Promise<{
         messages: ({
             sender: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
             };
         } & {
@@ -117,9 +117,9 @@ export declare class ChatController {
     }, user: any): Promise<{
         participants: ({
             user: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
                 isOnline: boolean;
                 lastSeen: Date;
@@ -150,8 +150,8 @@ export declare class ChatController {
         content: string;
     }, user: any): Promise<{
         sender: {
-            id: string;
             username: string;
+            id: string;
             avatar: string;
         };
         conversation: {
@@ -204,9 +204,9 @@ export declare class ChatController {
         fileType?: string;
     }, user: any): Promise<{
         sender: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {
@@ -245,8 +245,8 @@ export declare class ChatController {
     getMessageRequests(user: any): Promise<({
         messages: ({
             sender: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
         } & {
@@ -270,9 +270,9 @@ export declare class ChatController {
         })[];
         participants: ({
             user: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
                 isOnline: boolean;
                 lastSeen: Date;

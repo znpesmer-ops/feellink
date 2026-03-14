@@ -38,9 +38,9 @@ export declare class JobsService {
     }>;
     getAll(): Promise<({
         createdBy: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {
@@ -60,9 +60,9 @@ export declare class JobsService {
             applications: number;
         };
         createdBy: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {
@@ -79,9 +79,9 @@ export declare class JobsService {
     })[]>;
     getById(jobId: string, userId: string): Promise<{
         createdBy: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {
@@ -98,10 +98,10 @@ export declare class JobsService {
     }>;
     applyToJob(jobListingId: string, userId: string, dto: CreateJobApplicationDto): Promise<{
         applicant: {
-            id: string;
-            username: string;
             email: string;
+            username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {
@@ -132,10 +132,10 @@ export declare class JobsService {
         cvUrl: string;
         status: import(".prisma/client").$Enums.ApplicationStatus;
         applicant: {
-            id: string;
-            username: string;
             email: string;
+            username: string;
             fullName: string;
+            id: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
         };
@@ -162,9 +162,9 @@ export declare class JobsService {
             salary: string;
             tags: string[];
             createdBy: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
             };
         };
@@ -184,10 +184,10 @@ export declare class JobsService {
             };
         };
         applicant: {
-            id: string;
-            username: string;
             email: string;
+            username: string;
             fullName: string;
+            id: string;
         };
     } & {
         id: string;

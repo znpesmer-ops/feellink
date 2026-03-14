@@ -6,9 +6,9 @@ export declare class EventsController {
     getAllEvents(): Promise<{
         events: ({
             owner: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
             };
             participants: {
@@ -95,11 +95,12 @@ export declare class EventsController {
     })[]>;
     getEvent(id: string): Promise<{
         owner: {
-            id: string;
-            username: string;
             email: string;
+            username: string;
             password: string;
             fullName: string;
+            termsAccepted: boolean;
+            id: string;
             bio: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
@@ -130,7 +131,6 @@ export declare class EventsController {
             gdprConsentAt: Date;
             analyticsConsent: boolean;
             showProfileColorSignature: boolean;
-            termsAccepted: boolean;
             termsAcceptedAt: Date;
             accountStatus: import(".prisma/client").$Enums.AccountStatus;
             suspendedAt: Date;
@@ -138,6 +138,8 @@ export declare class EventsController {
             suspensionReason: string;
             suspensionNote: string;
             suspendedByAdminId: string;
+            deletionRequestedAt: Date;
+            scheduledDeletionAt: Date;
             isDeleted: boolean;
             deletedAt: Date;
             deletedBy: string;
@@ -210,11 +212,12 @@ export declare class EventsController {
     }[]>;
     getEventComments(id: string): Promise<({
         author: {
-            id: string;
-            username: string;
             email: string;
+            username: string;
             password: string;
             fullName: string;
+            termsAccepted: boolean;
+            id: string;
             bio: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
@@ -245,7 +248,6 @@ export declare class EventsController {
             gdprConsentAt: Date;
             analyticsConsent: boolean;
             showProfileColorSignature: boolean;
-            termsAccepted: boolean;
             termsAcceptedAt: Date;
             accountStatus: import(".prisma/client").$Enums.AccountStatus;
             suspendedAt: Date;
@@ -253,6 +255,8 @@ export declare class EventsController {
             suspensionReason: string;
             suspensionNote: string;
             suspendedByAdminId: string;
+            deletionRequestedAt: Date;
+            scheduledDeletionAt: Date;
             isDeleted: boolean;
             deletedAt: Date;
             deletedBy: string;
@@ -268,11 +272,12 @@ export declare class EventsController {
     })[]>;
     createEventComment(user: any, id: string, data: any): Promise<{
         author: {
-            id: string;
-            username: string;
             email: string;
+            username: string;
             password: string;
             fullName: string;
+            termsAccepted: boolean;
+            id: string;
             bio: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
@@ -303,7 +308,6 @@ export declare class EventsController {
             gdprConsentAt: Date;
             analyticsConsent: boolean;
             showProfileColorSignature: boolean;
-            termsAccepted: boolean;
             termsAcceptedAt: Date;
             accountStatus: import(".prisma/client").$Enums.AccountStatus;
             suspendedAt: Date;
@@ -311,6 +315,8 @@ export declare class EventsController {
             suspensionReason: string;
             suspensionNote: string;
             suspendedByAdminId: string;
+            deletionRequestedAt: Date;
+            scheduledDeletionAt: Date;
             isDeleted: boolean;
             deletedAt: Date;
             deletedBy: string;
@@ -361,9 +367,9 @@ export declare class EventsController {
         status: 'APPROVED' | 'REJECTED';
     }): Promise<{
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {

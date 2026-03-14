@@ -23,13 +23,16 @@ const roles_utils_1 = require("../roles/roles.utils");
 const dashboard_features_1 = require("../dashboard/dashboard.features");
 const users_service_1 = require("../users/users.service");
 const mail_service_1 = require("../mail/mail.service");
+const otp_service_1 = require("./otp.service");
+const client_1 = require("@prisma/client");
 let AuthService = AuthService_1 = class AuthService {
-    constructor(prisma, jwtService, configService, searchService, mailService) {
+    constructor(prisma, jwtService, configService, searchService, mailService, otpService) {
         this.prisma = prisma;
         this.jwtService = jwtService;
         this.configService = configService;
         this.searchService = searchService;
         this.mailService = mailService;
+        this.otpService = otpService;
         this.logger = new common_1.Logger(AuthService_1.name);
         this.authSelect = {
             id: true,
@@ -46,6 +49,10 @@ let AuthService = AuthService_1 = class AuthService {
             isAdmin: true,
             superAdmin: true,
             profileCompleted: true,
+            dateOfBirth: true,
+            country: true,
+            city: true,
+            gender: true,
             createdAt: true,
         };
     }
@@ -140,6 +147,11 @@ let AuthService = AuthService_1 = class AuthService {
                 superAdmin: user.superAdmin ?? false,
                 createdAt: user.createdAt ?? new Date(),
                 activeRole: activeRole || null,
+                profileCompleted: user.profileCompleted ?? false,
+                dateOfBirth: user.dateOfBirth ?? null,
+                country: user.country ?? null,
+                city: user.city ?? null,
+                gender: user.gender ?? null,
             },
             capabilities,
             dashboard,
@@ -183,8 +195,6 @@ let AuthService = AuthService_1 = class AuthService {
                 },
             });
             this.logger.log(`[REGISTER DEBUG] User created successfully: ${user.id}`);
-            const tokens = await this.generateTokens(user.id);
-            this.logger.log(`[REGISTER DEBUG] Tokens generated`);
             try {
                 await this.searchService.indexUser(user);
                 this.logger.log(`[REGISTER DEBUG] User indexed in Meilisearch`);
@@ -192,16 +202,17 @@ let AuthService = AuthService_1 = class AuthService {
             catch (error) {
                 this.logger.warn(`[REGISTER DEBUG] Error indexing new user (non-critical): ${error instanceof Error ? error.message : error}`);
             }
-            this.mailService
-                .sendWelcomeEmail({ email: user.email, fullName: user.fullName, username: user.username })
-                .catch((err) => this.logger.warn('Welcome email failed', err));
-            const payload = this.hydrateAuthUser(user);
-            const needsRoleSelection = (user.roles?.length ?? 0) === 0;
-            this.logger.log(`[REGISTER DEBUG] Registration successful for: ${email}`);
+            try {
+                const code = await this.otpService.createOtp(user.email, client_1.OtpPurpose.signup_verification);
+                await this.mailService.sendSignupOtpMail(user.email, code);
+            }
+            catch (otpErr) {
+                this.logger.warn(`[REGISTER] Signup OTP send failed (non-blocking): ${otpErr?.message || otpErr}`);
+            }
+            this.logger.log(`[REGISTER DEBUG] Registration successful for: ${email}, needsEmailVerification`);
             return {
-                ...payload,
-                ...tokens,
-                needsRoleSelection,
+                needsEmailVerification: true,
+                email: user.email,
             };
         }
         catch (err) {
@@ -234,6 +245,39 @@ let AuthService = AuthService_1 = class AuthService {
             throw new common_1.BadRequestException(userMessage);
         }
     }
+    async sendSignupOtp(email) {
+        const normalized = email.trim().toLowerCase();
+        const canResend = await this.otpService.canResend(normalized, client_1.OtpPurpose.signup_verification);
+        if (!canResend) {
+            throw new common_1.BadRequestException('Yeni kod için lütfen 1 dakika bekleyin.');
+        }
+        const code = await this.otpService.createOtp(normalized, client_1.OtpPurpose.signup_verification);
+        await this.mailService.sendSignupOtpMail(normalized, code);
+        return { message: 'Doğrulama kodu e-posta adresinize gönderildi.' };
+    }
+    async verifySignupOtp(email, code) {
+        const normalized = email.trim().toLowerCase();
+        await this.otpService.verifyOtp(normalized, client_1.OtpPurpose.signup_verification, code);
+        const user = await this.prisma.user.findUnique({
+            where: { email: normalized },
+            select: { ...this.authSelect },
+        });
+        if (!user) {
+            throw new common_1.UnauthorizedException('Kullanıcı bulunamadı.');
+        }
+        await this.prisma.user.update({
+            where: { id: user.id },
+            data: { isVerified: true },
+        });
+        const updated = await this.prisma.user.findUnique({
+            where: { id: user.id },
+            select: { ...this.authSelect },
+        });
+        const tokens = await this.generateTokens(user.id);
+        const payload = this.hydrateAuthUser(updated);
+        const needsRoleSelection = ((updated?.roles?.length) ?? 0) === 0;
+        return { ...payload, ...tokens, needsRoleSelection };
+    }
     async login(loginDto) {
         const loginIdentifier = loginDto.emailOrUsername || loginDto.email || loginDto.username;
         this.logger.log(`[LOGIN] Login attempt for: ${loginIdentifier}`);
@@ -257,6 +301,14 @@ let AuthService = AuthService_1 = class AuthService {
         if (!user) {
             this.logger.warn(`[LOGIN] User not found or password invalid for: ${loginIdentifier}`);
             throw new common_1.UnauthorizedException('E-posta veya şifre hatalı');
+        }
+        if (user.isVerified === false) {
+            this.logger.warn(`[LOGIN] Email not verified for: ${user.email || user.username}`);
+            throw new common_1.UnauthorizedException({
+                message: 'Lütfen e-posta adresinizi doğrulayın. Size gönderilen kodu kullanın veya yeniden kod gönderin.',
+                needsEmailVerification: true,
+                email: user.email,
+            });
         }
         this.logger.log(`[LOGIN] User found: ${user.email || user.username}, accountStatus: ${user.accountStatus || 'ACTIVE (default)'}`);
         if (user.accountStatus === 'SUSPENDED') {
@@ -313,6 +365,13 @@ let AuthService = AuthService_1 = class AuthService {
         const user = await this.validateUser(loginDto, { requireCorporate: true });
         if (!user) {
             throw new common_1.UnauthorizedException('Kurumsal hesap bulunamadı veya yetkisiz.');
+        }
+        if (user.isVerified === false) {
+            throw new common_1.UnauthorizedException({
+                message: 'Lütfen e-posta adresinizi doğrulayın. Size gönderilen kodu kullanın veya yeniden kod gönderin.',
+                needsEmailVerification: true,
+                email: user.email,
+            });
         }
         const tokens = await this.generateTokens(user.id);
         const { password: _, ...userWithoutPassword } = user;
@@ -409,6 +468,14 @@ let AuthService = AuthService_1 = class AuthService {
         if (!user) {
             throw new common_1.UnauthorizedException('Invalid credentials');
         }
+        if (user.isVerified === false) {
+            throw new common_1.UnauthorizedException({
+                message: 'Lütfen e-posta adresinizi doğrulayın. Size gönderilen kodu kullanın veya yeniden kod gönderin.',
+                needsEmailVerification: true,
+                email: user.email,
+            });
+        }
+        let reactivated = false;
         if (user.accountStatus === 'SUSPENDED') {
             if (user.suspendedUntil && new Date(user.suspendedUntil) < new Date()) {
                 await this.prisma.user.update({
@@ -433,6 +500,29 @@ let AuthService = AuthService_1 = class AuthService {
                 });
             }
         }
+        if (user.accountStatus === 'PENDING_DELETION') {
+            const now = new Date();
+            const scheduledAt = user.scheduledDeletionAt ? new Date(user.scheduledDeletionAt) : null;
+            if (scheduledAt && scheduledAt > now) {
+                await this.prisma.user.update({
+                    where: { id: user.id },
+                    data: {
+                        accountStatus: 'ACTIVE',
+                        deletionRequestedAt: null,
+                        scheduledDeletionAt: null,
+                    },
+                });
+                this.logger.log(`[LOGIN] Account reactivated (was pending deletion): ${user.email || user.username}`);
+                reactivated = true;
+            }
+            else {
+                this.logger.warn(`[LOGIN] Account permanently deleted (grace period expired): ${user.email || user.username}`);
+                throw new common_1.ForbiddenException({
+                    code: 'ACCOUNT_PERMANENTLY_DELETED',
+                    message: 'Bu hesap kalıcı olarak silinmiştir.',
+                });
+            }
+        }
         const tokens = await this.generateTokens(user.id);
         const { password: _, ...userWithoutPassword } = user;
         const payload = this.hydrateAuthUser(userWithoutPassword);
@@ -441,6 +531,7 @@ let AuthService = AuthService_1 = class AuthService {
             ...payload,
             ...tokens,
             needsRoleSelection,
+            ...(reactivated && { reactivated: true }),
         };
     }
     async validateUser(loginDto, options) {
@@ -475,6 +566,8 @@ let AuthService = AuthService_1 = class AuthService {
                     accountStatus: true,
                     suspendedUntil: true,
                     suspensionReason: true,
+                    scheduledDeletionAt: true,
+                    isVerified: true,
                 },
             });
             if (!userByEmail) {
@@ -493,6 +586,8 @@ let AuthService = AuthService_1 = class AuthService {
                         accountStatus: true,
                         suspendedUntil: true,
                         suspensionReason: true,
+                        scheduledDeletionAt: true,
+                        isVerified: true,
                     },
                 });
             }
@@ -512,6 +607,8 @@ let AuthService = AuthService_1 = class AuthService {
                         accountStatus: true,
                         suspendedUntil: true,
                         suspensionReason: true,
+                        scheduledDeletionAt: true,
+                        isVerified: true,
                     },
                 });
                 if (!userByUsername) {
@@ -530,6 +627,8 @@ let AuthService = AuthService_1 = class AuthService {
                             accountStatus: true,
                             suspendedUntil: true,
                             suspensionReason: true,
+                            scheduledDeletionAt: true,
+                            isVerified: true,
                         },
                     });
                 }
@@ -735,64 +834,54 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async forgotPassword(dto) {
         const { email } = dto;
+        const normalized = email.trim().toLowerCase();
         try {
             const user = await this.prisma.user.findUnique({
-                where: { email },
+                where: { email: normalized },
             });
-            const isDevelopment = process.env.NODE_ENV !== 'production';
             if (!user) {
-                if (isDevelopment) {
-                    return {
-                        message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı gönderildi.',
-                    };
-                }
-                return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı gönderildi.' };
+                return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.' };
             }
-            const { resetToken, hashedToken } = this.createPasswordResetToken();
-            const expires = new Date();
-            expires.setHours(expires.getHours() + 1);
-            await this.prisma.user.update({
-                where: { id: user.id },
-                data: {
-                    passwordResetToken: hashedToken,
-                    passwordResetExpires: expires,
-                },
-            });
-            const frontendUrl = process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:3000';
-            const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
-            const explicitlyDev = process.env.MAIL_MODE?.toLowerCase() === 'dev';
-            this.logger.log(`ForgotPassword: sending reset mail to ${email} (MAIL_MODE=dev? ${explicitlyDev})`);
-            try {
-                await this.mailService.sendPasswordResetMail(email, resetUrl);
-                this.logger.log(`✅ Password reset email sent successfully to ${email}`);
-            }
-            catch (error) {
-                this.logger.error(`❌ Failed to send password reset email to ${email}:`, error?.message || error);
-                this.logger.error(`❌ Error code: ${error?.code || 'n/a'}, responseCode: ${error?.responseCode || 'n/a'}`);
-                if (error?.code === 'EAUTH' || error?.responseCode === 535) {
-                    this.logger.error('🔴 SMTP kimlik doğrulama hatası! SMTP_USER tam e-posta, SMTP_PASS Gmail App Password (16 karakter, boşluksuz) olmalı.');
-                    this.logger.error('https://myaccount.google.com/apppasswords');
-                }
-                if (explicitlyDev) {
-                    this.logger.log(`[DEV] Reset URL for ${email}: ${resetUrl}`);
-                    this.logger.log(`[DEV] Reset Token: ${resetToken}`);
-                }
-            }
-            return {
-                message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',
-            };
+            const code = await this.otpService.createOtp(normalized, client_1.OtpPurpose.password_reset);
+            await this.mailService.sendPasswordResetOtpMail(normalized, code);
+            this.logger.log(`✅ Password reset OTP sent to ${normalized}`);
+            return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.' };
         }
         catch (error) {
-            this.logger.error(`Database error in forgotPassword for ${email}:`, error);
-            const isDevelopment = process.env.NODE_ENV !== 'production';
-            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-            if (isDevelopment) {
-                this.logger.warn(`[DEV] Database error in forgotPassword for ${email} - reset URL not shown to user`);
-            }
-            return {
-                message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',
-            };
+            this.logger.error(`forgotPassword for ${normalized}:`, error?.message || error);
+            return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.' };
         }
+    }
+    async verifyResetOtp(email, code) {
+        const normalized = email.trim().toLowerCase();
+        await this.otpService.verifyOtp(normalized, client_1.OtpPurpose.password_reset, code);
+        const user = await this.prisma.user.findUnique({
+            where: { email: normalized },
+            select: { id: true },
+        });
+        if (!user) {
+            throw new common_1.UnauthorizedException('Kullanıcı bulunamadı.');
+        }
+        const resetToken = this.jwtService.sign({ sub: user.id, email: normalized, purpose: 'password_reset' }, { expiresIn: '15m' });
+        return { resetToken };
+    }
+    async resetPasswordWithOtp(resetToken, newPassword) {
+        let payload;
+        try {
+            payload = this.jwtService.verify(resetToken);
+        }
+        catch {
+            throw new common_1.UnauthorizedException('Geçersiz veya süresi dolmuş bağlantı. Lütfen şifre sıfırlama adımlarını tekrarlayın.');
+        }
+        if (payload.purpose !== 'password_reset' || !payload.sub) {
+            throw new common_1.UnauthorizedException('Geçersiz bağlantı.');
+        }
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await this.prisma.user.update({
+            where: { id: payload.sub },
+            data: { password: hashedPassword },
+        });
+        return { message: 'Şifreniz başarıyla güncellendi. Şimdi giriş yapabilirsiniz.' };
     }
     async resetPassword(dto) {
         const { token, password } = dto;
@@ -917,6 +1006,7 @@ exports.AuthService = AuthService = AuthService_1 = __decorate([
         jwt_1.JwtService,
         config_1.ConfigService,
         search_service_1.SearchService,
-        mail_service_1.MailService])
+        mail_service_1.MailService,
+        otp_service_1.OtpService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

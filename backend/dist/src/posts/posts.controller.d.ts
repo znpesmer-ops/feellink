@@ -17,9 +17,9 @@ export declare class PostsController {
         colorPalette?: string | string[];
     }): Promise<{
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -53,9 +53,9 @@ export declare class PostsController {
     }>;
     createPostWithUrls(user: any, dto: CreatePostDto): Promise<{
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -101,9 +101,9 @@ export declare class PostsController {
         media: any[];
         user: {
             avatar: string;
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             isVerified: boolean;
         };
         comments: {
@@ -155,9 +155,9 @@ export declare class PostsController {
         title?: string;
     }): Promise<{
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
         _count: {
@@ -224,9 +224,9 @@ export declare class PostsController {
     }>;
     getComments(params: PostIdDto, parentId?: string): Promise<({
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -282,9 +282,9 @@ export declare class PostsController {
             comments: number;
         };
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -300,9 +300,9 @@ export declare class PostsController {
     }[]>;
     getUserComments(userId: string): Promise<({
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -354,9 +354,9 @@ export declare class PostsController {
             comments: number;
         };
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -403,9 +403,9 @@ export declare class PostsController {
         updatedAt: Date;
         createdAt: Date;
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -438,9 +438,9 @@ export declare class PostsController {
         isPinned: boolean;
         createdAt: Date;
         user: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
             plan: import(".prisma/client").$Enums.SubscriptionPlan;

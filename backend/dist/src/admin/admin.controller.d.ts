@@ -25,10 +25,10 @@ export declare class AdminController {
     }>;
     getUsers(page?: string, limit?: string, search?: string, role?: string, city?: string, gender?: string, ageMin?: string, ageMax?: string): Promise<{
         users: {
-            id: string;
-            username: string;
             email: string;
+            username: string;
             fullName: string;
+            id: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
             plan: import(".prisma/client").$Enums.SubscriptionPlan;
@@ -49,6 +49,8 @@ export declare class AdminController {
             suspendedAt: Date;
             suspendedUntil: Date;
             suspensionReason: string;
+            deletionRequestedAt: Date;
+            scheduledDeletionAt: Date;
             isDeleted: boolean;
             deletedAt: Date;
             createdAt: Date;
@@ -62,10 +64,10 @@ export declare class AdminController {
         isVerified?: boolean;
         isAdmin?: boolean;
     }, user: any): Promise<{
-        id: string;
-        username: string;
         email: string;
+        username: string;
         fullName: string;
+        id: string;
         roles: import(".prisma/client").$Enums.UserRole[];
     }>;
     suspendUser(userId: string, data: {
@@ -97,10 +99,10 @@ export declare class AdminController {
     updateUserRoles(userId: string, data: {
         roles: string[];
     }, user: any): Promise<{
-        id: string;
-        username: string;
         email: string;
+        username: string;
         fullName: string;
+        id: string;
         roles: import(".prisma/client").$Enums.UserRole[];
     }>;
     getRoleHistory(userId: string): Promise<{
@@ -116,10 +118,10 @@ export declare class AdminController {
     getRoleChangeRequests(status?: string, page?: string, limit?: string): Promise<{
         requests: ({
             user: {
-                id: string;
-                username: string;
                 email: string;
+                username: string;
                 fullName: string;
+                id: string;
             };
         } & {
             id: string;
@@ -158,8 +160,8 @@ export declare class AdminController {
     getPosts(page?: string, limit?: string): Promise<{
         posts: ({
             user: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
             _count: {
@@ -199,9 +201,9 @@ export declare class AdminController {
     getArtworks(page?: string, limit?: string, search?: string, userId?: string): Promise<{
         artworks: ({
             user: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
             };
             _count: {
@@ -241,8 +243,8 @@ export declare class AdminController {
     getComments(page?: string, limit?: string): Promise<{
         comments: ({
             user: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
             post: {
@@ -269,8 +271,8 @@ export declare class AdminController {
     getArticles(page?: string, limit?: string): Promise<{
         articles: ({
             author: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
         } & {
@@ -300,8 +302,8 @@ export declare class AdminController {
                 tickets: number;
             };
             owner: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
         } & {
@@ -329,8 +331,8 @@ export declare class AdminController {
     getTickets(page?: string, limit?: string): Promise<{
         tickets: ({
             user: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
             ticket: {
@@ -383,15 +385,15 @@ export declare class AdminController {
     getAuditLogs(page?: string, limit?: string): Promise<{
         logs: ({
             actor: {
-                id: string;
                 username: string;
+                id: string;
                 avatar: string;
             };
         } & {
             id: string;
             createdAt: Date;
-            action: string;
             target: string;
+            action: string;
             meta: import("@prisma/client/runtime/library").JsonValue;
             ip: string;
             userAgent: string;
@@ -436,15 +438,15 @@ export declare class AdminController {
     getReports(status?: string, page?: string, limit?: string): Promise<{
         reports: ({
             reporter: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
             };
             reportedUser: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
             };
         } & {
@@ -465,15 +467,15 @@ export declare class AdminController {
     }>;
     getReportById(reportId: string): Promise<{
         reporter: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
         reportedUser: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {
@@ -491,16 +493,16 @@ export declare class AdminController {
         status: string;
     }): Promise<{
         reporter: {
-            id: string;
-            username: string;
             email: string;
+            username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
         reportedUser: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
         };
     } & {

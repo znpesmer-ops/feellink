@@ -8,8 +8,8 @@ export declare class TicketsController {
         createdAt: Date;
         updatedAt: Date;
         type: string;
-        price: number;
         eventId: string;
+        price: number;
         capacity: number;
         sold: number;
         qrCodeUrl: string;
@@ -17,20 +17,20 @@ export declare class TicketsController {
     getMyTickets(user: any): Promise<({
         ticket: {
             event: {
+                date: Date;
                 id: string;
                 isDeleted: boolean;
                 deletedAt: Date;
                 createdAt: Date;
                 updatedAt: Date;
-                description: string;
                 title: string;
+                description: string;
+                location: string;
                 coverImage: string;
-                date: Date;
                 participantCount: number;
                 ticketUrl: string;
                 price: number;
                 isFree: boolean;
-                location: string;
                 ownerId: string;
                 reminderMailSent: boolean;
             };
@@ -39,8 +39,8 @@ export declare class TicketsController {
             createdAt: Date;
             updatedAt: Date;
             type: string;
-            price: number;
             eventId: string;
+            price: number;
             capacity: number;
             sold: number;
             qrCodeUrl: string;
@@ -60,8 +60,8 @@ export declare class TicketsController {
         createdAt: Date;
         updatedAt: Date;
         type: string;
-        price: number;
         eventId: string;
+        price: number;
         capacity: number;
         sold: number;
         qrCodeUrl: string;

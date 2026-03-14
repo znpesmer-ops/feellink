@@ -21,18 +21,18 @@ export declare class NotificationsService {
     constructor(prisma: PrismaService, notificationsQueue: Queue | null, notificationsGateway: NotificationsGateway);
     createNotification(data: CreateNotificationDto): Promise<({
         fromUser: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
     } & {
-        message: string;
         id: string;
         createdAt: Date;
         userId: string;
         type: string;
+        message: string;
         fromUserId: string;
         postId: string;
         articleId: string;
@@ -45,18 +45,18 @@ export declare class NotificationsService {
     }>;
     createNotificationSync(data: CreateNotificationDto): Promise<{
         fromUser: {
-            id: string;
             username: string;
             fullName: string;
+            id: string;
             avatar: string;
             isVerified: boolean;
         };
     } & {
-        message: string;
         id: string;
         createdAt: Date;
         userId: string;
         type: string;
+        message: string;
         fromUserId: string;
         postId: string;
         articleId: string;
@@ -68,9 +68,9 @@ export declare class NotificationsService {
     getNotifications(userId: string, limit?: number, offset?: number): Promise<{
         notifications: {
             sender: {
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 avatar: string;
                 isVerified: boolean;
             };
@@ -79,11 +79,11 @@ export declare class NotificationsService {
                 postId: string;
                 commentId: string;
             };
-            message: string;
             id: string;
             createdAt: Date;
             userId: string;
             type: string;
+            message: string;
             fromUserId: string;
             postId: string;
             articleId: string;
@@ -101,24 +101,24 @@ export declare class NotificationsService {
     }>;
     getUnreadCount(userId: string, excludeProfileIncomplete?: boolean): Promise<number>;
     getPrefs(userId: string): Promise<{
-        comment: boolean;
-        like: boolean;
-        follow: boolean;
         id: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
+        comment: boolean;
         mention: boolean;
+        follow: boolean;
+        like: boolean;
     }>;
     updatePrefs(userId: string, data: Partial<Record<NotifType, boolean>>): Promise<{
-        comment: boolean;
-        like: boolean;
-        follow: boolean;
         id: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
+        comment: boolean;
         mention: boolean;
+        follow: boolean;
+        like: boolean;
     }>;
     isAllowed(toUserId: string, type: NotifType): Promise<boolean>;
     createEventTicketNotification(eventId: string, buyerId: string): Promise<void>;

@@ -23,9 +23,9 @@ export declare class ExploreService {
             media: any[];
             user: {
                 avatar: string;
-                id: string;
                 username: string;
                 fullName: string;
+                id: string;
                 isVerified: boolean;
             };
             _count: {
