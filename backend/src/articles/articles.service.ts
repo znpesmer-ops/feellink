@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, InternalServerErrorException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PostsGateway } from '../posts/posts.gateway';
 import { ArticlesGateway } from './articles.gateway';
@@ -6,6 +6,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ArticlesService {
+  private readonly logger = new Logger(ArticlesService.name);
+
   constructor(
     private prisma: PrismaService,
     @Inject(forwardRef(() => PostsGateway))
@@ -368,26 +370,53 @@ export class ArticlesService {
   async delete(id: string, userId: string) {
     const article = await this.prisma.article.findUnique({
       where: { id },
+      select: { id: true, authorId: true },
     });
 
     if (!article) {
-      throw new NotFoundException('Article not found');
+      throw new NotFoundException('Yazı bulunamadı.');
     }
 
     if (article.authorId !== userId) {
-      throw new ForbiddenException('Bu yazıyı silme yetkiniz yok');
+      throw new ForbiddenException('Bu yazıyı silme yetkiniz yok.');
     }
 
-    await this.prisma.article.delete({
-      where: { id },
-    });
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const commentIds = await tx.articleComment.findMany({
+          where: { articleId: id },
+          select: { id: true },
+        }).then((rows) => rows.map((r) => r.id));
 
-    // Socket.IO ile gerçek zamanlı güncelleme
-    if (this.postsGateway) {
-      this.postsGateway.server.emit('articleDeleted', { id });
+        if (commentIds.length > 0) {
+          await tx.articleCommentLike.deleteMany({
+            where: { commentId: { in: commentIds } },
+          });
+          await tx.articleComment.deleteMany({
+            where: { articleId: id, parentId: { not: null } },
+          });
+          await tx.articleComment.deleteMany({
+            where: { articleId: id },
+          });
+        }
+
+        await tx.article.delete({
+          where: { id },
+        });
+      });
+
+      if (this.postsGateway) {
+        this.postsGateway.server.emit('articleDeleted', { id });
+      }
+
+      return { success: true, message: 'Yazı silindi.' };
+    } catch (error: any) {
+      this.logger.error('ARTICLE_DELETE_ERROR', error?.stack ?? error?.message, { articleId: id, userId });
+      if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Yazı silinirken hata oluştu.');
     }
-
-    return { success: true };
   }
 
   async incrementView(id: string) {
