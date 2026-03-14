@@ -41,15 +41,18 @@ let OtpService = OtpService_1 = class OtpService {
             },
             data: { revokedAt: new Date() },
         });
-        await this.prisma.emailOtp.create({
+        const created = await this.prisma.emailOtp.create({
             data: {
                 email: normalizedEmail,
                 purpose,
                 codeHash,
                 expiresAt,
                 attemptCount: 0,
+                usedAt: null,
+                revokedAt: null,
             },
         });
+        this.logger.debug(`OTP CREATED: id=${created.id} email=${created.email} purpose=${created.purpose} expiresAt=${created.expiresAt.toISOString()} usedAt=${created.usedAt} revokedAt=${created.revokedAt}`);
         return { code, expiresAt };
     }
     async canResend(email, purpose) {
@@ -67,6 +70,12 @@ let OtpService = OtpService_1 = class OtpService {
         const normalizedEmail = email.trim().toLowerCase();
         const nowMs = Date.now();
         const inputHash = this.hashCode(code);
+        const allForEmail = await this.prisma.emailOtp.findMany({
+            where: { email: normalizedEmail, purpose },
+            orderBy: { createdAt: 'desc' },
+        });
+        this.logger.debug(`VERIFY: email=${normalizedEmail.slice(0, 3)}*** purpose=${purpose} now=${new Date(nowMs).toISOString()} count=${allForEmail.length} ` +
+            allForEmail.slice(0, 3).map((r) => `[id=${r.id} usedAt=${r.usedAt ?? 'null'} revokedAt=${r.revokedAt ?? 'null'} expiresAt=${r.expiresAt.toISOString()}]`).join(' '));
         const record = await this.prisma.emailOtp.findFirst({
             where: {
                 email: normalizedEmail,
@@ -75,14 +84,6 @@ let OtpService = OtpService_1 = class OtpService {
                 revokedAt: null,
             },
             orderBy: { createdAt: 'desc' },
-        });
-        this.logger.debug({
-            email: normalizedEmail.slice(0, 3) + '***',
-            purpose,
-            now: new Date(nowMs).toISOString(),
-            recordExpiresAt: record?.expiresAt?.toISOString?.() ?? null,
-            recordCreatedAt: record?.createdAt?.toISOString?.() ?? null,
-            found: !!record,
         });
         if (!record) {
             throw new common_1.BadRequestException('Aktif kod bulunamadı. Lütfen yeni kod isteyin.');
