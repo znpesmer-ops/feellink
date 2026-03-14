@@ -203,7 +203,7 @@ let AuthService = AuthService_1 = class AuthService {
                 this.logger.warn(`[REGISTER DEBUG] Error indexing new user (non-critical): ${error instanceof Error ? error.message : error}`);
             }
             try {
-                const code = await this.otpService.createOtp(user.email, client_1.OtpPurpose.signup_verification);
+                const { code } = await this.otpService.createOtp(user.email, client_1.OtpPurpose.signup_verification);
                 await this.mailService.sendSignupOtpMail(user.email, code);
             }
             catch (otpErr) {
@@ -251,7 +251,7 @@ let AuthService = AuthService_1 = class AuthService {
         if (!canResend) {
             throw new common_1.BadRequestException('Yeni kod için lütfen 1 dakika bekleyin.');
         }
-        const code = await this.otpService.createOtp(normalized, client_1.OtpPurpose.signup_verification);
+        const { code } = await this.otpService.createOtp(normalized, client_1.OtpPurpose.signup_verification);
         await this.mailService.sendSignupOtpMail(normalized, code);
         return { message: 'Doğrulama kodu e-posta adresinize gönderildi.' };
     }
@@ -842,10 +842,13 @@ let AuthService = AuthService_1 = class AuthService {
             if (!user) {
                 return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.' };
             }
-            const code = await this.otpService.createOtp(normalized, client_1.OtpPurpose.password_reset);
+            const { code, expiresAt } = await this.otpService.createOtp(normalized, client_1.OtpPurpose.password_reset);
             await this.mailService.sendPasswordResetOtpMail(normalized, code);
             this.logger.log(`✅ Password reset OTP sent to ${normalized}`);
-            return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.' };
+            return {
+                message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.',
+                expiresAt: expiresAt.toISOString(),
+            };
         }
         catch (error) {
             this.logger.error(`forgotPassword for ${normalized}:`, error?.message || error);

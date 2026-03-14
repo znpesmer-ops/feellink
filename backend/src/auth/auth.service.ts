@@ -245,7 +245,7 @@ export class AuthService {
 
       // E-posta doğrulama OTP gönder (kayıt sonrası hesap aktifleşene kadar token verilmez)
       try {
-        const code = await this.otpService.createOtp(user.email, OtpPurpose.signup_verification);
+        const { code } = await this.otpService.createOtp(user.email, OtpPurpose.signup_verification);
         await this.mailService.sendSignupOtpMail(user.email, code);
       } catch (otpErr: any) {
         this.logger.warn(`[REGISTER] Signup OTP send failed (non-blocking): ${otpErr?.message || otpErr}`);
@@ -303,7 +303,7 @@ export class AuthService {
     if (!canResend) {
       throw new BadRequestException('Yeni kod için lütfen 1 dakika bekleyin.');
     }
-    const code = await this.otpService.createOtp(normalized, OtpPurpose.signup_verification);
+    const { code } = await this.otpService.createOtp(normalized, OtpPurpose.signup_verification);
     await this.mailService.sendSignupOtpMail(normalized, code);
     return { message: 'Doğrulama kodu e-posta adresinize gönderildi.' };
   }
@@ -1062,10 +1062,13 @@ export class AuthService {
       if (!user) {
         return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.' };
       }
-      const code = await this.otpService.createOtp(normalized, OtpPurpose.password_reset);
+      const { code, expiresAt } = await this.otpService.createOtp(normalized, OtpPurpose.password_reset);
       await this.mailService.sendPasswordResetOtpMail(normalized, code);
       this.logger.log(`✅ Password reset OTP sent to ${normalized}`);
-      return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.' };
+      return {
+        message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.',
+        expiresAt: expiresAt.toISOString(),
+      };
     } catch (error: any) {
       this.logger.error(`forgotPassword for ${normalized}:`, error?.message || error);
       return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.' };

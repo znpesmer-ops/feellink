@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { createHash, randomInt } from 'crypto';
 import { OtpPurpose } from '@prisma/client';
@@ -7,8 +7,15 @@ const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 const MAX_ATTEMPTS = 5;
 const RESEND_COOLDOWN_SECONDS = 60;
 
+export interface CreateOtpResult {
+  code: string;
+  expiresAt: Date;
+}
+
 @Injectable()
 export class OtpService {
+  private readonly logger = new Logger(OtpService.name);
+
   constructor(private prisma: PrismaService) {}
 
   private hashCode(code: string): string {
@@ -21,15 +28,23 @@ export class OtpService {
   }
 
   /**
-   * Create OTP: generates code, stores hash. Does NOT invalidate previous OTPs so the
-   * code from the first email still works if createOtp was accidentally called twice.
-   * Returns plain code only for sending via email (do not persist or return to client).
+   * Create OTP: revoke previous active (same email+purpose), then create new one.
+   * Returns code and expiresAt so caller can send email and optionally return expiresAt to client.
    */
-  async createOtp(email: string, purpose: OtpPurpose): Promise<string> {
+  async createOtp(email: string, purpose: OtpPurpose): Promise<CreateOtpResult> {
     const normalizedEmail = email.trim().toLowerCase();
     const code = this.generateCode();
     const codeHash = this.hashCode(code);
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_MS);
+
+    await this.prisma.emailOtp.updateMany({
+      where: {
+        email: normalizedEmail,
+        purpose,
+        usedAt: null,
+      },
+      data: { revokedAt: new Date() },
+    });
 
     await this.prisma.emailOtp.create({
       data: {
@@ -41,7 +56,7 @@ export class OtpService {
       },
     });
 
-    return code;
+    return { code, expiresAt };
   }
 
   /**
@@ -59,45 +74,51 @@ export class OtpService {
   }
 
   /**
-   * Verify OTP. Accepts any valid (unused, not expired) OTP for this email+purpose so that
-   * the code from the first email works even if a second OTP was sent. Marks the matched
-   * record as used. Throws on invalid/expired/locked.
+   * Verify OTP. Uses only the latest active (not used, not revoked) record.
+   * Separate error messages for debugging; expiresAt checked in milliseconds.
    */
   async verifyOtp(email: string, purpose: OtpPurpose, code: string): Promise<boolean> {
     const normalizedEmail = email.trim().toLowerCase();
-    const now = new Date();
+    const nowMs = Date.now();
     const inputHash = this.hashCode(code);
 
-    const candidates = await this.prisma.emailOtp.findMany({
+    const record = await this.prisma.emailOtp.findFirst({
       where: {
         email: normalizedEmail,
         purpose,
         usedAt: null,
-        expiresAt: { gt: now },
+        revokedAt: null,
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    if (!candidates.length) {
-      throw new BadRequestException('Doğrulama kodu geçersiz veya süresi dolmuş. Lütfen yeni kod isteyin.');
+    this.logger.debug({
+      email: normalizedEmail.slice(0, 3) + '***',
+      purpose,
+      now: new Date(nowMs).toISOString(),
+      recordExpiresAt: record?.expiresAt?.toISOString?.() ?? null,
+      recordCreatedAt: record?.createdAt?.toISOString?.() ?? null,
+      found: !!record,
+    });
+
+    if (!record) {
+      throw new BadRequestException('Aktif kod bulunamadı. Lütfen yeni kod isteyin.');
     }
 
-    const record = candidates.find((r) => r.codeHash === inputHash);
-    if (!record) {
-      const latest = candidates[0];
-      const attemptCount = Math.min((latest.attemptCount ?? 0) + 1, MAX_ATTEMPTS);
-      await this.prisma.emailOtp.update({
-        where: { id: latest.id },
-        data: { attemptCount },
-      });
-      if (attemptCount >= MAX_ATTEMPTS) {
-        throw new BadRequestException('Çok fazla yanlış deneme. Lütfen yeni doğrulama kodu isteyin.');
-      }
-      throw new BadRequestException('Geçersiz doğrulama kodu. Lütfen tekrar deneyin.');
+    if (record.expiresAt.getTime() < nowMs) {
+      throw new BadRequestException('Kodun süresi dolmuş. Lütfen yeni kod isteyin.');
     }
 
     if (record.attemptCount >= MAX_ATTEMPTS) {
       throw new BadRequestException('Çok fazla yanlış deneme. Lütfen yeni doğrulama kodu isteyin.');
+    }
+
+    if (inputHash !== record.codeHash) {
+      await this.prisma.emailOtp.update({
+        where: { id: record.id },
+        data: { attemptCount: record.attemptCount + 1 },
+      });
+      throw new BadRequestException('Kod hatalı. Lütfen tekrar deneyin.');
     }
 
     await this.prisma.emailOtp.update({

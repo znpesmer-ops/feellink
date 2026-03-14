@@ -255,6 +255,10 @@ export declare class AuthService {
     private createPasswordResetToken;
     forgotPassword(dto: ForgotPasswordDto): Promise<{
         message: string;
+        expiresAt?: undefined;
+    } | {
+        message: string;
+        expiresAt: string;
     }>;
     verifyResetOtp(email: string, code: string): Promise<{
         resetToken: string;

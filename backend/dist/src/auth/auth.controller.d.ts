@@ -248,6 +248,10 @@ export declare class AuthController {
     }>;
     forgotPassword(dto: ForgotPasswordDto): Promise<{
         message: string;
+        expiresAt?: undefined;
+    } | {
+        message: string;
+        expiresAt: string;
     }>;
     verifyResetOtp(dto: VerifyResetOtpDto): Promise<{
         resetToken: string;

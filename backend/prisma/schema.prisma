@@ -940,14 +940,15 @@ model PhoneVerification {
 
 // Tek kullanımlık e-posta doğrulama kodu (kayıt + şifre sıfırlama)
 model EmailOtp {
-  id          String     @id @default(auto()) @map("_id") @db.ObjectId
-  email       String
-  purpose     OtpPurpose
-  codeHash    String
-  expiresAt   DateTime
-  usedAt      DateTime?
-  attemptCount Int       @default(0)
-  createdAt   DateTime   @default(now())
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  email        String
+  purpose      OtpPurpose
+  codeHash     String
+  expiresAt    DateTime
+  usedAt       DateTime?
+  revokedAt    DateTime?  // Yeni kod gönderilince eski kodlar iptal edilir
+  attemptCount Int        @default(0)
+  createdAt    DateTime   @default(now())
 
   @@index([email])
   @@index([purpose])
