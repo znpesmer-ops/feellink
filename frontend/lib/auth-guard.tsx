@@ -53,6 +53,16 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
     const currentToken = accessToken || tokenFromStorage
 
+    // Login/register'da localStorage'da token yoksa initAuth hiç çalıştırma (rehydration sonrası loading'e düşmesin)
+    if (typeof window !== 'undefined' && (currentPathname === '/login' || currentPathname === '/register') && !tokenFromStorage) {
+      clearAuth()
+      setLoading(false)
+      setHasInitialized(true)
+      hasRunRef.current = false
+      lastTokenRef.current = null
+      return
+    }
+
     if (!currentToken) {
       clearAuth()
       setLoading(false)
@@ -141,6 +151,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [loading, hasInitialized, isAuthenticated, isPublicRoute, currentPathname, router])
 
   if (!mounted) return null
+
+  // Login/register'da localStorage'da token yoksa loader gösterme - rehydration sonrası da form kalsın
+  const isLoginOrRegister = currentPathname === '/login' || currentPathname === '/register'
+  const noTokenInStorage = typeof window !== 'undefined' && !localStorage.getItem('access_token')
+  if (isLoginOrRegister && noTokenInStorage) {
+    return <>{children}</>
+  }
 
   // Loading veya henüz init bitmediyse tek ekran: loader
   if (loading || !hasInitialized) {

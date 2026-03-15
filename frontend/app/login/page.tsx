@@ -211,8 +211,11 @@ export default function LoginPage() {
   }
 
 
-  // Auth resolve olana veya kesin login göstereceğimiz ana kadar spinner
-  if (isChecking || authLoading || !hasInitialized) {
+  // Token yoksa (çıkış sonrası) spinner gösterme - form hemen görünsün
+  const hasTokenInStorage = typeof window !== 'undefined' && !!localStorage.getItem('access_token')
+  const showSpinner = hasTokenInStorage && (isChecking || authLoading || !hasInitialized)
+
+  if (showSpinner) {
     return (
       <div
         className={`fixed inset-0 flex items-center justify-center transition-all duration-500 overflow-hidden ${
