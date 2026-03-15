@@ -61,7 +61,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
 
     if (hasRunRef.current) {
-      if (loading) setLoading(false)
+      setLoading(false)
+      setHasInitialized(true)
       return
     }
     hasRunRef.current = true
@@ -214,8 +215,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [loading, isAuthenticated, hasInitialized, router]) // ⛔️ pathname dependency kaldırıldı - loop önleme
 
-  // ⛔️ Token olsa bile /me sonucunu bekle; askı kaldırılan hesaplarda redirect loop olmasın
   if (!mounted) return null
+  const hasToken = !!(accessToken || (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null))
+  if (hasToken) return <>{children}</>
   if (loading || !hasInitialized) {
     return (
       <div className="flex items-center justify-center min-h-screen">

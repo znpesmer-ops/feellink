@@ -132,11 +132,13 @@ api.interceptors.response.use(
     if (!error.response) {
       // Network hatası (bağlantı yok, timeout, vs.)
       // Sadece development modunda logla
+      const baseURL = (originalRequest?.baseURL ?? getBaseURL?.() ?? '') as string
       if (process.env.NODE_ENV === 'development') {
-        console.warn('Network error:', {
+        console.warn('Network error (backend erişilemiyor):', {
           code: error.code,
           message: error.message,
           url: originalRequest?.url,
+          baseURL,
         })
       }
 
@@ -147,7 +149,7 @@ api.interceptors.response.use(
             message: error.code === 'ECONNABORTED' || error.message?.includes('timeout')
               ? 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.'
               : error.code === 'ERR_NETWORK' || error.message === 'Network Error'
-              ? 'Sunucuya bağlanılamıyor. İnternet bağlantınızı kontrol edin.'
+              ? 'Sunucuya ulaşılamadı. Backend adresini (NEXT_PUBLIC_API_URL) kontrol edin.'
               : 'Bağlantı hatası oluştu. Lütfen tekrar deneyin.',
           },
           status: 0,
