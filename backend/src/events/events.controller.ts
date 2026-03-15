@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Put, Delete, Patch, Param, UseGuards, Req, Query } from '@nestjs/common';
 import { EventsService } from './events.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CreateEventDto } from './dto/create-event.dto';
 
@@ -35,8 +36,9 @@ export class EventsController {
   }
 
   @Get(':id')
-  async getEvent(@Param('id') id: string) {
-    return this.eventsService.getEvent(id);
+  @UseGuards(OptionalJwtAuthGuard)
+  async getEvent(@Param('id') id: string, @CurrentUser() user?: { id: string }) {
+    return this.eventsService.getEvent(id, user?.id);
   }
 
   @Post()
@@ -52,8 +54,9 @@ export class EventsController {
   }
 
   @Get(':id/participants')
-  async getParticipants(@Param('id') id: string) {
-    return this.eventsService.getParticipants(id);
+  @UseGuards(JwtAuthGuard)
+  async getParticipants(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.eventsService.getParticipants(id, user.id);
   }
 
   @Get(':id/comments')

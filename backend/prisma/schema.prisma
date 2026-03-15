@@ -746,6 +746,7 @@ model EventParticipant {
   status            EventParticipantStatus @default(PENDING)
   reminderSentAt    DateTime? // 30 dakika hatırlatma için
   reminder24hSentAt DateTime? // 24 saat hatırlatma için
+  reminder2hSentAt  DateTime? // 2 saat önce hatırlatma için
   createdAt         DateTime               @default(now())
 
   event Event @relation("EventParticipants", fields: [eventId], references: [id])
@@ -758,6 +759,7 @@ model EventParticipant {
   @@index([createdAt])
   @@index([reminderSentAt])
   @@index([reminder24hSentAt])
+  @@index([reminder2hSentAt])
   @@map("event_participants")
 }
 

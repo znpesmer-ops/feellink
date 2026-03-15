@@ -141,10 +141,10 @@ export class EventsService {
     return { success: true };
   }
 
-  async getEvent(id: string) {
+  async getEvent(id: string, viewerId?: string) {
     const event = await this.prisma.event.findUnique({
       where: { id },
-      include: { 
+      include: {
         owner: true,
         participants: {
           select: {
@@ -157,6 +157,24 @@ export class EventsService {
 
     if (!event || event.isDeleted) {
       throw new NotFoundException('Event not found');
+    }
+
+    // KVKK: Katılımcı bilgisi sadece etkinlik sahibine dönsün
+    const isOwner = viewerId && event.ownerId === viewerId;
+    if (!isOwner && viewerId) {
+      const viewerParticipation = event.participants.find((p) => p.userId === viewerId);
+      return {
+        ...event,
+        participantCount: null,
+        participants: viewerParticipation ? [viewerParticipation] : [],
+      };
+    }
+    if (!isOwner && !viewerId) {
+      return {
+        ...event,
+        participantCount: null,
+        participants: [],
+      };
     }
 
     return event;
@@ -271,9 +289,20 @@ export class EventsService {
     return comment;
   }
 
-  async getParticipants(eventId: string) {
+  async getParticipants(eventId: string, callerId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: { ownerId: true },
+    });
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+    if (event.ownerId !== callerId) {
+      throw new ForbiddenException('Sadece etkinlik düzenleyicisi katılımcı listesini görebilir.');
+    }
+
     const participants = await this.prisma.eventParticipant.findMany({
-      where: { eventId },
+      where: { eventId, status: 'APPROVED' },
       include: { user: true },
       orderBy: { createdAt: 'desc' },
     });

@@ -370,12 +370,14 @@ export default function EventDetailPage() {
                 })}
               </span>
             )}
-            <button
-              onClick={handleShowParticipants}
-              className="flex items-center gap-1 hover:text-brand-orange transition-colors"
-            >
-              <Users size={16} /> {event.participantCount} Katılımcı
-            </button>
+            {event.ownerId === user?.id && (
+              <button
+                onClick={handleShowParticipants}
+                className="flex items-center gap-1 hover:text-brand-orange transition-colors"
+              >
+                <Users size={16} /> {event.participantCount ?? 0} Katılımcı
+              </button>
+            )}
           </div>
 
           <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-6">
@@ -514,7 +516,11 @@ export default function EventDetailPage() {
                   <button
                     onClick={handleJoin}
                     disabled={joinButtonDisabled}
-                    className="bg-brand-orange hover:bg-brand-orange/90 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-xl font-medium transition flex items-center gap-2 w-fit"
+                    className={
+                      requestStatus === 'approved'
+                        ? 'bg-emerald-600/20 border border-emerald-500/40 text-emerald-700 dark:text-emerald-400 disabled:cursor-default px-6 py-2 rounded-xl font-medium transition flex items-center gap-2 w-fit'
+                        : 'bg-brand-orange hover:bg-brand-orange/90 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-xl font-medium transition flex items-center gap-2 w-fit'
+                    }
                   >
                     {joining ? (
                       <>
