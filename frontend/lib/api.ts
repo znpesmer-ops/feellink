@@ -189,7 +189,7 @@ api.interceptors.response.use(
       if (!refreshToken) {
         // No refresh token, logout
         useAuthStore.getState().clearAuth()
-        window.location.href = '/login'
+        window.location.replace('/login')
         return Promise.reject(error)
       }
 
@@ -223,7 +223,7 @@ api.interceptors.response.use(
         // Refresh failed, logout
         processQueue(refreshError, null)
         useAuthStore.getState().clearAuth()
-        window.location.href = '/login'
+        window.location.replace('/login')
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false

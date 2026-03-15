@@ -110,6 +110,7 @@ export const useAuthStore = create<AuthState>()(
           localStorage.removeItem('feellink_roles')
           localStorage.removeItem('access_token')
           localStorage.removeItem('refresh_token')
+          localStorage.removeItem('auth-storage')
           sessionStorage.removeItem('access_token')
           sessionStorage.removeItem('refresh_token')
         }
