@@ -51,10 +51,9 @@ const getBaseURL = (): string => {
     return ensureProtocol(backendURL)
   }
   
-  // ✅ Vercel preview/staging için
+  // ✅ Vercel preview/staging için (feellink.io ile aynı backend)
   if (currentHost.includes('vercel.app')) {
-    // Vercel'de frontend ve backend aynı domain'de olabilir veya env'den al
-    const vercelURL = envURL || `https://${currentHost.replace('feellink', 'feellink-backend')}`
+    const vercelURL = envURL || 'https://feellink-backend.vercel.app'
     return ensureProtocol(vercelURL)
   }
   
@@ -68,7 +67,10 @@ const getBaseURL = (): string => {
     return envURL.startsWith('http') ? envURL : `http://${envURL}`
   }
   
-  // Varsayılan olarak env URL'i veya localhost
+  // Localhost / diğer: env varsa kullan, yoksa backend localhost:3002
+  if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+    return envURL ? ensureProtocol(envURL) : 'http://localhost:3002'
+  }
   const defaultURL = envURL || 'http://localhost:3002'
   return ensureProtocol(defaultURL)
 }
