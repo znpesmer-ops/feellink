@@ -22,6 +22,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     clearAuth
   } = useAuthStore()
   const hasRunRef = useRef(false)
+  const lastTokenRef = useRef<string | null>(null)
 
   // ✅ Public routes
   const publicRoutes = [
@@ -40,22 +41,27 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     pathname?.startsWith(route)
   )
 
-  // ✅ Global bir kez backend doğrulaması
+  // ✅ Token veya init durumu değişince backend doğrulaması (askı kaldırılan hesaplar için token değişince tekrar /me)
   useEffect(() => {
-    // ⛔️ Eğer hasInitialized = false ise hasRunRef'i sıfırla (logout sonrası)
-    if (!hasInitialized && hasRunRef.current) {
-      console.log('[AuthGuard] hasInitialized = false, resetting hasRunRef')
-      hasRunRef.current = false
-    }
+    const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+    const currentToken = accessToken || tokenFromStorage
 
-    if (hasInitialized) {
-      if (loading) {
-        setLoading(false)
-      }
+    if (!currentToken) {
+      setAuthenticated(false)
+      setLoading(false)
+      setHasInitialized(true)
+      hasRunRef.current = false
+      lastTokenRef.current = null
       return
     }
 
+    if (lastTokenRef.current !== currentToken) {
+      lastTokenRef.current = currentToken
+      hasRunRef.current = false
+    }
+
     if (hasRunRef.current) {
+      if (loading) setLoading(false)
       return
     }
     hasRunRef.current = true
@@ -148,7 +154,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     initAuth()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [accessToken])
 
   // ✅ Redirect kuralları - network hatası sonrası da çalışmalı
   useEffect(() => {
@@ -208,11 +214,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [loading, isAuthenticated, hasInitialized, router]) // ⛔️ pathname dependency kaldırıldı - loop önleme
 
-  // Token varsa içeriği hemen göster (sadece client mount sonrası, hydration uyumu için)
-  const hasToken = mounted && !!(accessToken || (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null))
-  if (hasToken) return <>{children}</>
-
-  // Token yoksa sadece ilk doğrulama bitene kadar spinner
+  // ⛔️ Token olsa bile /me sonucunu bekle; askı kaldırılan hesaplarda redirect loop olmasın
+  if (!mounted) return null
   if (loading || !hasInitialized) {
     return (
       <div className="flex items-center justify-center min-h-screen">

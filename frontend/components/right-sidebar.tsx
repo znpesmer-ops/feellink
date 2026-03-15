@@ -215,16 +215,16 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
   return (
     <>
     <aside
-      className={`hidden lg:flex flex-col
+      className={`hidden lg:flex flex-col h-full
                  w-full overflow-y-auto
-                 pb-8
+                 pb-4
                  border-l border-black/6 dark:border-white/8
                  pl-[18px] pr-[18px]
                  bg-white dark:bg-[#0b1220]
                  text-[#111] dark:text-gray-200`}
     >
-      {/* İçerik wrapper - tek dikey kolon; CTA doğal akışta en altta */}
-      <div className={`w-full flex flex-col gap-6 h-full ${(isFeed || isExplore) ? 'mt-0 pt-4' : 'pt-4'}`}>
+      {/* İçerik wrapper - tek dikey kolon; CTA mt-auto ile en altta, sol sidebar Admin ile hizalı */}
+      <div className={`w-full flex flex-col gap-6 h-full min-h-0 ${(isFeed || isExplore) ? 'mt-0 pt-4' : 'pt-4'}`}>
         {/* 🔥 Explore modunda sadece yazarlar gösterilir */}
         {sidebarMode === 'explore' ? (
           <>

@@ -853,6 +853,7 @@ export class AuthService {
       where: { id: userId },
       select: {
         ...this.authSelect,
+        accountStatus: true,
       },
     });
 
@@ -860,7 +861,12 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    return this.hydrateAuthUser(user);
+    if (user.accountStatus === 'SUSPENDED') {
+      throw new ForbiddenException('ACCOUNT_SUSPENDED');
+    }
+
+    const { accountStatus: _, ...safeUser } = user;
+    return this.hydrateAuthUser(safeUser);
   }
 
   private async verifyAndMigratePassword(

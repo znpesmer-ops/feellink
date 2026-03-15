@@ -1225,7 +1225,7 @@ export class AdminService {
     return { success: true, message: 'User suspended', user: updated };
   }
 
-  // Unsuspend user
+  // Unsuspend user - refresh token'ları temizle ki kullanıcı yeni session ile girsin
   async unsuspendUser(userId: string) {
     const updated = await this.prisma.user.update({
       where: { id: userId },
@@ -1244,6 +1244,10 @@ export class AdminService {
         suspendedUntil: true,
         suspensionReason: true,
       },
+    });
+
+    await this.prisma.refreshToken.deleteMany({
+      where: { userId },
     });
 
     return { success: true, message: 'User unsuspended', user: updated };

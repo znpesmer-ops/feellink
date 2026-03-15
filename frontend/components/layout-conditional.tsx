@@ -74,14 +74,14 @@ function LayoutConditionalComponent({ children }: { children: React.ReactNode })
         <Header />
       </div>
 
-      {/* ANA İÇERİK */}
+      {/* ANA İÇERİK - flex row min-h ile sağ sidebar sol sidebar altıyla aynı hizada */}
       <div className="pt-[72px] lg:pl-64">
-        <div className="flex">
+        <div className="flex min-h-[calc(100vh-72px)]">
           <main className="w-full px-4 md:px-10 pb-20 max-w-[900px] xl:max-w-[1100px] mx-auto">
             {children}
           </main>
           {(isFeed || isExplore) && (
-            <aside className="hidden xl:block w-[400px] flex-shrink-0 pt-4 pr-6">
+            <aside className="hidden xl:block w-[400px] flex-shrink-0 pt-4 pr-6 h-full">
               <RightSidebar mode={isExplore ? 'explore' : 'feed'} />
             </aside>
           )}
