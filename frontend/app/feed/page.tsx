@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
 import { useQuery } from '@tanstack/react-query'
@@ -32,10 +31,6 @@ type FeedPost = {
 function FeedContent() {
   const router = useRouter()
   const { accessToken, user } = useAuthStore()
-
-  useEffect(() => {
-    if (!accessToken) router.push('/login')
-  }, [accessToken, router])
 
   const { data: feedData, isLoading } = useQuery({
     queryKey: ['feed', user?.id],
