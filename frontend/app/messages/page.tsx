@@ -22,18 +22,34 @@ const formatTimeAgo = (date: string | Date) => {
   return messageDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })
 }
 
+// WhatsApp tarzı: son görülme: 20:45 / dün 20:45 / 12 Mar 20:45
 const formatLastSeen = (date: string | Date | null | undefined) => {
   if (!date) return 'Son görülme bilgisi yok'
+  const d = new Date(date)
   const now = new Date()
-  const lastSeenDate = new Date(date)
-  const diffInSeconds = Math.floor((now.getTime() - lastSeenDate.getTime()) / 1000)
+  const time = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+  const sameDay =
+    d.getDate() === now.getDate() &&
+    d.getMonth() === now.getMonth() &&
+    d.getFullYear() === now.getFullYear()
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  const isYesterday =
+    d.getDate() === yesterday.getDate() &&
+    d.getMonth() === yesterday.getMonth() &&
+    d.getFullYear() === yesterday.getFullYear()
+  if (sameDay) return `son görülme: ${time}`
+  if (isYesterday) return `son görülme: dün ${time}`
+  const datePart = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })
+  return `son görülme: ${datePart} ${time}`
+}
 
-  if (diffInSeconds < 60) return 'Az önce görüldü'
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} dakika önce görüldü`
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} saat önce görüldü`
-  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} gün önce görüldü`
-
-  return lastSeenDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+const getPresenceLabel = (
+  isOnline: boolean,
+  lastSeen: string | Date | null | undefined
+) => {
+  if (isOnline) return 'Çevrimiçi'
+  return formatLastSeen(lastSeen)
 }
 
 interface Message {
@@ -125,13 +141,22 @@ function MessagesContent() {
 
     socket.on('connect', () => {
       console.log('✅ Chat socket connected:', socket.id)
-      // Aktif kullanıcıları al
       socket.emit('get_active_users')
     })
 
     socket.on('disconnect', () => {
       console.log('❌ Chat socket disconnected')
     })
+
+    const presencePingInterval = setInterval(() => {
+      if (socket.connected) socket.emit('presence:ping')
+    }, 20_000)
+
+    const handleBeforeUnload = () => {
+      if (chatSocketRef.current?.connected) chatSocketRef.current.emit('presence:offline')
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('pagehide', handleBeforeUnload)
 
     socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error)
@@ -287,7 +312,9 @@ function MessagesContent() {
     socket.on('active_users_list', handleActiveUsersList)
 
     return () => {
-      // Typing timeout'unu temizle
+      clearInterval(presencePingInterval)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      window.removeEventListener('pagehide', handleBeforeUnload)
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current)
         typingTimeoutRef.current = null
@@ -1223,13 +1250,13 @@ function MessagesContent() {
                             Henüz mesaj yok
                           </p>
                         )}
-                        {!isOnline && (() => {
+                        {(() => {
                           const displayDate = userLastSeen[otherUser?.user?.id || ''] ?? (otherUser?.user as { lastActiveAt?: string | Date })?.lastActiveAt ?? (otherUser?.user as { lastSeen?: string | Date })?.lastSeen
-                          return displayDate ? (
+                          return (
                             <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                              {formatLastSeen(displayDate)}
+                              {getPresenceLabel(isOnline, displayDate)}
                             </span>
-                          ) : null
+                          )
                         })()}
                       </div>
                     </div>
@@ -1298,11 +1325,11 @@ function MessagesContent() {
                       )}
                       {isTyping ? (
                         <p className="text-xs text-brand-orange">Yazıyor...</p>
-                      ) : !isOnline && lastSeenDate ? (
+                      ) : (
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {formatLastSeen(lastSeenDate)}
+                          {getPresenceLabel(isOnline, lastSeenDate)}
                         </p>
-                      ) : null}
+                      )}
                     </div>
                   </div>
                 )
@@ -1652,11 +1679,11 @@ function MessagesContent() {
                         )}
                         {isTyping ? (
                           <p className="text-xs text-brand-orange">Yazıyor...</p>
-                        ) : !isOnline && lastSeenDate ? (
+                        ) : (
                           <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                            {formatLastSeen(lastSeenDate)}
+                            {getPresenceLabel(isOnline, lastSeenDate)}
                           </p>
-                        ) : null}
+                        )}
                       </div>
                     </div>
                   </>

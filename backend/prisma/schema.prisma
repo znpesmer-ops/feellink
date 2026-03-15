@@ -54,6 +54,7 @@ model User {
   followingCount            Int              @default(0)
   isOnline                  Boolean          @default(false)
   lastSeen                  DateTime?
+  lastActiveAt              DateTime?        // presence heartbeat; timeout ile offline kararı
   passwordResetToken        String?
   passwordResetExpires      DateTime?
   usernameLastChangedAt     DateTime?

@@ -28,6 +28,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   // Çoklu sekme/cihaz: bir kullanıcının birden fazla socket'i olabilir; hepsi kapanınca offline
   private userSockets: Map<string, Set<string>> = new Map(); // userId -> Set<socketId>
   private socketToUser: Map<string, string> = new Map(); // socketId -> userId
+  private userLastActiveAt: Map<string, Date> = new Map(); // heartbeat timeout için
+  private presenceTimeoutInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private jwtService: JwtService,
@@ -39,6 +41,27 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   afterInit(server: Server) {
     console.log('Chat WebSocket Gateway initialized');
+    const PRESENCE_TIMEOUT_MS = 60_000; // 60 sn ping yoksa offline
+    const CHECK_INTERVAL_MS = 45_000;   // 45 sn'de bir kontrol
+    this.presenceTimeoutInterval = setInterval(async () => {
+      const now = new Date();
+      const cutoff = new Date(now.getTime() - PRESENCE_TIMEOUT_MS);
+      for (const [userId, lastActive] of this.userLastActiveAt.entries()) {
+        if (lastActive >= cutoff) continue;
+        const socketIds = this.userSockets.get(userId);
+        this.userLastActiveAt.delete(userId);
+        if (!socketIds?.size) continue; // Zaten disconnect olmuş
+        try {
+          await this.prisma.user.update({
+            where: { id: userId },
+            data: { isOnline: false, lastSeen: now },
+          });
+          this.broadcastUserStatus(userId, false);
+        } catch (e) {
+          // ignore
+        }
+      }
+    }, CHECK_INTERVAL_MS);
   }
 
   async handleConnection(client: Socket) {
@@ -67,12 +90,16 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
       // Sadece ilk bağlantıda (veya tekrar çevrimiçi olunca) DB ve broadcast güncelle
       if (wasEmpty) {
+        const now = new Date();
+        this.userLastActiveAt.set(userId, now);
         await this.prisma.user.update({
           where: { id: userId },
-          data: { isOnline: true },
+          data: { isOnline: true, lastActiveAt: now },
         });
         console.log(`✅ ${userId} çevrim içi`);
         this.broadcastUserStatus(userId, true);
+      } else {
+        this.userLastActiveAt.set(userId, new Date());
       }
     } catch (error) {
       client.disconnect();
@@ -87,6 +114,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         socketIds.delete(client.id);
         if (socketIds.size === 0) {
           this.userSockets.delete(userId);
+          this.userLastActiveAt.delete(userId);
           await this.prisma.user.update({
             where: { id: userId },
             data: { isOnline: false, lastSeen: new Date() },
@@ -97,6 +125,43 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       }
       this.socketToUser.delete(client.id);
     }
+  }
+
+  @SubscribeMessage('presence:ping')
+  async handlePresencePing(@ConnectedSocket() client: Socket) {
+    const userId = this.socketToUser.get(client.id);
+    if (!userId) return;
+    const now = new Date();
+    this.userLastActiveAt.set(userId, now);
+    const before = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { isOnline: true },
+    });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { lastActiveAt: now, isOnline: true },
+    });
+    if (before && !before.isOnline) this.broadcastUserStatus(userId, true);
+  }
+
+  @SubscribeMessage('presence:offline')
+  async handlePresenceOffline(@ConnectedSocket() client: Socket) {
+    const userId = this.socketToUser.get(client.id);
+    if (!userId) return;
+    const socketIds = this.userSockets.get(userId);
+    if (socketIds) {
+      socketIds.delete(client.id);
+      if (socketIds.size === 0) {
+        this.userSockets.delete(userId);
+        this.userLastActiveAt.delete(userId);
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { isOnline: false, lastSeen: new Date() },
+        });
+        this.broadcastUserStatus(userId, false);
+      }
+    }
+    this.socketToUser.delete(client.id);
   }
 
   @SubscribeMessage('join_conversation')
