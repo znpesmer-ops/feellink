@@ -38,6 +38,16 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const currentPathname = pathname || ''
   const isPublicRoute = publicRoutes.some((r) => currentPathname.startsWith(r))
 
+  // Login/register'da token yoksa hemen resolved yap - loader takılmadan form gösterilsin
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (currentPathname !== '/login' && currentPathname !== '/register') return
+    if (localStorage.getItem('access_token')) return
+    setLoading(false)
+    setHasInitialized(true)
+    clearAuth()
+  }, [currentPathname, setLoading, setHasInitialized, clearAuth])
+
   // Tek karar noktası: token varsa /me ile doğrula; yoksa resolved = not authenticated
   useEffect(() => {
     const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null

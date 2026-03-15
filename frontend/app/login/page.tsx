@@ -104,6 +104,14 @@ export default function LoginPage() {
     }
   }, [darkMode])
 
+  // Token yoksa hemen formu göster (logout sonrası loading takılmasın)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!localStorage.getItem('access_token')) {
+      setIsChecking(false)
+    }
+  }, [])
+
   // Sadece auth resolve olduktan sonra ve user varsa feed'e yönlendir (token'a göre değil)
   useEffect(() => {
     if (authLoading || !hasInitialized) return
