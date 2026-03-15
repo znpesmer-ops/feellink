@@ -7,17 +7,17 @@ export declare class StoriesController {
         mediaType: string;
     }): Promise<{
         user: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             isVerified: boolean;
         };
     } & {
-        id: string;
-        createdAt: Date;
-        userId: string;
         expiresAt: Date;
+        createdAt: Date;
+        id: string;
+        userId: string;
         mediaUrl: string;
         mediaType: string;
     }>;
@@ -25,8 +25,8 @@ export declare class StoriesController {
     viewStory(id: string, user: any): Promise<{
         id: string;
         userId: string;
-        viewedAt: Date;
         storyId: string;
+        viewedAt: Date;
     }>;
     deleteStory(id: string, user: any): Promise<{
         status: string;

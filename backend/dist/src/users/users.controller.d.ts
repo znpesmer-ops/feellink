@@ -71,9 +71,9 @@ export declare class UsersController {
     getProfile(username: string, user: any): Promise<any>;
     updateUsername(user: any, data: UpdateUsernameDto): Promise<{
         email: string;
+        id: string;
         username: string;
         fullName: string;
-        id: string;
         bio: string;
         avatar: string;
         roles: import(".prisma/client").$Enums.UserRole[];
@@ -98,9 +98,9 @@ export declare class UsersController {
         success: boolean;
         user: {
             email: string;
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             bio: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
@@ -130,9 +130,9 @@ export declare class UsersController {
         message: string;
     }>;
     getHighlights(user: any): Promise<{
+        id: string;
         username: string;
         fullName: string;
-        id: string;
         avatar: string;
         isVerified: boolean;
     }[]>;
@@ -141,9 +141,9 @@ export declare class UsersController {
         user: {
             activeRole: string;
             email: string;
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             roles: import(".prisma/client").$Enums.UserRole[];
             extras: string[];
             plan: import(".prisma/client").$Enums.SubscriptionPlan;
@@ -158,8 +158,8 @@ export declare class UsersController {
     }): Promise<{
         message: string;
         user: {
-            username: string;
             id: string;
+            username: string;
             roles: import(".prisma/client").$Enums.UserRole[];
             extras: string[];
             plan: import(".prisma/client").$Enums.SubscriptionPlan;
@@ -191,9 +191,9 @@ export declare class UsersController {
         isLiked: boolean;
         savedAt: Date;
         user: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -202,25 +202,25 @@ export declare class UsersController {
             likes: number;
         };
         media: {
-            url: string;
-            id: string;
             createdAt: Date;
+            id: string;
             type: string;
             postId: string;
             order: number;
+            url: string;
             thumbnailUrl: string;
         }[];
+        createdAt: Date;
         id: string;
+        code: string;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
         updatedAt: Date;
         userId: string;
+        type: string;
         title: string;
         location: string;
-        type: string;
         caption: string;
-        code: string;
         colors: string[];
         colorPalette: string[];
     }[]>;
@@ -228,9 +228,9 @@ export declare class UsersController {
         isLiked: boolean;
         savedAt: Date;
         user: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -239,25 +239,25 @@ export declare class UsersController {
             likes: number;
         };
         media: {
-            url: string;
-            id: string;
             createdAt: Date;
+            id: string;
             type: string;
             postId: string;
             order: number;
+            url: string;
             thumbnailUrl: string;
         }[];
+        createdAt: Date;
         id: string;
+        code: string;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
         updatedAt: Date;
         userId: string;
+        type: string;
         title: string;
         location: string;
-        type: string;
         caption: string;
-        code: string;
         colors: string[];
         colorPalette: string[];
     }[]>;

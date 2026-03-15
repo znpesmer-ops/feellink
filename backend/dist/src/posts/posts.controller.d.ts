@@ -17,9 +17,9 @@ export declare class PostsController {
         colorPalette?: string | string[];
     }): Promise<{
         user: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -28,34 +28,34 @@ export declare class PostsController {
             likes: number;
         };
         media: {
-            url: string;
-            id: string;
             createdAt: Date;
+            id: string;
             type: string;
             postId: string;
             order: number;
+            url: string;
             thumbnailUrl: string;
         }[];
     } & {
+        createdAt: Date;
         id: string;
+        code: string;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
         updatedAt: Date;
         userId: string;
+        type: string;
         title: string;
         location: string;
-        type: string;
         caption: string;
-        code: string;
         colors: string[];
         colorPalette: string[];
     }>;
     createPostWithUrls(user: any, dto: CreatePostDto): Promise<{
         user: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -64,26 +64,26 @@ export declare class PostsController {
             likes: number;
         };
         media: {
-            url: string;
-            id: string;
             createdAt: Date;
+            id: string;
             type: string;
             postId: string;
             order: number;
+            url: string;
             thumbnailUrl: string;
         }[];
     } & {
+        createdAt: Date;
         id: string;
+        code: string;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
         updatedAt: Date;
         userId: string;
+        type: string;
         title: string;
         location: string;
-        type: string;
         caption: string;
-        code: string;
         colors: string[];
         colorPalette: string[];
     }>;
@@ -101,9 +101,9 @@ export declare class PostsController {
         media: any[];
         user: {
             avatar: string;
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             isVerified: boolean;
         };
         comments: {
@@ -134,9 +134,9 @@ export declare class PostsController {
         };
         hashtags: ({
             hashtag: {
-                name: string;
-                id: string;
                 createdAt: Date;
+                id: string;
+                name: string;
                 postCount: number;
             };
         } & {
@@ -144,9 +144,9 @@ export declare class PostsController {
             postId: string;
             hashtagId: string;
         })[];
+        code: string;
         isDeleted: boolean;
         deletedAt: Date;
-        code: string;
         colors: string[];
         colorPalette: string[];
     }>;
@@ -155,9 +155,9 @@ export declare class PostsController {
         title?: string;
     }): Promise<{
         user: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
         _count: {
@@ -165,26 +165,26 @@ export declare class PostsController {
             likes: number;
         };
         media: {
-            url: string;
-            id: string;
             createdAt: Date;
+            id: string;
             type: string;
             postId: string;
             order: number;
+            url: string;
             thumbnailUrl: string;
         }[];
     } & {
+        createdAt: Date;
         id: string;
+        code: string;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
         updatedAt: Date;
         userId: string;
+        type: string;
         title: string;
         location: string;
-        type: string;
         caption: string;
-        code: string;
         colors: string[];
         colorPalette: string[];
     }>;
@@ -224,15 +224,15 @@ export declare class PostsController {
     }>;
     getComments(params: PostIdDto, parentId?: string): Promise<({
         user: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             isVerified: boolean;
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         userId: string;
         postId: string;
@@ -282,27 +282,27 @@ export declare class PostsController {
             comments: number;
         };
         user: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             isVerified: boolean;
         };
+        createdAt: Date;
+        code: string;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
         updatedAt: Date;
         userId: string;
         location: string;
-        code: string;
         colors: string[];
         colorPalette: string[];
     }[]>;
     getUserComments(userId: string): Promise<({
         user: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -312,15 +312,15 @@ export declare class PostsController {
         };
         post: {
             id: string;
-            caption: string;
             media: {
-                url: string;
                 type: string;
+                url: string;
             }[];
+            caption: string;
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         userId: string;
         postId: string;
@@ -336,8 +336,8 @@ export declare class PostsController {
         success: boolean;
         message: string;
         savedPost: {
-            id: string;
             createdAt: Date;
+            id: string;
             userId: string;
             postId: string;
         };
@@ -354,32 +354,32 @@ export declare class PostsController {
             comments: number;
         };
         user: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             isVerified: boolean;
         };
         media: {
-            url: string;
-            id: string;
             createdAt: Date;
+            id: string;
             type: string;
             postId: string;
             order: number;
+            url: string;
             thumbnailUrl: string;
         }[];
+        createdAt: Date;
         id: string;
+        code: string;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
         updatedAt: Date;
         userId: string;
+        type: string;
         title: string;
         location: string;
-        type: string;
         caption: string;
-        code: string;
         colors: string[];
         colorPalette: string[];
     }[]>;
@@ -403,9 +403,9 @@ export declare class PostsController {
         updatedAt: Date;
         createdAt: Date;
         user: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -438,9 +438,9 @@ export declare class PostsController {
         isPinned: boolean;
         createdAt: Date;
         user: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
             plan: import(".prisma/client").$Enums.SubscriptionPlan;

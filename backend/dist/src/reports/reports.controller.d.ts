@@ -14,28 +14,28 @@ export declare class ReportsController {
     }): Promise<any>;
     getReports(status?: string, page?: string, limit?: string): Promise<{
         reports: ({
-            reporter: {
+            reportedUser: {
+                id: string;
                 username: string;
                 fullName: string;
-                id: string;
                 avatar: string;
             };
-            reportedUser: {
+            reporter: {
+                id: string;
                 username: string;
                 fullName: string;
-                id: string;
                 avatar: string;
             };
         } & {
-            messageId: string;
-            id: string;
             createdAt: Date;
+            id: string;
             status: string;
             conversationId: string;
-            reporterId: string;
-            reportedUserId: string;
+            messageId: string;
             reason: import(".prisma/client").$Enums.ReportReason;
             note: string;
+            reportedUserId: string;
+            reporterId: string;
         })[];
         total: number;
         page: number;
@@ -43,54 +43,54 @@ export declare class ReportsController {
         totalPages: number;
     }>;
     getReportById(reportId: string): Promise<{
-        reporter: {
+        reportedUser: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
-        reportedUser: {
+        reporter: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
     } & {
-        messageId: string;
-        id: string;
         createdAt: Date;
+        id: string;
         status: string;
         conversationId: string;
-        reporterId: string;
-        reportedUserId: string;
+        messageId: string;
         reason: import(".prisma/client").$Enums.ReportReason;
         note: string;
+        reportedUserId: string;
+        reporterId: string;
     }>;
     updateReportStatus(reportId: string, body: {
         status: string;
     }): Promise<{
-        reporter: {
-            email: string;
+        reportedUser: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
-        reportedUser: {
+        reporter: {
+            email: string;
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
     } & {
-        messageId: string;
-        id: string;
         createdAt: Date;
+        id: string;
         status: string;
         conversationId: string;
-        reporterId: string;
-        reportedUserId: string;
+        messageId: string;
         reason: import(".prisma/client").$Enums.ReportReason;
         note: string;
+        reportedUserId: string;
+        reporterId: string;
     }>;
 }

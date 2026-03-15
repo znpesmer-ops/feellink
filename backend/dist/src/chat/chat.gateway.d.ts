@@ -46,27 +46,27 @@ export declare class ChatGateway implements OnGatewayInit, OnGatewayConnection, 
         success: boolean;
         message: {
             sender: {
-                username: string;
                 id: string;
+                username: string;
                 avatar: string;
             };
         } & {
+            createdAt: Date;
             id: string;
             isDeleted: boolean;
-            createdAt: Date;
             updatedAt: Date;
-            conversationId: string;
-            applicationId: string;
-            context: import(".prisma/client").$Enums.ConversationContext;
-            jobId: string;
             content: string;
             imageUrl: string;
             fileUrl: string;
             fileName: string;
             fileType: string;
+            context: import(".prisma/client").$Enums.ConversationContext;
+            jobId: string;
+            applicationId: string;
             read: boolean;
             isEdited: boolean;
             isRequest: boolean;
+            conversationId: string;
             senderId: string;
         };
         error?: undefined;
@@ -106,27 +106,27 @@ export declare class ChatGateway implements OnGatewayInit, OnGatewayConnection, 
         success: boolean;
         message: {
             sender: {
-                username: string;
                 id: string;
+                username: string;
                 avatar: string;
             };
         } & {
+            createdAt: Date;
             id: string;
             isDeleted: boolean;
-            createdAt: Date;
             updatedAt: Date;
-            conversationId: string;
-            applicationId: string;
-            context: import(".prisma/client").$Enums.ConversationContext;
-            jobId: string;
             content: string;
             imageUrl: string;
             fileUrl: string;
             fileName: string;
             fileType: string;
+            context: import(".prisma/client").$Enums.ConversationContext;
+            jobId: string;
+            applicationId: string;
             read: boolean;
             isEdited: boolean;
             isRequest: boolean;
+            conversationId: string;
             senderId: string;
         };
         error?: undefined;

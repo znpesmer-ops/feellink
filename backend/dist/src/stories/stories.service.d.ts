@@ -6,17 +6,17 @@ export declare class StoriesService {
     constructor(prisma: PrismaService, mediaService: MediaService);
     createStory(userId: string, mediaUrl: string, mediaType: string): Promise<{
         user: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             isVerified: boolean;
         };
     } & {
-        id: string;
-        createdAt: Date;
-        userId: string;
         expiresAt: Date;
+        createdAt: Date;
+        id: string;
+        userId: string;
         mediaUrl: string;
         mediaType: string;
     }>;
@@ -24,8 +24,8 @@ export declare class StoriesService {
     viewStory(storyId: string, userId: string): Promise<{
         id: string;
         userId: string;
-        viewedAt: Date;
         storyId: string;
+        viewedAt: Date;
     }>;
     deleteStory(storyId: string, userId: string): Promise<{
         status: string;

@@ -10,11 +10,11 @@ export declare class HighlightsController {
             post: {
                 id: string;
                 title: string;
-                caption: string;
                 media: {
-                    url: string;
                     type: string;
+                    url: string;
                 }[];
+                caption: string;
             };
         } & {
             id: string;
@@ -25,13 +25,13 @@ export declare class HighlightsController {
         coverPost: {
             id: string;
             media: {
-                url: string;
                 type: string;
+                url: string;
             }[];
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         userId: string;
         title: string;
@@ -42,11 +42,11 @@ export declare class HighlightsController {
             post: {
                 id: string;
                 title: string;
-                caption: string;
                 media: {
-                    url: string;
                     type: string;
+                    url: string;
                 }[];
+                caption: string;
             };
         } & {
             id: string;
@@ -57,13 +57,13 @@ export declare class HighlightsController {
         coverPost: {
             id: string;
             media: {
-                url: string;
                 type: string;
+                url: string;
             }[];
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         userId: string;
         title: string;
@@ -82,13 +82,13 @@ export declare class HighlightsController {
         coverPost: {
             id: string;
             media: {
-                url: string;
                 type: string;
+                url: string;
             }[];
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         userId: string;
         title: string;
@@ -113,8 +113,8 @@ export declare class HighlightsController {
     renameHighlight(id: string, body: {
         title: string;
     }, req: any): Promise<{
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         userId: string;
         title: string;

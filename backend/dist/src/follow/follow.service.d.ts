@@ -31,29 +31,29 @@ export declare class FollowService {
     }>;
     getFollowRequests(userId: string): Promise<({
         requester: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             isVerified: boolean;
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         requesterId: string;
         requestedId: string;
     })[]>;
     getFollowers(userId: string, currentUserId?: string): Promise<{
+        id: string;
         username: string;
         fullName: string;
-        id: string;
         avatar: string;
         isVerified: boolean;
     }[]>;
     getFollowing(userId: string, currentUserId?: string): Promise<{
+        id: string;
         username: string;
         fullName: string;
-        id: string;
         avatar: string;
         isVerified: boolean;
     }[]>;

@@ -46,9 +46,9 @@ export declare class UsersService {
     }>;
     updateUsername(userId: string, newUsername: string): Promise<{
         email: string;
+        id: string;
         username: string;
         fullName: string;
-        id: string;
         bio: string;
         avatar: string;
         roles: import(".prisma/client").$Enums.UserRole[];
@@ -73,9 +73,9 @@ export declare class UsersService {
         success: boolean;
         user: {
             email: string;
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             bio: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
@@ -102,9 +102,9 @@ export declare class UsersService {
         isVerified: boolean;
     }[]>;
     getHighlights(userId: string): Promise<{
+        id: string;
         username: string;
         fullName: string;
-        id: string;
         avatar: string;
         isVerified: boolean;
     }[]>;
@@ -117,9 +117,9 @@ export declare class UsersService {
         user: {
             activeRole: string;
             email: string;
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             roles: import(".prisma/client").$Enums.UserRole[];
             extras: string[];
             plan: import(".prisma/client").$Enums.SubscriptionPlan;
@@ -133,8 +133,8 @@ export declare class UsersService {
     updatePlan(userId: string, plan: SubscriptionPlanCode): Promise<{
         message: string;
         user: {
-            username: string;
             id: string;
+            username: string;
             roles: import(".prisma/client").$Enums.UserRole[];
             extras: string[];
             plan: import(".prisma/client").$Enums.SubscriptionPlan;
@@ -166,9 +166,9 @@ export declare class UsersService {
         isLiked: boolean;
         savedAt: Date;
         user: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -177,25 +177,25 @@ export declare class UsersService {
             likes: number;
         };
         media: {
-            url: string;
-            id: string;
             createdAt: Date;
+            id: string;
             type: string;
             postId: string;
             order: number;
+            url: string;
             thumbnailUrl: string;
         }[];
+        createdAt: Date;
         id: string;
+        code: string;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
         updatedAt: Date;
         userId: string;
+        type: string;
         title: string;
         location: string;
-        type: string;
         caption: string;
-        code: string;
         colors: string[];
         colorPalette: string[];
     }[]>;
@@ -203,9 +203,9 @@ export declare class UsersService {
         isLiked: boolean;
         savedAt: Date;
         user: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             isVerified: boolean;
         };
@@ -214,25 +214,25 @@ export declare class UsersService {
             likes: number;
         };
         media: {
-            url: string;
-            id: string;
             createdAt: Date;
+            id: string;
             type: string;
             postId: string;
             order: number;
+            url: string;
             thumbnailUrl: string;
         }[];
+        createdAt: Date;
         id: string;
+        code: string;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
         updatedAt: Date;
         userId: string;
+        type: string;
         title: string;
         location: string;
-        type: string;
         caption: string;
-        code: string;
         colors: string[];
         colorPalette: string[];
     }[]>;

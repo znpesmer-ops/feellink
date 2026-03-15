@@ -19,43 +19,43 @@ export declare class FollowController {
     }>;
     getFollowRequests(user: any): Promise<({
         requester: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             isVerified: boolean;
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         requesterId: string;
         requestedId: string;
     })[]>;
     getMyFollowers(user: any): Promise<{
+        id: string;
         username: string;
         fullName: string;
-        id: string;
         avatar: string;
         isVerified: boolean;
     }[]>;
     getMyFollowing(user: any): Promise<{
+        id: string;
         username: string;
         fullName: string;
-        id: string;
         avatar: string;
         isVerified: boolean;
     }[]>;
     getFollowers(userId: string, user: any): Promise<{
+        id: string;
         username: string;
         fullName: string;
-        id: string;
         avatar: string;
         isVerified: boolean;
     }[]>;
     getFollowing(userId: string, user: any): Promise<{
+        id: string;
         username: string;
         fullName: string;
-        id: string;
         avatar: string;
         isVerified: boolean;
     }[]>;

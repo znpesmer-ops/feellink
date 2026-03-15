@@ -4,28 +4,28 @@ export declare class CollectionsController {
     constructor(collectionsService: CollectionsService);
     getAllCollections(): Promise<({
         owner: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
-        title: string;
         description: string;
+        title: string;
         coverImage: string;
         ownerId: string;
         isPublic: boolean;
     })[]>;
     getMyCollections(user: any): Promise<{
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
-        title: string;
         description: string;
+        title: string;
         coverImage: string;
         ownerId: string;
         isPublic: boolean;
@@ -54,21 +54,21 @@ export declare class CollectionsController {
         nextCursor: string;
     }>;
     createCollection(user: any, data: any): Promise<{
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
-        title: string;
         description: string;
+        title: string;
         coverImage: string;
         ownerId: string;
         isPublic: boolean;
     }>;
     updateCollection(user: any, id: string, data: any): Promise<{
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
-        title: string;
         description: string;
+        title: string;
         coverImage: string;
         ownerId: string;
         isPublic: boolean;

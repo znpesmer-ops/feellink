@@ -439,8 +439,8 @@ function NotificationsContent() {
         ))}
       </div>
 
-      {/* Profil Eksikliği Bildirimi (En Üstte, Sabit) */}
-      {user && (!user.dateOfBirth || !user.country || !user.city || !user.gender) && (
+      {/* Profil Eksikliği Bildirimi (En Üstte, Sabit) - tek otorite: profileCompleted */}
+      {user && user.profileCompleted !== true && (
         <div className="mb-6 p-4 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center">

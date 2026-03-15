@@ -4,12 +4,12 @@ export declare class TicketsController {
     private ticketsService;
     constructor(ticketsService: TicketsService);
     createTicket(user: any, data: any): Promise<{
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         type: string;
-        eventId: string;
         price: number;
+        eventId: string;
         capacity: number;
         sold: number;
         qrCodeUrl: string;
@@ -17,51 +17,51 @@ export declare class TicketsController {
     getMyTickets(user: any): Promise<({
         ticket: {
             event: {
-                date: Date;
+                createdAt: Date;
                 id: string;
                 isDeleted: boolean;
                 deletedAt: Date;
-                createdAt: Date;
                 updatedAt: Date;
-                title: string;
                 description: string;
-                location: string;
+                title: string;
                 coverImage: string;
+                date: Date;
                 participantCount: number;
                 ticketUrl: string;
                 price: number;
                 isFree: boolean;
+                location: string;
                 ownerId: string;
                 reminderMailSent: boolean;
             };
         } & {
-            id: string;
             createdAt: Date;
+            id: string;
             updatedAt: Date;
             type: string;
-            eventId: string;
             price: number;
+            eventId: string;
             capacity: number;
             sold: number;
             qrCodeUrl: string;
         };
     } & {
-        id: string;
+        usedAt: Date;
         createdAt: Date;
-        userId: string;
+        id: string;
         code: string;
+        userId: string;
         ticketId: string;
         qrUrl: string;
         used: boolean;
-        usedAt: Date;
     })[]>;
     getEventTickets(eventId: string): Promise<{
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         type: string;
-        eventId: string;
         price: number;
+        eventId: string;
         capacity: number;
         sold: number;
         qrCodeUrl: string;

@@ -6,9 +6,9 @@ export declare class EventsController {
     getAllEvents(): Promise<{
         events: ({
             owner: {
+                id: string;
                 username: string;
                 fullName: string;
-                id: string;
                 avatar: string;
             };
             participants: {
@@ -16,91 +16,92 @@ export declare class EventsController {
                 status: import(".prisma/client").$Enums.EventParticipantStatus;
             }[];
             tickets: {
-                id: string;
                 createdAt: Date;
+                id: string;
                 updatedAt: Date;
                 type: string;
-                eventId: string;
                 price: number;
+                eventId: string;
                 capacity: number;
                 sold: number;
                 qrCodeUrl: string;
             }[];
         } & {
-            date: Date;
+            createdAt: Date;
             id: string;
             isDeleted: boolean;
             deletedAt: Date;
-            createdAt: Date;
             updatedAt: Date;
-            title: string;
             description: string;
-            location: string;
+            title: string;
             coverImage: string;
+            date: Date;
             participantCount: number;
             ticketUrl: string;
             price: number;
             isFree: boolean;
+            location: string;
             ownerId: string;
             reminderMailSent: boolean;
         })[];
     }>;
     getMyEvents(user: any): Promise<{
-        date: Date;
+        createdAt: Date;
         id: string;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
         updatedAt: Date;
-        title: string;
         description: string;
-        location: string;
+        title: string;
         coverImage: string;
+        date: Date;
         participantCount: number;
         ticketUrl: string;
         price: number;
         isFree: boolean;
+        location: string;
         ownerId: string;
         reminderMailSent: boolean;
     }[]>;
     getEvents(authorId?: string): Promise<({
         tickets: {
-            id: string;
             createdAt: Date;
+            id: string;
             updatedAt: Date;
             type: string;
-            eventId: string;
             price: number;
+            eventId: string;
             capacity: number;
             sold: number;
             qrCodeUrl: string;
         }[];
     } & {
-        date: Date;
+        createdAt: Date;
         id: string;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
         updatedAt: Date;
-        title: string;
         description: string;
-        location: string;
+        title: string;
         coverImage: string;
+        date: Date;
         participantCount: number;
         ticketUrl: string;
         price: number;
         isFree: boolean;
+        location: string;
         ownerId: string;
         reminderMailSent: boolean;
     })[]>;
     getEvent(id: string): Promise<{
         owner: {
             email: string;
+            createdAt: Date;
+            id: string;
             username: string;
             password: string;
             fullName: string;
             termsAccepted: boolean;
-            id: string;
             bio: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
@@ -143,7 +144,6 @@ export declare class EventsController {
             isDeleted: boolean;
             deletedAt: Date;
             deletedBy: string;
-            createdAt: Date;
             updatedAt: Date;
         };
         participants: {
@@ -151,56 +151,56 @@ export declare class EventsController {
             status: import(".prisma/client").$Enums.EventParticipantStatus;
         }[];
     } & {
-        date: Date;
+        createdAt: Date;
         id: string;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
         updatedAt: Date;
-        title: string;
         description: string;
-        location: string;
+        title: string;
         coverImage: string;
+        date: Date;
         participantCount: number;
         ticketUrl: string;
         price: number;
         isFree: boolean;
+        location: string;
         ownerId: string;
         reminderMailSent: boolean;
     }>;
     createEvent(user: any, dto: CreateEventDto): Promise<{
-        date: Date;
+        createdAt: Date;
         id: string;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
         updatedAt: Date;
-        title: string;
         description: string;
-        location: string;
+        title: string;
         coverImage: string;
+        date: Date;
         participantCount: number;
         ticketUrl: string;
         price: number;
         isFree: boolean;
+        location: string;
         ownerId: string;
         reminderMailSent: boolean;
     }>;
     joinEvent(user: any, id: string): Promise<{
-        date: Date;
+        createdAt: Date;
         id: string;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
         updatedAt: Date;
-        title: string;
         description: string;
-        location: string;
+        title: string;
         coverImage: string;
+        date: Date;
         participantCount: number;
         ticketUrl: string;
         price: number;
         isFree: boolean;
+        location: string;
         ownerId: string;
         reminderMailSent: boolean;
     }>;
@@ -213,11 +213,12 @@ export declare class EventsController {
     getEventComments(id: string): Promise<({
         author: {
             email: string;
+            createdAt: Date;
+            id: string;
             username: string;
             password: string;
             fullName: string;
             termsAccepted: boolean;
-            id: string;
             bio: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
@@ -260,24 +261,24 @@ export declare class EventsController {
             isDeleted: boolean;
             deletedAt: Date;
             deletedBy: string;
-            createdAt: Date;
             updatedAt: Date;
         };
     } & {
-        text: string;
-        id: string;
         createdAt: Date;
+        id: string;
         eventId: string;
+        text: string;
         authorId: string;
     })[]>;
     createEventComment(user: any, id: string, data: any): Promise<{
         author: {
             email: string;
+            createdAt: Date;
+            id: string;
             username: string;
             password: string;
             fullName: string;
             termsAccepted: boolean;
-            id: string;
             bio: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
@@ -320,31 +321,30 @@ export declare class EventsController {
             isDeleted: boolean;
             deletedAt: Date;
             deletedBy: string;
-            createdAt: Date;
             updatedAt: Date;
         };
     } & {
-        text: string;
-        id: string;
         createdAt: Date;
+        id: string;
         eventId: string;
+        text: string;
         authorId: string;
     }>;
     updateEvent(user: any, id: string, data: any): Promise<{
-        date: Date;
+        createdAt: Date;
         id: string;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
         updatedAt: Date;
-        title: string;
         description: string;
-        location: string;
+        title: string;
         coverImage: string;
+        date: Date;
         participantCount: number;
         ticketUrl: string;
         price: number;
         isFree: boolean;
+        location: string;
         ownerId: string;
         reminderMailSent: boolean;
     }>;
@@ -367,18 +367,18 @@ export declare class EventsController {
         status: 'APPROVED' | 'REJECTED';
     }): Promise<{
         user: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         userId: string;
         status: import(".prisma/client").$Enums.EventParticipantStatus;
-        reminderSentAt: Date;
         eventId: string;
+        reminderSentAt: Date;
         reminder24hSentAt: Date;
     }>;
 }

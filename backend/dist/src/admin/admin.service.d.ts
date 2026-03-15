@@ -27,9 +27,10 @@ export declare class AdminService {
     getUsers(page?: number, limit?: number, search?: string, role?: string, city?: string, gender?: string, ageMin?: number, ageMax?: number): Promise<{
         users: {
             email: string;
+            createdAt: Date;
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
             plan: import(".prisma/client").$Enums.SubscriptionPlan;
@@ -54,7 +55,6 @@ export declare class AdminService {
             scheduledDeletionAt: Date;
             isDeleted: boolean;
             deletedAt: Date;
-            createdAt: Date;
         }[];
         total: number;
         page: number;
@@ -66,9 +66,9 @@ export declare class AdminService {
         isAdmin?: boolean;
     }, actorId: string): Promise<{
         email: string;
+        id: string;
         username: string;
         fullName: string;
-        id: string;
         roles: import(".prisma/client").$Enums.UserRole[];
     }>;
     getRoleHistory(userId: string): Promise<{
@@ -87,8 +87,8 @@ export declare class AdminService {
     getPosts(page?: number, limit?: number): Promise<{
         posts: ({
             user: {
-                username: string;
                 id: string;
+                username: string;
                 avatar: string;
             };
             _count: {
@@ -96,24 +96,24 @@ export declare class AdminService {
                 likes: number;
             };
             media: {
-                url: string;
                 id: string;
                 type: string;
                 order: number;
+                url: string;
                 thumbnailUrl: string;
             }[];
         } & {
+            createdAt: Date;
             id: string;
+            code: string;
             isDeleted: boolean;
             deletedAt: Date;
-            createdAt: Date;
             updatedAt: Date;
             userId: string;
+            type: string;
             title: string;
             location: string;
-            type: string;
             caption: string;
-            code: string;
             colors: string[];
             colorPalette: string[];
         })[];
@@ -124,9 +124,9 @@ export declare class AdminService {
     getArtworks(page?: number, limit?: number, search?: string, userId?: string): Promise<{
         artworks: ({
             user: {
+                id: string;
                 username: string;
                 fullName: string;
-                id: string;
                 avatar: string;
             };
             _count: {
@@ -134,24 +134,24 @@ export declare class AdminService {
                 likes: number;
             };
             media: {
-                url: string;
                 id: string;
                 type: string;
                 order: number;
+                url: string;
                 thumbnailUrl: string;
             }[];
         } & {
+            createdAt: Date;
             id: string;
+            code: string;
             isDeleted: boolean;
             deletedAt: Date;
-            createdAt: Date;
             updatedAt: Date;
             userId: string;
+            type: string;
             title: string;
             location: string;
-            type: string;
             caption: string;
-            code: string;
             colors: string[];
             colorPalette: string[];
         })[];
@@ -170,8 +170,8 @@ export declare class AdminService {
     getComments(page?: number, limit?: number): Promise<{
         comments: ({
             user: {
-                username: string;
                 id: string;
+                username: string;
                 avatar: string;
             };
             post: {
@@ -179,8 +179,8 @@ export declare class AdminService {
                 caption: string;
             };
         } & {
-            id: string;
             createdAt: Date;
+            id: string;
             updatedAt: Date;
             userId: string;
             postId: string;
@@ -198,22 +198,22 @@ export declare class AdminService {
     getArticles(page?: number, limit?: number): Promise<{
         articles: ({
             author: {
-                username: string;
                 id: string;
+                username: string;
                 avatar: string;
             };
         } & {
-            id: string;
             createdAt: Date;
+            id: string;
             updatedAt: Date;
             title: string;
             coverImage: string;
             content: string;
+            authorId: string;
             excerpt: string;
             isPublished: boolean;
             scheduledAt: Date;
             views: number;
-            authorId: string;
         })[];
         total: number;
         page: number;
@@ -229,25 +229,25 @@ export declare class AdminService {
                 tickets: number;
             };
             owner: {
-                username: string;
                 id: string;
+                username: string;
                 avatar: string;
             };
         } & {
-            date: Date;
+            createdAt: Date;
             id: string;
             isDeleted: boolean;
             deletedAt: Date;
-            createdAt: Date;
             updatedAt: Date;
-            title: string;
             description: string;
-            location: string;
+            title: string;
             coverImage: string;
+            date: Date;
             participantCount: number;
             ticketUrl: string;
             price: number;
             isFree: boolean;
+            location: string;
             ownerId: string;
             reminderMailSent: boolean;
         })[];
@@ -258,8 +258,8 @@ export declare class AdminService {
     getTickets(page?: number, limit?: number): Promise<{
         tickets: ({
             user: {
-                username: string;
                 id: string;
+                username: string;
                 avatar: string;
             };
             ticket: {
@@ -268,25 +268,25 @@ export declare class AdminService {
                     title: string;
                 };
             } & {
-                id: string;
                 createdAt: Date;
+                id: string;
                 updatedAt: Date;
                 type: string;
-                eventId: string;
                 price: number;
+                eventId: string;
                 capacity: number;
                 sold: number;
                 qrCodeUrl: string;
             };
         } & {
-            id: string;
+            usedAt: Date;
             createdAt: Date;
-            userId: string;
+            id: string;
             code: string;
+            userId: string;
             ticketId: string;
             qrUrl: string;
             used: boolean;
-            usedAt: Date;
         })[];
         total: number;
         page: number;
@@ -309,13 +309,13 @@ export declare class AdminService {
     getAuditLogs(page?: number, limit?: number): Promise<{
         logs: ({
             actor: {
-                username: string;
                 id: string;
+                username: string;
                 avatar: string;
             };
         } & {
-            id: string;
             createdAt: Date;
+            id: string;
             target: string;
             action: string;
             meta: Prisma.JsonValue;
@@ -335,8 +335,8 @@ export declare class AdminService {
         ip?: string;
         userAgent?: string;
     }): Promise<{
-        id: string;
         createdAt: Date;
+        id: string;
         target: string;
         action: string;
         meta: Prisma.JsonValue;
@@ -411,21 +411,21 @@ export declare class AdminService {
         requests: ({
             user: {
                 email: string;
+                id: string;
                 username: string;
                 fullName: string;
-                id: string;
             };
         } & {
-            id: string;
             createdAt: Date;
+            id: string;
             updatedAt: Date;
             userId: string;
-            status: string;
             message: string;
             requestedRole: import(".prisma/client").$Enums.UserRole;
+            status: string;
+            reviewedBy: string;
             reviewedAt: Date;
             reviewNote: string;
-            reviewedBy: string;
         })[];
         total: number;
         page: number;

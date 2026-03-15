@@ -6,53 +6,53 @@ export declare class ReportsService {
     private mailService;
     constructor(prisma: PrismaService, mailService: MailService);
     createReport(reporterId: string, reportedUserId: string, reason: ReportReason, conversationId?: string, messageId?: string, note?: string): Promise<{
-        reporter: {
+        reportedUser: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
-        reportedUser: {
+        reporter: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
     } & {
-        messageId: string;
-        id: string;
         createdAt: Date;
+        id: string;
         status: string;
         conversationId: string;
-        reporterId: string;
-        reportedUserId: string;
+        messageId: string;
         reason: import(".prisma/client").$Enums.ReportReason;
         note: string;
+        reportedUserId: string;
+        reporterId: string;
     }>;
     getReports(status?: string, page?: number, limit?: number): Promise<{
         reports: ({
-            reporter: {
+            reportedUser: {
+                id: string;
                 username: string;
                 fullName: string;
-                id: string;
                 avatar: string;
             };
-            reportedUser: {
+            reporter: {
+                id: string;
                 username: string;
                 fullName: string;
-                id: string;
                 avatar: string;
             };
         } & {
-            messageId: string;
-            id: string;
             createdAt: Date;
+            id: string;
             status: string;
             conversationId: string;
-            reporterId: string;
-            reportedUserId: string;
+            messageId: string;
             reason: import(".prisma/client").$Enums.ReportReason;
             note: string;
+            reportedUserId: string;
+            reporterId: string;
         })[];
         total: number;
         page: number;
@@ -60,54 +60,54 @@ export declare class ReportsService {
         totalPages: number;
     }>;
     updateReportStatus(reportId: string, status: string): Promise<{
-        reporter: {
-            email: string;
+        reportedUser: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
-        reportedUser: {
+        reporter: {
+            email: string;
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
     } & {
-        messageId: string;
-        id: string;
         createdAt: Date;
+        id: string;
         status: string;
         conversationId: string;
-        reporterId: string;
-        reportedUserId: string;
+        messageId: string;
         reason: import(".prisma/client").$Enums.ReportReason;
         note: string;
+        reportedUserId: string;
+        reporterId: string;
     }>;
     private sendReportResolvedEmail;
     getReportById(reportId: string): Promise<{
-        reporter: {
+        reportedUser: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
-        reportedUser: {
+        reporter: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
     } & {
-        messageId: string;
-        id: string;
         createdAt: Date;
+        id: string;
         status: string;
         conversationId: string;
-        reporterId: string;
-        reportedUserId: string;
+        messageId: string;
         reason: import(".prisma/client").$Enums.ReportReason;
         note: string;
+        reportedUserId: string;
+        reporterId: string;
     }>;
     createContentReport(reporterId: string, contentType: 'post' | 'comment', contentId: string, reason: ReportReason, note?: string): Promise<any>;
 }

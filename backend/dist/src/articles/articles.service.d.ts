@@ -10,123 +10,123 @@ export declare class ArticlesService {
     constructor(prisma: PrismaService, postsGateway: PostsGateway, articlesGateway: ArticlesGateway, notificationsService: NotificationsService);
     create(userId: string, title: string, content: string, coverImage?: string, excerpt?: string, publish?: boolean, scheduledAt?: Date): Promise<{
         author: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         title: string;
         coverImage: string;
         content: string;
+        authorId: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     }>;
     findDrafts(userId: string): Promise<({
         author: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         title: string;
         coverImage: string;
         content: string;
+        authorId: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     })[]>;
     findScheduled(userId: string): Promise<({
         author: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         title: string;
         coverImage: string;
         content: string;
+        authorId: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     })[]>;
     findPublished(userId: string): Promise<({
         author: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         title: string;
         coverImage: string;
         content: string;
+        authorId: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     })[]>;
     publish(id: string, userId: string): Promise<{
         author: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         title: string;
         coverImage: string;
         content: string;
+        authorId: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     }>;
     findAllPublic(): Promise<({
         author: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         title: string;
         coverImage: string;
         content: string;
+        authorId: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     })[]>;
     findByUserId(userId: string): Promise<{
         views: number;
@@ -135,34 +135,34 @@ export declare class ArticlesService {
             comments: number;
         };
         author: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         title: string;
         coverImage: string;
         content: string;
+        authorId: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
-        authorId: string;
     }[]>;
     findMyArticles(userId: string): Promise<{
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         title: string;
         coverImage: string;
         content: string;
+        authorId: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     }[]>;
     findOne(id: string): Promise<{
         views: number;
@@ -184,21 +184,21 @@ export declare class ArticlesService {
             replies: any;
         }[];
         author: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         title: string;
         coverImage: string;
         content: string;
+        authorId: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
-        authorId: string;
     }>;
     update(id: string, userId: string, data: {
         title?: string;
@@ -209,23 +209,23 @@ export declare class ArticlesService {
         scheduledAt?: Date;
     }): Promise<{
         author: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
         title: string;
         coverImage: string;
         content: string;
+        authorId: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     }>;
     delete(id: string, userId: string): Promise<{
         success: boolean;

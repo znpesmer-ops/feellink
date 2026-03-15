@@ -7,9 +7,9 @@ export declare class NotificationsController {
     getNotifications(user: any, limit?: string, offset?: string): Promise<{
         notifications: {
             sender: {
+                id: string;
                 username: string;
                 fullName: string;
-                id: string;
                 avatar: string;
                 isVerified: boolean;
             };
@@ -18,11 +18,11 @@ export declare class NotificationsController {
                 postId: string;
                 commentId: string;
             };
-            id: string;
             createdAt: Date;
+            id: string;
             userId: string;
-            type: string;
             message: string;
+            type: string;
             fromUserId: string;
             postId: string;
             articleId: string;

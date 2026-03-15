@@ -8,29 +8,29 @@ export declare class CollectionsService {
     constructor(prisma: PrismaService, limitsService: LimitsService, notificationsService: NotificationsService);
     private ensurePermission;
     getMyCollections(userId: string): Promise<{
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
-        title: string;
         description: string;
+        title: string;
         coverImage: string;
         ownerId: string;
         isPublic: boolean;
     }[]>;
     getAllCollections(): Promise<({
         owner: {
+            id: string;
             username: string;
             fullName: string;
-            id: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
         };
     } & {
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
-        title: string;
         description: string;
+        title: string;
         coverImage: string;
         ownerId: string;
         isPublic: boolean;
@@ -40,11 +40,11 @@ export declare class CollectionsService {
         description?: string;
         coverImage?: string;
     }): Promise<{
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
-        title: string;
         description: string;
+        title: string;
         coverImage: string;
         ownerId: string;
         isPublic: boolean;
@@ -54,11 +54,11 @@ export declare class CollectionsService {
         description?: string;
         coverImage?: string;
     }): Promise<{
-        id: string;
         createdAt: Date;
+        id: string;
         updatedAt: Date;
-        title: string;
         description: string;
+        title: string;
         coverImage: string;
         ownerId: string;
         isPublic: boolean;
