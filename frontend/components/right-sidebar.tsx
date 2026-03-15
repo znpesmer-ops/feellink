@@ -223,8 +223,8 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
                  bg-white dark:bg-[#0b1220]
                  text-[#111] dark:text-gray-200`}
     >
-      {/* İçerik wrapper - feed ve explore için üstten boşluk, orta içerik ile aynı hizada başlamalı */}
-      <div className={`w-full flex flex-col ${(isFeed || isExplore) ? 'mt-0 pt-4' : 'pt-4'}`}>
+      {/* İçerik wrapper - tek dikey kolon; CTA doğal akışta en altta */}
+      <div className={`w-full flex flex-col gap-6 h-full ${(isFeed || isExplore) ? 'mt-0 pt-4' : 'pt-4'}`}>
         {/* 🔥 Explore modunda sadece yazarlar gösterilir */}
         {sidebarMode === 'explore' ? (
           <>
@@ -345,7 +345,7 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
 
         {/* 🔥 En Çok Beğenilenler */}
         {topLikedArticles.length > 0 && (
-          <div className="mt-10 bg-white rounded-2xl p-4 shadow-[0_6px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)] border dark:border-white/6" data-dark-bg="rgba(255,255,255,0.04)">
+          <div className="bg-white rounded-2xl p-4 shadow-[0_6px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)] border dark:border-white/6" data-dark-bg="rgba(255,255,255,0.04)">
           {/* 🔥 KRİTİK: Başlık font boyutu artırıldı - daha profesyonel görünüm */}
             <h3 className="text-xl font-semibold mb-4 bg-gradient-to-r from-brand-orange to-brand-blue bg-clip-text text-transparent dark:from-orange-400 dark:to-blue-400 tracking-[0.06em] uppercase" style={{ fontWeight: 600, letterSpacing: '0.3px' }}>
               En Çok Beğenilenler
@@ -390,7 +390,7 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
         )}
 
         {/* ✍️ Aktif Yazarlar - 2x2 Grid (Ayın Müzeleri ile aynı yapı) */}
-        <div className="mt-10 bg-white rounded-2xl p-4 shadow-[0_6px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)] border dark:border-white/6" data-dark-bg="rgba(255,255,255,0.04)">
+        <div className="bg-white rounded-2xl p-4 shadow-[0_6px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)] border dark:border-white/6" data-dark-bg="rgba(255,255,255,0.04)">
         {/* 🔥 KRİTİK: Başlık font boyutu artırıldı - daha profesyonel görünüm */}
           <h3 className="text-xl font-semibold mb-5 mt-0 bg-gradient-to-r from-brand-orange to-brand-blue bg-clip-text text-transparent dark:from-orange-400 dark:to-blue-400 tracking-[0.06em] uppercase" style={{ fontWeight: 600, letterSpacing: '0.3px' }}>
             Aktif Yazarlar
@@ -441,12 +441,12 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
         </div>
         </div>
 
-        {/* 📚 Tüm Yayınlanan Yazıları Gör Butonu - Modern Tasarım (sadece feed modunda) */}
+        {/* 📚 Tüm Yayınlanan Yazıları Gör - sidebar kolon akışında en altta */}
         {sidebarMode === 'feed' && (
-          <div className="mt-10 pt-6 border-t border-gray-200/50 dark:border-gray-700/50 flex justify-center">
+          <div className="mt-auto pt-4">
             <Link
               href="/articles/published"
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 
+              className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 
                          bg-[#ff7b00] text-white font-medium text-sm rounded-xl 
                          shadow-sm hover:bg-[#e36f00] hover:shadow-md 
                          transition-all duration-300 ease-out
