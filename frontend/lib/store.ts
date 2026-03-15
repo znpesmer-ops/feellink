@@ -105,7 +105,7 @@ export const useAuthStore = create<AuthState>()(
         }))
       },
       clearAuth: () => {
-        set({ user: null, capabilities: null, sidebar: null, accessToken: null, refreshToken: null, unreadCount: 0, unreadMessageCount: 0, isAuthenticated: false, loading: false, hasInitialized: false })
+        set({ user: null, capabilities: null, sidebar: null, accessToken: null, refreshToken: null, unreadCount: 0, unreadMessageCount: 0, isAuthenticated: false, loading: false, hasInitialized: true })
         if (typeof window !== 'undefined') {
           localStorage.removeItem('feellink_roles')
           localStorage.removeItem('access_token')

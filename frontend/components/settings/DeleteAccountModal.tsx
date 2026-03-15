@@ -29,7 +29,7 @@ export function DeleteAccountModal({ isOpen, onClose }: DeleteAccountModalProps)
       clearAuth()
       onClose()
       if (typeof window !== 'undefined') {
-        window.location.href = '/login'
+        window.location.replace('/login')
       }
     },
     onError: () => {

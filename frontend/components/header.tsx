@@ -98,9 +98,8 @@ export function Header({ forceMobile = false }: HeaderProps = {}) {
     } finally {
       clearAuth()
       setIsMenuOpen(false)
-      // ✅ HARD REDIRECT - Tüm state temizlenir, sayfa yeniden yüklenir
       if (typeof window !== 'undefined') {
-        window.location.href = '/login'
+        window.location.replace('/login')
       }
     }
   }

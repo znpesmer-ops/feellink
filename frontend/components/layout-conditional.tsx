@@ -48,9 +48,8 @@ function LayoutConditionalComponent({ children }: { children: React.ReactNode })
     } finally {
       clearAuth()
       setMobileProfileMenuOpen(false)
-      // ✅ HARD REDIRECT - Tüm state temizlenir, sayfa yeniden yüklenir
       if (typeof window !== 'undefined') {
-        window.location.href = '/login'
+        window.location.replace('/login')
       }
     }
   }
