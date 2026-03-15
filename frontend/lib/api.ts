@@ -44,17 +44,14 @@ const getBaseURL = (): string => {
   const currentHost = window.location.hostname
   const isHTTPS = window.location.protocol === 'https:'
   
-  // ✅ Production'da (feellink.io) backend URL'i otomatik algıla
+  // ✅ Production feellink.io: her zaman aynı backend (env build'ta yanlış olsa da çalışsın)
   if (currentHost === 'feellink.io' || currentHost.includes('feellink.io')) {
-    // Production'da backend Vercel'de - https://feellink-backend.vercel.app
-    const backendURL = envURL || 'https://feellink-backend.vercel.app'
-    return ensureProtocol(backendURL)
+    return 'https://feellink-backend.vercel.app'
   }
   
-  // ✅ Vercel preview/staging için (feellink.io ile aynı backend)
+  // ✅ Vercel preview: aynı backend
   if (currentHost.includes('vercel.app')) {
-    const vercelURL = envURL || 'https://feellink-backend.vercel.app'
-    return ensureProtocol(vercelURL)
+    return 'https://feellink-backend.vercel.app'
   }
   
   // Eğer env'de IP adresi varsa ve şu anda localhost'tan erişiliyorsa, localhost kullan
