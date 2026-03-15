@@ -74,6 +74,7 @@ export default function EventDetailPage() {
   const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [selectedParticipant, setSelectedParticipant] = useState<{ userId: string; username: string } | null>(null);
   const [isApproving, setIsApproving] = useState(false);
+  const [requestStatus, setRequestStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
 
   useEffect(() => {
     async function fetchData() {
@@ -94,6 +95,22 @@ export default function EventDetailPage() {
     }
     fetchData();
   }, [id]);
+
+  // Event veya user değişince viewer'ın talep durumunu event.participants'tan senkronize et
+  useEffect(() => {
+    if (!event || !user?.id) {
+      setRequestStatus('none');
+      return;
+    }
+    const participant = event.participants?.find((p: { userId: string; status: string }) => p.userId === user.id);
+    if (!participant) {
+      setRequestStatus('none');
+      return;
+    }
+    if (participant.status === 'APPROVED') setRequestStatus('approved');
+    else if (participant.status === 'PENDING') setRequestStatus('pending');
+    else setRequestStatus('rejected');
+  }, [event?.participants, event?.id, user?.id]);
 
   // Etkinlik sahibi için PENDING talepleri çek
   useEffect(() => {
@@ -122,13 +139,21 @@ export default function EventDetailPage() {
     setJoining(true);
     try {
       await api.post(`/events/${id}/join`);
+      setRequestStatus('pending');
       toast.success("Talebiniz iletildi. Etkinlik sahibinin onayı bekleniyor.");
-      // Don't increment count yet - it will increment when approved
+      const eventRes = await api.get(`/events/${id}`);
+      setEvent(eventRes.data);
     } catch (err: any) {
       console.error(err);
       const errorMessage = err?.response?.data?.message || err?.message || "Talep oluşturulamadı.";
-      if (err?.response?.status === 403 && errorMessage.includes("Already joined")) {
+      const isDuplicate = err?.response?.status === 403 && (errorMessage.includes("Already joined") || errorMessage.includes("zaten bir talebiniz var"));
+      if (isDuplicate) {
+        setRequestStatus('pending');
         toast.error("Bu etkinlik için zaten bir talebiniz var.");
+        try {
+          const eventRes = await api.get(`/events/${id}`);
+          setEvent(eventRes.data);
+        } catch (_) {}
       } else {
         toast.error(errorMessage);
       }
@@ -243,10 +268,11 @@ export default function EventDetailPage() {
     );
   }
 
-  // Kullanıcının bu etkinlikteki durumu
+  // Kullanıcının bu etkinlikteki durumu (buton metni requestStatus üzerinden)
   const userParticipant = event.participants?.find(p => p.userId === user?.id);
-  const isApproved = userParticipant?.status === 'APPROVED';
-  const hasRequest = userParticipant !== undefined;
+  const isApproved = requestStatus === 'approved';
+  const joinButtonLabel = requestStatus === 'pending' ? 'Talep Gönderildi' : requestStatus === 'approved' ? 'Katılımcısın' : requestStatus === 'rejected' ? 'Talep Reddedildi' : 'Talep Oluştur';
+  const joinButtonDisabled = joining || requestStatus === 'pending' || requestStatus === 'approved';
 
   return (
     <div className="flex justify-center gap-10 pt-6 px-6 max-w-7xl mx-auto">
@@ -482,30 +508,32 @@ export default function EventDetailPage() {
 
           {/* Talep Oluştur / Yönetim Butonları */}
           <div className="mt-6 mb-10">
-            {/* Kullanıcı için: Talep Oluştur butonu - Sadece APPROVED değilse göster */}
-            {event.ownerId !== user?.id && !isApproved && (
+            {/* Kullanıcı için: Talep durumu butonu - sahip değilse her zaman göster */}
+            {event.ownerId !== user?.id && (
                 <div className="flex flex-col">
                   <button
                     onClick={handleJoin}
-                    disabled={joining || hasRequest}
+                    disabled={joinButtonDisabled}
                     className="bg-brand-orange hover:bg-brand-orange/90 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-xl font-medium transition flex items-center gap-2 w-fit"
                   >
                     {joining ? (
                       <>
                         <Loader2 size={18} className="animate-spin" /> Gönderiliyor...
                       </>
-                    ) : hasRequest ? (
-                      <>
-                        <Ticket size={18} /> Talep Beklemede
-                      </>
                     ) : (
                       <>
-                        <Ticket size={18} /> Talep Oluştur
+                        <Ticket size={18} /> {joinButtonLabel}
                       </>
                     )}
                   </button>
                   <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    Etkinlik sahibi talebinizi onayladığında size mail iletilecektir.
+                    {requestStatus === 'pending'
+                      ? 'Etkinlik sahibi talebinizi onayladığında size bilgi verilecektir.'
+                      : requestStatus === 'approved'
+                        ? 'Bu etkinliğe katılımınız onaylandı.'
+                        : requestStatus === 'rejected'
+                          ? 'Talebiniz reddedildi. İsterseniz tekrar talep oluşturabilirsiniz.'
+                          : 'Etkinlik sahibi talebinizi onayladığında size mail iletilecektir.'}
                   </p>
                 </div>
             )}

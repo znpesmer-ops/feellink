@@ -1226,34 +1226,42 @@ function MessagesContent() {
                           </span>
                         ) : null}
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         {lastMessage ? (
-                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate flex-1">
+                          <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
                             {lastMessage.imageUrl ? (
-                              <span className="flex items-center gap-1">
+                              <span className="flex items-center gap-1 flex-shrink-0 text-sm text-gray-600 dark:text-gray-400">
                                 <ImageIcon size={14} className="text-gray-500" />
                                 <span>Fotoğraf</span>
                               </span>
                             ) : lastMessage.fileUrl ? (
-                              <span className="flex items-center gap-1">
-                                <Paperclip size={14} className="text-gray-500" />
-                                <span>{lastMessage.fileName || 'Dosya'}</span>
-                              </span>
+                              <>
+                                <span className="flex items-center gap-1 flex-shrink-0 text-sm text-gray-600 dark:text-gray-400">
+                                  <Paperclip size={14} className="text-gray-500" />
+                                </span>
+                                <span className="text-sm text-gray-600 dark:text-gray-400 truncate min-w-0">
+                                  {lastMessage.fileName || 'Dosya'}
+                                </span>
+                              </>
                             ) : lastMessage.content ? (
-                              lastMessage.content
+                              <span className="text-sm text-gray-600 dark:text-gray-400 truncate min-w-0 block">
+                                {lastMessage.content}
+                              </span>
                             ) : (
-                              'Mesaj'
+                              <span className="flex-shrink-0 text-sm text-gray-600 dark:text-gray-400">
+                                Mesaj
+                              </span>
                             )}
-                          </p>
+                          </div>
                         ) : (
-                          <p className="text-sm text-gray-400 dark:text-gray-500 italic">
+                          <p className="text-sm text-gray-400 dark:text-gray-500 italic flex-1">
                             Henüz mesaj yok
                           </p>
                         )}
                         {(() => {
                           const displayDate = userLastSeen[otherUser?.user?.id || ''] ?? (otherUser?.user as { lastActiveAt?: string | Date })?.lastActiveAt ?? (otherUser?.user as { lastSeen?: string | Date })?.lastSeen
                           return (
-                            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap flex-shrink-0">
                               {getPresenceLabel(isOnline, displayDate)}
                             </span>
                           )
