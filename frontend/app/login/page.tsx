@@ -37,7 +37,7 @@ type RegisterForm = z.infer<typeof registerSchema>
 
 export default function LoginPage() {
   const router = useRouter()
-  const { setAuth, accessToken, refreshToken, user, capabilities } = useAuthStore()
+  const { setAuth, accessToken, user, capabilities, loading: authLoading, hasInitialized } = useAuthStore()
   const [error, setError] = useState('')
   const [isChecking, setIsChecking] = useState(true)
   const [isLoginMode, setIsLoginMode] = useState(true)
@@ -104,25 +104,16 @@ export default function LoginPage() {
     }
   }, [darkMode])
 
-  // Eğer zaten giriş yapılmışsa role göre yönlendir
+  // Sadece auth resolve olduktan sonra ve user varsa feed'e yönlendir (token'a göre değil)
   useEffect(() => {
-    // Login sayfasında olduğumuz için, eğer token yoksa auth state'i temizle
-    if (!accessToken) {
-      // Token yoksa state'i temizle (eski kullanıcı bilgileri kalmasın)
-      if (user) {
-        const { clearAuth } = useAuthStore.getState()
-        clearAuth()
-      }
+    if (authLoading || !hasInitialized) return
+    if (!user) {
+      if (accessToken) useAuthStore.getState().clearAuth()
       setIsChecking(false)
       return
     }
-    
-    if (accessToken && user) {
-      handlePostAuthNavigation(user, capabilities ?? undefined)
-    } else {
-      setIsChecking(false)
-    }
-  }, [accessToken, user, capabilities, router])
+    handlePostAuthNavigation(user, capabilities ?? undefined)
+  }, [authLoading, hasInitialized, user, accessToken, capabilities, router])
 
   const loginForm = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -212,8 +203,8 @@ export default function LoginPage() {
   }
 
 
-  // Auth kontrolü yapılırken loading göster
-  if (isChecking) {
+  // Auth resolve olana veya kesin login göstereceğimiz ana kadar spinner
+  if (isChecking || authLoading || !hasInitialized) {
     return (
       <div
         className={`fixed inset-0 flex items-center justify-center transition-all duration-500 overflow-hidden ${

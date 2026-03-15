@@ -5,49 +5,46 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from './store'
 import api from './api'
 
+const publicRoutes = [
+  '/login',
+  '/register',
+  '/verify-email',
+  '/forgot-password',
+  '/reset-password',
+  '/onboarding',
+  '/select-role',
+  '/posts',
+  '/artwork',
+]
+
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
-  const { 
-    accessToken, 
-    isAuthenticated, 
+  const {
+    accessToken,
+    isAuthenticated,
     loading,
     hasInitialized,
     setAuth,
-    setAuthenticated,
     setLoading,
     setHasInitialized,
-    clearAuth
+    clearAuth,
   } = useAuthStore()
   const hasRunRef = useRef(false)
   const lastTokenRef = useRef<string | null>(null)
 
-  // ✅ Public routes
-  const publicRoutes = [
-    '/login',
-    '/register',
-    '/verify-email',
-    '/forgot-password',
-    '/reset-password',
-    '/onboarding',
-    '/select-role',
-    '/posts',
-    '/artwork',
-  ]
+  const currentPathname = pathname || ''
+  const isPublicRoute = publicRoutes.some((r) => currentPathname.startsWith(r))
 
-  const isPublicRoute = publicRoutes.some((route) =>
-    pathname?.startsWith(route)
-  )
-
-  // ✅ Token veya init durumu değişince backend doğrulaması (askı kaldırılan hesaplar için token değişince tekrar /me)
+  // Tek karar noktası: token varsa /me ile doğrula; yoksa resolved = not authenticated
   useEffect(() => {
     const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
     const currentToken = accessToken || tokenFromStorage
 
     if (!currentToken) {
-      setAuthenticated(false)
+      clearAuth()
       setLoading(false)
       setHasInitialized(true)
       hasRunRef.current = false
@@ -58,6 +55,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (lastTokenRef.current !== currentToken) {
       lastTokenRef.current = currentToken
       hasRunRef.current = false
+      setHasInitialized(false)
     }
 
     if (hasRunRef.current) {
@@ -68,47 +66,17 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     hasRunRef.current = true
 
     const initAuth = async () => {
-      // ⛔️ Timeout guard - 5 saniye içinde bitmezse force false
       const timeoutId = setTimeout(() => {
-        console.warn('[AuthGuard] Timeout (5s) - forcing loading to false')
+        clearAuth()
         setLoading(false)
         setHasInitialized(true)
-        setAuthenticated(false)
       }, 5000)
 
       try {
         setLoading(true)
-        console.log('[AuthGuard] Starting auth verification...')
-        console.log('[AuthGuard] API base URL:', api.defaults.baseURL)
-
-        // Token kontrolü
         const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
-        const hasToken = accessToken || tokenFromStorage
-
-        console.log('[AuthGuard] Token check:', {
-          hasToken: !!hasToken,
-          accessToken: !!accessToken,
-          tokenFromStorage: !!tokenFromStorage,
-        })
-
-        // Token yoksa direkt authenticated = false
-        if (!hasToken) {
-          console.log('[AuthGuard] No token - setting authenticated to false')
-          setAuthenticated(false)
-          clearTimeout(timeoutId)
-          setLoading(false)
-          setHasInitialized(true)
-          return
-        }
-
-        // ✅ Backend /me endpoint'i ile doğrulama
-        console.log('[AuthGuard] Calling /auth/me...')
         const response = await api.get('/auth/me')
-        console.log('[AuthGuard] /auth/me response:', response.status)
-        
         const { user: currentUser, capabilities, sidebar } = response.data
-        
-        // ✅ Backend Response 200 OK → isAuthenticated = true
         const currentRefreshToken = useAuthStore.getState().refreshToken
         setAuth(
           currentUser,
@@ -117,114 +85,66 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           capabilities ?? null,
           sidebar ?? null
         )
-        setAuthenticated(true)
         clearTimeout(timeoutId)
-        console.log('[AuthGuard] Auth verified successfully')
-
-      } catch (err: any) {
-        console.error('[AuthGuard] Auth verification failed:', {
-          message: err?.message,
-          code: err?.code,
-          response: err?.response?.status,
-          url: err?.config?.url,
-          baseURL: err?.config?.baseURL,
-        })
-
-        // ✅ Backend Response 401/403 → token sil, isAuthenticated = false
-        if (err?.response?.status === 401 || err?.response?.status === 403) {
-          console.log('[AuthGuard] 401/403 - clearing tokens')
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('access_token')
-            localStorage.removeItem('refresh_token')
-          }
-          clearAuth()
-          setAuthenticated(false)
-        } else {
-          // Network error vs - authenticated = false ama token'ı silme
-          console.log('[AuthGuard] Network/other error - setting authenticated to false')
-          setAuthenticated(false)
+        setLoading(false)
+        setHasInitialized(true)
+      } catch (_err: any) {
+        // Her hata (401, 403, network): token + user temizle, tek redirect
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
+          sessionStorage.removeItem('access_token')
+          sessionStorage.removeItem('refresh_token')
         }
+        clearAuth()
         clearTimeout(timeoutId)
-      } finally {
-        // ✅ KRİTİK: HER SENARYODA loading false ve hasInitialized true
-        console.log('[AuthGuard] Finally block - setting loading to false, hasInitialized to true')
         setLoading(false)
         setHasInitialized(true)
       }
     }
 
     initAuth()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken])
+  }, [accessToken, setAuth, setLoading, setHasInitialized, clearAuth])
 
-  // ✅ Redirect kuralları - network hatası sonrası da çalışmalı
+  // Redirect: sadece loading bittikten ve init tamamlandıktan sonra
   useEffect(() => {
-    if (loading || !hasInitialized) {
-      return
-    }
+    if (loading || !hasInitialized) return
 
-    const currentPathname = pathname || ''
-    const currentIsPublicRoute = publicRoutes.some((route) =>
-      currentPathname.startsWith(route)
-    )
-
-    // ⛔️ Zaten doğru route'daysa redirect yapma
-    if (currentIsPublicRoute && !isAuthenticated) {
-      // Public route + not authenticated = OK (login page'de kal)
-      return
-    }
-    if (!currentIsPublicRoute && isAuthenticated) {
-      // Protected route + authenticated = OK (feed page'de kal)
-      // ⛔️ KRİTİK: Zaten doğru route'daysa redirect yapma
-      if (currentPathname === '/feed' || currentPathname.startsWith('/feed')) {
-        return // Zaten /feed'deyiz, redirect yapma
-      }
-      return
-    }
-
-    // 🔓 Public Routes (/login, /register) - authenticated ise feed'e git
-    if (currentIsPublicRoute && isAuthenticated) {
-      // ⛔️ Sadece gerçekten public route'daysa redirect yap (loop önleme)
-      if (currentPathname === '/login' || currentPathname === '/register') {
-        console.log('[AuthGuard] Redirecting authenticated user from public route to /feed')
-        router.replace('/feed')
-      }
-      return
-    }
-
-    // 🏠 Ana sayfa (/) - authenticated değilse login'e, authenticated ise feed'e git
+    // Ana sayfa
     if (currentPathname === '/') {
-      if (isAuthenticated) {
-        console.log('[AuthGuard] Redirecting authenticated user from / to /feed')
-        router.replace('/feed')
-      } else {
-        console.log('[AuthGuard] Redirecting unauthenticated user from / to /login')
-        router.replace('/login')
-      }
+      if (isAuthenticated) router.replace('/feed')
+      else router.replace('/login')
       return
     }
 
-    // 🔐 Protected Routes (/feed, /profile, /post/*) - NOT authenticated ise login'e git
-    if (!currentIsPublicRoute && !isAuthenticated) {
-      // ⛔️ Sadece gerçekten protected route'daysa redirect yap (loop önleme)
-      if (currentPathname && currentPathname !== '/login' && currentPathname !== '/register') {
-        console.log('[AuthGuard] Redirecting unauthenticated user from protected route to /login')
-        router.replace('/login')
-      }
+    // Public route + giriş yapmış → feed
+    if (isPublicRoute && isAuthenticated && (currentPathname === '/login' || currentPathname === '/register')) {
+      router.replace('/feed')
       return
     }
-  }, [loading, isAuthenticated, hasInitialized, router]) // ⛔️ pathname dependency kaldırıldı - loop önleme
+
+    // Korunan route + giriş yok → login
+    if (!isPublicRoute && !isAuthenticated) {
+      router.replace('/login')
+      return
+    }
+  }, [loading, hasInitialized, isAuthenticated, isPublicRoute, currentPathname, router])
 
   if (!mounted) return null
-  const hasToken = !!(accessToken || (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null))
-  if (hasToken) return <>{children}</>
+
+  // Loading veya henüz init bitmediyse tek ekran: loader
   if (loading || !hasInitialized) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100" />
       </div>
     )
   }
+
+  // Korunan sayfadayız ama auth yok → redirect yukarıda tetiklenir, boş render
+  if (!isPublicRoute && !isAuthenticated) return null
+  // Login/register'dayız ama giriş var → redirect yukarıda tetiklenir
+  if ((currentPathname === '/login' || currentPathname === '/register') && isAuthenticated) return null
 
   return <>{children}</>
 }

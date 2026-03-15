@@ -106,11 +106,12 @@ export const useAuthStore = create<AuthState>()(
       },
       clearAuth: () => {
         set({ user: null, capabilities: null, sidebar: null, accessToken: null, refreshToken: null, unreadCount: 0, unreadMessageCount: 0, isAuthenticated: false, loading: false, hasInitialized: false })
-        // 🔥 Logout durumunda localStorage'dan rolleri ve token'ı temizle
         if (typeof window !== 'undefined') {
           localStorage.removeItem('feellink_roles')
           localStorage.removeItem('access_token')
           localStorage.removeItem('refresh_token')
+          sessionStorage.removeItem('access_token')
+          sessionStorage.removeItem('refresh_token')
         }
       },
       setLoading: (loading: boolean) => {
