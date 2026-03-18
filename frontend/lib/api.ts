@@ -110,13 +110,15 @@ const api = axios.create({
 })
 
 // Add token to requests + client-side'da her istekte güncel base URL kullan (SSR'da yanlış baseURL olmasın)
+// Store rehydrate olmadan (navigasyon sonrası) token için localStorage yedeği kullan; yoksa istek token'sız gider → 401 → forced logout
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (typeof window !== 'undefined') {
     config.baseURL = getBaseURL()
   }
   const state = useAuthStore.getState()
-  if (state.accessToken) {
-    config.headers.Authorization = `Bearer ${state.accessToken}`
+  const token = state.accessToken ?? (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null)
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })
