@@ -246,8 +246,6 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
                       e.preventDefault()
                       router.push(item.href)
                       onLinkClick()
-                    } else {
-                      onLinkClick?.()
                     }
                   }}
                   className={`${baseClasses} ${
