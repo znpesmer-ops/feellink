@@ -112,6 +112,14 @@ export default function LoginPage() {
     }
   }, [])
 
+  // Forced logout sonrası login sayfasında önceki e-postanın görünmesini engelle: token yokken formu sıfırla (bir kez, mount'ta)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (localStorage.getItem('access_token')) return
+    loginForm.reset({ emailOrUsername: '', password: '' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Sadece auth resolve olduktan sonra ve user varsa feed'e yönlendir (token'a göre değil)
   useEffect(() => {
     if (authLoading || !hasInitialized) return
@@ -361,6 +369,7 @@ export default function LoginPage() {
                 <input
                   {...loginForm.register('emailOrUsername')}
                   type="text"
+                  autoComplete="off"
                   placeholder="örnek@feellink.com"
                   className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#ff7a00] focus:outline-none transition-all ${
                     darkMode

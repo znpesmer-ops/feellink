@@ -31,6 +31,29 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = []
 }
 
+/** Client-side only: read tokens from persisted auth-storage when store not yet rehydrated (e.g. after nav). */
+function getPersistedAuthState(): { accessToken?: string | null; refreshToken?: string | null } {
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = localStorage.getItem('auth-storage')
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as { state?: { accessToken?: string | null; refreshToken?: string | null } }
+    return parsed?.state ?? {}
+  } catch {
+    return {}
+  }
+}
+
+function getRefreshTokenFromPersistedStorage(): string | null {
+  const token = getPersistedAuthState().refreshToken
+  return token && typeof token === 'string' ? token : null
+}
+
+function getAccessTokenFromPersistedStorage(): string | null {
+  const token = getPersistedAuthState().accessToken
+  return token && typeof token === 'string' ? token : null
+}
+
 // API base URL - dinamik olarak belirle
 // Client-side'da window.location'dan, server-side'da env'den al
 const getBaseURL = (): string => {
@@ -110,13 +133,16 @@ const api = axios.create({
 })
 
 // Add token to requests + client-side'da her istekte güncel base URL kullan (SSR'da yanlış baseURL olmasın)
-// Store rehydrate olmadan (navigasyon sonrası) token için localStorage yedeği kullan; yoksa istek token'sız gider → 401 → forced logout
+// Store rehydrate olmadan (navigasyon sonrası) token için localStorage, yoksa persist yedeği kullan; istek token'sız giderse 401 → forced logout
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (typeof window !== 'undefined') {
     config.baseURL = getBaseURL()
   }
   const state = useAuthStore.getState()
-  const token = state.accessToken ?? (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null)
+  const token =
+    state.accessToken ??
+    (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null) ??
+    (typeof window !== 'undefined' ? getAccessTokenFromPersistedStorage() : null)
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -208,7 +234,7 @@ api.interceptors.response.use(
       isRefreshing = true
 
       const state = useAuthStore.getState()
-      const refreshToken = state.refreshToken
+      const refreshToken = state.refreshToken ?? getRefreshTokenFromPersistedStorage()
 
       if (!refreshToken) {
         performForcedLogout()
