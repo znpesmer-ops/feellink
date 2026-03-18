@@ -177,7 +177,8 @@ api.interceptors.response.use(
     // 403 (e.g. ACCOUNT_SUSPENDED from /auth/me) → forced logout so user is sent to login
     if (error.response?.status === 403) {
       const url = (originalRequest?.url ?? '') as string
-      if (url.includes('/auth/me') || error.response?.data?.message === 'ACCOUNT_SUSPENDED') {
+      const data = error.response?.data as { message?: string } | undefined
+      if (url.includes('/auth/me') || data?.message === 'ACCOUNT_SUSPENDED') {
         performForcedLogout()
       }
       return Promise.reject(error)
