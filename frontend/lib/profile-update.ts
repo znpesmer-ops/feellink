@@ -5,7 +5,7 @@ import type { QueryClient } from '@tanstack/react-query'
  * Navbar, profil, feed, bildirimler, kaydedilenler, explore, highlights vb. refetch olur.
  */
 export function invalidateAfterUsernameUpdate(queryClient: QueryClient): void {
-  const keys: (string | string[])[] = [
+  const keys: readonly (readonly string[])[] = [
     ['user-me'],
     ['profile'],
     ['feed'],
