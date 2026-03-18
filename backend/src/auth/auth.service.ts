@@ -545,15 +545,16 @@ export class AuthService {
     });
     await this.prisma.refreshToken.deleteMany({ where: { userId: user.id } });
     const tokens = await this.generateTokens(user.id);
-    const { password: _, ...userWithoutPassword } = user;
-    const payload = this.hydrateAuthUser({
-      ...userWithoutPassword,
-      isDeleted: false,
-      deletedAt: null,
-      deletedBy: null,
-      accountStatus: 'ACTIVE',
+    // Restore sonrası kullanıcıyı DB'den tekrar oku; böylece JWT sonraki istekte aynı güncel state'i görür
+    const restoredUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { ...this.authSelect },
     });
-    const needsRoleSelection = (user.roles?.length ?? 0) === 0;
+    if (!restoredUser) {
+      throw new UnauthorizedException('Hesap geri yüklendi ancak kullanıcı bilgisi alınamadı.');
+    }
+    const payload = this.hydrateAuthUser(restoredUser);
+    const needsRoleSelection = (restoredUser.roles?.length ?? 0) === 0;
     return {
       ...payload,
       ...tokens,
