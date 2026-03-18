@@ -108,7 +108,7 @@ export class UsersService {
       if (isObjectId) {
         try {
           user = await this.prisma.user.findFirst({
-            where: { id: username, isDeleted: { not: true } },
+            where: { id: username },
         select: {
           id: true,
           username: true,
@@ -128,6 +128,7 @@ export class UsersService {
           city: true,
           gender: true,
           showProfileColorSignature: true, // 🎨 Profil renk imzası göster/gizle
+          isDeleted: true,
           _count: {
             select: {
               posts: true,
@@ -147,10 +148,10 @@ export class UsersService {
       if (!user) {
         // Önce sadece username ile basit arama yap (hızlı)
         const allUsers = await this.prisma.user.findMany({
-          where: { isDeleted: { not: true } },
           select: {
             id: true,
             username: true,
+            isDeleted: true,
           },
         });
 
@@ -158,7 +159,7 @@ export class UsersService {
         const normalizedSearch = username.toLowerCase().trim();
         console.log('[getProfile] Searching for normalized username:', normalizedSearch);
         const foundUser = allUsers.find(
-          (u) => u.username?.toLowerCase().trim() === normalizedSearch
+          (u) => u.username?.toLowerCase().trim() === normalizedSearch && u.isDeleted !== true
         );
         console.log('[getProfile] Found user:', foundUser ? foundUser.username : 'NOT FOUND');
 
@@ -166,7 +167,7 @@ export class UsersService {
         if (foundUser) {
           console.log('[getProfile] Fetching full profile for ID:', foundUser.id);
           user = await this.prisma.user.findFirst({
-            where: { id: foundUser.id, isDeleted: { not: true } },
+            where: { id: foundUser.id },
             select: {
               id: true,
               username: true,
@@ -186,6 +187,7 @@ export class UsersService {
               city: true,
               gender: true,
               showProfileColorSignature: true, // 🎨 Profil renk imzası göster/gizle
+              isDeleted: true,
               _count: {
                 select: {
                   posts: true,
@@ -201,7 +203,12 @@ export class UsersService {
       if (!user) {
         throw new NotFoundException('Kullanıcı bulunamadı. Lütfen kullanıcı adını kontrol edin.');
       }
-    
+
+      // 🗑️ Silinmiş kullanıcı profili döndürme (DB'de alan eksik/undefined olanlar dahil edilir)
+      if (user.isDeleted === true) {
+        throw new NotFoundException('Kullanıcı bulunamadı. Lütfen kullanıcı adını kontrol edin.');
+      }
+
     // 🔥 KRİTİK: User id null kontrolü (veritabanı hatası durumunda)
     if (!user.id) {
       throw new NotFoundException('Kullanıcı kimliği geçersiz. Lütfen destek ekibiyle iletişime geçin.');
@@ -411,8 +418,9 @@ export class UsersService {
       activeRole 
     });
 
+    const { isDeleted: _omit, ...userSafe } = user as typeof user & { isDeleted?: boolean };
     return {
-      ...user,
+      ...userSafe,
       isAdmin: userIsAdmin, // ✅ isAdmin'i garantile (undefined ise false)
       avatar: transformAvatarUrl(user.avatar),
       isFollowing,
