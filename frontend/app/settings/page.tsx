@@ -9,6 +9,7 @@ import api from '@/lib/api'
 import toast from 'react-hot-toast'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { DeleteAccountModal } from '@/components/settings/DeleteAccountModal'
+import { invalidateAfterUsernameUpdate } from '@/lib/profile-update'
 
 function SettingsContent() {
   const { user, setUser } = useAuthStore()
@@ -39,9 +40,8 @@ function SettingsContent() {
               userData={userData}
               onUpdate={(updatedUser) => {
                 setUser(updatedUser)
-                queryClient.invalidateQueries({ queryKey: ['user-me'] })
-                // Username değiştiyse profil sayfasına redirect et
-                router.replace('/profile/me')
+                invalidateAfterUsernameUpdate(queryClient)
+                router.replace('/profile/' + (updatedUser?.username ?? 'me'))
               }}
             />
             <EmailField 
@@ -267,7 +267,7 @@ function UsernameField({ user, userData, onUpdate }: { user: any; userData: any;
 
     setIsSaving(true)
     try {
-      const response = await api.put('/users/profile', { username })
+      const response = await api.patch('/users/me/username', { username })
       toast.success('Kullanıcı adı güncellendi')
       onUpdate(response.data)
       setIsEditing(false)

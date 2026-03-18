@@ -13,6 +13,7 @@ import toast from 'react-hot-toast'
 import { TR_CITIES } from '@/constants/cities.tr'
 import { Lock, BarChart3, Loader2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
+import { invalidateAfterUsernameUpdate } from '@/lib/profile-update'
 
 type Gender = 'FEMALE' | 'MALE' | 'UNSPECIFIED'
 
@@ -262,10 +263,9 @@ function EditProfileContent() {
             }
           }
           
-          // ✅ KRİTİK: Username değişti, tüm profile query'lerini invalidate et
-          queryClient.invalidateQueries({ queryKey: ['profile'] })
-          queryClient.invalidateQueries({ queryKey: ['saved-posts'] })
-          
+          // Username değişti; feed, profil, bildirimler vb. tüm ilgili cache'leri invalidate et
+          invalidateAfterUsernameUpdate(queryClient)
+
           toast.success('Kullanıcı adı başarıyla güncellendi!');
         } catch (usernameError: any) {
           // ⚠️ Username update başarısız olsa bile diğer profil güncellemeleri devam etsin
