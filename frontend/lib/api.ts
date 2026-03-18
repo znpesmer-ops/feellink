@@ -236,8 +236,11 @@ api.interceptors.response.use(
       const state = useAuthStore.getState()
       const refreshToken = state.refreshToken ?? getRefreshTokenFromPersistedStorage()
 
+      const requestUrl = (originalRequest?.url ?? '') as string
+      const isAuthEndpoint = requestUrl.includes('/auth/me') || requestUrl.includes('/auth/refresh')
+
       if (!refreshToken) {
-        performForcedLogout()
+        if (isAuthEndpoint) performForcedLogout()
         return Promise.reject(error)
       }
 
@@ -269,7 +272,7 @@ api.interceptors.response.use(
         return api(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
-        performForcedLogout()
+        if (isAuthEndpoint) performForcedLogout()
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false

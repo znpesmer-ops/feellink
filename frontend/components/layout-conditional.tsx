@@ -28,6 +28,20 @@ function LayoutConditionalComponent({ children }: { children: React.ReactNode })
   const isExplore = pathname === '/explore'
   const isRoleSelection = pathname === '/select-role'
 
+  const publicRoutes = [
+    '/login',
+    '/register',
+    '/verify-email',
+    '/forgot-password',
+    '/reset-password',
+    '/onboarding',
+    '/select-role',
+    '/posts',
+    '/artwork',
+  ]
+  const currentPathname = pathname || ''
+  const isPublicRoute = publicRoutes.some((r) => currentPathname.startsWith(r))
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (mobileProfileMenuRef.current && !mobileProfileMenuRef.current.contains(event.target as Node)) {
@@ -56,8 +70,10 @@ function LayoutConditionalComponent({ children }: { children: React.ReactNode })
 
   if (isRoleSelection) return <>{children}</>
 
+  // Public route'larda (login, register vb.) asla shell gösterme; rehydration/race'te bile sidebar+header çıkmasın
+  if (isPublicRoute) return <>{children}</>
+
   // Auth çözülmeden veya giriş yoksa shell (sidebar/header) gösterme; sadece children (AuthGuard loader veya login)
-  // Böylece sidebar açıkken login sayfası bir an bile görünmez
   if (!hasInitialized || !isAuthenticated || !accessToken || !user) {
     return <>{children}</>
   }
