@@ -17,6 +17,9 @@ const publicRoutes = [
   '/artwork',
 ]
 
+// Route değişiminde AuthGuard yeniden mount olsa bile aynı token zaten doğrulandıysa tekrar /me çağrılmasın
+let lastValidatedToken: string | null = null
+
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -33,7 +36,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     clearAuth,
   } = useAuthStore()
   const hasRunRef = useRef(false)
-  const lastTokenRef = useRef<string | null>(null)
 
   const currentPathname = pathname || ''
   const isPublicRoute = publicRoutes.some((r) => currentPathname.startsWith(r))
@@ -46,36 +48,40 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     setLoading(false)
     setHasInitialized(true)
     clearAuth()
+    lastValidatedToken = null
   }, [currentPathname, setLoading, setHasInitialized, clearAuth])
 
   // Tek karar noktası: token varsa /me ile doğrula; yoksa resolved = not authenticated
+  // Aynı token zaten doğrulandıysa (navigasyon) tekrar /me çağırma, flicker/loop önlenir
   useEffect(() => {
     const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
     const currentToken = accessToken || tokenFromStorage
 
-    // Login/register'da localStorage'da token yoksa initAuth hiç çalıştırma (rehydration sonrası loading'e düşmesin)
+    // Login/register'da localStorage'da token yoksa initAuth hiç çalıştırma
     if (typeof window !== 'undefined' && (currentPathname === '/login' || currentPathname === '/register') && !tokenFromStorage) {
       clearAuth()
       setLoading(false)
       setHasInitialized(true)
       hasRunRef.current = false
-      lastTokenRef.current = null
+      lastValidatedToken = null
       return
     }
 
     if (!currentToken) {
+      lastValidatedToken = null
       clearAuth()
       setLoading(false)
       setHasInitialized(true)
       hasRunRef.current = false
-      lastTokenRef.current = null
       return
     }
 
-    if (lastTokenRef.current !== currentToken) {
-      lastTokenRef.current = currentToken
-      hasRunRef.current = false
-      setHasInitialized(false)
+    // Token zaten bu session'da doğrulandıysa tekrar /me atma (route değişiminde flicker/loop önlenir)
+    if (currentToken === lastValidatedToken && (hasInitialized || isAuthenticated)) {
+      setLoading(false)
+      setHasInitialized(true)
+      hasRunRef.current = true
+      return
     }
 
     if (hasRunRef.current) {
@@ -87,10 +93,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     const initAuth = async () => {
       const timeoutId = setTimeout(() => {
-        clearAuth()
         setLoading(false)
         setHasInitialized(true)
-      }, 5000)
+        hasRunRef.current = false
+      }, 10000)
 
       try {
         setLoading(true)
@@ -105,21 +111,35 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           capabilities ?? null,
           sidebar ?? null
         )
+        lastValidatedToken = currentToken
         clearTimeout(timeoutId)
         setLoading(false)
         setHasInitialized(true)
-      } catch (_err: any) {
-        // Her hata (401, 403, network): token + user temizle, tek redirect
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
-          sessionStorage.removeItem('access_token')
-          sessionStorage.removeItem('refresh_token')
+      } catch (err: any) {
+        clearTimeout(timeoutId)
+        const status = err?.response?.status
+        // Sadece 401/403 → çıkış. Network/5xx geçici hata; mevcut kullanıcıyı düşürme (flicker/loop önlenir)
+        if (status === 401 || status === 403) {
+          lastValidatedToken = null
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('access_token')
+            localStorage.removeItem('refresh_token')
+            sessionStorage.removeItem('access_token')
+            sessionStorage.removeItem('refresh_token')
+          }
+          clearAuth()
+        } else {
+          // Geçici hata: önceki state'i koru
+          const state = useAuthStore.getState()
+          if (state.isAuthenticated && state.user) {
+            lastValidatedToken = currentToken
+          } else {
+            lastValidatedToken = null
+          }
         }
-        clearAuth()
-        clearTimeout(timeoutId)
         setLoading(false)
         setHasInitialized(true)
+        hasRunRef.current = false
       }
     }
 

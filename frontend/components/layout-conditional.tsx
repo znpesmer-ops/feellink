@@ -16,7 +16,7 @@ import { Sidebar } from '@/components/sidebar'
 function LayoutConditionalComponent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, accessToken, refreshToken, clearAuth } = useAuthStore()
+  const { user, accessToken, refreshToken, clearAuth, hasInitialized, isAuthenticated } = useAuthStore()
   const { theme, toggleTheme } = useTheme()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
@@ -56,8 +56,9 @@ function LayoutConditionalComponent({ children }: { children: React.ReactNode })
 
   if (isRoleSelection) return <>{children}</>
 
-  // Eğer user yoksa direkt children render et
-  if (!accessToken || !user) {
+  // Auth çözülmeden veya giriş yoksa shell (sidebar/header) gösterme; sadece children (AuthGuard loader veya login)
+  // Böylece sidebar açıkken login sayfası bir an bile görünmez
+  if (!hasInitialized || !isAuthenticated || !accessToken || !user) {
     return <>{children}</>
   }
 

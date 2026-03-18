@@ -3,10 +3,22 @@ import { useAuthStore } from './store'
 import { CapabilitySummary, SidebarVisibility } from '@/types/capabilities'
 
 let isRefreshing = false
+let isLoggingOut = false
 let failedQueue: Array<{
   resolve: (value?: any) => void
   reject: (error?: any) => void
 }> = []
+
+function performForcedLogout() {
+  if (isLoggingOut) return
+  isLoggingOut = true
+  useAuthStore.getState().clearAuth()
+  if (typeof window !== 'undefined') {
+    window.location.replace('/login')
+  }
+  // Reset so next 401 can trigger again if user logs in again
+  setTimeout(() => { isLoggingOut = false }, 1000)
+}
 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((prom) => {
@@ -187,9 +199,7 @@ api.interceptors.response.use(
       const refreshToken = state.refreshToken
 
       if (!refreshToken) {
-        // No refresh token, logout
-        useAuthStore.getState().clearAuth()
-        window.location.replace('/login')
+        performForcedLogout()
         return Promise.reject(error)
       }
 
@@ -220,10 +230,8 @@ api.interceptors.response.use(
 
         return api(originalRequest)
       } catch (refreshError) {
-        // Refresh failed, logout
         processQueue(refreshError, null)
-        useAuthStore.getState().clearAuth()
-        window.location.replace('/login')
+        performForcedLogout()
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false
