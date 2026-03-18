@@ -328,13 +328,13 @@ export default function UserArticles({ authorId }: UserArticlesProps) {
               {isScheduled && (
                 <button
                   onClick={(e) => handleCancelSchedule(article.id, e)}
-                  className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                  className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                   title="Zamanlamayı iptal et"
                 >
                   <X size={14} />
                 </button>
               )}
-              <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="relative">
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
@@ -348,11 +348,11 @@ export default function UserArticles({ authorId }: UserArticlesProps) {
                 {openMenuArticleId === article.id && (
                   <>
                     <div
-                      className="fixed inset-0 z-10"
+                      className="fixed inset-0 z-[50]"
                       onClick={(e) => { e.stopPropagation(); setOpenMenuArticleId(null) }}
                       aria-hidden
                     />
-                    <div className="absolute right-0 top-full mt-1 z-20 min-w-[140px] py-1 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden">
+                    <div className="absolute right-0 bottom-full mb-1 z-[50] min-w-[140px] py-1 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden">
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
