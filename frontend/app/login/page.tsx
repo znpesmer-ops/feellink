@@ -42,6 +42,7 @@ export default function LoginPage() {
   const [isChecking, setIsChecking] = useState(true)
   const [isLoginMode, setIsLoginMode] = useState(true)
   const [darkMode, setDarkMode] = useState(false)
+  const [loginFormEmailKey, setLoginFormEmailKey] = useState(0)
 
   const handlePostAuthNavigation = (
     currentUser = user,
@@ -112,11 +113,12 @@ export default function LoginPage() {
     }
   }, [])
 
-  // Forced logout sonrası login sayfasında önceki e-postanın görünmesini engelle: token yokken formu sıfırla (bir kez, mount'ta)
+  // Forced logout sonrası login sayfasında önceki e-postanın görünmesini engelle: token yokken formu sıfırla ve email input'unu remount et
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (localStorage.getItem('access_token')) return
     loginForm.reset({ emailOrUsername: '', password: '' })
+    setLoginFormEmailKey((k) => k + 1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -367,6 +369,7 @@ export default function LoginPage() {
                   E-posta veya Kullanıcı Adı
                 </label>
                 <input
+                  key={loginFormEmailKey}
                   {...loginForm.register('emailOrUsername')}
                   type="text"
                   autoComplete="off"

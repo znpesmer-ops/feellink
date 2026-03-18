@@ -76,8 +76,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Token zaten bu session'da doğrulandıysa tekrar /me atma (route değişiminde flicker/loop önlenir)
-    if (currentToken === lastValidatedToken && (hasInitialized || isAuthenticated)) {
+    // Token zaten bu session'da doğrulandıysa tekrar /me atma (navigasyonda remount'ta hasInitialized/isAuthenticated bazen gecikmeli; sadece lastValidatedToken'a güven)
+    if (currentToken === lastValidatedToken) {
       setLoading(false)
       setHasInitialized(true)
       hasRunRef.current = true
