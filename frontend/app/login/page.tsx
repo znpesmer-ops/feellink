@@ -225,9 +225,8 @@ export default function LoginPage() {
   }
 
 
-  // Token yoksa (çıkış sonrası) spinner gösterme - form hemen görünsün
-  const hasTokenInStorage = typeof window !== 'undefined' && !!localStorage.getItem('access_token')
-  const showSpinner = hasTokenInStorage && (isChecking || authLoading || !hasInitialized)
+  // Login sayfasında auth spinner gösterme; form her zaman görünsün (flicker/tekrar loading önlenir)
+  const showSpinner = false
 
   if (showSpinner) {
     return (
