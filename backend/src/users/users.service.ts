@@ -108,7 +108,7 @@ export class UsersService {
       if (isObjectId) {
         try {
           user = await this.prisma.user.findFirst({
-            where: { id: username, isDeleted: false },
+            where: { id: username, isDeleted: { not: true } },
         select: {
           id: true,
           username: true,
@@ -147,7 +147,7 @@ export class UsersService {
       if (!user) {
         // Önce sadece username ile basit arama yap (hızlı)
         const allUsers = await this.prisma.user.findMany({
-          where: { isDeleted: false },
+          where: { isDeleted: { not: true } },
           select: {
             id: true,
             username: true,
@@ -166,7 +166,7 @@ export class UsersService {
         if (foundUser) {
           console.log('[getProfile] Fetching full profile for ID:', foundUser.id);
           user = await this.prisma.user.findFirst({
-            where: { id: foundUser.id, isDeleted: false },
+            where: { id: foundUser.id, isDeleted: { not: true } },
             select: {
               id: true,
               username: true,

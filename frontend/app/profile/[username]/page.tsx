@@ -352,10 +352,15 @@ function ProfileContent() {
                 const response = await api.get(`/users/profile/${currentUser.username}`)
                 if (response.data) return response.data
               } catch {
-                throw new Error('Profil yüklenemedi. Lütfen tekrar giriş yapın.')
+                throw new Error('Profil yüklenemedi.')
               }
             }
-            throw new Error(err?.response?.data?.message || err?.message || 'Kullanıcı bilgisi bulunamadı. Lütfen tekrar giriş yapın.')
+            const status = err?.response?.status
+            const isAuthError = status === 401 || status === 403
+            const fallbackMessage = isAuthError
+              ? 'Oturum geçersiz. Lütfen tekrar giriş yapın.'
+              : 'Profil yüklenemedi.'
+            throw new Error(err?.response?.data?.message || err?.message || fallbackMessage)
           }
         }
         if (!username || username === 'undefined' || username === 'null') {

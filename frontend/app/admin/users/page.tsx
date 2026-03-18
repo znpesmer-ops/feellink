@@ -36,6 +36,8 @@ interface User {
   suspensionReason?: string | null // 🔒 Askıya alma nedeni
   deletionRequestedAt?: string | null // 🔒 Hesap kapatma talebi tarihi
   scheduledDeletionAt?: string | null // 🔒 Kalıcı silme tarihi
+  isDeleted?: boolean // 🗑️ Soft delete
+  deletedAt?: string | null // 🗑️ Soft delete timestamp
 }
 
 // Util: Yaş hesaplama
@@ -523,7 +525,19 @@ export default function AdminUsersPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {user.accountStatus === 'PENDING_DELETION' ? (
+                    {user.isDeleted === true ? (
+                      <div className="flex items-center gap-2">
+                        <Trash2 className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Silinmiş</span>
+                          {user.deletedAt && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(user.deletedAt).toLocaleDateString('tr-TR')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : user.accountStatus === 'PENDING_DELETION' ? (
                       <div className="flex items-center gap-2">
                         <Trash2 className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                         <div className="flex flex-col">
