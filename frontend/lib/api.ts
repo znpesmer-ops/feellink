@@ -202,11 +202,10 @@ api.interceptors.response.use(
       return Promise.reject(networkError)
     }
 
-    // 403 (e.g. ACCOUNT_SUSPENDED from /auth/me) → forced logout so user is sent to login
+    // 403 → sadece /auth/me için forced logout (profil/users endpoint'leri 403/ACCOUNT_SUSPENDED dönse bile logout yapma; askı kaldırılan hesaplar profil açabilsin)
     if (error.response?.status === 403) {
       const url = (originalRequest?.url ?? '') as string
-      const data = error.response?.data as { message?: string } | undefined
-      if (url.includes('/auth/me') || data?.message === 'ACCOUNT_SUSPENDED') {
+      if (url.includes('/auth/me')) {
         performForcedLogout()
       }
       return Promise.reject(error)
