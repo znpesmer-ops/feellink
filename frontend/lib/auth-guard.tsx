@@ -101,12 +101,16 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       try {
         setLoading(true)
         const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
-        const response = await api.get('/auth/me')
+        const tokenToUse = tokenFromStorage || accessToken || currentToken
+        // Her zaman token gönder: store rehydrate olmamış olabilir (navigasyon sonrası remount), interceptor state.accessToken kullanıyor; token yoksa 401 → yanlış logout
+        const response = await api.get('/auth/me', {
+          headers: tokenToUse ? { Authorization: `Bearer ${tokenToUse}` } : undefined,
+        })
         const { user: currentUser, capabilities, sidebar } = response.data
         const currentRefreshToken = useAuthStore.getState().refreshToken
         setAuth(
           currentUser,
-          tokenFromStorage || accessToken || '',
+          tokenToUse || '',
           currentRefreshToken || '',
           capabilities ?? null,
           sidebar ?? null
