@@ -114,17 +114,9 @@ function SavedPostsGrid() {
         console.error('❌ [SavedPostsGrid] Request URL:', fetchError?.config?.url);
         console.error('❌ [SavedPostsGrid] Full error:', fetchError);
         
-        // ✅ STATUS CODE KONTROLÜ
+        // STATUS CODE KONTROLÜ (logout yok; auth sadece global interceptor'da yönetilir)
         if (fetchError?.response?.status === 401) {
-          console.error('🚨 [SavedPostsGrid] 401 UNAUTHORIZED!');
-          console.error('🚨 [SavedPostsGrid] Auth token expired! Otomatik logout...');
-          
-          // ⚠️ OTOMATIK LOGOUT + REDIRECT
-          if (typeof window !== 'undefined') {
-            const { clearAuth } = useAuthStore.getState();
-            clearAuth();
-            window.location.href = '/login';
-          }
+          console.warn('🚨 [SavedPostsGrid] 401 UNAUTHORIZED - auth interceptor handles logout if needed');
         } else if (fetchError?.response?.status === 500) {
           console.error('🚨 [SavedPostsGrid] 500 INTERNAL SERVER ERROR!');
           console.error('🚨 [SavedPostsGrid] Backend crash oluyor!');
