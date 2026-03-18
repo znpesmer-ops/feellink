@@ -92,17 +92,17 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     hasRunRef.current = true
 
     const initAuth = async () => {
-      const timeoutId = setTimeout(() => {
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+      timeoutId = setTimeout(() => {
         setLoading(false)
         setHasInitialized(true)
         hasRunRef.current = false
-      }, 10000)
+      }, 8000)
 
       try {
         setLoading(true)
         const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
         const tokenToUse = tokenFromStorage || accessToken || currentToken
-        // Her zaman token gönder: store rehydrate olmamış olabilir (navigasyon sonrası remount), interceptor state.accessToken kullanıyor; token yoksa 401 → yanlış logout
         const response = await api.get('/auth/me', {
           headers: tokenToUse ? { Authorization: `Bearer ${tokenToUse}` } : undefined,
         })
@@ -116,29 +116,22 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           sidebar ?? null
         )
         lastValidatedToken = currentToken
-        clearTimeout(timeoutId)
-        setLoading(false)
-        setHasInitialized(true)
       } catch (err: any) {
-        clearTimeout(timeoutId)
         const status = err?.response?.status
-        // Sadece 401/403 → tek noktadan forced logout (storage + redirect). Network/5xx geçici hata; mevcut kullanıcıyı düşürme (flicker/loop önlenir)
         if (status === 401 || status === 403) {
           lastValidatedToken = null
           performForcedLogout()
-          setLoading(false)
-          setHasInitialized(true)
           hasRunRef.current = false
           return
-        } else {
-          // Geçici hata: önceki state'i koru
-          const state = useAuthStore.getState()
-          if (state.isAuthenticated && state.user) {
-            lastValidatedToken = currentToken
-          } else {
-            lastValidatedToken = null
-          }
         }
+        const state = useAuthStore.getState()
+        if (state.isAuthenticated && state.user) {
+          lastValidatedToken = currentToken
+        } else {
+          lastValidatedToken = null
+        }
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId)
         setLoading(false)
         setHasInitialized(true)
         hasRunRef.current = false
@@ -152,8 +145,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loading || !hasInitialized) return
 
-    // Ana sayfa
-    if (currentPathname === '/') {
+    // Ana sayfa (pathname bazen '' olabiliyor, tek karar noktası)
+    const isRoot = currentPathname === '/' || currentPathname === ''
+    if (isRoot) {
       if (isAuthenticated) router.replace('/feed')
       else router.replace('/login')
       return
