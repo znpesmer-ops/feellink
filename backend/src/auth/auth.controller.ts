@@ -64,48 +64,58 @@ export class AuthController {
   @Post('login')
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(loginDto);
-    
-    // Set refreshToken as HTTP-only cookie for mobile compatibility
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: false, // LOCAL DEVELOPMENT - set to true in production with HTTPS
-      sameSite: 'lax', // Works with mobile browsers
-      path: '/',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    });
-    
+    if ((result as any).status !== 'DELETED_ACCOUNT' && (result as any).refreshToken) {
+      res.cookie('refreshToken', (result as any).refreshToken, {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+    }
     return result;
   }
 
   @Post('login-corporate')
   async corporateLogin(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.corporateLogin(loginDto);
-    
-    // Set refreshToken as HTTP-only cookie for mobile compatibility
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: false, // LOCAL DEVELOPMENT - set to true in production with HTTPS
-      sameSite: 'lax', // Works with mobile browsers
-      path: '/',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    });
-    
+    if ((result as any).status !== 'DELETED_ACCOUNT' && (result as any).refreshToken) {
+      res.cookie('refreshToken', (result as any).refreshToken, {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+    }
     return result;
   }
 
   @Post('login-unified')
   async loginUnified(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.loginUnified(loginDto);
-    
-    // Set refreshToken as HTTP-only cookie for mobile compatibility
+    if ((result as any).status !== 'DELETED_ACCOUNT' && (result as any).refreshToken) {
+      res.cookie('refreshToken', (result as any).refreshToken, {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+    }
+    return result;
+  }
+
+  @Post('restore-account')
+  async restoreAccount(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.restoreAccount(loginDto);
     res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
-      secure: false, // LOCAL DEVELOPMENT - set to true in production with HTTPS
-      sameSite: 'lax', // Works with mobile browsers
+      secure: false,
+      sameSite: 'lax',
       path: '/',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      maxAge: 30 * 24 * 60 * 60 * 1000,
     });
-    
     return result;
   }
 

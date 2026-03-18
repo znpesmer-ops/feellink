@@ -373,10 +373,22 @@ export class AuthService {
       throw new UnauthorizedException('E-posta veya şifre hatalı');
     }
 
-    // 🗑️ Soft delete: silinmiş hesap giriş yapamaz
-    if (user.isDeleted === true) {
-      this.logger.warn(`[LOGIN] Deleted account login attempt: ${user.email || user.username}`);
-      throw new UnauthorizedException('Hesap silinmiş');
+    // 🗑️ Soft delete: 14 gün grace period – restore mümkün; sonrası kalıcı silinmiş
+    if (user.isDeleted === true || user.deletedAt) {
+      const deletedAt = user.deletedAt ? new Date(user.deletedAt) : null;
+      const daysSinceDeleted = deletedAt ? (Date.now() - deletedAt.getTime()) / (24 * 60 * 60 * 1000) : Infinity;
+      const RESTORE_GRACE_DAYS = 14;
+      if (daysSinceDeleted > RESTORE_GRACE_DAYS) {
+        this.logger.warn(`[LOGIN] Permanently deleted account: ${user.email || user.username}`);
+        throw new UnauthorizedException('Hesap kalıcı olarak silinmiş.');
+      }
+      this.logger.log(`[LOGIN] Deleted account within grace period: ${user.email || user.username}, restore available`);
+      return {
+        status: 'DELETED_ACCOUNT',
+        restoreAvailable: true,
+        deletedAt: user.deletedAt,
+        message: 'Hesabınız silinmiş. 14 gün içinde geri yükleyebilirsiniz.',
+      };
     }
 
     // E-posta doğrulanmamışsa giriş engelle (yeni kayıtlar OTP ile doğrulanır).
@@ -460,8 +472,19 @@ export class AuthService {
       throw new UnauthorizedException('Kurumsal hesap bulunamadı veya yetkisiz.');
     }
 
-    if (user.isDeleted === true) {
-      throw new UnauthorizedException('Hesap silinmiş');
+    if (user.isDeleted === true || user.deletedAt) {
+      const deletedAt = user.deletedAt ? new Date(user.deletedAt) : null;
+      const daysSinceDeleted = deletedAt ? (Date.now() - deletedAt.getTime()) / (24 * 60 * 60 * 1000) : Infinity;
+      const RESTORE_GRACE_DAYS = 14;
+      if (daysSinceDeleted > RESTORE_GRACE_DAYS) {
+        throw new UnauthorizedException('Hesap kalıcı olarak silinmiş.');
+      }
+      return {
+        status: 'DELETED_ACCOUNT',
+        restoreAvailable: true,
+        deletedAt: user.deletedAt,
+        message: 'Hesabınız silinmiş. 14 gün içinde geri yükleyebilirsiniz.',
+      };
     }
 
     if (user.isVerified === false) {
@@ -494,6 +517,48 @@ export class AuthService {
     } catch {
       return false;
     }
+  }
+
+  private static readonly RESTORE_GRACE_DAYS = 14;
+
+  async restoreAccount(loginDto: LoginDto) {
+    const user = await this.validateUser(loginDto);
+    if (!user) {
+      throw new UnauthorizedException('E-posta veya şifre hatalı');
+    }
+    if (user.isDeleted !== true && !user.deletedAt) {
+      throw new BadRequestException('Hesap zaten aktif.');
+    }
+    const deletedAt = user.deletedAt ? new Date(user.deletedAt) : null;
+    const daysSinceDeleted = deletedAt ? (Date.now() - deletedAt.getTime()) / (24 * 60 * 60 * 1000) : Infinity;
+    if (daysSinceDeleted > AuthService.RESTORE_GRACE_DAYS) {
+      throw new UnauthorizedException('Hesap kalıcı olarak silinmiş. Geri yükleme süresi doldu.');
+    }
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isDeleted: false,
+        deletedAt: null,
+        deletedBy: null,
+        accountStatus: 'ACTIVE',
+      },
+    });
+    await this.prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+    const tokens = await this.generateTokens(user.id);
+    const { password: _, ...userWithoutPassword } = user;
+    const payload = this.hydrateAuthUser({
+      ...userWithoutPassword,
+      isDeleted: false,
+      deletedAt: null,
+      deletedBy: null,
+      accountStatus: 'ACTIVE',
+    });
+    const needsRoleSelection = (user.roles?.length ?? 0) === 0;
+    return {
+      ...payload,
+      ...tokens,
+      needsRoleSelection,
+    };
   }
 
   private async generateTokens(userId: string) {
@@ -607,8 +672,19 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (user.isDeleted === true) {
-      throw new UnauthorizedException('Hesap silinmiş');
+    if (user.isDeleted === true || user.deletedAt) {
+      const deletedAt = user.deletedAt ? new Date(user.deletedAt) : null;
+      const daysSinceDeleted = deletedAt ? (Date.now() - deletedAt.getTime()) / (24 * 60 * 60 * 1000) : Infinity;
+      const RESTORE_GRACE_DAYS = 14;
+      if (daysSinceDeleted > RESTORE_GRACE_DAYS) {
+        throw new UnauthorizedException('Hesap kalıcı olarak silinmiş.');
+      }
+      return {
+        status: 'DELETED_ACCOUNT',
+        restoreAvailable: true,
+        deletedAt: user.deletedAt,
+        message: 'Hesabınız silinmiş. 14 gün içinde geri yükleyebilirsiniz.',
+      };
     }
 
     if (user.isVerified === false) {
@@ -734,6 +810,7 @@ export class AuthService {
           scheduledDeletionAt: true,
           isVerified: true,
           isDeleted: true,
+          deletedAt: true,
         },
       });
       
@@ -757,6 +834,7 @@ export class AuthService {
             scheduledDeletionAt: true,
             isVerified: true,
             isDeleted: true,
+            deletedAt: true,
           },
         });
       }
@@ -781,6 +859,7 @@ export class AuthService {
             scheduledDeletionAt: true,
             isVerified: true,
             isDeleted: true,
+            deletedAt: true,
           },
         });
         
@@ -803,6 +882,7 @@ export class AuthService {
               scheduledDeletionAt: true,
               isVerified: true,
               isDeleted: true,
+              deletedAt: true,
             },
           });
         }

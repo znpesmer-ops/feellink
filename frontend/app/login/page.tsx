@@ -43,6 +43,9 @@ export default function LoginPage() {
   const [isLoginMode, setIsLoginMode] = useState(true)
   const [darkMode, setDarkMode] = useState(false)
   const [loginFormEmailKey, setLoginFormEmailKey] = useState(0)
+  const [showRestoreScreen, setShowRestoreScreen] = useState(false)
+  const [restoreCredentials, setRestoreCredentials] = useState<{ emailOrUsername: string; password: string } | null>(null)
+  const [restoreLoading, setRestoreLoading] = useState(false)
 
   const handlePostAuthNavigation = (
     currentUser = user,
@@ -156,6 +159,13 @@ export default function LoginPage() {
         emailOrUsername: data.emailOrUsername.trim(),
         password: data.password,
       })
+      const dataResp = response.data as any
+      if (dataResp?.status === 'DELETED_ACCOUNT' && dataResp?.restoreAvailable) {
+        setRestoreCredentials({ emailOrUsername: data.emailOrUsername.trim(), password: data.password })
+        setShowRestoreScreen(true)
+        setError('')
+        return
+      }
       const {
         user: loggedUser,
         accessToken: newAccessToken,
@@ -183,6 +193,35 @@ export default function LoginPage() {
         return
       }
       setError(getErrorMessage(err))
+    }
+  }
+
+  const onRestore = async () => {
+    if (!restoreCredentials) return
+    try {
+      setError('')
+      setRestoreLoading(true)
+      const response = await api.post('/auth/restore-account', {
+        emailOrUsername: restoreCredentials.emailOrUsername,
+        password: restoreCredentials.password,
+      })
+      const {
+        user: loggedUser,
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        capabilities: caps,
+        sidebar,
+        needsRoleSelection,
+      } = response.data
+      setAuth(loggedUser, newAccessToken, newRefreshToken, caps ?? null, sidebar ?? null)
+      toast.success('Hesabınız geri yüklendi.')
+      setShowRestoreScreen(false)
+      setRestoreCredentials(null)
+      handlePostAuthNavigation(loggedUser, caps ?? undefined, needsRoleSelection)
+    } catch (err: any) {
+      setError(getErrorMessage(err))
+    } finally {
+      setRestoreLoading(false)
     }
   }
 
@@ -307,6 +346,8 @@ export default function LoginPage() {
               onClick={() => {
                 setIsLoginMode(true)
                 setError('')
+                setShowRestoreScreen(false)
+                setRestoreCredentials(null)
                 loginForm.reset()
                 registerForm.reset()
               }}
@@ -325,6 +366,8 @@ export default function LoginPage() {
               onClick={() => {
                 setIsLoginMode(false)
                 setError('')
+                setShowRestoreScreen(false)
+                setRestoreCredentials(null)
                 loginForm.reset()
                 registerForm.reset()
               }}
@@ -342,6 +385,52 @@ export default function LoginPage() {
 
           {/* Form */}
           {isLoginMode ? (
+          showRestoreScreen ? (
+            <div className="space-y-5">
+              {error && (
+                <div
+                  className={`px-4 py-3 rounded-lg text-sm ${
+                    darkMode
+                      ? 'bg-red-900/20 border border-red-800 text-red-400'
+                      : 'bg-red-50 border border-red-200 text-red-700'
+                  }`}
+                >
+                  {error}
+                </div>
+              )}
+              <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                Hesabınız silinmiş. 14 gün içinde geri yükleyebilirsiniz.
+              </p>
+              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Hesabı geri yüklemek ister misiniz?
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={onRestore}
+                  disabled={restoreLoading}
+                  className="w-full py-2.5 rounded-lg font-medium bg-[#ff7a00] text-white hover:bg-[#e66d00] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {restoreLoading ? 'Yükleniyor...' : 'Hesabı Geri Yükle'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRestoreScreen(false)
+                    setRestoreCredentials(null)
+                    setError('')
+                  }}
+                  className={`w-full py-2.5 rounded-lg font-medium border transition-colors ${
+                    darkMode
+                      ? 'border-[#2b2b2b] text-gray-300 hover:bg-[#1a1a1a]'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Girişe Dön
+                </button>
+              </div>
+            </div>
+          ) : (
           <form
             className="space-y-5"
             onSubmit={loginForm.handleSubmit(onLogin)}
@@ -446,6 +535,7 @@ export default function LoginPage() {
                 )}
               </button>
             </form>
+          )
           ) : (
             <form
               className="space-y-5"
