@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   Home,
   Compass,
@@ -39,6 +39,7 @@ interface SidebarProps {
 
 export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}) {
   const pathname = usePathname()
+  const router = useRouter()
   const { user, capabilities, accessToken, sidebar, unreadCount, setUnreadCount, unreadMessageCount, setUnreadMessageCount } = useAuthStore() // ✅ unreadMessageCount ekle
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false)
 
@@ -240,7 +241,15 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
                 <Link
                   href={item.href}
                   prefetch={true}
-                  onClick={onLinkClick}
+                  onClick={(e) => {
+                    if (onLinkClick) {
+                      e.preventDefault()
+                      router.push(item.href)
+                      onLinkClick()
+                    } else {
+                      onLinkClick?.()
+                    }
+                  }}
                   className={`${baseClasses} ${
                     isActive ? 'bg-brand-blue/10 text-brand-orange' : inactiveClasses
                   }`}
