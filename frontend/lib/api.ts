@@ -14,7 +14,11 @@ export function performForcedLogout() {
   isLoggingOut = true
   useAuthStore.getState().clearAuth()
   if (typeof window !== 'undefined') {
-    window.location.replace('/login')
+    // Eğer kullanıcı zaten /login sayfasındaysa (restore ekranı dahil), sayfayı yeniden yüklemek state'i sıfırlıyor.
+    // Bu yüzden sadece login'de değilken redirect yap.
+    if (!window.location.pathname.startsWith('/login')) {
+      window.location.replace('/login')
+    }
   }
   // Reset so next 401 can trigger again if user logs in again
   setTimeout(() => { isLoggingOut = false }, 1000)
