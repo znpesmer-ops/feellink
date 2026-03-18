@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from './store'
-import api from './api'
+import api, { performForcedLogout } from './api'
 
 const publicRoutes = [
   '/login',
@@ -118,16 +118,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       } catch (err: any) {
         clearTimeout(timeoutId)
         const status = err?.response?.status
-        // Sadece 401/403 → çıkış. Network/5xx geçici hata; mevcut kullanıcıyı düşürme (flicker/loop önlenir)
+        // Sadece 401/403 → tek noktadan forced logout (storage + redirect). Network/5xx geçici hata; mevcut kullanıcıyı düşürme (flicker/loop önlenir)
         if (status === 401 || status === 403) {
           lastValidatedToken = null
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('access_token')
-            localStorage.removeItem('refresh_token')
-            sessionStorage.removeItem('access_token')
-            sessionStorage.removeItem('refresh_token')
-          }
-          clearAuth()
+          performForcedLogout()
+          setLoading(false)
+          setHasInitialized(true)
+          hasRunRef.current = false
+          return
         } else {
           // Geçici hata: önceki state'i koru
           const state = useAuthStore.getState()

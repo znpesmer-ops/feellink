@@ -1222,6 +1222,11 @@ export class AdminService {
       },
     });
 
+    // Invalidate all sessions so suspended user cannot refresh tokens
+    await this.prisma.refreshToken.deleteMany({
+      where: { userId },
+    });
+
     return { success: true, message: 'User suspended', user: updated };
   }
 

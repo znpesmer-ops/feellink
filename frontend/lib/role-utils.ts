@@ -10,8 +10,9 @@ export type PrimaryRole = 'admin' | UserRoleCode
 
 export const ROLE_PRIORITY: PrimaryRole[] = ['admin', 'corporate', 'collector', 'artist', 'art_lover']
 
+// Admin = normal kullanıcı deneyimi + ekstra yetki; giriş sonrası /feed'e düşer, Admin Paneli menüden erişilir
 const ROLE_ROUTES: Record<PrimaryRole, string> = {
-  admin: '/admin',
+  admin: '/feed',
   corporate: '/corporate/dashboard',
   collector: '/collector/dashboard',
   artist: '/artist/dashboard',

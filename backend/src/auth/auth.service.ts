@@ -854,6 +854,7 @@ export class AuthService {
       select: {
         ...this.authSelect,
         accountStatus: true,
+        isDeleted: true,
       },
     });
 
@@ -861,11 +862,15 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
+    if (user.isDeleted === true || user.accountStatus === 'PENDING_DELETION') {
+      throw new UnauthorizedException('ACCOUNT_PENDING_DELETION');
+    }
+
     if (user.accountStatus === 'SUSPENDED') {
       throw new ForbiddenException('ACCOUNT_SUSPENDED');
     }
 
-    const { accountStatus: _, ...safeUser } = user;
+    const { accountStatus: _, isDeleted: __, ...safeUser } = user;
     return this.hydrateAuthUser(safeUser);
   }
 

@@ -9,7 +9,7 @@ let failedQueue: Array<{
   reject: (error?: any) => void
 }> = []
 
-function performForcedLogout() {
+export function performForcedLogout() {
   if (isLoggingOut) return
   isLoggingOut = true
   useAuthStore.getState().clearAuth()
@@ -172,6 +172,15 @@ api.interceptors.response.use(
         toJSON: () => ({}),
       }
       return Promise.reject(networkError)
+    }
+
+    // 403 (e.g. ACCOUNT_SUSPENDED from /auth/me) → forced logout so user is sent to login
+    if (error.response?.status === 403) {
+      const url = (originalRequest?.url ?? '') as string
+      if (url.includes('/auth/me') || error.response?.data?.message === 'ACCOUNT_SUSPENDED') {
+        performForcedLogout()
+      }
+      return Promise.reject(error)
     }
 
     // If error is 401 and we haven't tried to refresh yet

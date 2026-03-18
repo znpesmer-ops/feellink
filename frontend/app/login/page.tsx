@@ -137,6 +137,8 @@ export default function LoginPage() {
   const onLogin = async (data: LoginForm) => {
     try {
       setError('')
+      // Clear any stale auth so reactivation or re-login uses only new tokens/user
+      useAuthStore.getState().clearAuth()
       // Debug: API URL'ini console'a yazdır
       console.log('API Base URL:', api.defaults.baseURL)
       console.log('LOGIN URL:', api.defaults.baseURL + '/auth/login')
@@ -177,6 +179,8 @@ export default function LoginPage() {
   const onRegister = async (data: RegisterForm) => {
     try {
       setError('')
+      // Clear any stale auth so new signup uses only new tokens/user
+      useAuthStore.getState().clearAuth()
       const payload = {
         email: data.email.trim(),
         username: data.username.trim(),

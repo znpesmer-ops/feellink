@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { disconnectSocket } from '@/lib/socket'
@@ -18,6 +18,7 @@ export function DeleteAccountModal({ isOpen, onClose }: DeleteAccountModalProps)
   const [isConfirmed, setIsConfirmed] = useState(false)
   const [password, setPassword] = useState('')
   const { clearAuth } = useAuthStore()
+  const queryClient = useQueryClient()
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -27,6 +28,7 @@ export function DeleteAccountModal({ isOpen, onClose }: DeleteAccountModalProps)
       toast.success('Hesabınız silme sürecine alındı. 15 gün içinde giriş yaparak hesabınızı yeniden aktif hale getirebilirsiniz.')
       disconnectSocket()
       clearAuth()
+      queryClient.clear()
       onClose()
       if (typeof window !== 'undefined') {
         window.location.replace('/login')

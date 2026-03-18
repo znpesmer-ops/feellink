@@ -4,11 +4,12 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/lib/store'
-import { FileText, Edit, Eye, Heart, MessageCircle, Calendar, X } from 'lucide-react'
+import { FileText, Edit, Eye, Heart, MessageCircle, Calendar, X, MoreVertical, Trash2 } from 'lucide-react'
 import api from '@/lib/api'
 import { initArticlesSocket } from '@/lib/socket'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import toast from 'react-hot-toast'
+import DeleteConfirmModal from '@/components/common/DeleteConfirmModal'
 
 interface Article {
   id: string
@@ -38,6 +39,10 @@ export default function UserArticles({ authorId }: UserArticlesProps) {
   const [publishedArticles, setPublishedArticles] = useState<Article[]>([])
   const [scheduledArticles, setScheduledArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [articleToDelete, setArticleToDelete] = useState<Article | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [openMenuArticleId, setOpenMenuArticleId] = useState<string | null>(null)
 
   // authorId prop varsa onu kullan, yoksa current user'ın id'sini kullan
   const targetUserId = authorId || user?.id
@@ -190,6 +195,30 @@ export default function UserArticles({ authorId }: UserArticlesProps) {
     }
   }
 
+  const handleDeleteClick = (e: React.MouseEvent, article: Article) => {
+    e.stopPropagation()
+    setOpenMenuArticleId(null)
+    setArticleToDelete(article)
+    setDeleteModalOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!articleToDelete) return
+    setIsDeleting(true)
+    try {
+      await api.delete(`/articles/${articleToDelete.id}`)
+      setPublishedArticles((prev) => prev.filter((a) => a.id !== articleToDelete.id))
+      setScheduledArticles((prev) => prev.filter((a) => a.id !== articleToDelete.id))
+      toast.success('Yazı silindi')
+      setDeleteModalOpen(false)
+      setArticleToDelete(null)
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Yazı silinemedi.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const renderArticleCard = (article: Article, isScheduled: boolean = false) => (
     <div
       key={article.id}
@@ -295,7 +324,7 @@ export default function UserArticles({ authorId }: UserArticlesProps) {
             })}
           </p>
           {isOwnArticles && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 relative">
               {isScheduled && (
                 <button
                   onClick={(e) => handleCancelSchedule(article.id, e)}
@@ -305,16 +334,45 @@ export default function UserArticles({ authorId }: UserArticlesProps) {
                   <X size={14} />
                 </button>
               )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  router.push(`/articles/edit/${article.id}`)
-                }}
-                className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-[#ff7b00] hover:bg-[#ff7b00]/10 dark:hover:bg-[#ff7b00]/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                title="Düzenle"
-              >
-                <Edit size={16} />
-              </button>
+              <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpenMenuArticleId((prev) => (prev === article.id ? null : article.id))
+                  }}
+                  className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-[#ff7b00] hover:bg-[#ff7b00]/10 dark:hover:bg-[#ff7b00]/20 rounded-lg transition-colors"
+                  title="Menü"
+                >
+                  <MoreVertical size={16} />
+                </button>
+                {openMenuArticleId === article.id && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={(e) => { e.stopPropagation(); setOpenMenuArticleId(null) }}
+                      aria-hidden
+                    />
+                    <div className="absolute right-0 top-full mt-1 z-20 min-w-[140px] py-1 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setOpenMenuArticleId(null)
+                          router.push(`/articles/edit/${article.id}`)
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2"
+                      >
+                        <Edit size={14} /> Düzenle
+                      </button>
+                      <button
+                        onClick={(e) => handleDeleteClick(e, article)}
+                        className="w-full px-3 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                      >
+                        <Trash2 size={14} /> Sil
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -416,7 +474,17 @@ export default function UserArticles({ authorId }: UserArticlesProps) {
         </>
       )}
 
-      {/* ✅ Başkasının profili için sadece yayınlanan yazıları göster - activeTab === 'published' koşulunda zaten render ediliyor, bu blok kaldırıldı */}
+      {/* Silme onay modalı */}
+      <DeleteConfirmModal
+        open={deleteModalOpen}
+        onClose={() => { setDeleteModalOpen(false); setArticleToDelete(null) }}
+        onConfirm={handleConfirmDelete}
+        title="Yazıyı sil"
+        message="Bu işlem geri alınamaz. Yazıyı silmek istediğinize emin misiniz?"
+        confirmText="Sil"
+        cancelText="Vazgeç"
+        loading={isDeleting}
+      />
     </div>
   )
 }
