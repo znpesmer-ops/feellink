@@ -206,6 +206,9 @@ api.interceptors.response.use(
     if (error.response?.status === 403) {
       const url = (originalRequest?.url ?? '') as string
       if (url.includes('/auth/me')) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[api] Forced logout triggered: 403', { url })
+        }
         performForcedLogout()
       }
       return Promise.reject(error)
@@ -239,7 +242,12 @@ api.interceptors.response.use(
       const isAuthEndpoint = requestUrl.includes('/auth/me') || requestUrl.includes('/auth/refresh')
 
       if (!refreshToken) {
-        if (isAuthEndpoint) performForcedLogout()
+        if (isAuthEndpoint) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[api] Forced logout triggered: 401 no refreshToken', { url: requestUrl })
+          }
+          performForcedLogout()
+        }
         return Promise.reject(error)
       }
 
@@ -271,7 +279,12 @@ api.interceptors.response.use(
         return api(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
-        if (isAuthEndpoint) performForcedLogout()
+        if (isAuthEndpoint) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[api] Forced logout triggered: 401 refresh failed', { url: requestUrl })
+          }
+          performForcedLogout()
+        }
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false

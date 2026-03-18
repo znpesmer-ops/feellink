@@ -1104,8 +1104,8 @@ function ProfileContent() {
         {/* Öne Çıkan Temalar - Tüm kullanıcılarda görünür */}
         <ArtistHighlights username={username} userId={profile?.id} isOwnProfile={profile.isOwnProfile} />
 
-        {/* Sekme Butonları - Tek config'den; flex+gap (sabit grid yok); saved/analytics sadece kendi profilde */}
-        <div className="flex items-center justify-center gap-6 md:gap-10 overflow-x-auto pb-3 mb-6 border-b border-gray-200 dark:border-gray-700 relative">
+        {/* Sekme Butonları - Tek config'den; her tab title/aria-label ile tooltip görünür */}
+        <div className="flex items-center justify-center gap-6 md:gap-10 overflow-x-auto overflow-y-visible pb-3 mb-6 border-b border-gray-200 dark:border-gray-700 relative z-10">
           {tabs.map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.key
@@ -1113,18 +1113,20 @@ function ProfileContent() {
             return (
               <div
                 key={tab.key}
-                className="relative flex flex-col items-center"
+                className="relative flex flex-col items-center overflow-visible"
                 onMouseEnter={() => setHoveredTab(tab.key)}
                 onMouseLeave={() => setHoveredTab(null)}
               >
                 <button
+                  type="button"
                   onClick={() => setActiveTab(tab.key as any)}
-                  className={`flex items-center justify-center pb-2 px-3 transition-all relative group ${
+                  title={tab.label}
+                  aria-label={tab.label}
+                  className={`flex items-center justify-center min-w-[44px] min-h-[44px] pb-2 px-3 transition-all relative group ${
                     isActive
                       ? 'text-brand-orange'
                       : 'text-gray-600 dark:text-gray-400 hover:text-brand-orange'
                   }`}
-                  title={tab.label}
                 >
                   <Icon 
                     size={22} 
@@ -1136,16 +1138,16 @@ function ProfileContent() {
                   />
                   {/* Aktif sekme alt çizgisi */}
                   {isActive && (
-                    <div className="absolute -bottom-3 left-0 right-0 h-[2px] bg-brand-orange rounded-full shadow-[0_1px_2px_rgba(255,123,0,0.3)]"></div>
+                    <div className="absolute -bottom-3 left-0 right-0 h-[2px] bg-brand-orange rounded-full shadow-[0_1px_2px_rgba(255,123,0,0.3)]" aria-hidden />
                   )}
                 </button>
 
-                {/* Tooltip */}
+                {/* Tooltip - z-[60] ile alt içeriğin üstünde; Yazılar dahil tüm sekmelerde görünsün */}
                 {hoveredTab === tab.key && (
-                  <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-white/90 dark:bg-[#1a1a1a]/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-medium text-brand-orange dark:text-brand-orange shadow-lg border border-gray-200/70 dark:border-gray-700/50 whitespace-nowrap z-10 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-white/95 dark:bg-[#1a1a1a]/95 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-medium text-brand-orange dark:text-brand-orange shadow-lg border border-gray-200/70 dark:border-gray-700/50 whitespace-nowrap z-[60] animate-in fade-in slide-in-from-top-1 duration-150 pointer-events-none">
                     {tab.label}
                     {/* Tooltip ok */}
-                    <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white/90 dark:bg-[#1a1a1a]/90 border-l border-t border-gray-200/70 dark:border-gray-700/50 rotate-45"></div>
+                    <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white/95 dark:bg-[#1a1a1a]/95 border-l border-t border-gray-200/70 dark:border-gray-700/50 rotate-45" aria-hidden />
                   </div>
                 )}
               </div>

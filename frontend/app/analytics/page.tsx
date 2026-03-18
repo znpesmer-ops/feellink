@@ -288,12 +288,10 @@ export default function AnalyticsPage() {
           userId: user?.id 
         });
         
-        // 401 hatası durumunda catch et ve loading'i false yap
+        // 401: logout yapma; sadece reject et (auth sadece interceptor'da yönetilir, hesap-özel logout önlenir)
         const handle401 = (err: any) => {
           if (err?.response?.status === 401) {
-            console.error('[Analytics] Unauthorized - redirecting to login');
-            useAuthStore.getState().clearAuth();
-            router.push('/login');
+            console.warn('[Analytics] Unauthorized - auth interceptor handles logout if needed');
             throw err;
           }
           return err;
@@ -367,15 +365,7 @@ export default function AnalyticsPage() {
         console.log('[Analytics] ✅ Data set successfully');
       } catch (err: any) {
         console.error("[Analytics] ❌ Analiz verileri alınamadı:", err);
-        
-        // 401 hatası durumunda login'e yönlendir
-        if (err?.response?.status === 401) {
-          console.error('[Analytics] Unauthorized - redirecting to login');
-          useAuthStore.getState().clearAuth();
-          router.push('/login');
-          return;
-        }
-        
+
         toast.error(err.response?.data?.message || "Analiz verileri yüklenemedi");
       } finally {
         // 🔒 KRİTİK: finally bloğu - loading'i GARANTİ kapat
