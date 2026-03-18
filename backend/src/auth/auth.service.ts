@@ -373,6 +373,12 @@ export class AuthService {
       throw new UnauthorizedException('E-posta veya şifre hatalı');
     }
 
+    // 🗑️ Soft delete: silinmiş hesap giriş yapamaz
+    if (user.isDeleted === true) {
+      this.logger.warn(`[LOGIN] Deleted account login attempt: ${user.email || user.username}`);
+      throw new UnauthorizedException('Hesap silinmiş');
+    }
+
     // E-posta doğrulanmamışsa giriş engelle (yeni kayıtlar OTP ile doğrulanır).
     // Mevcut kullanıcıları kilitlememek için: prisma.user.updateMany({ where: { isVerified: false }, data: { isVerified: true } }) bir kez çalıştırılabilir.
     if (user.isVerified === false) {
@@ -452,6 +458,10 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException('Kurumsal hesap bulunamadı veya yetkisiz.');
+    }
+
+    if (user.isDeleted === true) {
+      throw new UnauthorizedException('Hesap silinmiş');
     }
 
     if (user.isVerified === false) {
@@ -597,6 +607,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (user.isDeleted === true) {
+      throw new UnauthorizedException('Hesap silinmiş');
+    }
+
     if (user.isVerified === false) {
       throw new UnauthorizedException({
         message: 'Lütfen e-posta adresinizi doğrulayın. Size gönderilen kodu kullanın veya yeniden kod gönderin.',
@@ -719,6 +733,7 @@ export class AuthService {
           suspensionReason: true,
           scheduledDeletionAt: true,
           isVerified: true,
+          isDeleted: true,
         },
       });
       
@@ -741,6 +756,7 @@ export class AuthService {
             suspensionReason: true,
             scheduledDeletionAt: true,
             isVerified: true,
+            isDeleted: true,
           },
         });
       }
@@ -764,6 +780,7 @@ export class AuthService {
             suspensionReason: true,
             scheduledDeletionAt: true,
             isVerified: true,
+            isDeleted: true,
           },
         });
         
@@ -785,6 +802,7 @@ export class AuthService {
               suspensionReason: true,
               scheduledDeletionAt: true,
               isVerified: true,
+              isDeleted: true,
             },
           });
         }

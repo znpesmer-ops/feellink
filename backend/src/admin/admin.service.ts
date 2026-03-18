@@ -463,6 +463,9 @@ export class AdminService {
         },
       });
 
+      // Invalidate all refresh tokens so user cannot refresh after deletion
+      await this.prisma.refreshToken.deleteMany({ where: { userId } });
+
       // Audit log
       await this.prisma.auditLog.create({
         data: {
