@@ -324,72 +324,55 @@ function ProfileContent() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const menuRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
 
+  // Profil isteği zaman aşımı (sonsuz loading önlenir)
+  const PROFILE_FETCH_TIMEOUT_MS = 12000
+
   // Get profile data
   const { data: profile, isLoading, error: profileError } = useQuery({
     queryKey: ['profile', username, paramUsername, currentUser?.id],
     queryFn: async () => {
-      // 🔥 KRİTİK: "me" parametresi için önce /users/me endpoint'ini dene
-      if (paramUsername === 'me') {
-        try {
-          // Önce /users/me ile kullanıcı bilgisini al
-          const meResponse = await api.get('/users/me')
-          const meData = meResponse.data
-          
-          // 🔥 KRİTİK: Response kontrolü
-          if (!meData) {
-            throw new Error('Kullanıcı bilgisi alınamadı')
-          }
-          
-          if (meData?.username) {
-            // Username bulundu, profile endpoint'ini kullan
-            const profileResponse = await api.get(`/users/profile/${meData.username}`)
-            if (profileResponse.data) {
-              console.log('🔍 Profile Role:', profileResponse.data.role, 'Type:', typeof profileResponse.data.role)
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Profil yüklenemedi. Zaman aşımı. Lütfen sayfayı yenileyin.')), PROFILE_FETCH_TIMEOUT_MS)
+      )
+      const fetchProfile = async () => {
+        // "me" parametresi için önce /users/me endpoint'ini dene
+        if (paramUsername === 'me') {
+          try {
+            const meResponse = await api.get('/users/me')
+            const meData = meResponse.data
+            if (!meData) throw new Error('Kullanıcı bilgisi alınamadı')
+            if (meData?.username) {
+              const profileResponse = await api.get(`/users/profile/${meData.username}`)
+              if (profileResponse.data) return profileResponse.data
             }
-            return profileResponse.data
-          }
-          
-          throw new Error('Kullanıcı adı bulunamadı')
-        } catch (err: any) {
-          console.warn('Failed to fetch /users/me, falling back to username:', err)
-          
-          // Fallback: currentUser.username kullan
-          if (currentUser?.username) {
-            try {
-              const response = await api.get(`/users/profile/${currentUser.username}`)
-              if (response.data) {
-                console.log('🔍 Profile Role:', response.data.role, 'Type:', typeof response.data.role)
+            throw new Error('Kullanıcı adı bulunamadı')
+          } catch (err: any) {
+            if (currentUser?.username) {
+              try {
+                const response = await api.get(`/users/profile/${currentUser.username}`)
+                if (response.data) return response.data
+              } catch {
+                throw new Error('Profil yüklenemedi. Lütfen tekrar giriş yapın.')
               }
-              return response.data
-            } catch (fallbackErr) {
-              throw new Error('Profil yüklenemedi. Lütfen tekrar giriş yapın.')
             }
+            throw new Error(err?.response?.data?.message || err?.message || 'Kullanıcı bilgisi bulunamadı. Lütfen tekrar giriş yapın.')
           }
-          
-          throw new Error(err?.response?.data?.message || err?.message || 'Kullanıcı bilgisi bulunamadı. Lütfen tekrar giriş yapın.')
+        }
+        if (!username || username === 'undefined' || username === 'null') {
+          throw new Error('Geçersiz kullanıcı adı')
+        }
+        try {
+          const response = await api.get(`/users/profile/${username}`)
+          return response.data
+        } catch (err: any) {
+          throw new Error(err?.response?.data?.message || err?.message || 'Profil yüklenemedi')
         }
       }
-      
-      // Normal username ile profil çek
-      if (!username || username === 'undefined' || username === 'null') {
-        throw new Error('Geçersiz kullanıcı adı')
-      }
-      
-      try {
-        const response = await api.get(`/users/profile/${username}`)
-        // Debug: Log profile data to check role value
-        if (response.data) {
-          console.log('🔍 Profile Role:', response.data.role, 'Type:', typeof response.data.role)
-        }
-        return response.data
-      } catch (err: any) {
-        throw new Error(err?.response?.data?.message || err?.message || 'Profil yüklenemedi')
-      }
+      return Promise.race([fetchProfile(), timeoutPromise])
     },
     enabled: !!accessToken && (!!username || paramUsername === 'me'),
     retry: (failureCount, error: any) => {
-      // Geçersiz parametreler için retry yapma
-      if (error?.message?.includes('Geçersiz') || error?.message?.includes('bulunamadı')) {
+      if (error?.message?.includes('Zaman aşımı') || error?.message?.includes('Geçersiz') || error?.message?.includes('bulunamadı')) {
         return false
       }
       return failureCount < 2
