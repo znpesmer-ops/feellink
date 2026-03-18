@@ -28,7 +28,7 @@ const BADGE_CONFIG: Record<
     border: 'border-blue-200 dark:border-blue-700',
   },
   'koleksiyoner-ori': {
-    label: 'Koleksiyoner Ori',
+    label: 'Koleksiyoner',
     bg: 'bg-purple-50 dark:bg-purple-950/40',
     text: 'text-purple-600 dark:text-purple-300',
     border: 'border-purple-200 dark:border-purple-700',

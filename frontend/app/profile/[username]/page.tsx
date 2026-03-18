@@ -1074,12 +1074,13 @@ function ProfileContent() {
             <div>
               <p className="font-semibold text-gray-900 dark:text-gray-100">{profile.fullName || profile.username}</p>
               {profile.bio && <p className="mt-1 text-gray-900 dark:text-gray-100">{profile.bio}</p>}
-              {/* Role Label - Plan bilgisi olmadan sadece rol */}
-              {profile.role && (
-                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                  {ROLE_METADATA[normalizeRole(profile.role)]?.label || profile.role}
-                </p>
-              )}
+              {/* Role Label - Sadece whitelist'teki etiket; raw role asla basılmaz */}
+              {(() => {
+                const roleLabel = profile.role ? ROLE_METADATA[normalizeRole(profile.role)]?.label : null
+                return roleLabel ? (
+                  <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{roleLabel}</p>
+                ) : null
+              })()}
             </div>
           </div>
         </div>

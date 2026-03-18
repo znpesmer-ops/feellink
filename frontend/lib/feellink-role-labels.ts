@@ -20,5 +20,5 @@ export function getPrimaryFeellinkRole(roles?: string[] | null): string | null {
 }
 
 export function getFeellinkRoleLabel(roleKey: string): string {
-  return FEELLINK_ROLE_LABELS[roleKey] ?? roleKey
+  return FEELLINK_ROLE_LABELS[roleKey] ?? ''
 }

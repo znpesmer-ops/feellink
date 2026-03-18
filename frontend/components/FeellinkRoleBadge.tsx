@@ -20,6 +20,7 @@ export function FeellinkRoleBadge({
   const key = getPrimaryFeellinkRole(roles)
   if (!key) return null
   const label = getFeellinkRoleLabel(key)
+  if (!label) return null
   const tooltip = `Feellink rolü: ${label}`
 
   if (variant === 'compact') {
