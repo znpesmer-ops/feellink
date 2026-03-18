@@ -1027,6 +1027,7 @@ export class UsersService {
         fullName: true,
         avatar: true,
         isVerified: true,
+        roles: true,
       },
       take: 20,
     });
@@ -1073,6 +1074,7 @@ export class UsersService {
       avatar: getAvatarUrl(u.avatar),
       avatarUrl: getAvatarUrl(u.avatar), // Geriye uyumluluk için
       isVerified: u.isVerified,
+      roles: u.roles,
     }));
   }
 
@@ -1101,6 +1103,7 @@ export class UsersService {
         fullName: true,
         avatar: true,
         isVerified: true,
+        roles: true,
       },
       take: 20,
     });
@@ -1118,6 +1121,7 @@ export class UsersService {
           fullName: true,
           avatar: true,
           isVerified: true,
+          roles: true,
         },
         take: 10,
       });

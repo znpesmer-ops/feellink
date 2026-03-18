@@ -14,9 +14,8 @@ import DraftArticles from '@/components/draft-articles'
 import { Plus, Grid, FileText, Calendar, Image as ImageIcon, Heart, MessageCircle, MoreVertical, Trash2, Clock, BarChart3, Lock } from 'lucide-react'
 import { FiGrid, FiFileText, FiMessageCircle, FiImage, FiCalendar, FiClock, FiBookmark } from 'react-icons/fi'
 import { initPostsSocket, initCommentsSocket } from '@/lib/socket'
-import UserBadge from '@/components/UserBadge'
 import { UserBadges } from '@/components/profile/UserBadges'
-import { ProRoleBadge } from '@/components/ProRoleBadge'
+import { FeellinkRoleBadge } from '@/components/FeellinkRoleBadge'
 import { ROLE_METADATA, normalizeRole } from '@/lib/role-utils'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import { ProfileArtworksGrid } from '@/components/profile/ProfileArtworksGrid'
@@ -956,11 +955,11 @@ function ProfileContent() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-light text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                    {profile.username}
-                    {profile.isVerified && <span className="text-gray-900 dark:text-gray-100">✓</span>}
-                    <UserBadge role={profile.role} />
-                    <ProRoleBadge roles={profile.roles} plan={null} />
+                  <h1 className="text-2xl font-light text-gray-900 dark:text-gray-100 flex flex-wrap items-center gap-x-1 gap-y-2">
+                    <span className="inline-flex items-center gap-0">
+                      {profile.username}
+                      <FeellinkRoleBadge roles={profile.roles} />
+                    </span>
                   </h1>
                 </div>
                 <UserBadges badges={profile.badges} />

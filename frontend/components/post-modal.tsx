@@ -10,8 +10,7 @@ import { Heart, MessageCircle, Bookmark, X, Send, Trash2, CornerUpRight, Pin, Pi
 import MentionInput from './MentionInput'
 import { useRouter } from 'next/navigation'
 // ⚠️ Socket.IO devre dışı - Vercel serverless'ta çalışmaz
-import UserBadge from './UserBadge'
-import { ProRoleBadge } from './ProRoleBadge'
+import { FeellinkRoleBadge } from './FeellinkRoleBadge'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import { containsBadWord } from '@/lib/utils/containsBadWord'
 import Slider from 'react-slick'
@@ -844,11 +843,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
                   <span className="text-black dark:text-white font-semibold text-sm">
                     {post.user.fullName || post.user.username}
                   </span>
-                  {post.user.isVerified && (
-                    <span className="ml-1 text-blue-500">✓</span>
-                  )}
-                  <UserBadge role={post.user.role} />
-                  <ProRoleBadge roles={(post.user as any).roles} plan={(post.user as any).plan} />
+                  <FeellinkRoleBadge roles={(post.user as any).roles} />
                 </div>
                 <div className="flex items-center gap-2">
                   {user?.id !== post.user.id && (
@@ -1029,8 +1024,10 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
                             >
                               {comment.user.username}
                             </Link>
-                            <UserBadge role={comment.user.role} />
-                            <ProRoleBadge roles={(comment.user as any).roles} plan={(comment.user as any).plan} />
+                            <FeellinkRoleBadge
+                              roles={(comment.user as any).roles}
+                              className="!ml-0 !text-[10px] !px-1.5 !py-0"
+                            />
                           </div>
                           
                           {/* Yorum metni - Düzenleme modu */}
@@ -1253,8 +1250,10 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
                                   >
                                     {reply.user.username}
                                   </Link>
-                                  <UserBadge role={reply.user.role} />
-                                  <ProRoleBadge roles={(reply.user as any).roles} plan={(reply.user as any).plan} />
+                                  <FeellinkRoleBadge
+                                    roles={(reply.user as any).roles}
+                                    className="!ml-0 !text-[10px] !px-1.5 !py-0"
+                                  />
                                   <span>{reply.content}</span>
                                 </p>
                                 <p className="text-xs text-[#444] dark:text-gray-400 mt-0.5">

@@ -9,8 +9,7 @@ import { useAuthStore } from '@/lib/store'
 import { initSocket, getSocket, disconnectSocket } from '@/lib/socket'
 import { AuthGuard } from '@/lib/auth-guard'
 import { MessageCircle, Heart, CornerDownRight, BellOff, UserPlus, UserCheck, Bell, Calendar, MessageSquare } from 'lucide-react'
-import UserBadge from '@/components/UserBadge'
-import { ProRoleBadge } from '@/components/ProRoleBadge'
+import { FeellinkRoleBadge } from '@/components/FeellinkRoleBadge'
 
 function NotificationsContent() {
   const router = useRouter()
@@ -601,8 +600,10 @@ function NotificationsContent() {
                                   {notification.sender?.fullName || notification.sender?.username || 'Sistem'}
                                 </span>
                               )}
-                              <UserBadge role={notification.sender?.role} />
-                              <ProRoleBadge roles={(notification.sender as any)?.roles} plan={(notification.sender as any)?.plan} />
+                              <FeellinkRoleBadge
+                                roles={(notification.sender as any)?.roles}
+                                className="!ml-1 !text-[10px] !px-1.5 !py-0"
+                              />
                               <span>{getNotificationText(notification)}</span>
                             </>
                           )}

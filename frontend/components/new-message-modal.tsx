@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X, Search } from 'lucide-react'
 import api from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
+import { FeellinkRoleBadge } from '@/components/FeellinkRoleBadge'
 
 interface User {
   id: string
@@ -11,6 +12,7 @@ interface User {
   fullName?: string
   avatar?: string
   isVerified?: boolean
+  roles?: string[]
 }
 
 interface NewMessageModalProps {
@@ -168,20 +170,16 @@ export function NewMessageModal({ onClose, onSelect }: NewMessageModalProps) {
                         </span>
                       </div>
                     )}
-                    {user.isVerified && (
-                      <span className="absolute -bottom-1 -right-1 text-blue-500 text-xs">
-                        ✓
-                      </span>
-                    )}
                   </div>
                   <div className="flex-1 text-left min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-gray-900 dark:text-white truncate">
                         {user.fullName || user.username}
                       </p>
-                      {user.isVerified && (
-                        <span className="text-blue-500 flex-shrink-0">✓</span>
-                      )}
+                      <FeellinkRoleBadge
+                        roles={user.roles}
+                        className="!ml-0 !text-[10px] !px-1.5 !py-0"
+                      />
                     </div>
                     {user.fullName && (
                       <p className="text-sm text-gray-500 dark:text-gray-400 truncate">

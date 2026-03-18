@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Palette, Loader2, ExternalLink } from "lucide-react";
 import api from "@/lib/api";
 import { resolveImageUrl } from "@/lib/resolveImageUrl";
+import { FeellinkRoleBadge } from "@/components/FeellinkRoleBadge";
 
 interface ColorMatch {
   user: {
@@ -13,6 +14,7 @@ interface ColorMatch {
     fullName?: string;
     avatar?: string;
     isVerified?: boolean;
+    roles?: string[];
   };
   ortakRenkSayisi: number;
   ortakRenkler: string[];
@@ -122,9 +124,10 @@ export function ColorMatchesCard({ userId }: ColorMatchesCardProps) {
                       <p className="font-semibold text-gray-900 dark:text-gray-100 truncate">
                         {match.user.fullName || match.user.username}
                       </p>
-                      {match.user.isVerified && (
-                        <span className="text-[#ff7b00]">✓</span>
-                      )}
+                      <FeellinkRoleBadge
+                        roles={match.user.roles}
+                        className="!ml-0 !text-[10px] !px-1.5 !py-0"
+                      />
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                       @{match.user.username}

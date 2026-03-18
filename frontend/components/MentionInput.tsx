@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
+import { FeellinkRoleBadge } from '@/components/FeellinkRoleBadge'
 
 interface MentionInputProps {
   value: string
@@ -19,6 +20,7 @@ interface SearchUser {
   fullName?: string | null
   avatar?: string | null
   isVerified?: boolean
+  roles?: string[]
 }
 
 export default function MentionInput({
@@ -151,11 +153,12 @@ export default function MentionInput({
                   </div>
                 )}
                 <div className="flex-1">
-                  <p className="font-medium text-gray-900 dark:text-gray-100">
+                  <p className="font-medium text-gray-900 dark:text-gray-100 flex flex-wrap items-center gap-1">
                     @{user.username}
-                    {user.isVerified && (
-                      <span className="ml-1 text-blue-500">✓</span>
-                    )}
+                    <FeellinkRoleBadge
+                      roles={user.roles}
+                      className="!ml-0 !text-[10px] !px-1.5 !py-0"
+                    />
                   </p>
                   {user.fullName && (
                     <p className="text-xs text-gray-500 dark:text-gray-400">{user.fullName}</p>
