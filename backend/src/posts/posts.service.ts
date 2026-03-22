@@ -2584,8 +2584,7 @@ export class PostsService {
     const fontBold = hasBold ? F_BOLD : fontReg;
     const fontMono = fontReg;
 
-    // —— Kart (sabit oran) ——
-    const width = 1000;
+    // —— Kart yüksekliği sabit; genişlik QR + slogan şeridi + logo + padding (kompakt) ——
     const height = 425;
     const dpiScale = 2;
 
@@ -2594,11 +2593,12 @@ export class PostsService {
     const GAP_STACK = 6; // başlık / sanatçı / kod arası 4–8px
     const GAP_SECTION = 26; // üst blok ↔ QR — daha ferah
     const GAP_QR_SLOGAN = 24;
+    const GAP_SLOGAN_LOGO = 18; // slogan şeridi ile logo arası
     const QR_SIZE = 192;
     const QR_INNER_PAD = 8;
     const LOGO_MAX_W = 252;
     const LOGO_MAX_H = 70;
-    const LOGO_RESERVE_W = Math.round(LOGO_MAX_W + 52);
+    const MIN_SLOGAN_MIDDLE_W = 168; // slogan ortalanırken minimum şerit
     const TITLE_MAX_LINES = 2;
     /** Başlık → ince divider → sanatçı dikey ritim */
     const GAP_AFTER_TITLE = 6;
@@ -2608,6 +2608,95 @@ export class PostsService {
       GAP_AFTER_TITLE + DIVIDER_H + GAP_AFTER_DIVIDER;
     const BRAND_ORANGE = '#ff7b00';
     const BRAND_TEAL = '#1fb4bc';
+
+    const titleRaw =
+      (post.title && post.title.trim()) ||
+      (post.caption && post.caption.trim()) ||
+      '';
+    const ownerRaw =
+      (post.user.fullName && post.user.fullName.trim()) ||
+      (post.user.username || '').trim();
+
+    // Tipografi token’ları (hiyerarşi sabit; sadece başlık fontu sığmazsa küçülür)
+    const ARTIST_FS = 18;
+    const CODE_FS = 14;
+    const SLOGAN_BASE_FS = 28;
+    const TITLE_LINE_HEIGHT = 1.2;
+
+    const logosDir = path.join(assetsRoot, 'logos');
+    const orangeLogo = path.join(logosDir, 'feellink-turuncu.png');
+    const blueLogo = path.join(logosDir, 'feellink-mavi.png');
+    const useOrange = hashPostIdForLayout(postId) % 2 === 0;
+    let logoPath = useOrange ? orangeLogo : blueLogo;
+    if (!fs.existsSync(logoPath)) {
+      const alt = useOrange ? blueLogo : orangeLogo;
+      logoPath = fs.existsSync(alt) ? alt : path.join(assetsRoot, 'logo.png');
+    }
+    if (!fs.existsSync(logoPath)) {
+      logoPath = path.join(process.cwd(), 'assets', 'logo.png');
+    }
+
+    let logoLw = 0;
+    let logoLh = 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let logoImg: any = null;
+    try {
+      if (fs.existsSync(logoPath)) {
+        logoImg = await loadImage(fs.readFileSync(logoPath));
+        const ratio = logoImg.width / logoImg.height;
+        let lw = LOGO_MAX_W;
+        let lh = Math.round(lw / ratio);
+        if (lh > LOGO_MAX_H) {
+          lh = LOGO_MAX_H;
+          lw = Math.round(lh * ratio);
+        }
+        logoLw = lw;
+        logoLh = lh;
+      }
+    } catch (e) {
+      console.warn('Logo yüklenemedi:', e);
+    }
+
+    const qrX = PAD;
+    const sloganBandLeft = qrX + QR_SIZE + GAP_QR_SLOGAN;
+    const sloganBrand = 'Feellink';
+    const sloganRest = ' ile sanat daha anlamlı!';
+    const sloganFontItalic = (size: number) =>
+      `italic 500 ${size}px ${fontBold}`;
+
+    const measureCv = createCanvas(1600, 120);
+    const mctx = measureCv.getContext('2d');
+    mctx.textBaseline = 'top';
+
+    let middleW = MIN_SLOGAN_MIDDLE_W;
+    let sloganFont = SLOGAN_BASE_FS;
+    let wBrand = 0;
+    let wRest = 0;
+    for (let iter = 0; iter < 48; iter++) {
+      const sloganSlotW = Math.max(48, middleW - 8);
+      sloganFont = SLOGAN_BASE_FS;
+      for (; sloganFont >= 12; sloganFont -= 1) {
+        mctx.font = sloganFontItalic(sloganFont);
+        wBrand = mctx.measureText(sloganBrand).width;
+        wRest = mctx.measureText(sloganRest).width;
+        if (wBrand + wRest <= sloganSlotW - 8) {
+          break;
+        }
+      }
+      const totalW = wBrand + wRest;
+      const needed = Math.max(totalW + 48, MIN_SLOGAN_MIDDLE_W);
+      if (needed <= middleW) {
+        break;
+      }
+      middleW = Math.min(needed + 8, 920);
+    }
+
+    const totalSloganW = wBrand + wRest;
+    const logoLeftX = sloganBandLeft + middleW + GAP_SLOGAN_LOGO;
+    const width =
+      logoLw > 0
+        ? Math.ceil(logoLeftX + logoLw + PAD)
+        : Math.ceil(sloganBandLeft + middleW + PAD);
 
     const canvas = createCanvas(width * dpiScale, height * dpiScale);
     const ctx = canvas.getContext('2d');
@@ -2620,28 +2709,13 @@ export class PostsService {
     ctx.textAlign = 'left';
 
     const contentTop = PAD;
-    const qrX = PAD;
     const qrY = height - PAD - QR_SIZE;
     const bottomBandTop = qrY;
 
     // Üst blok alt sınırı (metin buranın üstünde kalmalı)
     const topBlockMaxBottom = bottomBandTop - GAP_SECTION;
 
-    const titleRaw =
-      (post.title && post.title.trim()) ||
-      (post.caption && post.caption.trim()) ||
-      '';
-    const ownerRaw =
-      (post.user.fullName && post.user.fullName.trim()) ||
-      (post.user.username || '').trim();
-
     const topContentW = width - PAD * 2;
-
-    // Tipografi token’ları (hiyerarşi sabit; sadece başlık fontu sığmazsa küçülür)
-    const ARTIST_FS = 18;
-    const CODE_FS = 14;
-    const SLOGAN_BASE_FS = 28;
-    const TITLE_LINE_HEIGHT = 1.2;
 
     let titleFont = 28;
     let titleLines: string[] = [];
@@ -2721,31 +2795,10 @@ export class PostsService {
       innerQr,
     );
 
-    // Slogan: QR sağı ile logo rezervi arasındaki şeritte yatayda ortalı (metin sola hizalı)
-    const sloganBandLeft = qrX + QR_SIZE + GAP_QR_SLOGAN;
-    const sloganBandRight = width - PAD - LOGO_RESERVE_W;
-    const sloganSlotW = Math.max(160, sloganBandRight - sloganBandLeft);
-    const sloganBrand = 'Feellink';
-    const sloganRest = ' ile sanat daha anlamlı!';
-    const sloganFontItalic = (size: number) =>
-      `italic 500 ${size}px ${fontBold}`;
-
-    let sloganFont = SLOGAN_BASE_FS;
-    let wBrand = 0;
-    let wRest = 0;
-    for (; sloganFont >= 17; sloganFont -= 1) {
-      ctx.font = sloganFontItalic(sloganFont);
-      wBrand = ctx.measureText(sloganBrand).width;
-      wRest = ctx.measureText(sloganRest).width;
-      if (wBrand + wRest <= sloganSlotW - 8) {
-        break;
-      }
-    }
-
-    const totalSloganW = wBrand + wRest;
+    // Slogan: sabit middleW şeridinde yatayda ortalı (genişlik önceden hesaplandı)
     const sy = qrY;
     let sx =
-      sloganBandLeft + Math.max(0, (sloganSlotW - totalSloganW) / 2);
+      sloganBandLeft + Math.max(0, (middleW - totalSloganW) / 2);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillStyle = BRAND_ORANGE;
@@ -2756,35 +2809,10 @@ export class PostsService {
     ctx.font = sloganFontItalic(sloganFont);
     ctx.fillText(sloganRest, sx, sy);
 
-    const logosDir = path.join(assetsRoot, 'logos');
-    const orangeLogo = path.join(logosDir, 'feellink-turuncu.png');
-    const blueLogo = path.join(logosDir, 'feellink-mavi.png');
-    const useOrange = hashPostIdForLayout(postId) % 2 === 0;
-    let logoPath = useOrange ? orangeLogo : blueLogo;
-    if (!fs.existsSync(logoPath)) {
-      const alt = useOrange ? blueLogo : orangeLogo;
-      logoPath = fs.existsSync(alt) ? alt : path.join(assetsRoot, 'logo.png');
-    }
-    if (!fs.existsSync(logoPath)) {
-      logoPath = path.join(process.cwd(), 'assets', 'logo.png');
-    }
-
-    try {
-      if (fs.existsSync(logoPath)) {
-        const logoImg = await loadImage(fs.readFileSync(logoPath));
-        const ratio = logoImg.width / logoImg.height;
-        let lw = LOGO_MAX_W;
-        let lh = Math.round(lw / ratio);
-        if (lh > LOGO_MAX_H) {
-          lh = LOGO_MAX_H;
-          lw = Math.round(lh * ratio);
-        }
-        const lx = width - PAD - lw;
-        const ly = height - PAD - lh;
-        ctx.drawImage(logoImg, lx, ly, lw, lh);
-      }
-    } catch (e) {
-      console.warn('Logo yüklenemedi:', e);
+    if (logoImg && logoLw > 0) {
+      const lx = logoLeftX;
+      const ly = height - PAD - logoLh;
+      ctx.drawImage(logoImg, lx, ly, logoLw, logoLh);
     }
 
     // Kart çerçevesi — turuncu → teal yatay gradient stroke (PDF’te PNG olarak embed)
