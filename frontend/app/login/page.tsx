@@ -6,8 +6,9 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Sun, Moon } from 'lucide-react'
-import Image from 'next/image'
 import api, { getErrorMessage } from '@/lib/api'
+import { useTheme } from '@/lib/theme-context'
+import { AppLogo } from '@/components/common/AppLogo'
 import { useAuthStore } from '@/lib/store'
 import { getDashboardRouteFromUser } from '@/lib/role-utils'
 import toast from 'react-hot-toast'
@@ -50,7 +51,8 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [isChecking, setIsChecking] = useState(true)
   const [isLoginMode, setIsLoginMode] = useState(true)
-  const [darkMode, setDarkMode] = useState(false)
+  const { theme, toggleTheme } = useTheme()
+  const darkMode = theme === 'dark'
   const [loginFormEmailKey, setLoginFormEmailKey] = useState(0)
   const [showRestoreScreen, setShowRestoreScreen] = useState(false)
   const [restoreCredentials, setRestoreCredentials] = useState<{ emailOrUsername: string; password: string } | null>(null)
@@ -109,35 +111,6 @@ export default function LoginPage() {
     setLoading(false)
     setHasInitialized(true)
   }, [setLoading, setHasInitialized])
-
-  // Sistem temasını algıla ve localStorage'dan oku
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme')
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    
-    const initialDarkMode = savedTheme 
-      ? savedTheme === 'dark' 
-      : prefersDark
-    
-    setDarkMode(initialDarkMode)
-    
-    if (initialDarkMode) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-  }, [])
-
-  // Dark mode değiştiğinde class'ı güncelle
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark')
-      localStorage.setItem('theme', 'dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-      localStorage.setItem('theme', 'light')
-    }
-  }, [darkMode])
 
   // Token yoksa hemen formu göster (logout sonrası loading takılmasın)
   useEffect(() => {
@@ -330,7 +303,7 @@ export default function LoginPage() {
 
         {/* Dark Mode Toggle */}
         <button
-          onClick={() => setDarkMode(!darkMode)}
+          onClick={() => toggleTheme()}
           className={`absolute top-6 right-6 p-2.5 rounded-full shadow-md hover:scale-105 hover:shadow-xl transition-all duration-300 z-10 group ${
             darkMode
               ? 'bg-[#1e1e1e]'
@@ -356,13 +329,7 @@ export default function LoginPage() {
         >
           {/* Logo */}
           <div className="flex justify-center mb-6">
-            <Image
-              src="/logo.png"
-              alt="Feellink Logo"
-              width={130}
-              height={50}
-              className="object-contain"
-            />
+            <AppLogo width={130} height={50} className="object-contain" priority />
           </div>
 
           {/* Login/Register Toggle */}

@@ -20,6 +20,19 @@
   status = 200
   force = true
 
+# Tema duyarlı marka logoları (AppLogo)
+[[redirects]]
+  from = "/logo/logo-light.png"
+  to = "/logo/logo-light.png"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/logo/logo-dark.png"
+  to = "/logo/logo-dark.png"
+  status = 200
+  force = true
+
 # Next.js static assets (_next/static)
 [[redirects]]
   from = "/_next/static/*"

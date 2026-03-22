@@ -18,6 +18,7 @@ import {
 import api from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { useTheme } from '@/lib/theme-context'
+import { AppLogo } from '@/components/common/AppLogo'
 import type { CapabilitySummary, SidebarVisibility } from '@/types/capabilities'
 
 type PlanKey = 'free' | 'pro'
@@ -329,10 +330,10 @@ export default function SelectRolePage() {
         >
           <div className="flex-1" />
           <div className="flex-1 flex justify-center">
-            <img
-              src="/logo.png"
-              alt="Feellink Logo"
-              className="h-20 object-contain"
+            <AppLogo
+              className="h-20 w-auto object-contain"
+              width={280}
+              height={80}
             />
           </div>
           <div className="flex-1 flex justify-end">

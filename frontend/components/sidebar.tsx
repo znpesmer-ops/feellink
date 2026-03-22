@@ -21,6 +21,7 @@ import { ROLE_METADATA, normalizeRole } from '@/lib/role-utils'
 import { CapabilitySummary, SidebarVisibility } from '@/types/capabilities'
 import api from '@/lib/api'
 import { initSocket, initChatSocket } from '@/lib/socket'
+import { AppLogo } from '@/components/common/AppLogo'
 
 interface NavItem {
   key: string
@@ -217,10 +218,10 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
 
       {/* LOGO */}
       <div className="w-full flex items-center justify-start px-4 pt-0 pb-0 -mt-2">
-        <img
-          src="/logo.png"
-          alt="Feellink Logo"
+        <AppLogo
           className="h-8 w-auto object-contain pl-3"
+          width={200}
+          height={64}
         />
       </div>
 
