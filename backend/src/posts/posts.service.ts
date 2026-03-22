@@ -2600,8 +2600,14 @@ export class PostsService {
     const LOGO_MAX_H = 56;
     const LOGO_RESERVE_W = Math.round(LOGO_MAX_W + 40);
     const TITLE_MAX_LINES = 2;
-    const GAP_TITLE_TO_META = 14; // başlık → sanatçı (ayırıcı çizgi yok)
+    /** Başlık → ince divider → sanatçı dikey ritim */
+    const GAP_AFTER_TITLE = 6;
+    const DIVIDER_H = 1;
+    const GAP_AFTER_DIVIDER = 9;
+    const TITLE_BLOCK_TO_META =
+      GAP_AFTER_TITLE + DIVIDER_H + GAP_AFTER_DIVIDER;
     const BRAND_ORANGE = '#ff7b00';
+    const BRAND_TEAL = '#1fb4bc';
 
     const canvas = createCanvas(width * dpiScale, height * dpiScale);
     const ctx = canvas.getContext('2d');
@@ -2634,7 +2640,7 @@ export class PostsService {
     // Tipografi token’ları (hiyerarşi sabit; sadece başlık fontu sığmazsa küçülür)
     const ARTIST_FS = 16;
     const CODE_FS = 13;
-    const SLOGAN_BASE_FS = 23;
+    const SLOGAN_BASE_FS = 28;
     const TITLE_LINE_HEIGHT = 1.2;
 
     let titleFont = 26;
@@ -2646,7 +2652,7 @@ export class PostsService {
         titleLines.length > 0
           ? titleLines.length * titleFont * TITLE_LINE_HEIGHT
           : Math.round(titleFont * 0.35);
-      const ruleBlock = GAP_TITLE_TO_META;
+      const ruleBlock = TITLE_BLOCK_TO_META;
       let cursorY = contentTop + titleH + ruleBlock;
       ctx.font = `${ARTIST_FS}px ${fontReg}`;
       const artistH = ownerRaw ? ARTIST_FS * 1.25 : 0;
@@ -2660,7 +2666,7 @@ export class PostsService {
       }
     }
 
-    // —— Başlık → sanatçı → kod ——
+    // —— Başlık → ince divider (metin genişliğinde) → sanatçı → kod ——
     let drawY = contentTop;
     ctx.fillStyle = '#0f172a';
     ctx.font = `${titleFont}px ${fontBold}`;
@@ -2669,11 +2675,18 @@ export class PostsService {
         ctx.fillText(line, PAD, drawY);
         drawY += titleFont * TITLE_LINE_HEIGHT;
       }
+      drawY += GAP_AFTER_TITLE;
+      const divGrad = ctx.createLinearGradient(PAD, 0, PAD + topContentW, 0);
+      divGrad.addColorStop(0, '#f0e8e2');
+      divGrad.addColorStop(0.45, '#e8eaef');
+      divGrad.addColorStop(1, '#e0eef0');
+      ctx.fillStyle = divGrad;
+      ctx.fillRect(PAD, drawY, topContentW, DIVIDER_H);
+      drawY += DIVIDER_H + GAP_AFTER_DIVIDER;
     } else {
       drawY += Math.round(titleFont * 0.2);
+      drawY += GAP_AFTER_TITLE + GAP_AFTER_DIVIDER;
     }
-
-    drawY += GAP_TITLE_TO_META;
 
     ctx.font = `${ARTIST_FS}px ${fontReg}`;
     ctx.fillStyle = '#334155';
@@ -2708,17 +2721,19 @@ export class PostsService {
       innerQr,
     );
 
-    // Slogan: tek satır — "Feellink" turuncu + koyu gri devamı; QR sağından sola hizalı
+    // Slogan: tek satır, sadece bu cümle italic — üst hizası QR ile aynı
     const sloganColumnLeft = qrX + QR_SIZE + GAP_QR_SLOGAN;
-    const sloganSlotW = Math.max(180, width - PAD - sloganColumnLeft - LOGO_RESERVE_W);
+    const sloganSlotW = Math.max(200, width - PAD - sloganColumnLeft - LOGO_RESERVE_W);
     const sloganBrand = 'Feellink';
     const sloganRest = ' ile sanat daha anlamlı!';
+    const sloganFontItalic = (size: number) =>
+      `italic 500 ${size}px ${fontBold}`;
 
     let sloganFont = SLOGAN_BASE_FS;
     let wBrand = 0;
     let wRest = 0;
-    for (; sloganFont >= 16; sloganFont -= 1) {
-      ctx.font = `600 ${sloganFont}px ${fontBold}`;
+    for (; sloganFont >= 17; sloganFont -= 1) {
+      ctx.font = sloganFontItalic(sloganFont);
       wBrand = ctx.measureText(sloganBrand).width;
       wRest = ctx.measureText(sloganRest).width;
       if (wBrand + wRest <= sloganSlotW - 4) {
@@ -2726,15 +2741,16 @@ export class PostsService {
       }
     }
 
-    const sy = qrY + Math.max(0, (QR_SIZE - sloganFont * 1.15) / 2);
+    const sy = qrY;
     let sx = sloganColumnLeft;
     ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
     ctx.fillStyle = BRAND_ORANGE;
-    ctx.font = `600 ${sloganFont}px ${fontBold}`;
+    ctx.font = sloganFontItalic(sloganFont);
     ctx.fillText(sloganBrand, sx, sy);
     sx += wBrand;
-    ctx.fillStyle = '#1e293b';
-    ctx.font = `600 ${sloganFont}px ${fontBold}`;
+    ctx.fillStyle = '#0f172a';
+    ctx.font = sloganFontItalic(sloganFont);
     ctx.fillText(sloganRest, sx, sy);
 
     const logosDir = path.join(assetsRoot, 'logos');
@@ -2768,13 +2784,16 @@ export class PostsService {
       console.warn('Logo yüklenemedi:', e);
     }
 
-    // Kart çerçevesi — Feellink turuncu, ince, yuvarlatılmış
+    // Kart çerçevesi — turuncu → teal yatay gradient stroke (PDF’te PNG olarak embed)
     const cardR = 14;
     const bx = 0.75;
     const by = 0.75;
     const bw = width - 1.5;
     const bh = height - 1.5;
-    ctx.strokeStyle = BRAND_ORANGE;
+    const borderGrad = ctx.createLinearGradient(0, 0, width, 0);
+    borderGrad.addColorStop(0, BRAND_ORANGE);
+    borderGrad.addColorStop(1, BRAND_TEAL);
+    ctx.strokeStyle = borderGrad;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(bx + cardR, by);
