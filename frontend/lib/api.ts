@@ -107,6 +107,17 @@ const getBaseURL = (): string => {
   if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
     return envURL ? ensureProtocol(envURL) : 'http://localhost:3002'
   }
+
+  // Özel alan adı + Vercel'de NEXT_PUBLIC_API_URL unutulmuşsa localhost'a düşmeyi engelle
+  const isLanHost =
+    /^192\.168\./.test(currentHost) ||
+    /^10\./.test(currentHost) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(currentHost)
+  const envMissing = !envURL || !String(envURL).trim()
+  if (!isLanHost && envMissing && (isHTTPS || process.env.NODE_ENV === 'production')) {
+    return 'https://feellink-backend.vercel.app'
+  }
+
   const defaultURL = envURL || 'http://localhost:3002'
   return ensureProtocol(defaultURL)
 }
@@ -192,7 +203,7 @@ api.interceptors.response.use(
             message: error.code === 'ECONNABORTED' || error.message?.includes('timeout')
               ? 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.'
               : error.code === 'ERR_NETWORK' || error.message === 'Network Error'
-              ? 'Sunucuya ulaşılamadı. Backend adresini (NEXT_PUBLIC_API_URL) kontrol edin.'
+              ? 'Şu an sunucuya bağlanılamıyor. İnternet bağlantınızı kontrol edip kısa süre sonra tekrar deneyin.'
               : 'Bağlantı hatası oluştu. Lütfen tekrar deneyin.',
           },
           status: 0,
@@ -347,7 +358,17 @@ export const getErrorMessage = (error: any): string => {
   } else if (msg && typeof msg === 'object' && typeof (msg as any).message === 'string') {
     errorMessage = (msg as any).message
   }
-  const finalMessage = errorMessage ?? responseData?.error ?? 'Bir hata oluştu. Lütfen tekrar deneyin.'
+  let finalMessage = errorMessage ?? responseData?.error ?? 'Bir hata oluştu. Lütfen tekrar deneyin.'
+
+  // API katmanının ürettiği veya env içeren mesajları sadeleştir
+  if (
+    typeof finalMessage === 'string' &&
+    (/NEXT_PUBLIC_|API_URL|Backend adresini/i.test(finalMessage) ||
+      finalMessage.includes('Sunucuya ulaşılamadı'))
+  ) {
+    finalMessage =
+      'İşlem sırasında bir bağlantı sorunu oluştu. Lütfen internet bağlantınızı kontrol edip kısa süre sonra tekrar deneyin.'
+  }
 
   // Teknik / iç sistem mesajları kullanıcıya gösterme (güvenlik ve UX)
   const technicalTerms = [

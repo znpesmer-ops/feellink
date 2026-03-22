@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 import { X, Image, Loader2 } from "lucide-react";
-import api from "@/lib/api";
+import toast from "react-hot-toast";
+import api, { getErrorMessage } from "@/lib/api";
 interface CreateEventModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -31,12 +32,12 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
     e.preventDefault();
 
     if (!title.trim() || !date.trim()) {
-      alert("Etkinlik adı ve tarihi gerekli.");
+      toast.error("Etkinlik adı ve tarihi gerekli.");
       return;
     }
 
     if (!isFree && (!price || price < 1)) {
-      alert("Ücretli etkinlik için en az 1 ₺ girmelisiniz.");
+      toast.error("Ücretli etkinlik için en az 1 ₺ girmelisiniz.");
       return;
     }
 
@@ -45,7 +46,7 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
     if (capTrim !== "") {
       capNum = parseInt(capTrim, 10);
       if (!Number.isFinite(capNum) || capNum < 1) {
-        alert("Kontenjan boş bırakılabilir veya 1 ve üzeri tam sayı girilmelidir.");
+        toast.error("Kontenjan boş bırakılabilir veya 1 ve üzeri tam sayı girilmelidir.");
         return;
       }
     }
@@ -57,9 +58,7 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
       if (coverImage) {
         const formData = new FormData();
         formData.append("file", coverImage);
-        const upload = await api.post("/media/upload?type=image", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        const upload = await api.post("/media/upload?type=image", formData);
         coverUrl = upload.data.url;
       }
 
@@ -92,6 +91,7 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
 
       await api.post("/events", payload);
 
+      toast.success("Etkinlik oluşturuldu.");
       onCreated();
       onClose();
       setTitle("");
@@ -105,8 +105,7 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
       setMaxParticipantsCap("");
     } catch (err: any) {
       console.error("Etkinlik oluşturulamadı:", err);
-      const errorMessage = err?.response?.data?.message || err?.message || "Etkinlik oluşturulamadı. Lütfen tekrar deneyin.";
-      alert(errorMessage);
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
