@@ -38,8 +38,8 @@ export declare class FollowService {
             isVerified: boolean;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         requesterId: string;
         requestedId: string;
     })[]>;

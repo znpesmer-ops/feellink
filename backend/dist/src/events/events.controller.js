@@ -16,6 +16,7 @@ exports.EventsController = void 0;
 const common_1 = require("@nestjs/common");
 const events_service_1 = require("./events.service");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
+const optional_jwt_auth_guard_1 = require("../auth/guards/optional-jwt-auth.guard");
 const current_user_decorator_1 = require("../auth/decorators/current-user.decorator");
 const create_event_dto_1 = require("./dto/create-event.dto");
 let EventsController = class EventsController {
@@ -42,8 +43,8 @@ let EventsController = class EventsController {
         }
         return this.eventsService.getAllEvents();
     }
-    async getEvent(id) {
-        return this.eventsService.getEvent(id);
+    async getEvent(id, user) {
+        return this.eventsService.getEvent(id, user?.id);
     }
     async createEvent(user, dto) {
         return this.eventsService.createEvent(user.id, dto);
@@ -51,8 +52,8 @@ let EventsController = class EventsController {
     async joinEvent(user, id) {
         return this.eventsService.joinEvent(user.id, id);
     }
-    async getParticipants(id) {
-        return this.eventsService.getParticipants(id);
+    async getParticipants(id, user) {
+        return this.eventsService.getParticipants(id, user.id);
     }
     async getEventComments(id) {
         return this.eventsService.getEventComments(id);
@@ -97,9 +98,11 @@ __decorate([
 ], EventsController.prototype, "getEvents", null);
 __decorate([
     (0, common_1.Get)(':id'),
+    (0, common_1.UseGuards)(optional_jwt_auth_guard_1.OptionalJwtAuthGuard),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], EventsController.prototype, "getEvent", null);
 __decorate([
@@ -122,9 +125,11 @@ __decorate([
 ], EventsController.prototype, "joinEvent", null);
 __decorate([
     (0, common_1.Get)(':id/participants'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], EventsController.prototype, "getParticipants", null);
 __decorate([

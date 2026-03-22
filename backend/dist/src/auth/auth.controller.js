@@ -67,28 +67,45 @@ let AuthController = AuthController_1 = class AuthController {
     }
     async login(loginDto, res) {
         const result = await this.authService.login(loginDto);
-        res.cookie('refreshToken', result.refreshToken, {
-            httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
-            path: '/',
-            maxAge: 30 * 24 * 60 * 60 * 1000,
-        });
+        if (result.status !== 'DELETED_ACCOUNT' && result.refreshToken) {
+            res.cookie('refreshToken', result.refreshToken, {
+                httpOnly: true,
+                secure: false,
+                sameSite: 'lax',
+                path: '/',
+                maxAge: 30 * 24 * 60 * 60 * 1000,
+            });
+        }
         return result;
     }
     async corporateLogin(loginDto, res) {
         const result = await this.authService.corporateLogin(loginDto);
-        res.cookie('refreshToken', result.refreshToken, {
-            httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
-            path: '/',
-            maxAge: 30 * 24 * 60 * 60 * 1000,
-        });
+        if (result.status !== 'DELETED_ACCOUNT' && result.refreshToken) {
+            res.cookie('refreshToken', result.refreshToken, {
+                httpOnly: true,
+                secure: false,
+                sameSite: 'lax',
+                path: '/',
+                maxAge: 30 * 24 * 60 * 60 * 1000,
+            });
+        }
         return result;
     }
     async loginUnified(loginDto, res) {
         const result = await this.authService.loginUnified(loginDto);
+        if (result.status !== 'DELETED_ACCOUNT' && result.refreshToken) {
+            res.cookie('refreshToken', result.refreshToken, {
+                httpOnly: true,
+                secure: false,
+                sameSite: 'lax',
+                path: '/',
+                maxAge: 30 * 24 * 60 * 60 * 1000,
+            });
+        }
+        return result;
+    }
+    async restoreAccount(loginDto, res) {
+        const result = await this.authService.restoreAccount(loginDto);
         res.cookie('refreshToken', result.refreshToken, {
             httpOnly: true,
             secure: false,
@@ -212,6 +229,14 @@ __decorate([
     __metadata("design:paramtypes", [login_dto_1.LoginDto, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "loginUnified", null);
+__decorate([
+    (0, common_1.Post)('restore-account'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)({ passthrough: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [login_dto_1.LoginDto, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "restoreAccount", null);
 __decorate([
     (0, common_1.Post)('role'),
     __param(0, (0, common_1.Body)()),

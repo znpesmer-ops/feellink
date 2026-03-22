@@ -66,6 +66,53 @@ export declare class AuthService {
     }>;
     login(loginDto: LoginDto): Promise<any>;
     corporateLogin(loginDto: LoginDto): Promise<{
+        status: string;
+        restoreAvailable: boolean;
+        deletedAt: any;
+        message: string;
+    } | {
+        needsRoleSelection: boolean;
+        accessToken: string;
+        refreshToken: string;
+        user: {
+            id: any;
+            username: any;
+            email: any;
+            fullName: any;
+            avatar: any;
+            bio: any;
+            roles: UserRoleCode[];
+            extras: string[];
+            plan: SubscriptionPlanCode;
+            badges: string[];
+            isPrivate: any;
+            isVerified: any;
+            isAdmin: any;
+            superAdmin: any;
+            createdAt: any;
+            activeRole: string;
+            profileCompleted: any;
+            dateOfBirth: any;
+            country: any;
+            city: any;
+            gender: any;
+        };
+        capabilities: import("../roles/roles.types").CapabilitySummary;
+        dashboard: {
+            role: string;
+            plan: "pro";
+            title: string;
+            features: string[];
+        };
+        sidebar: import("../roles/roles.types").SidebarVisibility;
+        status?: undefined;
+        restoreAvailable?: undefined;
+        deletedAt?: undefined;
+        message?: undefined;
+    }>;
+    checkDatabase(): Promise<boolean>;
+    private static readonly RESTORE_GRACE_DAYS;
+    restoreAccount(loginDto: LoginDto): Promise<{
         needsRoleSelection: boolean;
         accessToken: string;
         refreshToken: string;
@@ -101,7 +148,6 @@ export declare class AuthService {
         };
         sidebar: import("../roles/roles.types").SidebarVisibility;
     }>;
-    checkDatabase(): Promise<boolean>;
     private generateTokens;
     refreshTokens(refreshToken: string): Promise<{
         accessToken: string;
@@ -145,6 +191,11 @@ export declare class AuthService {
         message: string;
     }>;
     loginUnified(loginDto: LoginDto): Promise<{
+        status: string;
+        restoreAvailable: boolean;
+        deletedAt: any;
+        message: string;
+    } | {
         reactivated: boolean;
         needsRoleSelection: boolean;
         accessToken: string;
@@ -180,6 +231,10 @@ export declare class AuthService {
             features: string[];
         };
         sidebar: import("../roles/roles.types").SidebarVisibility;
+        status?: undefined;
+        restoreAvailable?: undefined;
+        deletedAt?: undefined;
+        message?: undefined;
     }>;
     validateUser(loginDto: LoginDto, options?: {
         requireCorporate?: boolean;

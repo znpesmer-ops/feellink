@@ -28,11 +28,11 @@ export declare class NotificationsService {
             isVerified: boolean;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         userId: string;
-        message: string;
         type: string;
+        message: string;
         fromUserId: string;
         postId: string;
         articleId: string;
@@ -52,11 +52,11 @@ export declare class NotificationsService {
             isVerified: boolean;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         userId: string;
-        message: string;
         type: string;
+        message: string;
         fromUserId: string;
         postId: string;
         articleId: string;
@@ -79,11 +79,11 @@ export declare class NotificationsService {
                 postId: string;
                 commentId: string;
             };
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             userId: string;
-            message: string;
             type: string;
+            message: string;
             fromUserId: string;
             postId: string;
             articleId: string;
@@ -101,23 +101,23 @@ export declare class NotificationsService {
     }>;
     getUnreadCount(userId: string, excludeProfileIncomplete?: boolean): Promise<number>;
     getPrefs(userId: string): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
-        userId: string;
-        comment: boolean;
-        like: boolean;
         follow: boolean;
+        userId: string;
+        like: boolean;
+        comment: boolean;
         mention: boolean;
     }>;
     updatePrefs(userId: string, data: Partial<Record<NotifType, boolean>>): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
-        userId: string;
-        comment: boolean;
-        like: boolean;
         follow: boolean;
+        userId: string;
+        like: boolean;
+        comment: boolean;
         mention: boolean;
     }>;
     isAllowed(toUserId: string, type: NotifType): Promise<boolean>;

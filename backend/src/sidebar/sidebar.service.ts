@@ -2,6 +2,7 @@ import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SidebarGateway } from './sidebar.gateway';
 import { ArticlesService } from '../articles/articles.service';
+import { getCurrentWeekRange } from '../common/utils/week-range.util';
 
 const MUSEUM_IMAGE_MAP: Record<number, string> = {
   1: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=800&q=80',
@@ -26,8 +27,8 @@ export class SidebarService {
   ) {}
 
   /**
-   * Ayın Müzeleri - Sadece kurumsal hesaplar (corporate role)
-   * Metrikler: Görüntülenme, Etkileşim, İçerik, Takipçi Artışı
+   * Haftanın Müzeleri - Sadece kurumsal hesaplar (corporate role)
+   * Metrikler: Görüntülenme, Etkileşim, İçerik, Takipçi (mevcut hafta içeriği)
    */
   async getFeaturedMuseums() {
     const resolveImageUrl = (
@@ -53,9 +54,7 @@ export class SidebarService {
       return fallback;
     };
 
-    // Son 30 günün başlangıç tarihi
-    const since = new Date();
-    since.setDate(since.getDate() - 30);
+    const { start: weekStart, end: weekEnd } = getCurrentWeekRange();
 
     // Sadece corporate role'lü aktif kullanıcıları getir
     const corporateUsers = await this.prisma.user.findMany({
@@ -88,11 +87,11 @@ export class SidebarService {
     // Her kurumsal kullanıcı için metrikleri hesapla
     const museumsWithScores = await Promise.all(
       corporateUsers.map(async (user) => {
-        // Son 30 gün içindeki postlar
+        // Mevcut hafta içindeki postlar
         const recentPosts = await this.prisma.post.findMany({
           where: {
             userId: user.id,
-            createdAt: { gte: since },
+            createdAt: { gte: weekStart, lte: weekEnd },
           },
           include: {
             _count: {
@@ -104,12 +103,12 @@ export class SidebarService {
           },
         });
 
-        // Son 30 gün içindeki yayınlanmış yazılar
+        // Mevcut hafta içindeki yayınlanmış yazılar
         const recentArticles = await this.prisma.article.findMany({
           where: {
             authorId: user.id,
             isPublished: true,
-            createdAt: { gte: since },
+            createdAt: { gte: weekStart, lte: weekEnd },
           },
           include: {
             _count: {
@@ -122,18 +121,18 @@ export class SidebarService {
 
         // Metrikler
         // Görüntülenme: Sadece article views (Post model'de views yok)
-        const monthlyViews = recentArticles.reduce(
+        const weeklyViews = recentArticles.reduce(
           (sum, article) => sum + (article.views || 0),
           0,
         );
 
         // Etkileşim: Likes + Comments
-        const monthlyLikes = recentPosts.reduce(
+        const weeklyLikes = recentPosts.reduce(
           (sum, post) => sum + post._count.likes,
           0,
         );
 
-        const monthlyComments =
+        const weeklyComments =
           recentPosts.reduce((sum, post) => sum + post._count.comments, 0) +
           recentArticles.reduce(
             (sum, article) => sum + article._count.comments,
@@ -141,7 +140,7 @@ export class SidebarService {
           );
 
         // Yayınlanan içerik sayısı
-        const monthlyPosts = recentPosts.length + recentArticles.length;
+        const weeklyPosts = recentPosts.length + recentArticles.length;
 
         // Takipçi sayısı (basitleştirilmiş - gerçek uygulamada growth hesaplanabilir)
         const followerCount = user.followerCount || 0;
@@ -149,9 +148,9 @@ export class SidebarService {
         // Skor hesaplama (normalize edilmiş)
         // Görüntülenme: 0.4, Etkileşim: 0.3, İçerik: 0.2, Takipçi: 0.1
         const score =
-          monthlyViews * 0.4 +
-          (monthlyLikes + monthlyComments) * 0.3 +
-          monthlyPosts * 0.2 +
+          weeklyViews * 0.4 +
+          (weeklyLikes + weeklyComments) * 0.3 +
+          weeklyPosts * 0.2 +
           followerCount * 0.1;
 
         return {
@@ -160,10 +159,10 @@ export class SidebarService {
           name: user.fullName || user.username,
           avatar: resolveImageUrl(user.avatar, DEFAULT_AUTHOR_AVATAR),
           score,
-          monthlyViews,
-          monthlyLikes,
-          monthlyComments,
-          monthlyPosts,
+          weeklyViews,
+          weeklyLikes,
+          weeklyComments,
+          weeklyPosts,
           followerCount: user.followerCount,
         };
       }),
@@ -218,10 +217,13 @@ export class SidebarService {
       return fallback;
     };
 
-    // 🔥 En Çok Görüntülenen Yazılar - veritabanından gerçek veri
+    const { start: weekStart, end: weekEnd } = getCurrentWeekRange();
+
+    // 🔥 En Çok Görüntülenen Yazılar - mevcut haftada oluşturulmuş yayınlar
     const topViewedArticles = await this.prisma.article.findMany({
       where: {
         isPublished: true,
+        createdAt: { gte: weekStart, lte: weekEnd },
       },
       orderBy: {
         views: 'desc',
@@ -239,16 +241,13 @@ export class SidebarService {
       },
     });
 
-    // ✅ Ayın Yazarları - Son 30 gün içinde en çok gönderi paylaşan kullanıcılar
-    const since = new Date();
-    since.setDate(since.getDate() - 30);
-
-    // Son 30 gün içinde gönderi paylaşan kullanıcıları grupla ve say
+    // ✅ Mevcut hafta içinde en çok gönderi paylaşan kullanıcılar (groupBy / istatistik)
     const postsByUser = await this.prisma.post.groupBy({
       by: ['userId'],
       where: {
         createdAt: {
-          gte: since,
+          gte: weekStart,
+          lte: weekEnd,
         },
         type: 'post', // Sadece normal gönderiler (eserler değil)
       },
@@ -294,11 +293,14 @@ export class SidebarService {
       .map((userId) => topWritersMap.get(userId))
       .filter((w) => w !== undefined);
 
-    // Ayın Müzeleri - Otomatik hesaplanan kurumsal hesaplar
+    // Haftanın Müzeleri - Otomatik hesaplanan kurumsal hesaplar
     const museums = await this.getFeaturedMuseums();
 
-    // ✅ Aktif Yazarlar - En çok görüntülenen yazıların yazarları (top 4)
-    const topLikedAuthors = await this.articlesService.getTopLikedAuthors(4);
+    // ✅ Aktif Yazarlar - Mevcut haftada yayınlanan yazılara göre (top 4)
+    const topLikedAuthors = await this.articlesService.getTopLikedAuthors(4, {
+      start: weekStart,
+      end: weekEnd,
+    });
     
     // Sidebar formatına dönüştür
     const authors = topLikedAuthors.map((writer) => ({
@@ -565,11 +567,7 @@ export class SidebarService {
   }
 
   /**
-   * Ayın Öne Çıkanları - 4 kategori için dinamik veri
-   * 1. Ayın Müzesi (Kurumsal hesap)
-   * 2. Ayın Eseri (En çok etkileşim alan eser)
-   * 3. Ayın Yorumu (En çok beğeni alan yorum)
-   * 4. Ayın Koleksiyoncusu (Koleksiyoner hesap)
+   * Haftanın öne çıkanları - 4 kategori (mevcut takvim haftası: Pazartesi–Pazar)
    */
   async getFeaturedHighlights() {
     const resolveImageUrl = (
@@ -598,7 +596,9 @@ export class SidebarService {
     const DEFAULT_AVATAR =
       'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=320&q=80';
 
-    // 1️⃣ Ayın Müzesi - En çok etkileşim alan kurumsal hesap
+    const { start: weekStart, end: weekEnd } = getCurrentWeekRange();
+
+    // 1️⃣ Haftanın Müzesi - Bu hafta oluşturulan içerikler üzerinden en çok etkileşim
     const corporateUsers = await this.prisma.user.findMany({
       where: {
         roles: {
@@ -621,7 +621,10 @@ export class SidebarService {
         corporateUsers.map(async (user) => {
           // Post etkileşimleri
           const posts = await this.prisma.post.findMany({
-            where: { userId: user.id },
+            where: {
+              userId: user.id,
+              createdAt: { gte: weekStart, lte: weekEnd },
+            },
             include: {
               _count: {
                 select: {
@@ -642,6 +645,7 @@ export class SidebarService {
             where: {
               authorId: user.id,
               isPublished: true,
+              createdAt: { gte: weekStart, lte: weekEnd },
             },
             include: {
               _count: {
@@ -674,10 +678,11 @@ export class SidebarService {
       }
     }
 
-    // 2️⃣ Ayın Eseri - En çok etkileşim alan eser (artwork type post)
+    // 2️⃣ Haftanın Eseri - Bu hafta yayımlanan eserler arasından en çok etkileşim
     const artworks = await this.prisma.post.findMany({
       where: {
         type: 'artwork',
+        createdAt: { gte: weekStart, lte: weekEnd },
       },
       include: {
         _count: {
@@ -716,8 +721,11 @@ export class SidebarService {
       }
     }
 
-    // 3️⃣ Ayın Yorumu - En çok beğeni alan yorum
+    // 3️⃣ Haftanın Yorumu - Bu hafta yazılmış yorumlar arasından en çok beğenilen
     const comments = await this.prisma.comment.findMany({
+      where: {
+        createdAt: { gte: weekStart, lte: weekEnd },
+      },
       include: {
         _count: {
           select: {
@@ -734,7 +742,7 @@ export class SidebarService {
       orderBy: {
         createdAt: 'desc',
       },
-      take: 100, // Son 100 yorumdan en çok beğenilen
+      take: 400,
     });
 
     let featuredComment = null;
@@ -754,7 +762,7 @@ export class SidebarService {
       }
     }
 
-    // 4️⃣ Ayın Koleksiyoncusu - En çok etkileşim alan koleksiyoner
+    // 4️⃣ Haftanın Koleksiyoncusu - Bu haftanın post/koleksiyon aktivitesi
     const collectors = await this.prisma.user.findMany({
       where: {
         roles: {
@@ -776,7 +784,10 @@ export class SidebarService {
         collectors.map(async (collector) => {
           // Post etkileşimleri
           const posts = await this.prisma.post.findMany({
-            where: { userId: collector.id },
+            where: {
+              userId: collector.id,
+              createdAt: { gte: weekStart, lte: weekEnd },
+            },
             include: {
               _count: {
                 select: {
@@ -792,9 +803,12 @@ export class SidebarService {
             0,
           );
 
-          // Collection sayısı (ownerId kontrolü)
+          // Bu hafta oluşturulan koleksiyon sayısı
           const collections = await this.prisma.collection.count({
-            where: { ownerId: collector.id },
+            where: {
+              ownerId: collector.id,
+              createdAt: { gte: weekStart, lte: weekEnd },
+            },
           });
 
           return {

@@ -1945,6 +1945,7 @@ let PostsService = class PostsService {
                         fullName: otherUser.fullName,
                         avatar: otherUser.avatar,
                         isVerified: otherUser.isVerified,
+                        roles: otherUser.roles,
                     },
                     ortakRenkSayisi: ortakRenkler.length,
                     ortakRenkler: ortakRenkler.slice(0, 5),

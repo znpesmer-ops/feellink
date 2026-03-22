@@ -3,8 +3,8 @@ export declare class BlocksController {
     private blocksService;
     constructor(blocksService: BlocksService);
     blockUser(blockedId: string, user: any): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         blockerId: string;
         blockedId: string;
     }>;
@@ -14,8 +14,8 @@ export declare class BlocksController {
     checkBlockStatus(blockedId: string, user: any): Promise<{
         isBlocked: boolean;
         block: {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             blockerId: string;
             blockedId: string;
         };
@@ -28,8 +28,8 @@ export declare class BlocksController {
             avatar: string;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         blockerId: string;
         blockedId: string;
     })[]>;

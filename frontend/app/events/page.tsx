@@ -1,9 +1,9 @@
 "use client";
 // Vercel/SSR: sayfanın her zaman dinamik render alması için
 export const dynamic = "force-dynamic";
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Calendar, Ticket, Loader2, Edit3, Eye, Trash2, Users } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
@@ -38,50 +38,77 @@ interface Event {
   }[];
 }
 
-// ... imports remain the same, but moving component logic
-
-function EventsContent() {
-  const searchParams = useSearchParams();
+export default function EventsPage() {
+  const pathname = usePathname();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"all" | "mine" | "requested" | "approved">("all");
   const [events, setEvents] = useState<Event[]>([]);
   const [myEvents, setMyEvents] = useState<Event[]>([]);
   const [filtered, setFiltered] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<string | null>(null);
   const { user, capabilities } = useAuthStore();
 
-  // URL parametresinden sekme kontrolü
+  // URL ?tab=... (useSearchParams + Suspense yok; pathname, popstate ve history ile senkron)
   useEffect(() => {
-    const tabParam = searchParams.get("tab");
-    if (tabParam === "mine" && user) {
-      setActiveTab("mine");
-    } else if (tabParam === "requested" && user) {
-      setActiveTab("requested");
-    } else if (tabParam === "approved" && user) {
-      setActiveTab("approved");
-    }
-  }, [searchParams, user]);
+    if (typeof window === "undefined") return;
+    const applyTabFromUrl = () => {
+      if (!pathname?.startsWith("/events")) return;
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (tabParam === "mine" && user) setActiveTab("mine");
+      else if (tabParam === "requested" && user) setActiveTab("requested");
+      else if (tabParam === "approved" && user) setActiveTab("approved");
+    };
+
+    applyTabFromUrl();
+    window.addEventListener("popstate", applyTabFromUrl);
+
+    const wrap =
+      (fn: typeof history.pushState) =>
+      (...args: Parameters<typeof history.pushState>) => {
+        const ret = fn.apply(history, args);
+        queueMicrotask(applyTabFromUrl);
+        return ret;
+      };
+    const origPush = history.pushState.bind(history);
+    const origReplace = history.replaceState.bind(history);
+    history.pushState = wrap(origPush as typeof history.pushState);
+    history.replaceState = wrap(origReplace as typeof history.replaceState);
+
+    return () => {
+      window.removeEventListener("popstate", applyTabFromUrl);
+      history.pushState = origPush;
+      history.replaceState = origReplace;
+    };
+  }, [pathname, user]);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function fetchEvents() {
-      try {
-        const normalizeList = (data: any): any[] => {
-          if (!data) return [];
-          if (Array.isArray(data)) return data;
-          if (data.events && Array.isArray(data.events)) return data.events;
-          if (data.data && Array.isArray(data.data)) return data.data;
-          return [];
-        };
+      setLoading(true);
+      setFetchError(null);
 
+      const normalizeList = (data: any): any[] => {
+        if (!data) return [];
+        if (Array.isArray(data)) return data;
+        if (data.events && Array.isArray(data.events)) return data.events;
+        if (data.data && Array.isArray(data.data)) return data.data;
+        return [];
+      };
+
+      try {
         if (user) {
           const [allRes, myRes] = await Promise.all([
             api.get("/events/all").catch((e: any) => (e?.response?.status === 404 || e?.code === "ERR_NETWORK" ? api.get("/events") : Promise.reject(e))),
             api.get("/events/my").catch(() => ({ data: [] })),
           ]);
+          if (cancelled) return;
           const safeEventsData = normalizeList(allRes?.data);
           const safeMyEventsData = normalizeList(myRes?.data);
           setEvents(safeEventsData);
@@ -98,34 +125,36 @@ function EventsContent() {
               throw allErr;
             }
           }
+          if (cancelled) return;
           const safeEventsData = normalizeList(res?.data);
           setEvents(safeEventsData);
           setFiltered(safeEventsData);
         }
       } catch (err: any) {
         console.error("Etkinlikler alınamadı:", err);
+        if (cancelled) return;
 
-        // 🔒 Hata durumunda boş array ile devam et
         setEvents([]);
         setFiltered([]);
+        setMyEvents([]);
+        setFetchError("Etkinlikler yüklenemedi. Bağlantınızı kontrol edip sayfayı yenileyin.");
 
-        // Sadece network hatası veya kritik hatalarda kullanıcıya bilgi ver
-        // 500 hatası backend'de handle edildi, boş array döner
-        if (err?.code === 'ERR_NETWORK' || err?.message?.includes('Network Error')) {
+        if (err?.code === "ERR_NETWORK" || err?.message?.includes("Network Error")) {
           toast.error("Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.");
         } else if (err?.response?.status === 401) {
-          // 401 hatası için sessizce devam et (auth guard zaten yönetiyor)
-          console.log("Unauthorized - auth guard will handle");
+          // 401: sessiz; interceptor / giriş akışı yönetir
         } else if (err?.response?.status && err?.response?.status >= 500) {
-          // 500+ hatalar için sessizce devam et (backend zaten boş array döndü)
-          console.log("Server error - backend returned empty array");
+          // Sunucu hatası: kullanıcıya band + boş liste
         }
-        // Diğer durumlarda sessizce devam et, boş array zaten set edildi
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
+
     fetchEvents();
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   // Tab değiştiğinde filtreyi uygula
@@ -300,6 +329,15 @@ function EventsContent() {
           )}
         </div>
 
+        {fetchError && (
+          <div
+            role="alert"
+            className="mb-6 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-900 dark:text-amber-100"
+          >
+            {fetchError}
+          </div>
+        )}
+
         {/* TAB BAR */}
         <div className="flex gap-4 md:gap-6 border-b border-gray-200 dark:border-gray-700 pb-3 mb-6 overflow-x-auto">
           <button
@@ -370,15 +408,19 @@ function EventsContent() {
 
         {filtered.length === 0 ? (
           <div className="text-center mt-20 text-gray-500 dark:text-gray-400 text-lg">
-            {activeTab === "all"
-              ? "Filtreye uygun etkinlik bulunamadı."
-              : activeTab === "mine"
-                ? "Henüz etkinlik oluşturmadınız."
-                : activeTab === "requested"
-                  ? "Henüz talep oluşturduğun bir etkinlik yok."
-                  : activeTab === "approved"
-                    ? "Henüz onaylanan bir etkinliğin bulunmuyor."
-                    : "Etkinlik bulunamadı."}
+            {fetchError
+              ? "Etkinlikler şu an gösterilemiyor."
+              : activeTab === "all"
+                ? events.length === 0 && filter === "all"
+                  ? "Henüz etkinlik bulunmuyor."
+                  : "Filtreye uygun etkinlik bulunamadı."
+                : activeTab === "mine"
+                  ? "Henüz etkinlik oluşturmadınız."
+                  : activeTab === "requested"
+                    ? "Henüz talep oluşturduğun bir etkinlik yok."
+                    : activeTab === "approved"
+                      ? "Henüz onaylanan bir etkinliğin bulunmuyor."
+                      : "Etkinlik bulunamadı."}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mt-8" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
@@ -628,21 +670,5 @@ function EventsContent() {
         cancelText="İptal"
       />
     </div>
-  );
-}
-
-// 🔒 GÜVENLİ EXPORT - Build hatasını önlemek için Suspense boundary ekle
-// Build hatası: useSearchParams() should be wrapped in a suspense boundary
-export default function EventsFeedPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-orange" />
-        </div>
-      }
-    >
-      <EventsContent />
-    </Suspense>
   );
 }

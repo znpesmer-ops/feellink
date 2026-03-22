@@ -3,8 +3,8 @@ export declare class BlocksService {
     private prisma;
     constructor(prisma: PrismaService);
     blockUser(blockerId: string, blockedId: string): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         blockerId: string;
         blockedId: string;
     }>;
@@ -15,8 +15,8 @@ export declare class BlocksService {
     checkBlockStatus(blockerId: string, blockedId: string): Promise<{
         isBlocked: boolean;
         block: {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             blockerId: string;
             blockedId: string;
         };
@@ -29,8 +29,8 @@ export declare class BlocksService {
             avatar: string;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         blockerId: string;
         blockedId: string;
     })[]>;

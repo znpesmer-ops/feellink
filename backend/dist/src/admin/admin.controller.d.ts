@@ -25,10 +25,9 @@ export declare class AdminController {
     }>;
     getUsers(page?: string, limit?: string, search?: string, role?: string, city?: string, gender?: string, ageMin?: string, ageMax?: string): Promise<{
         users: {
-            email: string;
-            createdAt: Date;
             id: string;
             username: string;
+            email: string;
             fullName: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
@@ -54,6 +53,7 @@ export declare class AdminController {
             scheduledDeletionAt: Date;
             isDeleted: boolean;
             deletedAt: Date;
+            createdAt: Date;
         }[];
         total: number;
         page: number;
@@ -64,9 +64,9 @@ export declare class AdminController {
         isVerified?: boolean;
         isAdmin?: boolean;
     }, user: any): Promise<{
-        email: string;
         id: string;
         username: string;
+        email: string;
         fullName: string;
         roles: import(".prisma/client").$Enums.UserRole[];
     }>;
@@ -99,9 +99,9 @@ export declare class AdminController {
     updateUserRoles(userId: string, data: {
         roles: string[];
     }, user: any): Promise<{
-        email: string;
         id: string;
         username: string;
+        email: string;
         fullName: string;
         roles: import(".prisma/client").$Enums.UserRole[];
     }>;
@@ -118,14 +118,14 @@ export declare class AdminController {
     getRoleChangeRequests(status?: string, page?: string, limit?: string): Promise<{
         requests: ({
             user: {
-                email: string;
                 id: string;
                 username: string;
+                email: string;
                 fullName: string;
             };
         } & {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             updatedAt: Date;
             userId: string;
             message: string;
@@ -176,17 +176,17 @@ export declare class AdminController {
                 thumbnailUrl: string;
             }[];
         } & {
-            createdAt: Date;
             id: string;
-            code: string;
             isDeleted: boolean;
             deletedAt: Date;
+            createdAt: Date;
             updatedAt: Date;
             userId: string;
             type: string;
+            caption: string;
             title: string;
             location: string;
-            caption: string;
+            code: string;
             colors: string[];
             colorPalette: string[];
         })[];
@@ -218,17 +218,17 @@ export declare class AdminController {
                 thumbnailUrl: string;
             }[];
         } & {
-            createdAt: Date;
             id: string;
-            code: string;
             isDeleted: boolean;
             deletedAt: Date;
+            createdAt: Date;
             updatedAt: Date;
             userId: string;
             type: string;
+            caption: string;
             title: string;
             location: string;
-            caption: string;
+            code: string;
             colors: string[];
             colorPalette: string[];
         })[];
@@ -252,8 +252,8 @@ export declare class AdminController {
                 caption: string;
             };
         } & {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             updatedAt: Date;
             userId: string;
             postId: string;
@@ -276,17 +276,17 @@ export declare class AdminController {
                 avatar: string;
             };
         } & {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             updatedAt: Date;
             title: string;
-            coverImage: string;
             content: string;
-            authorId: string;
+            coverImage: string;
             excerpt: string;
             isPublished: boolean;
             scheduledAt: Date;
             views: number;
+            authorId: string;
         })[];
         total: number;
         page: number;
@@ -307,20 +307,20 @@ export declare class AdminController {
                 avatar: string;
             };
         } & {
-            createdAt: Date;
             id: string;
             isDeleted: boolean;
             deletedAt: Date;
+            createdAt: Date;
             updatedAt: Date;
-            description: string;
             title: string;
-            coverImage: string;
+            location: string;
             date: Date;
+            description: string;
+            coverImage: string;
             participantCount: number;
             ticketUrl: string;
             price: number;
             isFree: boolean;
-            location: string;
             ownerId: string;
             reminderMailSent: boolean;
         })[];
@@ -341,25 +341,25 @@ export declare class AdminController {
                     title: string;
                 };
             } & {
-                createdAt: Date;
                 id: string;
+                createdAt: Date;
                 updatedAt: Date;
                 type: string;
-                price: number;
                 eventId: string;
+                price: number;
                 capacity: number;
                 sold: number;
                 qrCodeUrl: string;
             };
         } & {
-            usedAt: Date;
-            createdAt: Date;
             id: string;
-            code: string;
+            createdAt: Date;
             userId: string;
+            code: string;
             ticketId: string;
             qrUrl: string;
             used: boolean;
+            usedAt: Date;
         })[];
         total: number;
         page: number;
@@ -390,8 +390,8 @@ export declare class AdminController {
                 avatar: string;
             };
         } & {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             target: string;
             action: string;
             meta: import("@prisma/client/runtime/library").JsonValue;
@@ -450,11 +450,11 @@ export declare class AdminController {
                 avatar: string;
             };
         } & {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             status: string;
-            conversationId: string;
             messageId: string;
+            conversationId: string;
             reason: import(".prisma/client").$Enums.ReportReason;
             note: string;
             reportedUserId: string;
@@ -479,11 +479,11 @@ export declare class AdminController {
             avatar: string;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         status: string;
-        conversationId: string;
         messageId: string;
+        conversationId: string;
         reason: import(".prisma/client").$Enums.ReportReason;
         note: string;
         reportedUserId: string;
@@ -499,18 +499,18 @@ export declare class AdminController {
             avatar: string;
         };
         reporter: {
-            email: string;
             id: string;
             username: string;
+            email: string;
             fullName: string;
             avatar: string;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         status: string;
-        conversationId: string;
         messageId: string;
+        conversationId: string;
         reason: import(".prisma/client").$Enums.ReportReason;
         note: string;
         reportedUserId: string;

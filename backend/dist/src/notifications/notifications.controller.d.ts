@@ -18,11 +18,11 @@ export declare class NotificationsController {
                 postId: string;
                 commentId: string;
             };
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             userId: string;
-            message: string;
             type: string;
+            message: string;
             fromUserId: string;
             postId: string;
             articleId: string;

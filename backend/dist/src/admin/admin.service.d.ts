@@ -26,10 +26,9 @@ export declare class AdminService {
     }>;
     getUsers(page?: number, limit?: number, search?: string, role?: string, city?: string, gender?: string, ageMin?: number, ageMax?: number): Promise<{
         users: {
-            email: string;
-            createdAt: Date;
             id: string;
             username: string;
+            email: string;
             fullName: string;
             avatar: string;
             roles: import(".prisma/client").$Enums.UserRole[];
@@ -55,6 +54,7 @@ export declare class AdminService {
             scheduledDeletionAt: Date;
             isDeleted: boolean;
             deletedAt: Date;
+            createdAt: Date;
         }[];
         total: number;
         page: number;
@@ -65,9 +65,9 @@ export declare class AdminService {
         isVerified?: boolean;
         isAdmin?: boolean;
     }, actorId: string): Promise<{
-        email: string;
         id: string;
         username: string;
+        email: string;
         fullName: string;
         roles: import(".prisma/client").$Enums.UserRole[];
     }>;
@@ -103,17 +103,17 @@ export declare class AdminService {
                 thumbnailUrl: string;
             }[];
         } & {
-            createdAt: Date;
             id: string;
-            code: string;
             isDeleted: boolean;
             deletedAt: Date;
+            createdAt: Date;
             updatedAt: Date;
             userId: string;
             type: string;
+            caption: string;
             title: string;
             location: string;
-            caption: string;
+            code: string;
             colors: string[];
             colorPalette: string[];
         })[];
@@ -141,17 +141,17 @@ export declare class AdminService {
                 thumbnailUrl: string;
             }[];
         } & {
-            createdAt: Date;
             id: string;
-            code: string;
             isDeleted: boolean;
             deletedAt: Date;
+            createdAt: Date;
             updatedAt: Date;
             userId: string;
             type: string;
+            caption: string;
             title: string;
             location: string;
-            caption: string;
+            code: string;
             colors: string[];
             colorPalette: string[];
         })[];
@@ -179,8 +179,8 @@ export declare class AdminService {
                 caption: string;
             };
         } & {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             updatedAt: Date;
             userId: string;
             postId: string;
@@ -203,17 +203,17 @@ export declare class AdminService {
                 avatar: string;
             };
         } & {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             updatedAt: Date;
             title: string;
-            coverImage: string;
             content: string;
-            authorId: string;
+            coverImage: string;
             excerpt: string;
             isPublished: boolean;
             scheduledAt: Date;
             views: number;
+            authorId: string;
         })[];
         total: number;
         page: number;
@@ -234,20 +234,20 @@ export declare class AdminService {
                 avatar: string;
             };
         } & {
-            createdAt: Date;
             id: string;
             isDeleted: boolean;
             deletedAt: Date;
+            createdAt: Date;
             updatedAt: Date;
-            description: string;
             title: string;
-            coverImage: string;
+            location: string;
             date: Date;
+            description: string;
+            coverImage: string;
             participantCount: number;
             ticketUrl: string;
             price: number;
             isFree: boolean;
-            location: string;
             ownerId: string;
             reminderMailSent: boolean;
         })[];
@@ -268,25 +268,25 @@ export declare class AdminService {
                     title: string;
                 };
             } & {
-                createdAt: Date;
                 id: string;
+                createdAt: Date;
                 updatedAt: Date;
                 type: string;
-                price: number;
                 eventId: string;
+                price: number;
                 capacity: number;
                 sold: number;
                 qrCodeUrl: string;
             };
         } & {
-            usedAt: Date;
-            createdAt: Date;
             id: string;
-            code: string;
+            createdAt: Date;
             userId: string;
+            code: string;
             ticketId: string;
             qrUrl: string;
             used: boolean;
+            usedAt: Date;
         })[];
         total: number;
         page: number;
@@ -314,8 +314,8 @@ export declare class AdminService {
                 avatar: string;
             };
         } & {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             target: string;
             action: string;
             meta: Prisma.JsonValue;
@@ -335,8 +335,8 @@ export declare class AdminService {
         ip?: string;
         userAgent?: string;
     }): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         target: string;
         action: string;
         meta: Prisma.JsonValue;
@@ -410,14 +410,14 @@ export declare class AdminService {
     getRoleChangeRequests(status?: string, page?: number, limit?: number): Promise<{
         requests: ({
             user: {
-                email: string;
                 id: string;
                 username: string;
+                email: string;
                 fullName: string;
             };
         } & {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             updatedAt: Date;
             userId: string;
             message: string;

@@ -7,6 +7,7 @@ export declare class ArticlesService {
     private postsGateway;
     private articlesGateway;
     private notificationsService;
+    private readonly logger;
     constructor(prisma: PrismaService, postsGateway: PostsGateway, articlesGateway: ArticlesGateway, notificationsService: NotificationsService);
     create(userId: string, title: string, content: string, coverImage?: string, excerpt?: string, publish?: boolean, scheduledAt?: Date): Promise<{
         author: {
@@ -16,17 +17,17 @@ export declare class ArticlesService {
             avatar: string;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         title: string;
-        coverImage: string;
         content: string;
-        authorId: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
+        authorId: string;
     }>;
     findDrafts(userId: string): Promise<({
         author: {
@@ -36,17 +37,17 @@ export declare class ArticlesService {
             avatar: string;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         title: string;
-        coverImage: string;
         content: string;
-        authorId: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
+        authorId: string;
     })[]>;
     findScheduled(userId: string): Promise<({
         author: {
@@ -56,17 +57,17 @@ export declare class ArticlesService {
             avatar: string;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         title: string;
-        coverImage: string;
         content: string;
-        authorId: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
+        authorId: string;
     })[]>;
     findPublished(userId: string): Promise<({
         author: {
@@ -76,17 +77,17 @@ export declare class ArticlesService {
             avatar: string;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         title: string;
-        coverImage: string;
         content: string;
-        authorId: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
+        authorId: string;
     })[]>;
     publish(id: string, userId: string): Promise<{
         author: {
@@ -96,17 +97,17 @@ export declare class ArticlesService {
             avatar: string;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         title: string;
-        coverImage: string;
         content: string;
-        authorId: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
+        authorId: string;
     }>;
     findAllPublic(): Promise<({
         author: {
@@ -116,17 +117,17 @@ export declare class ArticlesService {
             avatar: string;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         title: string;
-        coverImage: string;
         content: string;
-        authorId: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
+        authorId: string;
     })[]>;
     findByUserId(userId: string): Promise<{
         views: number;
@@ -140,29 +141,29 @@ export declare class ArticlesService {
             fullName: string;
             avatar: string;
         };
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         title: string;
-        coverImage: string;
         content: string;
-        authorId: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
+        authorId: string;
     }[]>;
     findMyArticles(userId: string): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         title: string;
-        coverImage: string;
         content: string;
-        authorId: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
+        authorId: string;
     }[]>;
     findOne(id: string): Promise<{
         views: number;
@@ -189,16 +190,16 @@ export declare class ArticlesService {
             fullName: string;
             avatar: string;
         };
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         title: string;
-        coverImage: string;
         content: string;
-        authorId: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
+        authorId: string;
     }>;
     update(id: string, userId: string, data: {
         title?: string;
@@ -215,20 +216,21 @@ export declare class ArticlesService {
             avatar: string;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         title: string;
-        coverImage: string;
         content: string;
-        authorId: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
+        authorId: string;
     }>;
     delete(id: string, userId: string): Promise<{
         success: boolean;
+        message: string;
     }>;
     incrementView(id: string): Promise<void>;
     createComment(articleId: string, userId: string, content: string): Promise<{
@@ -263,7 +265,10 @@ export declare class ArticlesService {
         liked: boolean;
         likesCount: number;
     }>;
-    getTopLikedAuthors(limit?: number): Promise<{
+    getTopLikedAuthors(limit?: number, range?: {
+        start: Date;
+        end: Date;
+    }): Promise<{
         id: string;
         username: string;
         name: string;

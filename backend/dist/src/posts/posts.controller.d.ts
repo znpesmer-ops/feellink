@@ -28,8 +28,8 @@ export declare class PostsController {
             likes: number;
         };
         media: {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             type: string;
             postId: string;
             order: number;
@@ -37,17 +37,17 @@ export declare class PostsController {
             thumbnailUrl: string;
         }[];
     } & {
-        createdAt: Date;
         id: string;
-        code: string;
         isDeleted: boolean;
         deletedAt: Date;
+        createdAt: Date;
         updatedAt: Date;
         userId: string;
         type: string;
+        caption: string;
         title: string;
         location: string;
-        caption: string;
+        code: string;
         colors: string[];
         colorPalette: string[];
     }>;
@@ -64,8 +64,8 @@ export declare class PostsController {
             likes: number;
         };
         media: {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             type: string;
             postId: string;
             order: number;
@@ -73,17 +73,17 @@ export declare class PostsController {
             thumbnailUrl: string;
         }[];
     } & {
-        createdAt: Date;
         id: string;
-        code: string;
         isDeleted: boolean;
         deletedAt: Date;
+        createdAt: Date;
         updatedAt: Date;
         userId: string;
         type: string;
+        caption: string;
         title: string;
         location: string;
-        caption: string;
+        code: string;
         colors: string[];
         colorPalette: string[];
     }>;
@@ -134,8 +134,8 @@ export declare class PostsController {
         };
         hashtags: ({
             hashtag: {
-                createdAt: Date;
                 id: string;
+                createdAt: Date;
                 name: string;
                 postCount: number;
             };
@@ -144,9 +144,9 @@ export declare class PostsController {
             postId: string;
             hashtagId: string;
         })[];
-        code: string;
         isDeleted: boolean;
         deletedAt: Date;
+        code: string;
         colors: string[];
         colorPalette: string[];
     }>;
@@ -165,8 +165,8 @@ export declare class PostsController {
             likes: number;
         };
         media: {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             type: string;
             postId: string;
             order: number;
@@ -174,17 +174,17 @@ export declare class PostsController {
             thumbnailUrl: string;
         }[];
     } & {
-        createdAt: Date;
         id: string;
-        code: string;
         isDeleted: boolean;
         deletedAt: Date;
+        createdAt: Date;
         updatedAt: Date;
         userId: string;
         type: string;
+        caption: string;
         title: string;
         location: string;
-        caption: string;
+        code: string;
         colors: string[];
         colorPalette: string[];
     }>;
@@ -231,8 +231,8 @@ export declare class PostsController {
             isVerified: boolean;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         userId: string;
         postId: string;
@@ -288,13 +288,13 @@ export declare class PostsController {
             avatar: string;
             isVerified: boolean;
         };
-        createdAt: Date;
-        code: string;
         isDeleted: boolean;
         deletedAt: Date;
+        createdAt: Date;
         updatedAt: Date;
         userId: string;
         location: string;
+        code: string;
         colors: string[];
         colorPalette: string[];
     }[]>;
@@ -319,8 +319,8 @@ export declare class PostsController {
             caption: string;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         userId: string;
         postId: string;
@@ -336,8 +336,8 @@ export declare class PostsController {
         success: boolean;
         message: string;
         savedPost: {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             userId: string;
             postId: string;
         };
@@ -361,25 +361,25 @@ export declare class PostsController {
             isVerified: boolean;
         };
         media: {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             type: string;
             postId: string;
             order: number;
             url: string;
             thumbnailUrl: string;
         }[];
-        createdAt: Date;
         id: string;
-        code: string;
         isDeleted: boolean;
         deletedAt: Date;
+        createdAt: Date;
         updatedAt: Date;
         userId: string;
         type: string;
+        caption: string;
         title: string;
         location: string;
-        caption: string;
+        code: string;
         colors: string[];
         colorPalette: string[];
     }[]>;

@@ -26,8 +26,8 @@ export declare class FollowController {
             isVerified: boolean;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         requesterId: string;
         requestedId: string;
     })[]>;

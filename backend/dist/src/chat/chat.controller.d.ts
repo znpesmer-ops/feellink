@@ -13,9 +13,9 @@ export declare class ChatController {
                 isOnline: boolean;
                 lastSeen: Date;
             };
-            createdAt: Date;
             id: string;
             isDeleted: boolean;
+            createdAt: Date;
             userId: string;
             conversationId: string;
         }[];
@@ -27,9 +27,9 @@ export declare class ChatController {
                 avatar: string;
             };
         } & {
-            createdAt: Date;
             id: string;
             isDeleted: boolean;
+            createdAt: Date;
             updatedAt: Date;
             content: string;
             imageUrl: string;
@@ -45,8 +45,8 @@ export declare class ChatController {
             conversationId: string;
             senderId: string;
         })[];
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         context: import(".prisma/client").$Enums.ConversationContext;
         jobId: string;
@@ -65,14 +65,14 @@ export declare class ChatController {
                 isOnline: boolean;
                 lastSeen: Date;
             };
-            createdAt: Date;
             id: string;
             isDeleted: boolean;
+            createdAt: Date;
             userId: string;
             conversationId: string;
         }[];
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         context: import(".prisma/client").$Enums.ConversationContext;
         jobId: string;
@@ -88,9 +88,9 @@ export declare class ChatController {
                 avatar: string;
             };
         } & {
-            createdAt: Date;
             id: string;
             isDeleted: boolean;
+            createdAt: Date;
             updatedAt: Date;
             content: string;
             imageUrl: string;
@@ -125,15 +125,15 @@ export declare class ChatController {
                 lastSeen: Date;
             };
         } & {
-            createdAt: Date;
             id: string;
             isDeleted: boolean;
+            createdAt: Date;
             userId: string;
             conversationId: string;
         })[];
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         context: import(".prisma/client").$Enums.ConversationContext;
         jobId: string;
@@ -158,9 +158,9 @@ export declare class ChatController {
             avatar: string;
         };
     } & {
-        createdAt: Date;
         id: string;
         isDeleted: boolean;
+        createdAt: Date;
         updatedAt: Date;
         content: string;
         imageUrl: string;
@@ -177,9 +177,9 @@ export declare class ChatController {
         senderId: string;
     }>;
     deleteMessage(id: string, user: any): Promise<{
-        createdAt: Date;
         id: string;
         isDeleted: boolean;
+        createdAt: Date;
         updatedAt: Date;
         content: string;
         imageUrl: string;
@@ -210,9 +210,9 @@ export declare class ChatController {
             avatar: string;
         };
     } & {
-        createdAt: Date;
         id: string;
         isDeleted: boolean;
+        createdAt: Date;
         updatedAt: Date;
         content: string;
         imageUrl: string;
@@ -229,14 +229,14 @@ export declare class ChatController {
         senderId: string;
     }>;
     getMedia(conversationId: string, user: any): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         imageUrl: string;
         senderId: string;
     }[]>;
     getFiles(conversationId: string, user: any): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         fileUrl: string;
         fileName: string;
         fileType: string;
@@ -250,9 +250,9 @@ export declare class ChatController {
                 avatar: string;
             };
         } & {
-            createdAt: Date;
             id: string;
             isDeleted: boolean;
+            createdAt: Date;
             updatedAt: Date;
             content: string;
             imageUrl: string;
@@ -278,15 +278,15 @@ export declare class ChatController {
                 lastSeen: Date;
             };
         } & {
-            createdAt: Date;
             id: string;
             isDeleted: boolean;
+            createdAt: Date;
             userId: string;
             conversationId: string;
         })[];
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
         context: import(".prisma/client").$Enums.ConversationContext;
         jobId: string;

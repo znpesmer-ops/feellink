@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var ArticlesService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ArticlesService = void 0;
 const common_1 = require("@nestjs/common");
@@ -18,12 +19,13 @@ const prisma_service_1 = require("../prisma/prisma.service");
 const posts_gateway_1 = require("../posts/posts.gateway");
 const articles_gateway_1 = require("./articles.gateway");
 const notifications_service_1 = require("../notifications/notifications.service");
-let ArticlesService = class ArticlesService {
+let ArticlesService = ArticlesService_1 = class ArticlesService {
     constructor(prisma, postsGateway, articlesGateway, notificationsService) {
         this.prisma = prisma;
         this.postsGateway = postsGateway;
         this.articlesGateway = articlesGateway;
         this.notificationsService = notificationsService;
+        this.logger = new common_1.Logger(ArticlesService_1.name);
     }
     async create(userId, title, content, coverImage, excerpt, publish = false, scheduledAt) {
         try {
@@ -337,20 +339,47 @@ let ArticlesService = class ArticlesService {
     async delete(id, userId) {
         const article = await this.prisma.article.findUnique({
             where: { id },
+            select: { id: true, authorId: true },
         });
         if (!article) {
-            throw new common_1.NotFoundException('Article not found');
+            throw new common_1.NotFoundException('Yazı bulunamadı.');
         }
         if (article.authorId !== userId) {
-            throw new common_1.ForbiddenException('Bu yazıyı silme yetkiniz yok');
+            throw new common_1.ForbiddenException('Bu yazıyı silme yetkiniz yok.');
         }
-        await this.prisma.article.delete({
-            where: { id },
-        });
-        if (this.postsGateway) {
-            this.postsGateway.server.emit('articleDeleted', { id });
+        try {
+            await this.prisma.$transaction(async (tx) => {
+                const commentIds = await tx.articleComment.findMany({
+                    where: { articleId: id },
+                    select: { id: true },
+                }).then((rows) => rows.map((r) => r.id));
+                if (commentIds.length > 0) {
+                    await tx.articleCommentLike.deleteMany({
+                        where: { commentId: { in: commentIds } },
+                    });
+                    await tx.articleComment.deleteMany({
+                        where: { articleId: id, parentId: { not: null } },
+                    });
+                    await tx.articleComment.deleteMany({
+                        where: { articleId: id },
+                    });
+                }
+                await tx.article.delete({
+                    where: { id },
+                });
+            });
+            if (this.postsGateway) {
+                this.postsGateway.server.emit('articleDeleted', { id });
+            }
+            return { success: true, message: 'Yazı silindi.' };
         }
-        return { success: true };
+        catch (error) {
+            this.logger.error('ARTICLE_DELETE_ERROR', error?.stack ?? error?.message, { articleId: id, userId });
+            if (error instanceof common_1.NotFoundException || error instanceof common_1.ForbiddenException) {
+                throw error;
+            }
+            throw new common_1.InternalServerErrorException('Yazı silinirken hata oluştu.');
+        }
     }
     async incrementView(id) {
         await this.prisma.article.update({
@@ -593,10 +622,18 @@ let ArticlesService = class ArticlesService {
             likesCount,
         };
     }
-    async getTopLikedAuthors(limit = 4) {
+    async getTopLikedAuthors(limit = 4, range) {
         const articles = await this.prisma.article.findMany({
             where: {
                 isPublished: true,
+                ...(range
+                    ? {
+                        createdAt: {
+                            gte: range.start,
+                            lte: range.end,
+                        },
+                    }
+                    : {}),
             },
             select: {
                 id: true,
@@ -646,7 +683,7 @@ let ArticlesService = class ArticlesService {
     }
 };
 exports.ArticlesService = ArticlesService;
-exports.ArticlesService = ArticlesService = __decorate([
+exports.ArticlesService = ArticlesService = ArticlesService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => posts_gateway_1.PostsGateway))),
     __param(2, (0, common_1.Inject)((0, common_1.forwardRef)(() => articles_gateway_1.ArticlesGateway))),

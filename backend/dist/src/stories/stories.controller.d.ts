@@ -14,10 +14,10 @@ export declare class StoriesController {
             isVerified: boolean;
         };
     } & {
-        expiresAt: Date;
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         userId: string;
+        expiresAt: Date;
         mediaUrl: string;
         mediaType: string;
     }>;
@@ -25,8 +25,8 @@ export declare class StoriesController {
     viewStory(id: string, user: any): Promise<{
         id: string;
         userId: string;
-        storyId: string;
         viewedAt: Date;
+        storyId: string;
     }>;
     deleteStory(id: string, user: any): Promise<{
         status: string;

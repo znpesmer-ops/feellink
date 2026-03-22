@@ -14,10 +14,14 @@ export declare class ChatGateway implements OnGatewayInit, OnGatewayConnection, 
     server: Server;
     private userSockets;
     private socketToUser;
+    private userLastActiveAt;
+    private presenceTimeoutInterval;
     constructor(jwtService: JwtService, prisma: PrismaService, blocksService: BlocksService, followService: FollowService, notificationsService: NotificationsService);
     afterInit(server: Server): void;
     handleConnection(client: Socket): Promise<void>;
     handleDisconnect(client: Socket): Promise<void>;
+    handlePresencePing(client: Socket): Promise<void>;
+    handlePresenceOffline(client: Socket): Promise<void>;
     handleJoinConversation(data: {
         conversationId: string;
     }, client: Socket): Promise<{
@@ -51,9 +55,9 @@ export declare class ChatGateway implements OnGatewayInit, OnGatewayConnection, 
                 avatar: string;
             };
         } & {
-            createdAt: Date;
             id: string;
             isDeleted: boolean;
+            createdAt: Date;
             updatedAt: Date;
             content: string;
             imageUrl: string;
@@ -111,9 +115,9 @@ export declare class ChatGateway implements OnGatewayInit, OnGatewayConnection, 
                 avatar: string;
             };
         } & {
-            createdAt: Date;
             id: string;
             isDeleted: boolean;
+            createdAt: Date;
             updatedAt: Date;
             content: string;
             imageUrl: string;

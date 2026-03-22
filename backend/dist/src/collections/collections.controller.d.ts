@@ -11,21 +11,21 @@ export declare class CollectionsController {
             roles: import(".prisma/client").$Enums.UserRole[];
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
+        description: string;
         coverImage: string;
         ownerId: string;
         isPublic: boolean;
     })[]>;
     getMyCollections(user: any): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
+        description: string;
         coverImage: string;
         ownerId: string;
         isPublic: boolean;
@@ -54,21 +54,21 @@ export declare class CollectionsController {
         nextCursor: string;
     }>;
     createCollection(user: any, data: any): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
+        description: string;
         coverImage: string;
         ownerId: string;
         isPublic: boolean;
     }>;
     updateCollection(user: any, id: string, data: any): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
-        description: string;
         title: string;
+        description: string;
         coverImage: string;
         ownerId: string;
         isPublic: boolean;

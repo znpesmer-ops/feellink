@@ -21,6 +21,14 @@ export declare class MailService {
         location?: string;
         eventUrl: string;
     }): Promise<void>;
+    sendEvent2HourReminder(params: {
+        to: string;
+        name: string;
+        eventTitle: string;
+        eventDate: Date;
+        location?: string;
+        eventUrl: string;
+    }): Promise<void>;
     sendEventReminder(params: {
         to: string;
         name: string;

@@ -184,7 +184,7 @@ export default function CollectionsPage() {
           </div>
           {/* Açıklama metni altında */}
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
-            Sanatçıların ve kurumların oluşturduğu koleksiyonları keşfedin.
+            Topluluk tarafından oluşturulan koleksiyonları keşfedin.
           </p>
         </div>
 

@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const sidebar_gateway_1 = require("./sidebar.gateway");
 const articles_service_1 = require("../articles/articles.service");
+const week_range_util_1 = require("../common/utils/week-range.util");
 const MUSEUM_IMAGE_MAP = {
     1: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=800&q=80',
     2: 'https://images.unsplash.com/photo-1503389152951-9f343605f61e?auto=format&fit=crop&w=800&q=80',
@@ -48,8 +49,7 @@ let SidebarService = class SidebarService {
             }
             return fallback;
         };
-        const since = new Date();
-        since.setDate(since.getDate() - 30);
+        const { start: weekStart, end: weekEnd } = (0, week_range_util_1.getCurrentWeekRange)();
         const corporateUsers = await this.prisma.user.findMany({
             where: {
                 roles: {
@@ -79,7 +79,7 @@ let SidebarService = class SidebarService {
             const recentPosts = await this.prisma.post.findMany({
                 where: {
                     userId: user.id,
-                    createdAt: { gte: since },
+                    createdAt: { gte: weekStart, lte: weekEnd },
                 },
                 include: {
                     _count: {
@@ -94,7 +94,7 @@ let SidebarService = class SidebarService {
                 where: {
                     authorId: user.id,
                     isPublished: true,
-                    createdAt: { gte: since },
+                    createdAt: { gte: weekStart, lte: weekEnd },
                 },
                 include: {
                     _count: {
@@ -104,15 +104,15 @@ let SidebarService = class SidebarService {
                     },
                 },
             });
-            const monthlyViews = recentArticles.reduce((sum, article) => sum + (article.views || 0), 0);
-            const monthlyLikes = recentPosts.reduce((sum, post) => sum + post._count.likes, 0);
-            const monthlyComments = recentPosts.reduce((sum, post) => sum + post._count.comments, 0) +
+            const weeklyViews = recentArticles.reduce((sum, article) => sum + (article.views || 0), 0);
+            const weeklyLikes = recentPosts.reduce((sum, post) => sum + post._count.likes, 0);
+            const weeklyComments = recentPosts.reduce((sum, post) => sum + post._count.comments, 0) +
                 recentArticles.reduce((sum, article) => sum + article._count.comments, 0);
-            const monthlyPosts = recentPosts.length + recentArticles.length;
+            const weeklyPosts = recentPosts.length + recentArticles.length;
             const followerCount = user.followerCount || 0;
-            const score = monthlyViews * 0.4 +
-                (monthlyLikes + monthlyComments) * 0.3 +
-                monthlyPosts * 0.2 +
+            const score = weeklyViews * 0.4 +
+                (weeklyLikes + weeklyComments) * 0.3 +
+                weeklyPosts * 0.2 +
                 followerCount * 0.1;
             return {
                 id: user.id,
@@ -120,10 +120,10 @@ let SidebarService = class SidebarService {
                 name: user.fullName || user.username,
                 avatar: resolveImageUrl(user.avatar, DEFAULT_AUTHOR_AVATAR),
                 score,
-                monthlyViews,
-                monthlyLikes,
-                monthlyComments,
-                monthlyPosts,
+                weeklyViews,
+                weeklyLikes,
+                weeklyComments,
+                weeklyPosts,
                 followerCount: user.followerCount,
             };
         }));
@@ -164,9 +164,11 @@ let SidebarService = class SidebarService {
             }
             return fallback;
         };
+        const { start: weekStart, end: weekEnd } = (0, week_range_util_1.getCurrentWeekRange)();
         const topViewedArticles = await this.prisma.article.findMany({
             where: {
                 isPublished: true,
+                createdAt: { gte: weekStart, lte: weekEnd },
             },
             orderBy: {
                 views: 'desc',
@@ -183,13 +185,12 @@ let SidebarService = class SidebarService {
                 },
             },
         });
-        const since = new Date();
-        since.setDate(since.getDate() - 30);
         const postsByUser = await this.prisma.post.groupBy({
             by: ['userId'],
             where: {
                 createdAt: {
-                    gte: since,
+                    gte: weekStart,
+                    lte: weekEnd,
                 },
                 type: 'post',
             },
@@ -227,7 +228,10 @@ let SidebarService = class SidebarService {
             .map((userId) => topWritersMap.get(userId))
             .filter((w) => w !== undefined);
         const museums = await this.getFeaturedMuseums();
-        const topLikedAuthors = await this.articlesService.getTopLikedAuthors(4);
+        const topLikedAuthors = await this.articlesService.getTopLikedAuthors(4, {
+            start: weekStart,
+            end: weekEnd,
+        });
         const authors = topLikedAuthors.map((writer) => ({
             id: writer.id,
             slug: writer.username,
@@ -477,6 +481,7 @@ let SidebarService = class SidebarService {
             return fallback;
         };
         const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=320&q=80';
+        const { start: weekStart, end: weekEnd } = (0, week_range_util_1.getCurrentWeekRange)();
         const corporateUsers = await this.prisma.user.findMany({
             where: {
                 roles: {
@@ -495,7 +500,10 @@ let SidebarService = class SidebarService {
         if (corporateUsers.length > 0) {
             const museumScores = await Promise.all(corporateUsers.map(async (user) => {
                 const posts = await this.prisma.post.findMany({
-                    where: { userId: user.id },
+                    where: {
+                        userId: user.id,
+                        createdAt: { gte: weekStart, lte: weekEnd },
+                    },
                     include: {
                         _count: {
                             select: {
@@ -510,6 +518,7 @@ let SidebarService = class SidebarService {
                     where: {
                         authorId: user.id,
                         isPublished: true,
+                        createdAt: { gte: weekStart, lte: weekEnd },
                     },
                     include: {
                         _count: {
@@ -537,6 +546,7 @@ let SidebarService = class SidebarService {
         const artworks = await this.prisma.post.findMany({
             where: {
                 type: 'artwork',
+                createdAt: { gte: weekStart, lte: weekEnd },
             },
             include: {
                 _count: {
@@ -572,6 +582,9 @@ let SidebarService = class SidebarService {
             }
         }
         const comments = await this.prisma.comment.findMany({
+            where: {
+                createdAt: { gte: weekStart, lte: weekEnd },
+            },
             include: {
                 _count: {
                     select: {
@@ -588,7 +601,7 @@ let SidebarService = class SidebarService {
             orderBy: {
                 createdAt: 'desc',
             },
-            take: 100,
+            take: 400,
         });
         let featuredComment = null;
         if (comments.length > 0) {
@@ -623,7 +636,10 @@ let SidebarService = class SidebarService {
         if (collectors.length > 0) {
             const collectorScores = await Promise.all(collectors.map(async (collector) => {
                 const posts = await this.prisma.post.findMany({
-                    where: { userId: collector.id },
+                    where: {
+                        userId: collector.id,
+                        createdAt: { gte: weekStart, lte: weekEnd },
+                    },
                     include: {
                         _count: {
                             select: {
@@ -635,7 +651,10 @@ let SidebarService = class SidebarService {
                 });
                 const postInteractions = posts.reduce((sum, post) => sum + post._count.likes + post._count.comments, 0);
                 const collections = await this.prisma.collection.count({
-                    where: { ownerId: collector.id },
+                    where: {
+                        ownerId: collector.id,
+                        createdAt: { gte: weekStart, lte: weekEnd },
+                    },
                 });
                 return {
                     collector,

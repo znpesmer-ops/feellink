@@ -3,13 +3,13 @@ export declare class NotificationPreferencesController {
     private notificationsService;
     constructor(notificationsService: NotificationsService);
     getMyPrefs(user: any): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
-        userId: string;
-        comment: boolean;
-        like: boolean;
         follow: boolean;
+        userId: string;
+        like: boolean;
+        comment: boolean;
         mention: boolean;
     }>;
     updatePrefs(user: any, body: {
@@ -18,13 +18,13 @@ export declare class NotificationPreferencesController {
         like?: boolean;
         comment?: boolean;
     }): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         updatedAt: Date;
-        userId: string;
-        comment: boolean;
-        like: boolean;
         follow: boolean;
+        userId: string;
+        like: boolean;
+        comment: boolean;
         mention: boolean;
     }>;
 }

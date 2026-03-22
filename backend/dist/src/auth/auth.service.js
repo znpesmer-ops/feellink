@@ -302,6 +302,22 @@ let AuthService = AuthService_1 = class AuthService {
             this.logger.warn(`[LOGIN] User not found or password invalid for: ${loginIdentifier}`);
             throw new common_1.UnauthorizedException('E-posta veya şifre hatalı');
         }
+        if (user.isDeleted === true || user.deletedAt) {
+            const deletedAt = user.deletedAt ? new Date(user.deletedAt) : null;
+            const daysSinceDeleted = deletedAt ? (Date.now() - deletedAt.getTime()) / (24 * 60 * 60 * 1000) : Infinity;
+            const RESTORE_GRACE_DAYS = 14;
+            if (daysSinceDeleted > RESTORE_GRACE_DAYS) {
+                this.logger.warn(`[LOGIN] Permanently deleted account: ${user.email || user.username}`);
+                throw new common_1.UnauthorizedException('Hesap kalıcı olarak silinmiş.');
+            }
+            this.logger.log(`[LOGIN] Deleted account within grace period: ${user.email || user.username}, restore available`);
+            return {
+                status: 'DELETED_ACCOUNT',
+                restoreAvailable: true,
+                deletedAt: user.deletedAt,
+                message: 'Hesabınız silinmiş. 14 gün içinde geri yükleyebilirsiniz.',
+            };
+        }
         if (user.isVerified === false) {
             this.logger.warn(`[LOGIN] Email not verified for: ${user.email || user.username}`);
             throw new common_1.UnauthorizedException({
@@ -366,6 +382,20 @@ let AuthService = AuthService_1 = class AuthService {
         if (!user) {
             throw new common_1.UnauthorizedException('Kurumsal hesap bulunamadı veya yetkisiz.');
         }
+        if (user.isDeleted === true || user.deletedAt) {
+            const deletedAt = user.deletedAt ? new Date(user.deletedAt) : null;
+            const daysSinceDeleted = deletedAt ? (Date.now() - deletedAt.getTime()) / (24 * 60 * 60 * 1000) : Infinity;
+            const RESTORE_GRACE_DAYS = 14;
+            if (daysSinceDeleted > RESTORE_GRACE_DAYS) {
+                throw new common_1.UnauthorizedException('Hesap kalıcı olarak silinmiş.');
+            }
+            return {
+                status: 'DELETED_ACCOUNT',
+                restoreAvailable: true,
+                deletedAt: user.deletedAt,
+                message: 'Hesabınız silinmiş. 14 gün içinde geri yükleyebilirsiniz.',
+            };
+        }
         if (user.isVerified === false) {
             throw new common_1.UnauthorizedException({
                 message: 'Lütfen e-posta adresinizi doğrulayın. Size gönderilen kodu kullanın veya yeniden kod gönderin.',
@@ -392,6 +422,45 @@ let AuthService = AuthService_1 = class AuthService {
         catch {
             return false;
         }
+    }
+    async restoreAccount(loginDto) {
+        const user = await this.validateUser(loginDto);
+        if (!user) {
+            throw new common_1.UnauthorizedException('E-posta veya şifre hatalı');
+        }
+        if (user.isDeleted !== true && !user.deletedAt) {
+            throw new common_1.BadRequestException('Hesap zaten aktif.');
+        }
+        const deletedAt = user.deletedAt ? new Date(user.deletedAt) : null;
+        const daysSinceDeleted = deletedAt ? (Date.now() - deletedAt.getTime()) / (24 * 60 * 60 * 1000) : Infinity;
+        if (daysSinceDeleted > AuthService_1.RESTORE_GRACE_DAYS) {
+            throw new common_1.UnauthorizedException('Hesap kalıcı olarak silinmiş. Geri yükleme süresi doldu.');
+        }
+        await this.prisma.user.update({
+            where: { id: user.id },
+            data: {
+                isDeleted: false,
+                deletedAt: null,
+                deletedBy: null,
+                accountStatus: 'ACTIVE',
+            },
+        });
+        await this.prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+        const tokens = await this.generateTokens(user.id);
+        const restoredUser = await this.prisma.user.findUnique({
+            where: { id: user.id },
+            select: { ...this.authSelect },
+        });
+        if (!restoredUser) {
+            throw new common_1.UnauthorizedException('Hesap geri yüklendi ancak kullanıcı bilgisi alınamadı.');
+        }
+        const payload = this.hydrateAuthUser(restoredUser);
+        const needsRoleSelection = (restoredUser.roles?.length ?? 0) === 0;
+        return {
+            ...payload,
+            ...tokens,
+            needsRoleSelection,
+        };
     }
     async generateTokens(userId) {
         const accessToken = this.jwtService.sign({ userId }, {
@@ -467,6 +536,20 @@ let AuthService = AuthService_1 = class AuthService {
         const user = await this.validateUser(loginDto);
         if (!user) {
             throw new common_1.UnauthorizedException('Invalid credentials');
+        }
+        if (user.isDeleted === true || user.deletedAt) {
+            const deletedAt = user.deletedAt ? new Date(user.deletedAt) : null;
+            const daysSinceDeleted = deletedAt ? (Date.now() - deletedAt.getTime()) / (24 * 60 * 60 * 1000) : Infinity;
+            const RESTORE_GRACE_DAYS = 14;
+            if (daysSinceDeleted > RESTORE_GRACE_DAYS) {
+                throw new common_1.UnauthorizedException('Hesap kalıcı olarak silinmiş.');
+            }
+            return {
+                status: 'DELETED_ACCOUNT',
+                restoreAvailable: true,
+                deletedAt: user.deletedAt,
+                message: 'Hesabınız silinmiş. 14 gün içinde geri yükleyebilirsiniz.',
+            };
         }
         if (user.isVerified === false) {
             throw new common_1.UnauthorizedException({
@@ -568,6 +651,8 @@ let AuthService = AuthService_1 = class AuthService {
                     suspensionReason: true,
                     scheduledDeletionAt: true,
                     isVerified: true,
+                    isDeleted: true,
+                    deletedAt: true,
                 },
             });
             if (!userByEmail) {
@@ -588,6 +673,8 @@ let AuthService = AuthService_1 = class AuthService {
                         suspensionReason: true,
                         scheduledDeletionAt: true,
                         isVerified: true,
+                        isDeleted: true,
+                        deletedAt: true,
                     },
                 });
             }
@@ -609,6 +696,8 @@ let AuthService = AuthService_1 = class AuthService {
                         suspensionReason: true,
                         scheduledDeletionAt: true,
                         isVerified: true,
+                        isDeleted: true,
+                        deletedAt: true,
                     },
                 });
                 if (!userByUsername) {
@@ -629,6 +718,8 @@ let AuthService = AuthService_1 = class AuthService {
                             suspensionReason: true,
                             scheduledDeletionAt: true,
                             isVerified: true,
+                            isDeleted: true,
+                            deletedAt: true,
                         },
                     });
                 }
@@ -681,12 +772,21 @@ let AuthService = AuthService_1 = class AuthService {
             where: { id: userId },
             select: {
                 ...this.authSelect,
+                accountStatus: true,
+                isDeleted: true,
             },
         });
         if (!user) {
             throw new common_1.UnauthorizedException('User not found');
         }
-        return this.hydrateAuthUser(user);
+        if (user.isDeleted === true || user.accountStatus === 'PENDING_DELETION') {
+            throw new common_1.UnauthorizedException('ACCOUNT_PENDING_DELETION');
+        }
+        if (user.accountStatus === 'SUSPENDED') {
+            throw new common_1.ForbiddenException('ACCOUNT_SUSPENDED');
+        }
+        const { accountStatus: _, isDeleted: __, ...safeUser } = user;
+        return this.hydrateAuthUser(safeUser);
     }
     async verifyAndMigratePassword(plainPassword, user) {
         const storedHash = user.password;
@@ -1003,6 +1103,7 @@ let AuthService = AuthService_1 = class AuthService {
     }
 };
 exports.AuthService = AuthService;
+AuthService.RESTORE_GRACE_DAYS = 14;
 exports.AuthService = AuthService = AuthService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,

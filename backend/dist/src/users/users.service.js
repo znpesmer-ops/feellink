@@ -108,6 +108,7 @@ let UsersService = class UsersService {
                             city: true,
                             gender: true,
                             showProfileColorSignature: true,
+                            isDeleted: true,
                             _count: {
                                 select: {
                                     posts: true,
@@ -127,11 +128,12 @@ let UsersService = class UsersService {
                     select: {
                         id: true,
                         username: true,
+                        isDeleted: true,
                     },
                 });
                 const normalizedSearch = username.toLowerCase().trim();
                 console.log('[getProfile] Searching for normalized username:', normalizedSearch);
-                const foundUser = allUsers.find((u) => u.username?.toLowerCase().trim() === normalizedSearch);
+                const foundUser = allUsers.find((u) => u.username?.toLowerCase().trim() === normalizedSearch && u.isDeleted !== true);
                 console.log('[getProfile] Found user:', foundUser ? foundUser.username : 'NOT FOUND');
                 if (foundUser) {
                     console.log('[getProfile] Fetching full profile for ID:', foundUser.id);
@@ -156,6 +158,7 @@ let UsersService = class UsersService {
                             city: true,
                             gender: true,
                             showProfileColorSignature: true,
+                            isDeleted: true,
                             _count: {
                                 select: {
                                     posts: true,
@@ -168,6 +171,9 @@ let UsersService = class UsersService {
                 }
             }
             if (!user) {
+                throw new common_1.NotFoundException('Kullanıcı bulunamadı. Lütfen kullanıcı adını kontrol edin.');
+            }
+            if (user.isDeleted === true) {
                 throw new common_1.NotFoundException('Kullanıcı bulunamadı. Lütfen kullanıcı adını kontrol edin.');
             }
             if (!user.id) {
@@ -342,8 +348,9 @@ let UsersService = class UsersService {
                 roles: user.roles,
                 activeRole
             });
+            const { isDeleted: _omit, ...userSafe } = user;
             return {
-                ...user,
+                ...userSafe,
                 isAdmin: userIsAdmin,
                 avatar: transformAvatarUrl(user.avatar),
                 isFollowing,
@@ -842,6 +849,7 @@ let UsersService = class UsersService {
                 fullName: true,
                 avatar: true,
                 isVerified: true,
+                roles: true,
             },
             take: 20,
         });
@@ -881,6 +889,7 @@ let UsersService = class UsersService {
             avatar: getAvatarUrl(u.avatar),
             avatarUrl: getAvatarUrl(u.avatar),
             isVerified: u.isVerified,
+            roles: u.roles,
         }));
     }
     async getHighlights(userId) {
@@ -904,6 +913,7 @@ let UsersService = class UsersService {
                 fullName: true,
                 avatar: true,
                 isVerified: true,
+                roles: true,
             },
             take: 20,
         });
@@ -919,6 +929,7 @@ let UsersService = class UsersService {
                     fullName: true,
                     avatar: true,
                     isVerified: true,
+                    roles: true,
                 },
                 take: 10,
             });
@@ -1546,8 +1557,19 @@ let UsersService = class UsersService {
         if (!user) {
             throw new common_1.NotFoundException('Kullanıcı bulunamadı');
         }
-        if (user.isPrivate && currentUserId !== user.id) {
-            throw new common_1.ForbiddenException('Bu profil gizli; analiz yalnızca profil sahibi tarafından görüntülenebilir.');
+        const isOwnProfile = currentUserId === user.id;
+        if (user.isPrivate && !isOwnProfile) {
+            const acceptedFollow = await this.prisma.follow.findUnique({
+                where: {
+                    followerId_followingId: {
+                        followerId: currentUserId,
+                        followingId: user.id,
+                    },
+                },
+            });
+            if (!acceptedFollow) {
+                throw new common_1.ForbiddenException('Bu hesabın analiz bilgileri yalnızca takipçilerine açıktır.');
+            }
         }
         const posts = await this.prisma.post.findMany({
             where: { userId: user.id, isDeleted: false },

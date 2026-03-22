@@ -172,7 +172,7 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
             color: 'from-[#f59e0b]/80 to-[#fcd34d]/60'
           },
         ])
-        // ✅ Ayın Yazarları için fallback kaldırıldı - backend'den dinamik gelecek
+        // ✅ Aktif yazarlar için fallback kaldırıldı - backend'den dinamik gelecek
         setAuthors([])
         setTopLikedArticles([])
       }
@@ -295,11 +295,11 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
           </>
         ) : (
           <>
-            {/* 🏛️ Ayın Müzeleri - Her zaman 2x2 grid (4 slot) - Kurumsal hesaplar otomatik hesaplanan */}
+            {/* 🏛️ Haftanın Müzeleri - Her zaman 2x2 grid (4 slot) - Kurumsal hesaplar otomatik hesaplanan */}
             <div className="w-full">
               {/* 🔥 KRİTİK: Başlık font boyutu artırıldı - daha profesyonel görünüm */}
               <h3 className="text-xl font-semibold mb-5 mt-0 bg-gradient-to-r from-brand-orange to-brand-blue bg-clip-text text-transparent dark:from-orange-400 dark:to-blue-400 tracking-[0.06em] uppercase" style={{ fontWeight: 600, letterSpacing: '0.3px' }}>
-                Ayın Müzeleri
+                Haftanın Müzeleri
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 {Array.from({ length: 4 }, (_, i) => {
@@ -389,7 +389,7 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
           </div>
         )}
 
-        {/* ✍️ Aktif Yazarlar - 2x2 Grid (Ayın Müzeleri ile aynı yapı) */}
+        {/* ✍️ Aktif Yazarlar - 2x2 Grid (Haftanın Müzeleri ile aynı yapı) */}
         <div className="bg-white rounded-2xl p-4 shadow-[0_6px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)] border dark:border-white/6" data-dark-bg="rgba(255,255,255,0.04)">
         {/* 🔥 KRİTİK: Başlık font boyutu artırıldı - daha profesyonel görünüm */}
           <h3 className="text-xl font-semibold mb-5 mt-0 bg-gradient-to-r from-brand-orange to-brand-blue bg-clip-text text-transparent dark:from-orange-400 dark:to-blue-400 tracking-[0.06em] uppercase" style={{ fontWeight: 600, letterSpacing: '0.3px' }}>

@@ -11,9 +11,9 @@ export declare class JwtStrategy extends JwtStrategy_base {
     }): Promise<{
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         badges: string[];
-        email: string;
         id: string;
         username: string;
+        email: string;
         fullName: string;
         bio: string;
         avatar: string;

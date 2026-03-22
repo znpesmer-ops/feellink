@@ -27,11 +27,11 @@ export declare class ReportsController {
                 avatar: string;
             };
         } & {
-            createdAt: Date;
             id: string;
+            createdAt: Date;
             status: string;
-            conversationId: string;
             messageId: string;
+            conversationId: string;
             reason: import(".prisma/client").$Enums.ReportReason;
             note: string;
             reportedUserId: string;
@@ -56,11 +56,11 @@ export declare class ReportsController {
             avatar: string;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         status: string;
-        conversationId: string;
         messageId: string;
+        conversationId: string;
         reason: import(".prisma/client").$Enums.ReportReason;
         note: string;
         reportedUserId: string;
@@ -76,18 +76,18 @@ export declare class ReportsController {
             avatar: string;
         };
         reporter: {
-            email: string;
             id: string;
             username: string;
+            email: string;
             fullName: string;
             avatar: string;
         };
     } & {
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         status: string;
-        conversationId: string;
         messageId: string;
+        conversationId: string;
         reason: import(".prisma/client").$Enums.ReportReason;
         note: string;
         reportedUserId: string;

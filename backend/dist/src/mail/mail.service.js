@@ -634,6 +634,52 @@ Feellink Ekibi`;
             throw error;
         }
     }
+    async sendEvent2HourReminder(params) {
+        const mailMode = process.env.MAIL_MODE || 'dev';
+        if (!this.isProductionMailMode()) {
+            this.logger.log(`[DEV] 2h reminder mail atlandı (MAIL_MODE=${mailMode}). to=${params.to}: ${params.eventTitle}`);
+            return;
+        }
+        if (!this.transporter) {
+            this.logger.warn('Mail transporter not configured. Skipping 2h reminder.');
+            return;
+        }
+        const mailFromName = process.env.MAIL_FROM_NAME || 'feellink';
+        const mailFrom = process.env.MAIL_FROM || 'info@feellink.io';
+        const from = `"${mailFromName}" <${mailFrom}>`;
+        const subject = `Etkinlik birazdan başlıyor: ${params.eventTitle}`;
+        const eventTime = params.eventDate.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        const eventDateOnly = params.eventDate.toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' });
+        const html = `
+      <!DOCTYPE html>
+      <html lang="tr">
+      <body style="margin:0;padding:0;background:#f5f7fa;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f5f7fa;padding:40px 0;">
+        <tr><td align="center">
+            <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px;padding:24px 40px;border:1px solid #e8e8e8;box-shadow:0 4px 12px rgba(0,0,0,0.12);">
+              <tr><td align="center" style="padding:12px 0 8px 0;"><img src="${this.logoUrl}" width="100" alt="feellink" style="display:block" /></td></tr>
+              <tr><td style="padding:0;"><div style="height:6px;width:100%;border-radius:4px;background:linear-gradient(90deg,#F28C28,#2A72FF);"></div></td></tr>
+              <tr><td align="center" style="padding-top:28px;"><h1 style="margin:0;font-size:22px;color:#222;font-weight:700;font-family:Arial,Helvetica,sans-serif;">Etkinlik birazdan başlıyor</h1></td></tr>
+              <tr><td style="padding-top:18px;"><p style="margin:0;font-size:15px;color:#444;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">Merhaba ${params.name || ''},<br><br>Hatırlatma: Katıldığınız etkinlik <strong>2 saat sonra</strong> başlayacak.</p></td></tr>
+              <tr><td style="padding-top:20px;"><div style="background:#f8f9fa;border-radius:8px;padding:16px;border-left:4px solid #F28C28;"><p style="margin:0 0 8px 0;font-size:14px;color:#666;font-family:Arial,Helvetica,sans-serif;"><strong style="color:#222;">Etkinlik:</strong> ${params.eventTitle}</p><p style="margin:0 0 8px 0;font-size:14px;color:#666;font-family:Arial,Helvetica,sans-serif;"><strong style="color:#222;">Tarih:</strong> ${eventDateOnly}</p><p style="margin:0 0 8px 0;font-size:14px;color:#666;font-family:Arial,Helvetica,sans-serif;"><strong style="color:#222;">Saat:</strong> ${eventTime}</p>${params.location ? `<p style="margin:0;font-size:14px;color:#666;font-family:Arial,Helvetica,sans-serif;"><strong style="color:#222;">Konum:</strong> ${params.location}</p>` : ''}</div></td></tr>
+              <tr><td align="center" style="padding:30px 0 10px 0;"><a href="${params.eventUrl}" style="background:#F28C28;color:#ffffff;padding:14px 34px;border-radius:30px;font-size:16px;font-weight:600;text-decoration:none;font-family:Arial,Helvetica,sans-serif;display:inline-block;">Etkinliği Aç</a></td></tr>
+              <tr><td style="padding-top:24px;"><hr style="border:none;border-top:1px solid #eaeaea;"></td></tr>
+              <tr><td align="center" style="padding-top:12px;"><p style="margin:0;font-size:12px;color:#999;font-family:Arial,Helvetica,sans-serif;line-height:1.5;"><strong>Feellink</strong> – Sanat daha anlamlı.</p></td></tr>
+            </table>
+        </td></tr>
+      </table>
+      </body>
+      </html>`;
+        const text = `Merhaba ${params.name || ''},\n\nHatırlatma: Katıldığınız etkinlik 2 saat sonra başlayacak.\n\nEtkinlik: ${params.eventTitle}\nTarih: ${eventDateOnly}\nSaat: ${eventTime}\n${params.location ? `Konum: ${params.location}\n` : ''}\nEtkinlik sayfası: ${params.eventUrl}\n\nFeellink`;
+        try {
+            await this.transporter.sendMail({ from, to: params.to, subject, text, html });
+            this.logger.log(`✅ 2h reminder email sent to ${params.to} for event: ${params.eventTitle}`);
+        }
+        catch (error) {
+            this.logger.error(`❌ Failed to send 2h reminder to ${params.to}:`, error);
+            throw error;
+        }
+    }
     async sendEventReminder(params) {
         if (!this.transporter) {
             this.logger.warn('Mail transporter not configured. Skipping email send.');

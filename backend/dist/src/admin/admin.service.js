@@ -350,6 +350,7 @@ let AdminService = class AdminService {
                     accountStatus: 'SUSPENDED',
                 },
             });
+            await this.prisma.refreshToken.deleteMany({ where: { userId } });
             await this.prisma.auditLog.create({
                 data: {
                     actorId,
@@ -984,6 +985,9 @@ let AdminService = class AdminService {
                 suspensionReason: true,
             },
         });
+        await this.prisma.refreshToken.deleteMany({
+            where: { userId },
+        });
         return { success: true, message: 'User suspended', user: updated };
     }
     async unsuspendUser(userId) {
@@ -1004,6 +1008,9 @@ let AdminService = class AdminService {
                 suspendedUntil: true,
                 suspensionReason: true,
             },
+        });
+        await this.prisma.refreshToken.deleteMany({
+            where: { userId },
         });
         return { success: true, message: 'User unsuspended', user: updated };
     }

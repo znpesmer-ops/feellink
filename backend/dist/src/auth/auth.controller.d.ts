@@ -28,6 +28,11 @@ export declare class AuthController {
     }>;
     login(loginDto: LoginDto, res: Response): Promise<any>;
     corporateLogin(loginDto: LoginDto, res: Response): Promise<{
+        status: string;
+        restoreAvailable: boolean;
+        deletedAt: any;
+        message: string;
+    } | {
         needsRoleSelection: boolean;
         accessToken: string;
         refreshToken: string;
@@ -62,9 +67,58 @@ export declare class AuthController {
             features: string[];
         };
         sidebar: import("../roles/roles.types").SidebarVisibility;
+        status?: undefined;
+        restoreAvailable?: undefined;
+        deletedAt?: undefined;
+        message?: undefined;
     }>;
     loginUnified(loginDto: LoginDto, res: Response): Promise<{
+        status: string;
+        restoreAvailable: boolean;
+        deletedAt: any;
+        message: string;
+    } | {
         reactivated: boolean;
+        needsRoleSelection: boolean;
+        accessToken: string;
+        refreshToken: string;
+        user: {
+            id: any;
+            username: any;
+            email: any;
+            fullName: any;
+            avatar: any;
+            bio: any;
+            roles: import("../roles/roles.types").UserRoleCode[];
+            extras: string[];
+            plan: import("../roles/roles.types").SubscriptionPlanCode;
+            badges: string[];
+            isPrivate: any;
+            isVerified: any;
+            isAdmin: any;
+            superAdmin: any;
+            createdAt: any;
+            activeRole: string;
+            profileCompleted: any;
+            dateOfBirth: any;
+            country: any;
+            city: any;
+            gender: any;
+        };
+        capabilities: import("../roles/roles.types").CapabilitySummary;
+        dashboard: {
+            role: string;
+            plan: "pro";
+            title: string;
+            features: string[];
+        };
+        sidebar: import("../roles/roles.types").SidebarVisibility;
+        status?: undefined;
+        restoreAvailable?: undefined;
+        deletedAt?: undefined;
+        message?: undefined;
+    }>;
+    restoreAccount(loginDto: LoginDto, res: Response): Promise<{
         needsRoleSelection: boolean;
         accessToken: string;
         refreshToken: string;

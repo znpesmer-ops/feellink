@@ -112,6 +112,56 @@ let EventsReminderService = EventsReminderService_1 = class EventsReminderServic
             this.logger.error('❌ Error in send24HourReminders cron job:', error);
         }
     }
+    async send2HourReminders() {
+        try {
+            const now = new Date();
+            const windowStart = new Date(now.getTime() + 110 * 60 * 1000);
+            const windowEnd = new Date(now.getTime() + 130 * 60 * 1000);
+            const targets = await this.prisma.eventParticipant.findMany({
+                where: {
+                    status: 'APPROVED',
+                    reminder2hSentAt: null,
+                    event: {
+                        date: { gte: windowStart, lt: windowEnd },
+                        isDeleted: false,
+                        deletedAt: null,
+                    },
+                },
+                include: {
+                    user: { select: { email: true, fullName: true } },
+                    event: { select: { id: true, title: true, date: true, location: true } },
+                },
+                take: 200,
+            });
+            if (!targets.length)
+                return;
+            this.logger.log(`📧 Found ${targets.length} participants for 2-hour reminders`);
+            const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+            for (const target of targets) {
+                try {
+                    await this.mailService.sendEvent2HourReminder({
+                        to: target.user.email,
+                        name: target.user.fullName || '',
+                        eventTitle: target.event.title,
+                        eventDate: target.event.date,
+                        location: target.event.location || undefined,
+                        eventUrl: `${baseUrl}/events/${target.event.id}`,
+                    });
+                    await this.prisma.eventParticipant.update({
+                        where: { id: target.id },
+                        data: { reminder2hSentAt: new Date() },
+                    });
+                    this.logger.log(`✅ 2h reminder sent to ${target.user.email} for event: ${target.event.title}`);
+                }
+                catch (err) {
+                    this.logger.error(`❌ 2h reminder failed: participant=${target.id} event=${target.event.id}`, err);
+                }
+            }
+        }
+        catch (error) {
+            this.logger.error('Error in send2HourReminders cron job:', error);
+        }
+    }
     async send30MinReminders() {
         try {
             const now = new Date();
@@ -184,6 +234,12 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], EventsReminderService.prototype, "send24HourReminders", null);
+__decorate([
+    (0, schedule_1.Cron)('*/5 * * * *'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], EventsReminderService.prototype, "send2HourReminders", null);
 __decorate([
     (0, schedule_1.Cron)('*/1 * * * *'),
     __metadata("design:type", Function),

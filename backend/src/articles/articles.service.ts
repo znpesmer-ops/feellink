@@ -716,13 +716,25 @@ export class ArticlesService {
   /**
    * En Çok Beğenilen Yazarlar - En çok görüntülenen (views) yazıların yazarları
    * Aynı yazar birden fazla yazıda olsa bile tek satır
+   * @param range verilirse sadece bu tarih aralığında oluşturulmuş yazılar dikkate alınır (ana sayfa haftalık sidebar)
    */
-  async getTopLikedAuthors(limit: number = 4) {
+  async getTopLikedAuthors(
+    limit: number = 4,
+    range?: { start: Date; end: Date },
+  ) {
     // 1) Published yazıları views'a göre sırala
     // authorId zaten required field olduğu için null olamaz, filtrelemeye gerek yok
     const articles = await this.prisma.article.findMany({
       where: {
         isPublished: true,
+        ...(range
+          ? {
+              createdAt: {
+                gte: range.start,
+                lte: range.end,
+              },
+            }
+          : {}),
       },
       select: {
         id: true,

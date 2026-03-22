@@ -53,15 +53,15 @@ export default function HighlightsRow({ compactTop = false }: HighlightsRowProps
     if (!item.data) return null
 
     switch (item.id) {
-      case 1: // Ayın Müzesi
+      case 1: // Haftanın Müzesi
         return featured.museum?.username ? `/profile/${featured.museum.username}` : null
-      case 2: // Ayın Eseri
+      case 2: // Haftanın Eseri
         return featured.artwork?.postId ? `/feed?post=${featured.artwork.postId}` : null
-      case 3: // Ayın Yorumu
+      case 3: // Haftanın Yorumu
         return featured.comment?.postId && featured.comment?.commentId
           ? `/feed?post=${featured.comment.postId}&comment=${featured.comment.commentId}`
           : null
-      case 4: // Ayın Koleksiyoneri
+      case 4: // Haftanın Koleksiyoneri
         return featured.collector?.username ? `/profile/${featured.collector.username}` : null
       default:
         return null
@@ -72,7 +72,7 @@ export default function HighlightsRow({ compactTop = false }: HighlightsRowProps
   const highlights = [
     {
       id: 1,
-      title: 'Ayın Müzesi',
+      title: 'Haftanın Müzesi',
       subtitle: featured.museum?.name || '—',
       icon: <Landmark size={20} strokeWidth={1.8} />,
       data: featured.museum,
@@ -80,7 +80,7 @@ export default function HighlightsRow({ compactTop = false }: HighlightsRowProps
     },
     {
       id: 2,
-      title: 'Ayın Eseri',
+      title: 'Haftanın Eseri',
       subtitle: featured.artwork?.title || '—',
       icon: <ImageIcon size={20} strokeWidth={1.8} />,
       data: featured.artwork,
@@ -88,7 +88,7 @@ export default function HighlightsRow({ compactTop = false }: HighlightsRowProps
     },
     {
       id: 3,
-      title: 'Ayın Yorumu',
+      title: 'Haftanın Yorumu',
       subtitle: featured.comment
         ? `"${featured.comment.text.length > 30 ? featured.comment.text.substring(0, 30) + '...' : featured.comment.text}"`
         : '—',
@@ -98,7 +98,7 @@ export default function HighlightsRow({ compactTop = false }: HighlightsRowProps
     },
     {
       id: 4,
-      title: 'Ayın Koleksiyoneri',
+      title: 'Haftanın Koleksiyoneri',
       subtitle: featured.collector?.name || '—',
       icon: <Palette size={20} strokeWidth={1.8} />,
       data: featured.collector,
@@ -120,7 +120,7 @@ export default function HighlightsRow({ compactTop = false }: HighlightsRowProps
   return (
     <section className={`w-full ${compactTop ? 'mt-0' : ''}`}>
       <h2 className="text-lg md:text-xl font-semibold bg-gradient-to-r from-brand-orange to-brand-blue bg-clip-text text-transparent dark:from-orange-400 dark:to-blue-400 mt-0 mb-4 md:mb-6 tracking-wide">
-        Ayın Öne Çıkanları
+        Haftanın Öne Çıkanları
       </h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
@@ -131,7 +131,7 @@ export default function HighlightsRow({ compactTop = false }: HighlightsRowProps
             )
           }
 
-          // Ayın Yorumu için özel görsel yoksa placeholder
+          // Haftanın Yorumu için özel görsel yoksa placeholder
           const displayImage = item.imageUrl || (item.id === 3 ? null : null)
           const fallbackBg = item.id === 1 
             ? 'bg-gradient-to-br from-orange-500/20 to-orange-600/30'
@@ -143,7 +143,7 @@ export default function HighlightsRow({ compactTop = false }: HighlightsRowProps
 
           const cardUrl = getCardUrl(item)
           
-          // Tüm kartlar aynı yapıyı kullanır (Ayın Yorumu dahil)
+          // Tüm kartlar aynı yapıyı kullanır (Haftanın Yorumu dahil)
           const CardContent = (
             <div className="relative w-full h-[140px] md:h-[160px] rounded-[14px] overflow-hidden bg-gray-900 dark:bg-[#111] border border-[rgba(255,140,0,0.35)] dark:border-[rgba(255,140,0,0.15)] shadow-sm hover:shadow-lg hover:shadow-brand-orange/20 transition-all hover:-translate-y-1 group cursor-pointer">
               {/* Görsel veya Gradient Background */}
@@ -162,7 +162,7 @@ export default function HighlightsRow({ compactTop = false }: HighlightsRowProps
 
               {/* Yazılar - En altta overlay içinde */}
               {item.id === 3 ? (
-                // Ayın Yorumu için özel format: Başlık üstte (diğer kartlarla aynı hizada), kullanıcı adı altında, yorum metni ortada
+                // Haftanın Yorumu için özel format: Başlık üstte (diğer kartlarla aynı hizada), kullanıcı adı altında, yorum metni ortada
                 <>
                   {/* Başlık - Diğer kartlarla birebir aynı bottom padding ve hiza */}
                   <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4">

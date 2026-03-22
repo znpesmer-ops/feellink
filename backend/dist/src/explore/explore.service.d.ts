@@ -12,8 +12,8 @@ export declare class ExploreService {
         hasMore: boolean;
     }>;
     searchHashtags(query: string, limit?: number): Promise<{
-        createdAt: Date;
         id: string;
+        createdAt: Date;
         name: string;
         postCount: number;
     }[]>;
@@ -32,17 +32,17 @@ export declare class ExploreService {
                 comments: number;
                 likes: number;
             };
-            createdAt: Date;
             id: string;
-            code: string;
             isDeleted: boolean;
             deletedAt: Date;
+            createdAt: Date;
             updatedAt: Date;
             userId: string;
             type: string;
+            caption: string;
             title: string;
             location: string;
-            caption: string;
+            code: string;
             colors: string[];
             colorPalette: string[];
         }[];
