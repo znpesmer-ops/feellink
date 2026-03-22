@@ -12,6 +12,7 @@ import CreateEventModal from "@/components/events/CreateEventModal";
 import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import toast from "react-hot-toast";
 import { resolveImageUrl } from "@/lib/resolveImageUrl";
+import { formatTry } from "@/lib/formatCurrency";
 
 interface Event {
   id: string;
@@ -20,6 +21,9 @@ interface Event {
   coverImage?: string;
   date: string;
   participantCount: number;
+  approvedParticipantsCount?: number;
+  capacity?: number | null;
+  maxParticipants?: number | null;
   tickets?: { price: number }[];
   price?: number;
   isFree?: boolean;
@@ -36,6 +40,37 @@ interface Event {
     userId: string;
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
   }[];
+}
+
+function getApprovedCount(ev: Event): number {
+  return ev.approvedParticipantsCount ?? ev.participantCount ?? 0;
+}
+
+function getCapacity(ev: Event): number | null {
+  const c = ev.capacity ?? ev.maxParticipants;
+  if (c == null || c <= 0) return null;
+  return c;
+}
+
+function participantLine(ev: Event): string {
+  const a = getApprovedCount(ev);
+  const cap = getCapacity(ev);
+  if (cap != null) return `Katılımcı: ${a}/${cap}`;
+  return `${a} · Sınırsız`;
+}
+
+function isEventFull(ev: Event): boolean {
+  const cap = getCapacity(ev);
+  if (cap == null) return false;
+  return getApprovedCount(ev) >= cap;
+}
+
+function talepOlusturLabel(ev: Event): string {
+  if (!ev.isFree && ev.price != null && ev.price > 0) {
+    const p = formatTry(ev.price);
+    return p ? `Talep Oluştur (${p})` : "Talep Oluştur";
+  }
+  return "Talep Oluştur";
 }
 
 export default function EventsPage() {
@@ -382,6 +417,12 @@ export default function EventsPage() {
           )}
         </div>
 
+        <div className="mb-6 rounded-xl border border-gray-200/80 dark:border-gray-700/60 bg-gray-50/80 dark:bg-[#141414]/80 px-4 py-3 text-xs sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+          <p className="max-w-3xl">
+            Ücretli etkinliklerde katılım, ücret ve süreç detayları etkinlik sahibi tarafından paylaşılır. Başvuru sonrası gerekli bilgilendirmeler size doğrudan iletilir.
+          </p>
+        </div>
+
         {/* Filtre Çubuğu - Sadece "Etkinlikler" sekmesinde göster */}
         {activeTab === "all" && filtered.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-8">
@@ -489,7 +530,7 @@ export default function EventsPage() {
                       </div>
 
                       <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 mb-3">
-                        <Users size={14} /> {ev.participantCount || 0} Katılımcı
+                        <Users size={14} /> {participantLine(ev)}
                       </div>
 
                       <div className="flex justify-between items-center gap-2">
@@ -574,13 +615,16 @@ export default function EventsPage() {
                     </div>
 
                     <div className="mt-auto">
-                      <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 mb-3">
+                      <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 mb-2">
                         <Calendar size={14} />
                         {new Date(ev.date).toLocaleDateString("tr-TR", {
                           year: "numeric",
                           month: "long",
                           day: "numeric",
                         })}
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 mb-3">
+                        <Users size={14} /> {participantLine(ev)}
                       </div>
 
                       <div className="flex justify-between items-center">
@@ -601,9 +645,17 @@ export default function EventsPage() {
                             return null; // Onaylanmış etkinliklerde gösterme
                           }
 
+                          if (isEventFull(ev)) {
+                            return (
+                              <span className="text-sm text-gray-500 dark:text-gray-400 cursor-default select-none flex items-center gap-1">
+                                <Ticket size={14} /> Kontenjan doldu
+                              </span>
+                            );
+                          }
+
                           return (
                             <span className="text-sm text-brand-orange cursor-default select-none flex items-center gap-1">
-                              <Ticket size={14} /> Talep Oluştur
+                              <Ticket size={14} /> {talepOlusturLabel(ev)}
                             </span>
                           );
                         })()}

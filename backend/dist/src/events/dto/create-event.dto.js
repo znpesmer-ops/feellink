@@ -69,4 +69,16 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateEventDto.prototype, "ticketUrl", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    (0, class_transformer_1.Transform)(({ value }) => {
+        if (value === null || value === undefined || value === '')
+            return undefined;
+        const num = Number(value);
+        return Number.isFinite(num) ? Math.floor(num) : undefined;
+    }),
+    __metadata("design:type", Number)
+], CreateEventDto.prototype, "maxParticipants", void 0);
 //# sourceMappingURL=create-event.dto.js.map

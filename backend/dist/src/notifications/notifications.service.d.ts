@@ -104,20 +104,20 @@ export declare class NotificationsService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        follow: boolean;
         userId: string;
         like: boolean;
         comment: boolean;
+        follow: boolean;
         mention: boolean;
     }>;
     updatePrefs(userId: string, data: Partial<Record<NotifType, boolean>>): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        follow: boolean;
         userId: string;
         like: boolean;
         comment: boolean;
+        follow: boolean;
         mention: boolean;
     }>;
     isAllowed(toUserId: string, type: NotifType): Promise<boolean>;

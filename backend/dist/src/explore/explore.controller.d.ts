@@ -8,9 +8,9 @@ export declare class ExploreController {
         hasMore: boolean;
     }>;
     searchHashtags(query: string, limit?: string): Promise<{
+        name: string;
         id: string;
         createdAt: Date;
-        name: string;
         postCount: number;
     }[]>;
     getHashtagPosts(user: any, hashtag: string, limit?: string, cursor?: string): Promise<{
@@ -29,6 +29,8 @@ export declare class ExploreController {
                 likes: number;
             };
             id: string;
+            title: string;
+            location: string;
             isDeleted: boolean;
             deletedAt: Date;
             createdAt: Date;
@@ -36,8 +38,6 @@ export declare class ExploreController {
             userId: string;
             type: string;
             caption: string;
-            title: string;
-            location: string;
             code: string;
             colors: string[];
             colorPalette: string[];

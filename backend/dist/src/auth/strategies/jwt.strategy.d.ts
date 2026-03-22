@@ -12,6 +12,7 @@ export declare class JwtStrategy extends JwtStrategy_base {
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         badges: string[];
         id: string;
+        isDeleted: boolean;
         username: string;
         email: string;
         fullName: string;
@@ -23,7 +24,6 @@ export declare class JwtStrategy extends JwtStrategy_base {
         isAdmin: boolean;
         superAdmin: boolean;
         accountStatus: import(".prisma/client").$Enums.AccountStatus;
-        isDeleted: boolean;
     }>;
 }
 export {};

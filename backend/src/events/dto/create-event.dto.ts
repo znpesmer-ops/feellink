@@ -1,4 +1,4 @@
-import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
 export class CreateEventDto {
@@ -44,5 +44,15 @@ export class CreateEventDto {
   @IsString()
   @IsOptional()
   ticketUrl?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Transform(({ value }) => {
+    if (value === null || value === undefined || value === '') return undefined;
+    const num = Number(value);
+    return Number.isFinite(num) ? Math.floor(num) : undefined;
+  })
+  maxParticipants?: number;
 }
 

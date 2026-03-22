@@ -12,9 +12,9 @@ export declare class ExploreService {
         hasMore: boolean;
     }>;
     searchHashtags(query: string, limit?: number): Promise<{
+        name: string;
         id: string;
         createdAt: Date;
-        name: string;
         postCount: number;
     }[]>;
     getHashtagPosts(hashtagName: string, userId: string, limit?: number, cursor?: string): Promise<{
@@ -33,6 +33,8 @@ export declare class ExploreService {
                 likes: number;
             };
             id: string;
+            title: string;
+            location: string;
             isDeleted: boolean;
             deletedAt: Date;
             createdAt: Date;
@@ -40,8 +42,6 @@ export declare class ExploreService {
             userId: string;
             type: string;
             caption: string;
-            title: string;
-            location: string;
             code: string;
             colors: string[];
             colorPalette: string[];

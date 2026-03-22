@@ -27,6 +27,9 @@ export declare class AdminService {
     getUsers(page?: number, limit?: number, search?: string, role?: string, city?: string, gender?: string, ageMin?: number, ageMax?: number): Promise<{
         users: {
             id: string;
+            isDeleted: boolean;
+            deletedAt: Date;
+            createdAt: Date;
             username: string;
             email: string;
             fullName: string;
@@ -52,9 +55,6 @@ export declare class AdminService {
             suspensionReason: string;
             deletionRequestedAt: Date;
             scheduledDeletionAt: Date;
-            isDeleted: boolean;
-            deletedAt: Date;
-            createdAt: Date;
         }[];
         total: number;
         page: number;
@@ -96,14 +96,16 @@ export declare class AdminService {
                 likes: number;
             };
             media: {
+                url: string;
                 id: string;
                 type: string;
                 order: number;
-                url: string;
                 thumbnailUrl: string;
             }[];
         } & {
             id: string;
+            title: string;
+            location: string;
             isDeleted: boolean;
             deletedAt: Date;
             createdAt: Date;
@@ -111,8 +113,6 @@ export declare class AdminService {
             userId: string;
             type: string;
             caption: string;
-            title: string;
-            location: string;
             code: string;
             colors: string[];
             colorPalette: string[];
@@ -134,14 +134,16 @@ export declare class AdminService {
                 likes: number;
             };
             media: {
+                url: string;
                 id: string;
                 type: string;
                 order: number;
-                url: string;
                 thumbnailUrl: string;
             }[];
         } & {
             id: string;
+            title: string;
+            location: string;
             isDeleted: boolean;
             deletedAt: Date;
             createdAt: Date;
@@ -149,8 +151,6 @@ export declare class AdminService {
             userId: string;
             type: string;
             caption: string;
-            title: string;
-            location: string;
             code: string;
             colors: string[];
             colorPalette: string[];
@@ -204,16 +204,16 @@ export declare class AdminService {
             };
         } & {
             id: string;
+            title: string;
+            coverImage: string;
             createdAt: Date;
             updatedAt: Date;
-            title: string;
+            authorId: string;
             content: string;
-            coverImage: string;
             excerpt: string;
             isPublished: boolean;
             scheduledAt: Date;
             views: number;
-            authorId: string;
         })[];
         total: number;
         page: number;
@@ -224,32 +224,33 @@ export declare class AdminService {
     }>;
     getEvents(page?: number, limit?: number): Promise<{
         events: ({
-            _count: {
-                participants: number;
-                tickets: number;
-            };
             owner: {
                 id: string;
                 username: string;
                 avatar: string;
             };
+            _count: {
+                participants: number;
+                tickets: number;
+            };
         } & {
+            date: Date;
+            participantCount: number;
+            maxParticipants: number;
             id: string;
+            title: string;
+            description: string;
+            coverImage: string;
+            ticketUrl: string;
+            price: number;
+            isFree: boolean;
+            location: string;
+            ownerId: string;
+            reminderMailSent: boolean;
             isDeleted: boolean;
             deletedAt: Date;
             createdAt: Date;
             updatedAt: Date;
-            title: string;
-            location: string;
-            date: Date;
-            description: string;
-            coverImage: string;
-            participantCount: number;
-            ticketUrl: string;
-            price: number;
-            isFree: boolean;
-            ownerId: string;
-            reminderMailSent: boolean;
         })[];
         total: number;
         page: number;
@@ -269,11 +270,11 @@ export declare class AdminService {
                 };
             } & {
                 id: string;
+                price: number;
                 createdAt: Date;
                 updatedAt: Date;
-                type: string;
                 eventId: string;
-                price: number;
+                type: string;
                 capacity: number;
                 sold: number;
                 qrCodeUrl: string;
@@ -316,8 +317,8 @@ export declare class AdminService {
         } & {
             id: string;
             createdAt: Date;
-            target: string;
             action: string;
+            target: string;
             meta: Prisma.JsonValue;
             ip: string;
             userAgent: string;
@@ -337,8 +338,8 @@ export declare class AdminService {
     }): Promise<{
         id: string;
         createdAt: Date;
-        target: string;
         action: string;
+        target: string;
         meta: Prisma.JsonValue;
         ip: string;
         userAgent: string;
@@ -420,12 +421,12 @@ export declare class AdminService {
             createdAt: Date;
             updatedAt: Date;
             userId: string;
+            status: string;
             message: string;
             requestedRole: import(".prisma/client").$Enums.UserRole;
-            status: string;
-            reviewedBy: string;
             reviewedAt: Date;
             reviewNote: string;
+            reviewedBy: string;
         })[];
         total: number;
         page: number;

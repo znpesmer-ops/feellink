@@ -7,4 +7,5 @@ export declare class CreateEventDto {
     isFree?: boolean;
     price?: number;
     ticketUrl?: string;
+    maxParticipants?: number;
 }

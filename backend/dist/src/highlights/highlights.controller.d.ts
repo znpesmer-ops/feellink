@@ -9,12 +9,12 @@ export declare class HighlightsController {
         items: ({
             post: {
                 id: string;
-                media: {
-                    type: string;
-                    url: string;
-                }[];
-                caption: string;
                 title: string;
+                caption: string;
+                media: {
+                    url: string;
+                    type: string;
+                }[];
             };
         } & {
             id: string;
@@ -25,28 +25,28 @@ export declare class HighlightsController {
         coverPost: {
             id: string;
             media: {
-                type: string;
                 url: string;
+                type: string;
             }[];
         };
     } & {
         id: string;
+        title: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
-        title: string;
         coverPostId: string;
     })[]>;
     getHighlightsByUsername(username: string): Promise<({
         items: ({
             post: {
                 id: string;
-                media: {
-                    type: string;
-                    url: string;
-                }[];
-                caption: string;
                 title: string;
+                caption: string;
+                media: {
+                    url: string;
+                    type: string;
+                }[];
             };
         } & {
             id: string;
@@ -57,16 +57,16 @@ export declare class HighlightsController {
         coverPost: {
             id: string;
             media: {
-                type: string;
                 url: string;
+                type: string;
             }[];
         };
     } & {
         id: string;
+        title: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
-        title: string;
         coverPostId: string;
     })[]>;
     createHighlight(body: {
@@ -82,16 +82,16 @@ export declare class HighlightsController {
         coverPost: {
             id: string;
             media: {
-                type: string;
                 url: string;
+                type: string;
             }[];
         };
     } & {
         id: string;
+        title: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
-        title: string;
         coverPostId: string;
     }>;
     deleteHighlight(id: string, req: any): Promise<{
@@ -114,10 +114,10 @@ export declare class HighlightsController {
         title: string;
     }, req: any): Promise<{
         id: string;
+        title: string;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
-        title: string;
         coverPostId: string;
     }>;
 }

@@ -179,15 +179,17 @@ export declare class UsersService {
             likes: number;
         };
         media: {
+            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
             order: number;
-            url: string;
             thumbnailUrl: string;
         }[];
         id: string;
+        title: string;
+        location: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
@@ -195,8 +197,6 @@ export declare class UsersService {
         userId: string;
         type: string;
         caption: string;
-        title: string;
-        location: string;
         code: string;
         colors: string[];
         colorPalette: string[];
@@ -216,15 +216,17 @@ export declare class UsersService {
             likes: number;
         };
         media: {
+            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
             order: number;
-            url: string;
             thumbnailUrl: string;
         }[];
         id: string;
+        title: string;
+        location: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
@@ -232,8 +234,6 @@ export declare class UsersService {
         userId: string;
         type: string;
         caption: string;
-        title: string;
-        location: string;
         code: string;
         colors: string[];
         colorPalette: string[];

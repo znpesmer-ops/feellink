@@ -6,10 +6,10 @@ export declare class NotificationPreferencesController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        follow: boolean;
         userId: string;
         like: boolean;
         comment: boolean;
+        follow: boolean;
         mention: boolean;
     }>;
     updatePrefs(user: any, body: {
@@ -21,10 +21,10 @@ export declare class NotificationPreferencesController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        follow: boolean;
         userId: string;
         like: boolean;
         comment: boolean;
+        follow: boolean;
         mention: boolean;
     }>;
 }

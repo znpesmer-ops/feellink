@@ -12,6 +12,7 @@ import DeleteConfirmModal from "@/components/common/DeleteConfirmModal";
 import ApproveParticipantModal from "@/components/events/ApproveParticipantModal";
 import { useAuthStore } from "@/lib/store";
 import { resolveImageUrl } from "@/lib/resolveImageUrl";
+import { formatTry } from "@/lib/formatCurrency";
 
 interface EventComment {
   id: string;
@@ -32,6 +33,9 @@ interface Event {
   coverImage?: string;
   date: string;
   participantCount: number;
+  approvedParticipantsCount?: number;
+  capacity?: number | null;
+  maxParticipants?: number | null;
   ticketUrl?: string;
   createdAt: string;
   ownerId?: string;
@@ -75,6 +79,7 @@ export default function EventDetailPage() {
   const [selectedParticipant, setSelectedParticipant] = useState<{ userId: string; username: string } | null>(null);
   const [isApproving, setIsApproving] = useState(false);
   const [requestStatus, setRequestStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
+  const [paidInfoModalOpen, setPaidInfoModalOpen] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -135,7 +140,7 @@ export default function EventDetailPage() {
     }
   }, [id, event, user]);
 
-  const handleJoin = async () => {
+  const performJoin = async () => {
     setJoining(true);
     try {
       await api.post(`/events/${id}/join`);
@@ -160,6 +165,22 @@ export default function EventDetailPage() {
     } finally {
       setJoining(false);
     }
+  };
+
+  const handleJoinClick = () => {
+    if (!event) return;
+    const cap = event.capacity ?? event.maxParticipants;
+    const approved = event.approvedParticipantsCount ?? event.participantCount ?? 0;
+    if (cap != null && cap > 0 && approved >= cap) {
+      toast.error("Bu etkinliğin kontenjanı dolmuştur.");
+      return;
+    }
+    const isPaidEvent = !event.isFree && (event.price ?? 0) > 0;
+    if (isPaidEvent && requestStatus === 'none') {
+      setPaidInfoModalOpen(true);
+      return;
+    }
+    void performJoin();
   };
 
 
@@ -212,9 +233,17 @@ export default function EventDetailPage() {
       
       if (status === 'APPROVED') {
         toast.success("Talep onaylandı.");
-        // Update participant count
-        if (event) {
-          setEvent({ ...event, participantCount: event.participantCount + 1 });
+        try {
+          const eventRes = await api.get(`/events/${id}`);
+          setEvent(eventRes.data);
+        } catch (_) {
+          if (event) {
+            setEvent({
+              ...event,
+              participantCount: (event.participantCount ?? 0) + 1,
+              approvedParticipantsCount: (event.approvedParticipantsCount ?? event.participantCount ?? 0) + 1,
+            });
+          }
         }
       } else {
         toast.success("Talep reddedildi.");
@@ -268,11 +297,32 @@ export default function EventDetailPage() {
     );
   }
 
-  // Kullanıcının bu etkinlikteki durumu (buton metni requestStatus üzerinden)
   const userParticipant = event.participants?.find(p => p.userId === user?.id);
   const isApproved = requestStatus === 'approved';
-  const joinButtonLabel = requestStatus === 'pending' ? 'Talep Gönderildi' : requestStatus === 'approved' ? 'Katılımcısın' : requestStatus === 'rejected' ? 'Talep Reddedildi' : 'Talep Oluştur';
-  const joinButtonDisabled = joining || requestStatus === 'pending' || requestStatus === 'approved';
+  const cap = event.capacity ?? event.maxParticipants;
+  const approvedCount = event.approvedParticipantsCount ?? event.participantCount ?? 0;
+  const capacityFull = cap != null && cap > 0 && approvedCount >= cap;
+  const isPaidEvent = !event.isFree && (event.price ?? 0) > 0;
+  const paidTryLabel = isPaidEvent && event.price ? formatTry(event.price) : '';
+  const joinButtonLabel =
+    requestStatus === 'pending'
+      ? 'Talep Gönderildi'
+      : requestStatus === 'approved'
+        ? 'Katılımcısın'
+        : requestStatus === 'rejected'
+          ? 'Talep Reddedildi'
+          : capacityFull
+            ? 'Kontenjan doldu'
+            : paidTryLabel
+              ? `Talep Oluştur (${paidTryLabel})`
+              : 'Talep Oluştur';
+  const joinButtonDisabled =
+    joining || requestStatus === 'pending' || requestStatus === 'approved' || capacityFull;
+
+  const participantLineDetail =
+    cap != null && cap > 0
+      ? `Katılımcı: ${approvedCount}/${cap}`
+      : `${approvedCount} · Sınırsız`;
 
   return (
     <div className="flex justify-center gap-10 pt-6 px-6 max-w-7xl mx-auto">
@@ -370,13 +420,17 @@ export default function EventDetailPage() {
                 })}
               </span>
             )}
-            {event.ownerId === user?.id && (
+            {event.ownerId === user?.id ? (
               <button
                 onClick={handleShowParticipants}
                 className="flex items-center gap-1 hover:text-brand-orange transition-colors"
               >
-                <Users size={16} /> {event.participantCount ?? 0} Katılımcı
+                <Users size={16} /> {participantLineDetail}
               </button>
+            ) : (
+              <span className="flex items-center gap-1">
+                <Users size={16} /> {participantLineDetail}
+              </span>
             )}
           </div>
 
@@ -514,7 +568,7 @@ export default function EventDetailPage() {
             {event.ownerId !== user?.id && (
                 <div className="flex flex-col">
                   <button
-                    onClick={handleJoin}
+                    onClick={handleJoinClick}
                     disabled={joinButtonDisabled}
                     className={
                       requestStatus === 'approved'
@@ -661,6 +715,47 @@ export default function EventDetailPage() {
           isOpen={showBuyTicketModal}
           onClose={() => setShowBuyTicketModal(false)}
         />
+      )}
+
+      {/* Ücretli etkinlik talep bilgilendirmesi */}
+      {paidInfoModalOpen && (
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-[60]"
+          onClick={() => !joining && setPaidInfoModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-[#1a1a1a] p-6 rounded-2xl shadow-xl w-full max-w-md mx-4 border border-gray-200 dark:border-gray-700"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+              Ücretli Etkinlik Bilgilendirmesi
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mb-6">
+              Bu etkinlik ücretlidir. Katılım ücreti ve süreç detayları, başvurunuzun ardından etkinlik sahibi tarafından sizinle paylaşılacaktır. Devam ederek etkinlik talebinizi oluşturabilirsiniz.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                disabled={joining}
+                onClick={() => setPaidInfoModalOpen(false)}
+                className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 font-medium text-sm disabled:opacity-50"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                disabled={joining}
+                onClick={async () => {
+                  setPaidInfoModalOpen(false);
+                  await performJoin();
+                }}
+                className="px-4 py-2 rounded-lg bg-brand-orange text-white hover:bg-brand-orange/90 font-medium text-sm disabled:opacity-50"
+              >
+                Talep Oluştur
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ✅ Onay Modal */}

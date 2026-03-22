@@ -59,14 +59,13 @@ export default function ApproveParticipantModal({
             <strong className="text-gray-900 dark:text-white">{participantName}</strong> adlı kullanıcıyı bu etkinliğe katılımcı olarak onaylamak üzeresiniz.
           </p>
           <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-            Onaylanan katılımcılara etkinlik öncesinde bilgilendirme e-postası gönderilecektir.
+            Onay sonrası katılımcıya Feellink üzerinden bildirim ve e-posta ile bilgilendirme gönderilir.
           </p>
         </div>
 
-        {/* Optional Info */}
         <div className="mb-6">
-          <p className="text-xs text-gray-500 dark:text-gray-500 italic">
-            Bu işlem geri alınabilir.
+          <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+            Bu işlem geri alınamaz.
           </p>
         </div>
 

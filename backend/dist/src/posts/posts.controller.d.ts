@@ -28,16 +28,18 @@ export declare class PostsController {
             likes: number;
         };
         media: {
+            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
             order: number;
-            url: string;
             thumbnailUrl: string;
         }[];
     } & {
         id: string;
+        title: string;
+        location: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
@@ -45,8 +47,6 @@ export declare class PostsController {
         userId: string;
         type: string;
         caption: string;
-        title: string;
-        location: string;
         code: string;
         colors: string[];
         colorPalette: string[];
@@ -64,16 +64,18 @@ export declare class PostsController {
             likes: number;
         };
         media: {
+            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
             order: number;
-            url: string;
             thumbnailUrl: string;
         }[];
     } & {
         id: string;
+        title: string;
+        location: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
@@ -81,8 +83,6 @@ export declare class PostsController {
         userId: string;
         type: string;
         caption: string;
-        title: string;
-        location: string;
         code: string;
         colors: string[];
         colorPalette: string[];
@@ -134,9 +134,9 @@ export declare class PostsController {
         };
         hashtags: ({
             hashtag: {
+                name: string;
                 id: string;
                 createdAt: Date;
-                name: string;
                 postCount: number;
             };
         } & {
@@ -165,16 +165,18 @@ export declare class PostsController {
             likes: number;
         };
         media: {
+            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
             order: number;
-            url: string;
             thumbnailUrl: string;
         }[];
     } & {
         id: string;
+        title: string;
+        location: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
@@ -182,8 +184,6 @@ export declare class PostsController {
         userId: string;
         type: string;
         caption: string;
-        title: string;
-        location: string;
         code: string;
         colors: string[];
         colorPalette: string[];
@@ -288,12 +288,12 @@ export declare class PostsController {
             avatar: string;
             isVerified: boolean;
         };
+        location: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
         userId: string;
-        location: string;
         code: string;
         colors: string[];
         colorPalette: string[];
@@ -312,11 +312,11 @@ export declare class PostsController {
         };
         post: {
             id: string;
-            media: {
-                type: string;
-                url: string;
-            }[];
             caption: string;
+            media: {
+                url: string;
+                type: string;
+            }[];
         };
     } & {
         id: string;
@@ -361,15 +361,17 @@ export declare class PostsController {
             isVerified: boolean;
         };
         media: {
+            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
             order: number;
-            url: string;
             thumbnailUrl: string;
         }[];
         id: string;
+        title: string;
+        location: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
@@ -377,8 +379,6 @@ export declare class PostsController {
         userId: string;
         type: string;
         caption: string;
-        title: string;
-        location: string;
         code: string;
         colors: string[];
         colorPalette: string[];

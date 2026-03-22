@@ -17,11 +17,24 @@ const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const limits_service_1 = require("../limits/limits.service");
 const notifications_service_1 = require("../notifications/notifications.service");
+const mail_service_1 = require("../mail/mail.service");
 let EventsService = class EventsService {
-    constructor(prisma, limitsService, notificationsService) {
+    constructor(prisma, limitsService, notificationsService, mailService) {
         this.prisma = prisma;
         this.limitsService = limitsService;
         this.notificationsService = notificationsService;
+        this.mailService = mailService;
+    }
+    mapEventForApi(event) {
+        const count = typeof event.participantCount === 'number' ? event.participantCount : 0;
+        const cap = event.maxParticipants !== undefined && event.maxParticipants !== null
+            ? event.maxParticipants
+            : null;
+        return {
+            ...event,
+            approvedParticipantsCount: count,
+            capacity: cap,
+        };
     }
     async getAllEvents() {
         try {
@@ -48,7 +61,7 @@ let EventsService = class EventsService {
                 },
                 orderBy: { createdAt: 'desc' },
             });
-            return events;
+            return events.map((e) => this.mapEventForApi(e));
         }
         catch (error) {
             console.error('Error fetching events:', error);
@@ -56,17 +69,19 @@ let EventsService = class EventsService {
         }
     }
     async getMyEvents(userId) {
-        return this.prisma.event.findMany({
+        const list = await this.prisma.event.findMany({
             where: { ownerId: userId, isDeleted: false },
             orderBy: { date: 'desc' },
         });
+        return list.map((e) => this.mapEventForApi(e));
     }
     async findByAuthor(authorId) {
-        return this.prisma.event.findMany({
+        const list = await this.prisma.event.findMany({
             where: { ownerId: authorId, isDeleted: false },
             include: { tickets: true },
             orderBy: { createdAt: 'desc' },
         });
+        return list.map((e) => this.mapEventForApi(e));
     }
     async createEvent(userId, dto) {
         await this.limitsService.ensureLimit(userId, 'create_event');
@@ -81,6 +96,9 @@ let EventsService = class EventsService {
                 isFree: dto.isFree ?? true,
                 location: dto.location,
                 ownerId: userId,
+                ...(dto.maxParticipants != null && dto.maxParticipants >= 1
+                    ? { maxParticipants: dto.maxParticipants }
+                    : {}),
             },
         });
     }
@@ -104,6 +122,15 @@ let EventsService = class EventsService {
                 price: data.isFree !== undefined ? (data.isFree ? 0 : (data.price || 0)) : undefined,
                 isFree: data.isFree,
                 location: data.location,
+                ...(data.maxParticipants !== undefined
+                    ? {
+                        maxParticipants: data.maxParticipants === null || data.maxParticipants === undefined
+                            ? null
+                            : data.maxParticipants >= 1
+                                ? data.maxParticipants
+                                : null,
+                    }
+                    : {}),
             },
         });
     }
@@ -142,23 +169,22 @@ let EventsService = class EventsService {
         if (!event || event.isDeleted) {
             throw new common_1.NotFoundException('Event not found');
         }
+        const mapped = this.mapEventForApi({ ...event });
         const isOwner = viewerId && event.ownerId === viewerId;
         if (!isOwner && viewerId) {
             const viewerParticipation = event.participants.find((p) => p.userId === viewerId);
             return {
-                ...event,
-                participantCount: null,
+                ...mapped,
                 participants: viewerParticipation ? [viewerParticipation] : [],
             };
         }
         if (!isOwner && !viewerId) {
             return {
-                ...event,
-                participantCount: null,
+                ...mapped,
                 participants: [],
             };
         }
-        return event;
+        return mapped;
     }
     async joinEvent(userId, eventId) {
         const existing = await this.prisma.eventParticipant.findUnique({
@@ -174,10 +200,22 @@ let EventsService = class EventsService {
         }
         const event = await this.prisma.event.findUnique({
             where: { id: eventId },
-            include: { owner: true },
+            select: {
+                id: true,
+                title: true,
+                ownerId: true,
+                isDeleted: true,
+                participantCount: true,
+                maxParticipants: true,
+                owner: true,
+            },
         });
-        if (!event) {
+        if (!event || event.isDeleted) {
             throw new common_1.NotFoundException('Event not found');
+        }
+        if (event.maxParticipants != null &&
+            event.participantCount >= event.maxParticipants) {
+            throw new common_1.ForbiddenException('Bu etkinliğin kontenjanı dolmuştur.');
         }
         const user = await this.prisma.user.findUnique({
             where: { id: userId },
@@ -200,9 +238,12 @@ let EventsService = class EventsService {
                 targetUrl: `/events/${eventId}`,
             });
         }
-        return this.prisma.event.findUnique({
+        const after = await this.prisma.event.findUnique({
             where: { id: eventId },
         });
+        return after
+            ? this.mapEventForApi(after)
+            : null;
     }
     async getEventComments(id) {
         return this.prisma.eventComment.findMany({
@@ -311,7 +352,14 @@ let EventsService = class EventsService {
     async updateRequestStatus(eventId, requestUserId, ownerId, status) {
         const event = await this.prisma.event.findUnique({
             where: { id: eventId },
-            select: { ownerId: true },
+            select: {
+                ownerId: true,
+                title: true,
+                participantCount: true,
+                maxParticipants: true,
+                isFree: true,
+                price: true,
+            },
         });
         if (!event) {
             throw new common_1.NotFoundException('Event not found');
@@ -332,6 +380,12 @@ let EventsService = class EventsService {
         }
         if (request.status !== 'PENDING') {
             throw new common_1.ForbiddenException('Request status cannot be changed');
+        }
+        if (status === 'APPROVED') {
+            if (event.maxParticipants != null &&
+                event.participantCount >= event.maxParticipants) {
+                throw new common_1.ForbiddenException('Kontenjan dolduğu için onay verilemiyor.');
+            }
         }
         const updated = await this.prisma.eventParticipant.update({
             where: {
@@ -357,17 +411,22 @@ let EventsService = class EventsService {
                 where: { id: eventId },
                 data: { participantCount: { increment: 1 } },
             });
-            const eventData = await this.prisma.event.findUnique({
-                where: { id: eventId },
-                select: { title: true },
+            await this.notificationsService.createNotificationSync({
+                userId: requestUserId,
+                type: 'event_request_approved',
+                fromUserId: ownerId,
+                message: `"${event.title}" etkinliğine yaptığınız talep onaylandı.`,
+                targetUrl: `/events/${eventId}`,
             });
-            if (eventData) {
-                await this.notificationsService.createNotificationSync({
-                    userId: requestUserId,
-                    type: 'event_request_approved',
-                    fromUserId: ownerId,
-                    message: `"${eventData.title}" etkinliğine yaptığınız talep onaylandı.`,
-                    targetUrl: `/events/${eventId}`,
+            const requester = await this.prisma.user.findUnique({
+                where: { id: requestUserId },
+                select: { email: true },
+            });
+            if (requester?.email) {
+                const isPaid = !event.isFree && (event.price ?? 0) > 0;
+                await this.mailService.sendEventRequestApprovedEmail(requester.email, {
+                    eventTitle: event.title,
+                    isPaid,
                 });
             }
         }
@@ -380,6 +439,7 @@ exports.EventsService = EventsService = __decorate([
     __param(2, (0, common_1.Inject)((0, common_1.forwardRef)(() => notifications_service_1.NotificationsService))),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         limits_service_1.LimitsService,
-        notifications_service_1.NotificationsService])
+        notifications_service_1.NotificationsService,
+        mail_service_1.MailService])
 ], EventsService);
 //# sourceMappingURL=events.service.js.map

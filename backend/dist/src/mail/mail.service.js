@@ -1723,6 +1723,56 @@ Feellink Ekibi`;
             this.logger.error(`❌ [PASSWORD CHANGE MAIL] Error stack:`, error?.stack);
         }
     }
+    async sendEventRequestApprovedEmail(to, params) {
+        const explicitlyDev = process.env.MAIL_MODE?.toLowerCase() === 'dev';
+        if (explicitlyDev) {
+            this.logger.log(`[DEV] Event approval mail skipped. to=${to}, title=${params.eventTitle}`);
+            return;
+        }
+        const transport = this.transporter || this.ensureTransporter();
+        if (!transport) {
+            this.logger.warn('Mail transporter not configured. Skipping event approval email.');
+            return;
+        }
+        const mailFromName = process.env.MAIL_FROM_NAME || 'Feellink';
+        const mailFrom = process.env.MAIL_FROM || 'noreply@feellink.io';
+        const from = `"${mailFromName}" <${mailFrom}>`;
+        const subject = params.isPaid
+            ? 'Ücretli Etkinlik Talebiniz Onaylandı'
+            : 'Etkinlik Talebiniz Onaylandı';
+        const textFree = `Merhaba,\n\nBaşvuruda bulunduğunuz etkinlik talebiniz onaylandı. Etkinlik detaylarını Feellink üzerinden görüntüleyebilirsiniz.\nİyi deneyimler dileriz.\n\n© Feellink`;
+        const textPaid = `Merhaba,\n\nBaşvuruda bulunduğunuz ücretli etkinlik talebiniz onaylandı. Katılım ücreti ve süreç detayları etkinlik sahibi tarafından sizinle paylaşılacaktır. Etkinlik bilgilerinizi Feellink üzerinden takip edebilirsiniz.\nİyi deneyimler dileriz.\n\n© Feellink`;
+        const bodyFree = '<p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#a0a0a0;">Merhaba,</p>' +
+            '<p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#a0a0a0;">Başvuruda bulunduğunuz etkinlik talebiniz onaylandı. Etkinlik detaylarını Feellink üzerinden görüntüleyebilirsiniz.</p>' +
+            '<p style="margin:0;font-size:14px;line-height:1.6;color:#a0a0a0;">İyi deneyimler dileriz.</p>';
+        const bodyPaid = '<p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#a0a0a0;">Merhaba,</p>' +
+            '<p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#a0a0a0;">Başvuruda bulunduğunuz ücretli etkinlik talebiniz onaylandı. Katılım ücreti ve süreç detayları etkinlik sahibi tarafından sizinle paylaşılacaktır. Etkinlik bilgilerinizi Feellink üzerinden takip edebilirsiniz.</p>' +
+            '<p style="margin:0;font-size:14px;line-height:1.6;color:#a0a0a0;">İyi deneyimler dileriz.</p>';
+        const html = `<!DOCTYPE html><html lang="tr"><body style="margin:0;padding:0;background:#0f0f0f;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0f0f0f;padding:40px 16px;">
+        <tr><td align="center">
+          <table width="520" style="max-width:520px;background:#1a1a1a;border-radius:16px;border:1px solid #2a2a2a;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+            <tr><td align="center" style="padding-bottom:24px;"><img src="${this.logoUrl}" width="88" height="32" alt="Feellink" style="display:block;border:0;" /></td></tr>
+            <tr><td><h1 style="margin:0 0 16px;font-size:18px;font-weight:600;color:#fff;">${params.isPaid ? 'Ücretli etkinlik talebiniz onaylandı' : 'Etkinlik talebiniz onaylandı'}</h1></td></tr>
+            <tr><td><p style="margin:0 0 8px;font-size:13px;color:#888;">${params.eventTitle}</p></td></tr>
+            <tr><td>${params.isPaid ? bodyPaid : bodyFree}</td></tr>
+          </table>
+        </td></tr>
+      </table></body></html>`;
+        try {
+            await transport.sendMail({
+                from,
+                to,
+                subject,
+                text: params.isPaid ? textPaid : textFree,
+                html,
+            });
+            this.logger.log(`Event approval email sent to ${to}`);
+        }
+        catch (error) {
+            this.logger.error(`Failed to send event approval email to ${to}:`, error?.message || error);
+        }
+    }
 };
 exports.MailService = MailService;
 exports.MailService = MailService = MailService_1 = __decorate([

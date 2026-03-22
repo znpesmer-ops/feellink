@@ -33,6 +33,7 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [isFree, setIsFree] = useState(true);
   const [price, setPrice] = useState<number>(0);
+  const [maxParticipantsCap, setMaxParticipantsCap] = useState("");
   const [loading, setLoading] = useState(false);
   const [myEvents, setMyEvents] = useState<any[]>([]);
   const [limitError, setLimitError] = useState<string | null>(null);
@@ -141,10 +142,19 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
       return;
     }
 
-    // Ücretli etkinlik için fiyat kontrolü
-    if (!isFree && (!price || price < 1 || price > 10000)) {
-      alert("Ücretli etkinlik için 1 ₺ ile 10.000 ₺ arasında bir fiyat girmelisiniz.");
+    if (!isFree && (!price || price < 1)) {
+      alert("Ücretli etkinlik için en az 1 ₺ girmelisiniz.");
       return;
+    }
+
+    const capTrim = maxParticipantsCap.trim();
+    let capNum: number | undefined;
+    if (capTrim !== "") {
+      capNum = parseInt(capTrim, 10);
+      if (!Number.isFinite(capNum) || capNum < 1) {
+        alert("Kontenjan boş bırakılabilir veya 1 ve üzeri tam sayı girilmelidir.");
+        return;
+      }
     }
 
     setLoading(true);
@@ -183,6 +193,9 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
 
       // Fiyat bilgisi - ücretsiz etkinliklerde null, ücretli etkinliklerde fiyat
       payload.price = isFree ? null : (price && price > 0 ? Number(price) : null);
+      if (capNum !== undefined) {
+        payload.maxParticipants = capNum;
+      }
 
       await api.post("/events", payload);
 
@@ -196,6 +209,7 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
       setCoverImage(null);
       setIsFree(true);
       setPrice(0);
+      setMaxParticipantsCap("");
     } catch (err: any) {
       console.error("Etkinlik oluşturulamadı:", err);
       const errorMessage = err?.response?.data?.message || err?.message || "Etkinlik oluşturulamadı. Lütfen tekrar deneyin.";
@@ -366,7 +380,7 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
                 <input
                   type="number"
                   min="1"
-                  max="10000"
+                  step="1"
                   value={price || ""}
                   onChange={(e) => {
                     const value = e.target.value === "" ? 0 : Number(e.target.value);
@@ -377,15 +391,33 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
                   required={!isFree}
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Minimum 1 ₺, maksimum 10.000 ₺
+                  Minimum 1 ₺
                 </p>
               </div>
             )}
           </div>
 
+          <div>
+            <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">
+              Kontenjan (kişi sayısı)
+            </label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={maxParticipantsCap}
+              onChange={(e) => setMaxParticipantsCap(e.target.value.replace(/[^\d]/g, ""))}
+              className="w-full border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#ff7b00] dark:bg-gray-800 dark:text-white transition"
+              placeholder="Boş bırakılırsa sınırsız"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Onaylanan katılımcı sayısı bu üst sınırı aşamaz.
+            </p>
+          </div>
+
           <button
             type="submit"
-            disabled={loading || !title.trim() || !date.trim() || (!isFree && (!price || price < 1 || price > 10000))}
+            disabled={loading || !title.trim() || !date.trim() || (!isFree && (!price || price < 1))}
             className="bg-[#ff7b00] hover:bg-[#e36f00] disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-2 rounded-xl mt-3 transition flex justify-center items-center font-medium"
           >
             {loading ? (

@@ -18,16 +18,16 @@ export declare class ArticlesController {
         };
     } & {
         id: string;
+        title: string;
+        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
+        authorId: string;
         content: string;
-        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     }>;
     getDrafts(user: any): Promise<({
         author: {
@@ -38,16 +38,16 @@ export declare class ArticlesController {
         };
     } & {
         id: string;
+        title: string;
+        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
+        authorId: string;
         content: string;
-        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     })[]>;
     getScheduled(user: any): Promise<({
         author: {
@@ -58,16 +58,16 @@ export declare class ArticlesController {
         };
     } & {
         id: string;
+        title: string;
+        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
+        authorId: string;
         content: string;
-        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     })[]>;
     getPublished(user: any): Promise<({
         author: {
@@ -78,16 +78,16 @@ export declare class ArticlesController {
         };
     } & {
         id: string;
+        title: string;
+        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
+        authorId: string;
         content: string;
-        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     })[]>;
     publish(id: string, user: any): Promise<{
         author: {
@@ -98,16 +98,16 @@ export declare class ArticlesController {
         };
     } & {
         id: string;
+        title: string;
+        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
+        authorId: string;
         content: string;
-        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     }>;
     getAllPublic(): Promise<({
         author: {
@@ -118,16 +118,16 @@ export declare class ArticlesController {
         };
     } & {
         id: string;
+        title: string;
+        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
+        authorId: string;
         content: string;
-        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     })[]>;
     getAllPublishedArticles(): Promise<({
         author: {
@@ -138,16 +138,16 @@ export declare class ArticlesController {
         };
     } & {
         id: string;
+        title: string;
+        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
+        authorId: string;
         content: string;
-        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     })[]>;
     getMyArticles(user: any): Promise<({
         author: {
@@ -158,16 +158,16 @@ export declare class ArticlesController {
         };
     } & {
         id: string;
+        title: string;
+        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
+        authorId: string;
         content: string;
-        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     })[]>;
     getUserArticles(userId: string): Promise<{
         views: number;
@@ -182,15 +182,15 @@ export declare class ArticlesController {
             avatar: string;
         };
         id: string;
+        title: string;
+        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
+        authorId: string;
         content: string;
-        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
-        authorId: string;
     }[]>;
     getArticle(id: string): Promise<{
         views: number;
@@ -218,15 +218,15 @@ export declare class ArticlesController {
             avatar: string;
         };
         id: string;
+        title: string;
+        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
+        authorId: string;
         content: string;
-        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
-        authorId: string;
     }>;
     update(id: string, user: any, body: {
         title?: string;
@@ -244,16 +244,16 @@ export declare class ArticlesController {
         };
     } & {
         id: string;
+        title: string;
+        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
+        authorId: string;
         content: string;
-        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
-        authorId: string;
     }>;
     delete(id: string, user: any): Promise<{
         success: boolean;

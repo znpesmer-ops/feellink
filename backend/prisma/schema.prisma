@@ -694,6 +694,7 @@ model Event {
   coverImage       String?
   date             DateTime
   participantCount Int       @default(0)
+  maxParticipants  Int? // null = sınırsız kontenjan (talep/onay akışı)
   ticketUrl        String?
   price            Float     @default(0)
   isFree           Boolean   @default(true)

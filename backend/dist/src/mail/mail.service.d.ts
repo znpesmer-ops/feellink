@@ -78,4 +78,8 @@ export declare class MailService {
         location?: string;
         ipMasked?: string;
     }): Promise<void>;
+    sendEventRequestApprovedEmail(to: string, params: {
+        eventTitle: string;
+        isPaid: boolean;
+    }): Promise<void>;
 }

@@ -9,12 +9,12 @@ export declare class CollectionsService {
     private ensurePermission;
     getMyCollections(userId: string): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         title: string;
         description: string;
         coverImage: string;
         ownerId: string;
+        createdAt: Date;
+        updatedAt: Date;
         isPublic: boolean;
     }[]>;
     getAllCollections(): Promise<({
@@ -27,12 +27,12 @@ export declare class CollectionsService {
         };
     } & {
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         title: string;
         description: string;
         coverImage: string;
         ownerId: string;
+        createdAt: Date;
+        updatedAt: Date;
         isPublic: boolean;
     })[]>;
     createCollection(userId: string, data: {
@@ -41,12 +41,12 @@ export declare class CollectionsService {
         coverImage?: string;
     }): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         title: string;
         description: string;
         coverImage: string;
         ownerId: string;
+        createdAt: Date;
+        updatedAt: Date;
         isPublic: boolean;
     }>;
     updateCollection(userId: string, id: string, data: {
@@ -55,12 +55,12 @@ export declare class CollectionsService {
         coverImage?: string;
     }): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         title: string;
         description: string;
         coverImage: string;
         ownerId: string;
+        createdAt: Date;
+        updatedAt: Date;
         isPublic: boolean;
     }>;
     deleteCollection(userId: string, id: string): Promise<{
