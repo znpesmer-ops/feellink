@@ -1091,58 +1091,67 @@ function ProfileContent() {
         {/* Öne Çıkan Temalar - Tüm kullanıcılarda görünür */}
         <ArtistHighlights username={username} userId={profile?.id} isOwnProfile={profile.isOwnProfile} />
 
-        {/* Sekme Butonları - Tek config'den; her tab title/aria-label ile tooltip görünür */}
-        <div className="flex items-center justify-center gap-6 md:gap-10 overflow-x-auto overflow-y-visible pb-3 mb-6 border-b border-gray-200 dark:border-gray-700 relative z-10">
-          {tabs.map((tab) => {
-            const Icon = tab.icon
-            const isActive = activeTab === tab.key
-            
-            return (
-              <div
-                key={tab.key}
-                className="relative flex flex-col items-center overflow-visible"
-                onMouseEnter={() => setHoveredTab(tab.key)}
-                onMouseLeave={() => setHoveredTab(null)}
-              >
-                <button
-                  type="button"
-                  onClick={() => setActiveTab(tab.key as any)}
-                  title={tab.label}
-                  aria-label={tab.label}
-                  className={`flex items-center justify-center min-w-[44px] min-h-[44px] pb-2 px-3 transition-all relative group ${
-                    isActive
-                      ? 'text-brand-orange'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-brand-orange'
-                  }`}
-                >
-                  <Icon 
-                    size={22} 
-                    className={`transition-all duration-200 ${
-                      isActive 
-                        ? 'scale-110' 
-                        : 'group-hover:scale-105'
-                    }`}
-                  />
-                  {/* Aktif sekme alt çizgisi */}
-                  {isActive && (
-                    <div className="absolute -bottom-3 left-0 right-0 h-[2px] bg-brand-orange rounded-full shadow-[0_1px_2px_rgba(255,123,0,0.3)]" aria-hidden />
-                  )}
-                </button>
+        {/* Sekme Butonları — z-30 modalların (z-50) altında, içerik panellerinin (z-0) üstünde; overflow-x + pb tooltip kırpmasın */}
+        <div className="relative z-30 mb-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="overflow-x-auto overscroll-x-contain pt-1 pb-10">
+            <div className="flex items-center justify-center gap-6 md:gap-10 min-w-min px-2 mx-auto">
+              {tabs.map((tab) => {
+                const Icon = tab.icon
+                const isActive = activeTab === tab.key
 
-                {/* Tooltip - z-[60] ile alt içeriğin üstünde; Yazılar dahil tüm sekmelerde görünsün */}
-                {hoveredTab === tab.key && (
-                  <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-white/95 dark:bg-[#1a1a1a]/95 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-medium text-brand-orange dark:text-brand-orange shadow-lg border border-gray-200/70 dark:border-gray-700/50 whitespace-nowrap z-[60] animate-in fade-in slide-in-from-top-1 duration-150 pointer-events-none">
-                    {tab.label}
-                    {/* Tooltip ok */}
-                    <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white/95 dark:bg-[#1a1a1a]/95 border-l border-t border-gray-200/70 dark:border-gray-700/50 rotate-45" aria-hidden />
+                return (
+                  <div
+                    key={tab.key}
+                    className="relative flex flex-col items-center shrink-0"
+                    onMouseEnter={() => setHoveredTab(tab.key)}
+                    onMouseLeave={() => setHoveredTab(null)}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab(tab.key as any)}
+                      title={tab.label}
+                      aria-label={tab.label}
+                      className={`flex items-center justify-center min-w-[44px] min-h-[44px] pb-2 px-3 transition-all relative group ${
+                        isActive
+                          ? 'text-brand-orange'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-brand-orange'
+                      }`}
+                    >
+                      <Icon
+                        size={22}
+                        className={`transition-all duration-200 ${
+                          isActive ? 'scale-110' : 'group-hover:scale-105'
+                        }`}
+                      />
+                      {isActive && (
+                        <div
+                          className="absolute -bottom-3 left-0 right-0 h-[2px] bg-brand-orange rounded-full shadow-[0_1px_2px_rgba(255,123,0,0.3)]"
+                          aria-hidden
+                        />
+                      )}
+                    </button>
+
+                    {hoveredTab === tab.key && (
+                      <div
+                        className="absolute top-full left-1/2 z-40 mt-1.5 -translate-x-1/2 rounded-lg border border-gray-200/70 bg-white/95 px-3 py-1.5 text-xs font-medium text-brand-orange shadow-lg backdrop-blur-md animate-in fade-in slide-in-from-top-1 duration-150 dark:border-gray-700/50 dark:bg-[#1a1a1a]/95 dark:text-brand-orange whitespace-nowrap pointer-events-none"
+                        role="tooltip"
+                      >
+                        {tab.label}
+                        <div
+                          className="absolute -top-1 left-1/2 size-2 -translate-x-1/2 rotate-45 border-l border-t border-gray-200/70 bg-white/95 dark:border-gray-700/50 dark:bg-[#1a1a1a]/95"
+                          aria-hidden
+                        />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            )
-          })}
+                )
+              })}
+            </div>
+          </div>
         </div>
 
-        {/* Sekme İçerikleri */}
+        {/* Sekme içerikleri — z-0 ile sekme şeridinin altında kalır (tooltip çakışması olmaz) */}
+        <div className="relative z-0">
         {activeTab === 'articles' ? (
           <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-100 dark:border-gray-900 shadow-sm transition-colors">
             <UserArticles authorId={profile.id} />
@@ -1153,7 +1162,12 @@ function ProfileContent() {
           </div>
         ) : activeTab === 'artworks' && canShowProfileArtworks ? (
           <div className="bg-white dark:bg-gray-950 rounded-2xl p-4 md:p-6 border border-gray-100 dark:border-gray-900 shadow-sm transition-colors">
-            <ProfileArtworksGrid username={username} artworks={profileArtworks} userId={profile?.id} />
+            <ProfileArtworksGrid
+              username={username}
+              artworks={profileArtworks}
+              userId={profile?.id}
+              showColorPalette={false}
+            />
           </div>
         ) : activeTab === 'artworks' && !canShowProfileArtworks ? (
           <div className="bg-white dark:bg-gray-950 rounded-2xl p-8 md:p-10 border border-gray-100 dark:border-gray-900 shadow-sm transition-colors text-center">
@@ -1412,6 +1426,7 @@ function ProfileContent() {
             </div>
           )
         ) : null}
+        </div>
       </div>
 
       {/* Followers Modal */}

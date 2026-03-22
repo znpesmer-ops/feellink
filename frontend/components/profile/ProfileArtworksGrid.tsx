@@ -14,9 +14,16 @@ interface ProfileArtworksGridProps {
   username: string
   artworks: any[]
   userId?: string // Kullanıcı ID'si (sahip kontrolü için)
+  /** Kart üzerinde renk paleti şeridi; varsayılan kapalı — veri yine de API’de kalır */
+  showColorPalette?: boolean
 }
 
-export function ProfileArtworksGrid({ artworks, username, userId }: ProfileArtworksGridProps) {
+export function ProfileArtworksGrid({
+  artworks,
+  username,
+  userId,
+  showColorPalette = false,
+}: ProfileArtworksGridProps) {
   const router = useRouter()
   const { user } = useAuthStore()
   const queryClient = useQueryClient()
@@ -352,24 +359,26 @@ export function ProfileArtworksGrid({ artworks, username, userId }: ProfileArtwo
             </div>
           )}
           
-          {/* 🎨 Renk Paleti Gösterimi */}
-          {artwork.colorPalette && Array.isArray(artwork.colorPalette) && artwork.colorPalette.length > 0 && (
-            <div className="absolute bottom-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-[50]">
-              {artwork.colorPalette.slice(0, 5).map((hex: string, idx: number) => (
-                <div
-                  key={idx}
-                  style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: 4,
-                    backgroundColor: hex,
-                    border: '1px solid rgba(255,255,255,0.1)',
-                  }}
-                  title={hex}
-                />
-              ))}
-            </div>
-          )}
+          {showColorPalette &&
+            artwork.colorPalette &&
+            Array.isArray(artwork.colorPalette) &&
+            artwork.colorPalette.length > 0 && (
+              <div className="absolute bottom-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-[50]">
+                {artwork.colorPalette.slice(0, 5).map((hex: string, idx: number) => (
+                  <div
+                    key={idx}
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 4,
+                      backgroundColor: hex,
+                      border: '1px solid rgba(255,255,255,0.1)',
+                    }}
+                    title={hex}
+                  />
+                ))}
+              </div>
+            )}
         </div>
         )
       })}
