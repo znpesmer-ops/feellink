@@ -2073,24 +2073,37 @@ let PostsService = class PostsService {
         const artworkUrl = `${frontendUrl}/posts/${postId}`;
         const { createCanvas, loadImage, registerFont } = require('canvas');
         const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
+        const notoRegPath = path.join(fontsDir, 'NotoSans-Regular.ttf');
+        const notoBoldPath = path.join(fontsDir, 'NotoSans-SemiBold.ttf');
         const interRegularPath = path.join(fontsDir, 'Inter-Regular.ttf');
         const interBoldPath = path.join(fontsDir, 'Inter-Bold.ttf');
+        const F_REG = 'FeellinkTicket';
+        const F_BOLD = 'FeellinkTicketBold';
         try {
-            if (fs.existsSync(interRegularPath)) {
-                registerFont(interRegularPath, { family: 'Inter' });
+            if (fs.existsSync(notoRegPath)) {
+                registerFont(notoRegPath, { family: F_REG });
             }
-            if (fs.existsSync(interBoldPath)) {
-                registerFont(interBoldPath, { family: 'InterBold' });
+            else if (fs.existsSync(interRegularPath)) {
+                registerFont(interRegularPath, { family: F_REG });
+            }
+            if (fs.existsSync(notoBoldPath)) {
+                registerFont(notoBoldPath, { family: F_BOLD });
+            }
+            else if (fs.existsSync(interBoldPath)) {
+                registerFont(interBoldPath, { family: F_BOLD });
             }
         }
         catch (error) {
             console.warn('Font kayıt hatası:', error);
         }
-        const hasInterBold = fs.existsSync(interBoldPath);
-        const hasInterRegular = fs.existsSync(interRegularPath);
-        const fontBold = hasInterBold ? 'InterBold' : 'Arial';
-        const fontReg = hasInterRegular ? 'Inter' : 'Arial';
-        const fontMono = hasInterRegular ? 'Inter' : 'Courier New';
+        const hasReg = fs.existsSync(notoRegPath) || fs.existsSync(interRegularPath);
+        const hasBold = fs.existsSync(notoBoldPath) || fs.existsSync(interBoldPath);
+        if (!hasReg) {
+            console.error('[generateQrLabelPdf] Eksik font: assets/fonts/NotoSans-Regular.ttf — PDF metinleri bozulur.');
+        }
+        const fontReg = hasReg ? F_REG : 'sans-serif';
+        const fontBold = hasBold ? F_BOLD : fontReg;
+        const fontMono = fontReg;
         const width = 1000;
         const height = 425;
         const dpiScale = 2;
@@ -2130,7 +2143,7 @@ let PostsService = class PostsService {
         let titleFont = 24;
         let titleLines = [];
         for (; titleFont >= 16; titleFont -= 1) {
-            ctx.font = `600 ${titleFont}px ${fontBold}`;
+            ctx.font = `${titleFont}px ${fontBold}`;
             titleLines = titleRaw ? wrapCanvasText(ctx, titleRaw, topContentW, TITLE_MAX_LINES) : [];
             const titleH = titleLines.length > 0
                 ? titleLines.length * titleFont * TITLE_LINE_HEIGHT
@@ -2152,7 +2165,7 @@ let PostsService = class PostsService {
         }
         let drawY = PAD;
         ctx.fillStyle = '#111827';
-        ctx.font = `600 ${titleFont}px ${fontBold}`;
+        ctx.font = `${titleFont}px ${fontBold}`;
         for (const line of titleLines) {
             ctx.fillText(line, PAD, drawY);
             drawY += titleFont * TITLE_LINE_HEIGHT;
@@ -2197,7 +2210,7 @@ let PostsService = class PostsService {
         ctx.drawImage(qrImg, qrX + QR_INNER_PAD, qrY + QR_INNER_PAD, innerQr, innerQr);
         const sloganX = qrX + QR_SIZE + GAP_QR_SLOGAN;
         const sloganMaxW = Math.max(120, width - PAD - sloganX - LOGO_RESERVE_W);
-        ctx.font = `500 ${SLOGAN_FS}px ${fontReg}`;
+        ctx.font = `${SLOGAN_FS}px ${fontReg}`;
         const sloganLines = wrapCanvasText(ctx, sloganText, sloganMaxW, SLOGAN_MAX_LINES);
         ctx.fillStyle = '#111827';
         let sy = qrY;
@@ -2217,7 +2230,7 @@ let PostsService = class PostsService {
         }
         try {
             if (fs.existsSync(logoPath)) {
-                const logoImg = await loadImage(logoPath);
+                const logoImg = await loadImage(fs.readFileSync(logoPath));
                 const ratio = logoImg.width / logoImg.height;
                 let lw = LOGO_MAX_W;
                 let lh = Math.round(lw / ratio);
