@@ -98,8 +98,9 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
   }, [pathname])
 
   const navItems = useMemo<NavItem[]>(() => {
-    if (!user || !capabilities) return []
+    if (!user) return []
 
+    // capabilities gecikse bile menüyü göster (LayoutConditional ile tutarlı; boş sol şerit önlenir)
     const sidebarFlags: SidebarVisibility =
       sidebar ??
       (capabilities
@@ -182,7 +183,7 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
     })
   }, [user, capabilities, sidebar, unreadCount, hasUnreadMessages])
 
-  if (!accessToken || !user || !capabilities) {
+  if (!accessToken || !user) {
     return null
   }
 
@@ -199,7 +200,7 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
   
   // Rol etiketi - Admin için özel gösterim
   const resolvedRoles =
-    (capabilities.roles && capabilities.roles.length > 0
+    (capabilities?.roles && capabilities.roles.length > 0
       ? capabilities.roles
       : user?.roles) ?? []
   const normalizedRoles = resolvedRoles.map((role) => normalizeRole(role))

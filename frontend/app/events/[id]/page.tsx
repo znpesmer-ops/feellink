@@ -283,7 +283,7 @@ export default function EventDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[40vh] py-16">
         <Loader2 className="w-8 h-8 animate-spin text-brand-orange" />
       </div>
     );
@@ -291,7 +291,7 @@ export default function EventDetailPage() {
 
   if (!event) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[40vh] py-16">
         <p className="text-gray-500">Etkinlik bulunamadı.</p>
       </div>
     );
