@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from './store'
 import api, { performForcedLogout } from './api'
+import { getDashboardRouteFromUser } from './role-utils'
 
 const publicRoutes = [
   '/login',
@@ -139,7 +140,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
 
     initAuth()
-  }, [accessToken, setAuth, setLoading, setHasInitialized, clearAuth])
+  }, [accessToken, currentPathname, setAuth, setLoading, setHasInitialized, clearAuth])
 
   // Redirect: sadece loading bittikten ve init tamamlandıktan sonra
   useEffect(() => {
@@ -153,9 +154,29 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Public route + giriş yapmış → feed
+    // Public route + doğrulanmış oturum → login/register'dan çık (feed değil; rol / select-role ile uyumlu)
     if (isPublicRoute && isAuthenticated && (currentPathname === '/login' || currentPathname === '/register')) {
-      router.replace('/feed')
+      const { user: authedUser, capabilities: authedCaps } = useAuthStore.getState()
+      if (!authedUser?.id) {
+        router.replace('/feed')
+        return
+      }
+      const rolesFromCaps = authedCaps?.roles?.length ? authedCaps.roles : []
+      const rolesFromUser = authedUser.roles ?? []
+      const effectiveRoles = rolesFromCaps.length > 0 ? rolesFromCaps : rolesFromUser
+      if (effectiveRoles.length === 0) {
+        router.replace('/select-role')
+        return
+      }
+      const route =
+        getDashboardRouteFromUser({
+          roles: effectiveRoles,
+          isAdmin: authedUser.isAdmin,
+          capabilities: authedCaps ?? undefined,
+        }) || '/feed'
+      if (currentPathname !== route) {
+        router.replace(route)
+      }
       return
     }
 

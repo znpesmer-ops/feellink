@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -12,6 +12,7 @@ import { AppLogo } from '@/components/common/AppLogo'
 import { useAuthStore } from '@/lib/store'
 import { getDashboardRouteFromUser } from '@/lib/role-utils'
 import toast from 'react-hot-toast'
+import { AuthGuard } from '@/lib/auth-guard'
 
 const unicodeEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u
 
@@ -36,17 +37,12 @@ const registerSchema = z.object({
 type LoginForm = z.infer<typeof loginSchema>
 type RegisterForm = z.infer<typeof registerSchema>
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter()
   // Tüm store'a abone olma: unreadCount vb. her güncellendiğinde re-render → effect/redirect döngüsü riski
   const setAuth = useAuthStore((s) => s.setAuth)
-  const accessToken = useAuthStore((s) => s.accessToken)
   const user = useAuthStore((s) => s.user)
   const capabilities = useAuthStore((s) => s.capabilities)
-  const authLoading = useAuthStore((s) => s.loading)
-  const hasInitialized = useAuthStore((s) => s.hasInitialized)
-  const setLoading = useAuthStore((s) => s.setLoading)
-  const setHasInitialized = useAuthStore((s) => s.setHasInitialized)
 
   const [error, setError] = useState('')
   const [isChecking, setIsChecking] = useState(true)
@@ -57,8 +53,6 @@ export default function LoginPage() {
   const [showRestoreScreen, setShowRestoreScreen] = useState(false)
   const [restoreCredentials, setRestoreCredentials] = useState<{ emailOrUsername: string; password: string } | null>(null)
   const [restoreLoading, setRestoreLoading] = useState(false)
-
-  const redirectDoneRef = useRef(false)
 
   const loginForm = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -106,12 +100,6 @@ export default function LoginPage() {
     [router, user, capabilities],
   )
 
-  // AuthGuard bu route'ta yok; login'de takılı kalmaması için init bayraklarını hemen netleştir
-  useEffect(() => {
-    setLoading(false)
-    setHasInitialized(true)
-  }, [setLoading, setHasInitialized])
-
   // Token yoksa hemen formu göster (logout sonrası loading takılmasın)
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -129,26 +117,7 @@ export default function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => {
-    if (!user?.id) redirectDoneRef.current = false
-  }, [user?.id])
-
-  // Oturum varsa tek sefer yönlendir; user/capabilities referans değişiminde tekrar replace yapma (yenileme döngüsü önlenir)
-  useEffect(() => {
-    if (authLoading || !hasInitialized) return
-    if (!user?.id) {
-      if (accessToken) useAuthStore.getState().clearAuth()
-      setIsChecking(false)
-      return
-    }
-    if (redirectDoneRef.current) return
-    redirectDoneRef.current = true
-    const latestUser = useAuthStore.getState().user
-    const latestCaps = useAuthStore.getState().capabilities
-    if (latestUser?.id) {
-      handlePostAuthNavigation(latestUser, latestCaps ?? undefined)
-    }
-  }, [authLoading, hasInitialized, user?.id, accessToken, handlePostAuthNavigation])
+  // Oturum yönlendirmesi: AuthGuard + store'da isAuthenticated (persist'ten gelen user tek başına yetmez — login↔feed döngüsü önlenir)
 
   const onLogin = async (data: LoginForm) => {
     try {
@@ -177,7 +146,6 @@ export default function LoginPage() {
       } = response.data
 
       setAuth(loggedUser, newAccessToken, newRefreshToken, caps ?? null, sidebar ?? null)
-      redirectDoneRef.current = false
       if (reactivated) {
         toast.success('Hesabınız yeniden aktif hale getirildi.')
       }
@@ -215,7 +183,6 @@ export default function LoginPage() {
         needsRoleSelection,
       } = response.data
       setAuth(loggedUser, newAccessToken, newRefreshToken, caps ?? null, sidebar ?? null)
-      redirectDoneRef.current = false
       toast.success('Hesabınız geri yüklendi.')
       setShowRestoreScreen(false)
       setRestoreCredentials(null)
@@ -251,7 +218,6 @@ export default function LoginPage() {
       } = response.data
 
       setAuth(registeredUser, newAccessToken, newRefreshToken, caps ?? null, sidebar ?? null)
-      redirectDoneRef.current = false
       handlePostAuthNavigation(registeredUser, caps ?? undefined, needsRoleSelection)
     } catch (err: any) {
       const responseData = err?.response?.data
@@ -746,5 +712,13 @@ export default function LoginPage() {
       </div>
 
     </>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <AuthGuard>
+      <LoginPageInner />
+    </AuthGuard>
   )
 }

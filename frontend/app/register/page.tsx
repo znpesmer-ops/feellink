@@ -34,6 +34,7 @@ export default function RegisterPage() {
   const user = useAuthStore((s) => s.user)
   const capabilities = useAuthStore((s) => s.capabilities)
   const clearAuth = useAuthStore((s) => s.clearAuth)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const setLoading = useAuthStore((s) => s.setLoading)
   const setHasInitialized = useAuthStore((s) => s.setHasInitialized)
 
@@ -47,10 +48,9 @@ export default function RegisterPage() {
     setHasInitialized(true)
   }, [setLoading, setHasInitialized])
 
-  // Register sayfasında olduğumuz için, sayfa yüklendiğinde eski auth state'i temizle
-  // capabilities geç yüklenince veya null iken geçerli oturumu silme (login yenileme döngüsü önlenir)
+  // Sadece backend doğrulanmış oturumda yönlendir (persist'teki user+token ama isAuthenticated false → döngü yapma)
   useEffect(() => {
-    if (accessToken && user) {
+    if (accessToken && user && isAuthenticated) {
       const roles = capabilities?.roles?.length ? capabilities.roles : user.roles ?? []
       if (roles.length === 0) {
         router.push('/select-role')
@@ -62,11 +62,11 @@ export default function RegisterPage() {
         })
         router.push(route || '/feed')
       }
-    } else if (accessToken || user) {
+    } else if ((accessToken && !user) || (!accessToken && user)) {
       clearAuth()
     }
     setIsChecking(false)
-  }, [accessToken, user?.id, capabilities, router, clearAuth])
+  }, [accessToken, user?.id, capabilities, isAuthenticated, router, clearAuth])
 
 
   const {
