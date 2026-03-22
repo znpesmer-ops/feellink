@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client'
-import { getApiBaseURL } from './api'
+import { getAbsoluteBackendBaseUrl } from './api'
 
 let socket: Socket | null = null
 let chatSocket: Socket | null = null
@@ -25,7 +25,7 @@ export const initSocket = (token: string): Socket => {
     socket = null
   }
 
-  const baseURL = getApiBaseURL()
+  const baseURL = getAbsoluteBackendBaseUrl()
   
   // Token kontrolü
   if (!token) {
@@ -125,7 +125,7 @@ export const initChatSocket = (token: string): Socket => {
     chatSocket = null
   }
 
-  const baseURL = getApiBaseURL()
+  const baseURL = getAbsoluteBackendBaseUrl()
   
   chatSocket = io(`${baseURL}/chat`, {
     auth: {
@@ -169,7 +169,7 @@ export const initCommentsSocket = (token: string): Socket => {
   }
   
   // Comments socket için ayrı bir instance oluştur
-  const baseURL = getApiBaseURL()
+  const baseURL = getAbsoluteBackendBaseUrl()
   const commentsSocket = io(`${baseURL}/comments`, {
     auth: {
       token,
@@ -204,7 +204,7 @@ export const initPostsSocket = (token: string): Socket => {
   }
   
   // Posts socket için ayrı bir instance oluştur
-  const baseURL = getApiBaseURL()
+  const baseURL = getAbsoluteBackendBaseUrl()
   const postsSocket = io(`${baseURL}/posts`, {
     auth: {
       token,
@@ -233,7 +233,7 @@ export const initPostsSocket = (token: string): Socket => {
 
 export const initArticlesSocket = (token: string): Socket => {
   // Articles socket için ayrı bir instance oluştur
-  const baseURL = getApiBaseURL()
+  const baseURL = getAbsoluteBackendBaseUrl()
   const articlesSocket = io(`${baseURL}/articles`, {
     auth: {
       token,
@@ -261,7 +261,7 @@ export const initArticlesSocket = (token: string): Socket => {
 }
 
 export const initAdminSocket = (token: string): Socket => {
-  const baseURL = getApiBaseURL()
+  const baseURL = getAbsoluteBackendBaseUrl()
   const adminSocket = io(`${baseURL}/admin`, {
     auth: {
       token,

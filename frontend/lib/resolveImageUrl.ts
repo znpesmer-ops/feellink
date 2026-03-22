@@ -1,9 +1,9 @@
-import { getApiBaseURL } from './api'
+import { getAbsoluteBackendBaseUrl } from './api'
 
 const FALLBACK_AVATAR = '/icons/default-user.svg' // ✅ Mevcut dosyayı kullan
 
 // Backend URL - görseller backend'te (3002 portunda) bulunuyor
-// getApiBaseURL fonksiyonunu kullan (farklı ağlardan erişim için dinamik)
+// Mutlak backend kökü (axios same-origin proxy ile karışmaz)
 const getBackendUrl = (): string => {
   // 1. NEXT_PUBLIC_BACKEND_URL varsa onu kullan
   if (process.env.NEXT_PUBLIC_BACKEND_URL) {
@@ -25,12 +25,11 @@ const getBackendUrl = (): string => {
       
       // Eğer env yoksa, aynı domain'de backend olduğunu varsay (örnek: api.feellink.io veya backend.feellink.io)
       // Veya aynı domain'de farklı path (örnek: feellink.io/api)
-      // Şimdilik getApiBaseURL kullan (o zaten env'den alıyor)
     }
   }
-  
-  // 3. getApiBaseURL kullan (dinamik URL belirleme)
-  return getApiBaseURL()
+
+  // 3. Mutlak backend kökü (axios /api-proxy ile karışmaz)
+  return getAbsoluteBackendBaseUrl()
 }
 
 const BACKEND_URL = getBackendUrl()

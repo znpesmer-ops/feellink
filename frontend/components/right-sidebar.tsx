@@ -6,7 +6,7 @@ import { Sparkles, PenTool, X, BookOpen, Heart } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { io, Socket } from 'socket.io-client'
-import api, { getApiBaseURL } from '@/lib/api'
+import api, { getAbsoluteBackendBaseUrl } from '@/lib/api'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 
 type Author = {
@@ -184,7 +184,7 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
     let socket: Socket | null = null
     
     if (isHomePage && sidebarMode === 'feed') {
-      const baseURL = getApiBaseURL()
+      const baseURL = getAbsoluteBackendBaseUrl()
       socket = io(baseURL, {
         transports: ['websocket'],
       })

@@ -58,57 +58,50 @@ function getAccessTokenFromPersistedStorage(): string | null {
   return token && typeof token === 'string' ? token : null
 }
 
-// API base URL - dinamik olarak belirle
-// Client-side'da window.location'dan, server-side'da env'den al
-const getBaseURL = (): string => {
-  // Helper: URL'de protocol yoksa ekle
-  const ensureProtocol = (url: string): string => {
-    if (!url) return url
-    // Eğer zaten http:// veya https:// ile başlıyorsa olduğu gibi döndür
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url
-    }
-    // Protocol yoksa https:// ekle (production için)
-    return `https://${url}`
+function ensureProtocol(url: string): string {
+  if (!url) return url
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
   }
+  return `https://${url}`
+}
 
-  // Server-side (SSR)
+/**
+ * Medya URL'leri, Socket.IO ve doğrudan backend kökü gereken yerler için.
+ * Asla /api-proxy kullanma — görseller ve socket mutlak backend'e gider.
+ */
+export function getAbsoluteBackendBaseUrl(): string {
   if (typeof window === 'undefined') {
-    const ssrURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'
+    const ssrURL =
+      process.env.NEXT_PUBLIC_API_URL ||
+      process.env.BACKEND_REWRITE_TARGET ||
+      'http://localhost:3002'
     return ensureProtocol(ssrURL)
   }
-  
-  // Client-side - dinamik URL belirleme
+
   const envURL = process.env.NEXT_PUBLIC_API_URL
   const currentHost = window.location.hostname
   const isHTTPS = window.location.protocol === 'https:'
-  
-  // ✅ Production feellink.io: her zaman aynı backend (env build'ta yanlış olsa da çalışsın)
+
   if (currentHost === 'feellink.io' || currentHost.includes('feellink.io')) {
     return 'https://feellink-backend.vercel.app'
   }
-  
-  // ✅ Vercel preview: aynı backend
+
   if (currentHost.includes('vercel.app')) {
     return 'https://feellink-backend.vercel.app'
   }
-  
-  // Eğer env'de IP adresi varsa ve şu anda localhost'tan erişiliyorsa, localhost kullan
+
   if (envURL && envURL.includes('192.168.')) {
-    // Eğer localhost veya 127.0.0.1'den erişiliyorsa, localhost backend kullan
     if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
       return 'http://localhost:3002'
     }
-    // Mobil cihazdan erişiliyorsa, IP adresini kullan (http:// olarak)
     return envURL.startsWith('http') ? envURL : `http://${envURL}`
   }
-  
-  // Localhost / diğer: env varsa kullan, yoksa backend localhost:3002
+
   if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
     return envURL ? ensureProtocol(envURL) : 'http://localhost:3002'
   }
 
-  // Özel alan adı + Vercel'de NEXT_PUBLIC_API_URL unutulmuşsa localhost'a düşmeyi engelle
   const isLanHost =
     /^192\.168\./.test(currentHost) ||
     /^10\./.test(currentHost) ||
@@ -122,21 +115,33 @@ const getBaseURL = (): string => {
   return ensureProtocol(defaultURL)
 }
 
-const baseURL = getBaseURL()
-
-if (!baseURL) {
-  console.error('NEXT_PUBLIC_API_URL tanımlı değil!')
+/** feellink.io / Vercel ön yüzünde tarayıcı istekleri same-origin proxy üzerinden gider */
+function shouldUseBrowserApiProxy(): boolean {
+  if (typeof window === 'undefined') return false
+  const h = window.location.hostname
+  return h === 'feellink.io' || h.endsWith('.feellink.io') || h.includes('vercel.app')
 }
 
-// getApiBaseURL fonksiyonunu export et (socket.ts ve diğer dosyalar için)
-export const getApiBaseURL = (): string => {
-  return baseURL
+/** Axios istekleri için base URL (production web'de /api-proxy) */
+function getAxiosBaseURL(): string {
+  if (typeof window === 'undefined') {
+    return getAbsoluteBackendBaseUrl()
+  }
+  if (shouldUseBrowserApiProxy()) {
+    return `${window.location.origin}/api-proxy`
+  }
+  return getAbsoluteBackendBaseUrl()
 }
+
+// Socket / eski import'lar: doğrudan backend kökü
+export const getApiBaseURL = (): string => getAbsoluteBackendBaseUrl()
+
+const baseURL = getAxiosBaseURL()
 
 if (typeof window === 'undefined') {
-  console.info('[api] base URL:', baseURL)
+  console.info('[api] axios base URL (SSR):', baseURL)
 } else {
-  console.info('[api] base URL (client):', baseURL)
+  console.info('[api] axios base URL (client):', baseURL, '| absolute backend:', getAbsoluteBackendBaseUrl())
 }
 
 const api = axios.create({
@@ -147,12 +152,10 @@ const api = axios.create({
   maxBodyLength: 100 * 1024 * 1024, // 100MB
 })
 
-// Add token to requests + client-side'da her istekte güncel base URL kullan (SSR'da yanlış baseURL olmasın)
+// Her istekte güncel axios base URL (SSR + client; prod web'de /api-proxy)
 // Store rehydrate olmadan (navigasyon sonrası) token için localStorage, yoksa persist yedeği kullan; istek token'sız giderse 401 → forced logout
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  if (typeof window !== 'undefined') {
-    config.baseURL = getBaseURL()
-  }
+  config.baseURL = getAxiosBaseURL()
   const state = useAuthStore.getState()
   const token =
     state.accessToken ??
@@ -186,7 +189,7 @@ api.interceptors.response.use(
     if (!error.response) {
       // Network hatası (bağlantı yok, timeout, vs.)
       // Sadece development modunda logla
-      const baseURL = (originalRequest?.baseURL ?? getBaseURL?.() ?? '') as string
+      const baseURL = (originalRequest?.baseURL ?? getAxiosBaseURL() ?? '') as string
       if (process.env.NODE_ENV === 'development') {
         console.warn('Network error (backend erişilemiyor):', {
           code: error.code,

@@ -1,6 +1,19 @@
 /** @type {import('next').NextConfig} */
+// Browser → same-origin /api-proxy → backend (CORS / mixed blocking önler)
+const backendRewriteTarget = (
+  process.env.BACKEND_REWRITE_TARGET || 'https://feellink-backend.vercel.app'
+).replace(/\/$/, '')
+
 const nextConfig = {
   reactStrictMode: true,
+  async rewrites() {
+    return [
+      {
+        source: '/api-proxy/:path*',
+        destination: `${backendRewriteTarget}/:path*`,
+      },
+    ]
+  },
   images: {
     domains: [
       'localhost',
