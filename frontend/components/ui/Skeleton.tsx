@@ -22,8 +22,34 @@ export function Skeleton({ className = '', variant = 'rectangular' }: SkeletonPr
   )
 }
 
+type PostCardSkeletonVariant = 'default' | 'explore'
+
 // Post Card Skeleton
-export function PostCardSkeleton() {
+export function PostCardSkeleton({ variant = 'default' }: { variant?: PostCardSkeletonVariant }) {
+  if (variant === 'explore') {
+    return (
+      <div className="w-full h-full min-h-[28rem] sm:min-h-[29rem] flex flex-col bg-white/80 dark:bg-[#1a1a1a]/70 backdrop-blur-md border border-gray-200 dark:border-gray-700/40 rounded-2xl shadow-sm p-4 md:p-5">
+        <Skeleton variant="rectangular" className="w-full h-52 sm:h-56 mb-4 rounded-2xl shrink-0" />
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="min-h-[2.75rem] mb-1 shrink-0">
+            <Skeleton variant="text" className="w-4/5 h-5" />
+          </div>
+          <div className="min-h-[2.5rem] mb-2 shrink-0 space-y-1.5">
+            <Skeleton variant="text" className="w-full h-3.5" />
+            <Skeleton variant="text" className="w-5/6 h-3.5" />
+          </div>
+        </div>
+        <div className="mt-auto pt-2 shrink-0 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Skeleton variant="circular" className="w-6 h-6" />
+            <Skeleton variant="text" className="w-20 h-4" />
+          </div>
+          <Skeleton variant="text" className="w-12 h-4" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="w-full bg-white/80 dark:bg-[#1a1a1a]/70 backdrop-blur-md border border-gray-200 dark:border-gray-700/40 rounded-2xl shadow-sm p-4 md:p-5">
       <Skeleton variant="rectangular" className="w-full aspect-square mb-4 rounded-2xl" />

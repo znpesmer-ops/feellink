@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -414,6 +414,12 @@ function ProfileContent() {
         return result
       })()
     : false
+
+  // Backend capabilities ile hizalı: eser oluşturabilen tüm roller (art_lover/collector dahil)
+  const canShowProfileArtworks =
+    typeof profile?.capabilities?.permissions?.canCreateArtworks === 'boolean'
+      ? profile.capabilities.permissions.canCreateArtworks
+      : isProArtist
   
   const isOwnProfile = Boolean(profile?.isOwnProfile)
   const canViewAnalytics =
@@ -510,19 +516,11 @@ function ProfileContent() {
     enabled: !!accessToken && !!profile?.id && (isCorporateUser || isProArtist),
   })
 
-  // Get user artworks (for pro artists - posts with artwork type)
-  const { data: userArtworks } = useQuery({
-    queryKey: ['user-artworks', profile?.id],
-    queryFn: async () => {
-      if (!profile?.id || !isProArtist) return []
-      // Posts'u çek ve artwork tipindekileri filtrele
-      const response = await api.get(`/posts/user/${profile.id}`)
-      const posts = response.data || []
-      // Backend'den gelen type'a göre filtrele
-      return posts.filter((p: any) => p.type === 'artwork')
-    },
-    enabled: !!accessToken && !!profile?.id && isProArtist,
-  })
+  // Eserler: user-posts ile aynı kaynak (tek istek, upload sonrası invalidate ile senkron)
+  const profileArtworks = useMemo(
+    () => (userPostsData || []).filter((p: any) => p.type === 'artwork'),
+    [userPostsData],
+  )
 
   // Delete post mutation
   const deletePostMutation = useMutation({
@@ -1153,9 +1151,21 @@ function ProfileContent() {
           <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-100 dark:border-gray-900 shadow-sm transition-colors">
             <ProfileCommentsList username={username} userId={profile.id} />
           </div>
-        ) : activeTab === 'artworks' && isProArtist ? (
+        ) : activeTab === 'artworks' && canShowProfileArtworks ? (
           <div className="bg-white dark:bg-gray-950 rounded-2xl p-4 md:p-6 border border-gray-100 dark:border-gray-900 shadow-sm transition-colors">
-            <ProfileArtworksGrid username={username} artworks={userArtworks || []} userId={profile?.id} />
+            <ProfileArtworksGrid username={username} artworks={profileArtworks} userId={profile?.id} />
+          </div>
+        ) : activeTab === 'artworks' && !canShowProfileArtworks ? (
+          <div className="bg-white dark:bg-gray-950 rounded-2xl p-8 md:p-10 border border-gray-100 dark:border-gray-900 shadow-sm transition-colors text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+              <ImageIcon className="h-7 w-7 text-gray-400 dark:text-gray-500" />
+            </div>
+            <p className="text-base font-medium text-gray-900 dark:text-gray-100">
+              Eserler bu hesap için görüntülenemiyor
+            </p>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+              Bu profil türünde eser galerisi gösterilmez. Gönderiler sekmesinden paylaşımları görebilirsiniz.
+            </p>
           </div>
         ) : activeTab === 'events' && (isCorporateUser || isProArtist) ? (
           <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-100 dark:border-gray-900 shadow-sm transition-colors">

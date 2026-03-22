@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Heart, MoreVertical, Trash2, MessageCircle, Pin } from 'lucide-react'
+import { Heart, MoreVertical, Trash2, MessageCircle, Pin, Image as ImageIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/lib/store'
@@ -32,9 +32,12 @@ interface PostCardProps {
   onLike?: (id: string) => void
   onDelete?: (id: string) => void
   returnTo?: string
+  /** Keşfet grid: sabit görsel yüksekliği, rezerve metin alanı, mt-auto footer */
+  variant?: 'default' | 'explore'
 }
 
-export default function PostCard({ post, onLike, onDelete, returnTo }: PostCardProps) {
+export default function PostCard({ post, onLike, onDelete, returnTo, variant = 'default' }: PostCardProps) {
+  const isExplore = variant === 'explore'
   const router = useRouter()
   const { user, accessToken } = useAuthStore()
   const queryClient = useQueryClient()
@@ -187,10 +190,44 @@ export default function PostCard({ post, onLike, onDelete, returnTo }: PostCardP
     }
   }, [menuOpen])
 
+  const hasRealTitle = Boolean(post.title && post.title !== 'Gönderi')
+  const captionTrim = (post.content || '').trim()
+  const titleTrim = hasRealTitle ? (post.title || '').trim() : ''
+  const showExploreSummary =
+    isExplore && captionTrim.length > 0 && (!titleTrim || captionTrim !== titleTrim)
+
+  const hoverOverlayInner = (
+    <>
+      <div className="flex items-center gap-8">
+        <div className="flex items-center gap-2 text-white text-lg font-semibold">
+          <Heart className="w-6 h-6" fill={isLiked ? 'currentColor' : 'none'} />
+          <span>{likesCount}</span>
+        </div>
+        <div className="flex items-center gap-2 text-white text-lg font-semibold">
+          <MessageCircle className="w-6 h-6" />
+          <span>{(post as any)._count?.comments || (post as any).commentCount || 0}</span>
+        </div>
+      </div>
+      {post.pinnedComment && (
+        <div className="w-full max-w-[90%] text-center">
+          <div className="flex items-center justify-center gap-1.5 text-white/95 text-xs font-medium mb-1">
+            <Pin className="w-3.5 h-3.5 text-brand-orange shrink-0" fill="currentColor" />
+            <span>Sabitlenen · @{post.pinnedComment.user}</span>
+          </div>
+          <p className="line-clamp-2 text-white/90 text-sm leading-snug" title={post.pinnedComment.text}>
+            {post.pinnedComment.text}
+          </p>
+        </div>
+      )}
+    </>
+  )
+
   return (
     <div
       onClick={handleCardClick}
-      className="relative w-full bg-white/80 dark:bg-[#1a1a1a]/70 backdrop-blur-md border border-gray-200 dark:border-gray-700/40 rounded-2xl shadow-sm p-4 md:p-5 transition-shadow hover:shadow-md cursor-pointer group"
+      className={`relative w-full bg-white/80 dark:bg-[#1a1a1a]/70 backdrop-blur-md border border-gray-200 dark:border-gray-700/40 rounded-2xl shadow-sm p-4 md:p-5 transition-shadow hover:shadow-md cursor-pointer group ${
+        isExplore ? 'h-full flex flex-col' : ''
+      }`}
     >
       {/* Menü butonu - Sadece sahip görür, her zaman görünür (görsel olsun ya da olmasın) - Post z-index */}
       {isOwner && (
@@ -223,62 +260,60 @@ export default function PostCard({ post, onLike, onDelete, returnTo }: PostCardP
           )}
         </div>
       )}
-      
-      {/* Kapak görseli - Kare form */}
-      {post.cover && (
-        <div className="relative w-full aspect-square mb-4 rounded-2xl overflow-hidden group/image max-h-[400px]">
-          {(() => {
-            const imageUrl = resolveImageUrl(post.cover)
-            console.log('PostCard IMAGE URL:', imageUrl, 'Original:', post.cover)
-            return (
-              <>
-                <img
-                  src={imageUrl}
-                  alt={post.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement
-                    // ⚠️ 404 durumunda placeholder göster (Vercel serverless'ta dosyalar mevcut olmayabilir)
-                    if (!target.src.includes('avatar-placeholder') && !target.src.includes('placeholder')) {
-                      console.warn('PostCard Image 404:', imageUrl)
-                      target.src = '/icons/default-user.svg'
-                      // Görsel yüklenemezse parent div'e opacity ekle
-                      const parent = target.closest('.group\\/image')
-                      if (parent) {
-                        parent.classList.add('opacity-60')
-                      }
-                    }
-                  }}
-                />
-                
-                {/* Modern Hover Overlay - Beğeni, yorum ve sabitlenen yorum (hover'da) */}
-                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover/image:opacity-100 transition-all duration-200 flex flex-col items-center justify-center gap-4 rounded-2xl z-[5] p-4">
-                  <div className="flex items-center gap-8">
-                    <div className="flex items-center gap-2 text-white text-lg font-semibold">
-                      <Heart className="w-6 h-6" fill={isLiked ? "currentColor" : "none"} />
-                      <span>{likesCount}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-white text-lg font-semibold">
-                      <MessageCircle className="w-6 h-6" />
-                      <span>{(post as any)._count?.comments || (post as any).commentCount || 0}</span>
-                    </div>
-                  </div>
-                  {post.pinnedComment && (
-                    <div className="w-full max-w-[90%] text-center">
-                      <div className="flex items-center justify-center gap-1.5 text-white/95 text-xs font-medium mb-1">
-                        <Pin className="w-3.5 h-3.5 text-brand-orange shrink-0" fill="currentColor" />
-                        <span>Sabitlenen · @{post.pinnedComment.user}</span>
-                      </div>
-                      <p className="line-clamp-2 text-white/90 text-sm leading-snug" title={post.pinnedComment.text}>
-                        {post.pinnedComment.text}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </>
-            )
-          })()}
+
+      {/* Kapak: explore = sabit yükseklik + kapaksız placeholder; default = yalnızca cover varken kare */}
+      {isExplore ? (
+        <div className="relative w-full h-52 sm:h-56 mb-4 rounded-2xl overflow-hidden group/image shrink-0">
+          {post.cover ? (
+            <>
+              <img
+                src={resolveImageUrl(post.cover)}
+                alt={hasRealTitle ? post.title : 'Gönderi'}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement
+                  const imageUrl = resolveImageUrl(post.cover!)
+                  if (!target.src.includes('avatar-placeholder') && !target.src.includes('placeholder')) {
+                    console.warn('PostCard Image 404:', imageUrl)
+                    target.src = '/icons/default-user.svg'
+                    const parent = target.closest('.group\\/image')
+                    if (parent) parent.classList.add('opacity-60')
+                  }
+                }}
+              />
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover/image:opacity-100 transition-all duration-200 flex flex-col items-center justify-center gap-4 rounded-2xl z-[5] p-4">
+                {hoverOverlayInner}
+              </div>
+            </>
+          ) : (
+            <div className="w-full h-full bg-gray-100 dark:bg-gray-800/80 flex items-center justify-center">
+              <ImageIcon className="w-11 h-11 sm:w-12 sm:h-12 text-gray-300 dark:text-gray-600 opacity-45" strokeWidth={1.25} />
+            </div>
+          )}
         </div>
+      ) : (
+        post.cover && (
+          <div className="relative w-full aspect-square mb-4 rounded-2xl overflow-hidden group/image max-h-[400px]">
+            <img
+              src={resolveImageUrl(post.cover)}
+              alt={post.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement
+                const imageUrl = resolveImageUrl(post.cover!)
+                if (!target.src.includes('avatar-placeholder') && !target.src.includes('placeholder')) {
+                  console.warn('PostCard Image 404:', imageUrl)
+                  target.src = '/icons/default-user.svg'
+                  const parent = target.closest('.group\\/image')
+                  if (parent) parent.classList.add('opacity-60')
+                }
+              }}
+            />
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover/image:opacity-100 transition-all duration-200 flex flex-col items-center justify-center gap-4 rounded-2xl z-[5] p-4">
+              {hoverOverlayInner}
+            </div>
+          </div>
+        )
       )}
       
       {/* Silme onay modalı - Sadece açıkken görünür, z-index sidebar'dan düşük */}
@@ -316,22 +351,40 @@ export default function PostCard({ post, onLike, onDelete, returnTo }: PostCardP
         </div>
       )}
 
-      {/* Başlık - Sadece gerçek başlık varsa göster (fallback "Gönderi" yazısını gösterme) */}
-      {post.title && post.title !== 'Gönderi' && (
-        <h3 className="text-base md:text-lg font-semibold text-[#111] dark:text-white mb-2 line-clamp-2">
-          {post.title}
-        </h3>
-      )}
-
-      {/* İçerik önizleme */}
-      {post.content && (
-        <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300 leading-snug mb-3 md:mb-4 line-clamp-3">
-          {post.content}
-        </p>
+      {isExplore ? (
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="min-h-[2.75rem] shrink-0 mb-1">
+            {hasRealTitle ? (
+              <h3 className="text-base md:text-lg font-semibold text-[#111] dark:text-white line-clamp-2">
+                {post.title}
+              </h3>
+            ) : null}
+          </div>
+          <div className="min-h-[2.5rem] shrink-0 mb-2">
+            {showExploreSummary ? (
+              <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300 leading-snug line-clamp-2">
+                {post.content}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : (
+        <>
+          {hasRealTitle && (
+            <h3 className="text-base md:text-lg font-semibold text-[#111] dark:text-white mb-2 line-clamp-2">
+              {post.title}
+            </h3>
+          )}
+          {post.content && (
+            <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300 leading-snug mb-3 md:mb-4 line-clamp-3">
+              {post.content}
+            </p>
+          )}
+        </>
       )}
 
       {/* Alt bilgi */}
-      <div className="flex justify-between items-center">
+      <div className={`flex justify-between items-center ${isExplore ? 'mt-auto pt-2 shrink-0' : ''}`}>
         <Link
           href={`/profile/${post.authorUsername || post.author}`}
           onClick={(e) => e.stopPropagation()}

@@ -229,19 +229,25 @@ function ExploreContent() {
         */}
 
         {/* Düzenli Grid View - PostCard explore variant kullanıyor */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 py-8 px-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 py-8 px-4 items-stretch">
           {isLoading ? (
             // ✅ Skeleton loader - UI hemen görünsün
             Array.from({ length: 6 }).map((_, i) => (
-              <PostCardSkeleton key={`skeleton-${i}`} />
+              <PostCardSkeleton key={`skeleton-${i}`} variant="explore" />
             ))
           ) : (
             posts.map((post: any, index: number) => {
-            // PostCard için uygun formata dönüştür
+            const caption = (post.caption || '').trim()
+            const artworkTitle = (post.title || '').trim()
+            const useArtworkTitle = post.type === 'artwork' && artworkTitle.length > 0
+            const displayTitle = useArtworkTitle ? artworkTitle : caption
+            const displayContent =
+              useArtworkTitle && caption && caption !== artworkTitle ? caption : useArtworkTitle ? '' : caption
+
             const postCardData = {
               id: post.id,
-              title: post.caption || 'Gönderi',
-              content: post.caption || '',
+              title: displayTitle || 'Gönderi',
+              content: displayContent,
               cover: post.media?.[0]?.url || null,
               author: post.user?.fullName || post.user?.username || 'Kullanıcı',
               authorUsername: post.user?.username,
@@ -261,6 +267,7 @@ function ExploreContent() {
             return (
               <motion.div
                 key={post.id}
+                className="h-full"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: index * 0.05 }}
@@ -269,6 +276,7 @@ function ExploreContent() {
                 <PostCard
                   post={postCardData}
                   returnTo="/explore"
+                  variant="explore"
                 />
               </motion.div>
             )
