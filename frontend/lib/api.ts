@@ -20,6 +20,7 @@ function isEventsApiMutation(config: Pick<ApiRequestConfig, 'url' | 'method'>): 
   const m = (config.method || 'get').toLowerCase()
   return ['post', 'put', 'patch', 'delete'].includes(m)
 }
+
 import { CapabilitySummary, SidebarVisibility } from '@/types/capabilities'
 
 let isRefreshing = false
@@ -173,7 +174,9 @@ const api = axios.create({
 })
 
 // Her istekte güncel axios base URL (SSR + client; prod web'de /api-proxy)
-// FormData / directBackend: Next proxy gövde limiti (413) — doğrudan backend kökü kullan (CORS açık)
+// FormData (medya upload) same-origin /api-proxy üzerinden gider — cross-origin backend upload bazı ağlarda ERR_NETWORK veriyordu.
+// Büyük dosya için CreateEventModal istemci tarafı sıkıştırma yapar (413 önleme).
+// /events mutasyonları doğrudan backend (JSON POST proxy'de sorun çıkabiliyordu).
 // Store rehydrate olmadan (navigasyon sonrası) token için localStorage, yoksa persist yedeği kullan; istek token'sız giderse 401 → forced logout
 api.interceptors.request.use((config: ApiRequestConfig) => {
   const isFormData =
@@ -182,7 +185,7 @@ api.interceptors.request.use((config: ApiRequestConfig) => {
     config.directBackend === true ||
     (typeof window !== 'undefined' &&
       shouldUseBrowserApiProxy() &&
-      (isFormData || isEventsApiMutation(config)))
+      isEventsApiMutation(config))
 
   config.baseURL = bypassProxyForBody ? getAbsoluteBackendBaseUrl() : getAxiosBaseURL()
 

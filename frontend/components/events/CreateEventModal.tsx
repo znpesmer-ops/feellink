@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { X, Image, Loader2 } from "lucide-react";
+import { X, Image as ImageIcon, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import api, { getApiErrorKind, getErrorMessage } from "@/lib/api";
 import type { AxiosError } from "axios";
@@ -17,6 +17,54 @@ interface CreateEventModalProps {
 
 const GENERIC_SAVE_ERROR =
   "Etkinlik kaydedilirken bir sorun oluştu. Lütfen tekrar deneyin.";
+
+/** Proxy gövde limiti için; same-origin upload + küçük dosya = stabil */
+const MAX_COVER_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+async function compressImageForUpload(file: File): Promise<File> {
+  if (!file.type.startsWith("image/") || file.size < 400 * 1024) {
+    return file;
+  }
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const maxW = 1920;
+      let { width, height } = img;
+      if (width > maxW) {
+        height = Math.round((height * maxW) / width);
+        width = maxW;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(file);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(file);
+            return;
+          }
+          const name = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+          resolve(new File([blob], name, { type: "image/jpeg" }));
+        },
+        "image/jpeg",
+        0.85,
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
+    img.src = url;
+  });
+}
 
 export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateEventModalProps) {
   const [title, setTitle] = useState("");
@@ -76,16 +124,30 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
       let coverUrl: string | null = null;
 
       if (coverImage) {
-        debugEventModal("upload:start", { name: coverImage.name, size: coverImage.size });
-        const formData = new FormData();
-        formData.append("file", coverImage);
-        const upload = await api.post("/media/upload?type=image", formData);
-        debugEventModal("upload:ok");
-        const raw = upload?.data as { url?: string; imageUrl?: string } | undefined;
-        coverUrl = (raw?.url ?? raw?.imageUrl ?? "").trim() || null;
-        if (!coverUrl) {
-          toast.error("Kapak görseli yüklenemedi. Lütfen başka bir dosya deneyin.");
-          return;
+        try {
+          let fileToSend = await compressImageForUpload(coverImage);
+          if (fileToSend.size > MAX_COVER_UPLOAD_BYTES) {
+            toast.error(
+              "Kapak görseli hâlâ çok büyük. Lütfen daha küçük bir fotoğraf seçin (yaklaşık 4 MB altı).",
+            );
+            return;
+          }
+          debugEventModal("upload:start", { name: fileToSend.name, size: fileToSend.size });
+          const formData = new FormData();
+          formData.append("file", fileToSend);
+          const upload = await api.post("/media/upload?type=image", formData);
+          debugEventModal("upload:ok");
+          const raw = upload?.data as { url?: string; imageUrl?: string } | undefined;
+          coverUrl = (raw?.url ?? raw?.imageUrl ?? "").trim() || null;
+          if (!coverUrl) {
+            throw new Error("empty_upload_url");
+          }
+        } catch {
+          coverUrl = null;
+          toast(
+            "Kapak yüklenemedi; etkinlik kapaksız kaydediliyor.",
+            { duration: 4000 },
+          );
         }
       }
 
@@ -162,21 +224,16 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
       let msg = getErrorMessage(err);
 
       if (reqPath.includes("/media/upload")) {
-        if (kind === "network" || kind === "timeout") {
-          msg =
-            "Kapak görseli yüklenemedi. Bağlantı sorunu oluştu; interneti kontrol edin veya daha küçük bir dosya deneyin.";
-        } else if (kind === "payload_too_large") {
-          msg =
-            "Kapak görseli çok büyük. Lütfen daha küçük bir görsel seçin.";
+        if (kind === "payload_too_large") {
+          msg = "Kapak görseli çok büyük. Lütfen daha küçük bir görsel seçin.";
         } else if (kind === "auth") {
           msg =
             "Oturum doğrulaması başarısız. Lütfen yeniden giriş yapıp tekrar deneyin.";
-        } else if (kind === "validation" || kind === "forbidden") {
-          /* getErrorMessage zaten gövde mesajını verir */
-        } else {
+        } else if (kind === "network" || kind === "timeout") {
           msg =
-            "Kapak görseli yüklenemedi. Lütfen farklı bir görsel ile tekrar deneyin.";
+            "Kapak yüklenemedi. İnternetinizi kontrol edin; sorun sürerse kapaksız kaydetmek için görseli kaldırıp tekrar deneyin.";
         }
+        /* validation/forbidden: getErrorMessage; diğer: yukarıdaki veya getErrorMessage */
       } else if (reqPath.includes("/events") && kind === "validation") {
         if (!msg || msg.length < 3) {
           msg =
@@ -232,7 +289,7 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
                   />
                 ) : (
                   <div className="flex flex-col items-center text-gray-400">
-                    <Image size={24} />
+                    <ImageIcon size={24} />
                     <span className="text-xs">Yükle</span>
                   </div>
                 )}
