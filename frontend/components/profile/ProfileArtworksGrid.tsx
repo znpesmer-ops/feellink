@@ -116,7 +116,7 @@ export function ProfileArtworksGrid({
       })
 
       // Sabit dosya adı - kullanıcı verisine bağlı değil
-      const fileName = 'Feellink_QR.pdf'
+      const fileName = `Feellink_Eser_Bileti_${artworkId}.pdf`
 
       // Blob'dan URL oluştur ve indir
       const url = window.URL.createObjectURL(new Blob([response.data]))

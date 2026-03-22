@@ -22,6 +22,71 @@ import * as path from 'path';
 import { PDFDocument as PDFLibDocument } from 'pdf-lib';
 import sharp from 'sharp';
 
+/** Eser ID → deterministik sayı (logo varyasyonu vb.) */
+function hashPostIdForLayout(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) {
+    h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+/** Tek satır; taşarsa kısalt */
+function truncateOneLine(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+  const t = text.replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  if (ctx.measureText(t).width <= maxWidth) return t;
+  const ell = '\u2026';
+  let lo = 0;
+  let hi = t.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    const slice = t.slice(0, mid) + ell;
+    if (ctx.measureText(slice).width <= maxWidth) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo > 0 ? `${t.slice(0, lo)}${ell}` : ell;
+}
+
+/** Canvas: metni max genişliğe göre satırlara böl (en fazla maxLines) */
+function wrapCanvasText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+): string[] {
+  const cleaned = text.replace(/\s+/g, ' ').trim();
+  if (!cleaned) return [];
+  const words = cleaned.split(' ');
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const trial = current ? `${current} ${word}` : word;
+    if (ctx.measureText(trial).width <= maxWidth) {
+      current = trial;
+      continue;
+    }
+    if (current) {
+      lines.push(current);
+      current = word;
+    } else {
+      let w = word;
+      while (w.length > 1 && ctx.measureText(`${w}…`).width > maxWidth) {
+        w = w.slice(0, -1);
+      }
+      lines.push(w.length < word.length ? `${w}…` : w);
+      current = '';
+    }
+    if (lines.length >= maxLines) {
+      const last = lines[maxLines - 1];
+      lines[maxLines - 1] = truncateOneLine(ctx, last.replace(/\u2026$/, ''), maxWidth) || last;
+      return lines.slice(0, maxLines);
+    }
+  }
+  if (current && lines.length < maxLines) lines.push(current);
+  return lines.slice(0, maxLines);
+}
+
 @Injectable()
 export class PostsService {
   constructor(
@@ -2434,9 +2499,8 @@ export class PostsService {
   }
 
   /**
-   * 🎨 QR Etiket PDF üretimi - PNG şablon tabanlı profesyonel sistem
-   * PNG şablonu üzerine dinamik içerik (QR, eser adı, sanatçı, kod) ekler
-   * Tek sayfa PDF, A4 üzerinde ortalanmış
+   * Eser QR bilet PDF — sabit yatay oran (2000×850 referansı). Sol üst: eser adı, sahip, kod.
+   * Sol alt: QR. QR sağında slogan. Sağ alt: Feellink logosu (turuncu/mavi, eser ID’ye göre deterministik).
    */
   async generateQrLabelPdf(postId: string): Promise<Buffer> {
     const post = await this.prisma.post.findUnique({
@@ -2460,7 +2524,6 @@ export class PostsService {
       throw new BadRequestException('Bu gönderi bir eser değil');
     }
 
-    // Eser kodu oluştur veya mevcut kodu kullan
     let artworkCode = post.code;
     if (!artworkCode) {
       artworkCode = await generateUniqueArtworkCode(this.prisma);
@@ -2470,509 +2533,239 @@ export class PostsService {
       });
     }
 
-    // Frontend URL'ini al
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    
-    // QR kod URL'i - Eser detay sayfasına yönlendir
     const artworkUrl = `${frontendUrl}/posts/${postId}`;
-    
-    // === CANVAS LAZY IMPORT (Webpack hatası için) ===
+
     const { createCanvas, loadImage, registerFont } = require('canvas');
 
-    // === PNG ŞABLONUNU YÜKLE ===
-    // process.cwd() backend klasörünü verir (dist'ten bağımsız)
-    const templatePath = path.join(process.cwd(), 'assets', 'templates', 'artwork-label.png');
-    
-    let width: number;
-    let height: number;
-    let useTemplate = false;
-
-    // Template varsa kullan, yoksa basit bir canvas oluştur
-    if (fs.existsSync(templatePath)) {
-      const template = await loadImage(templatePath);
-      width = template.width;
-      height = template.height;
-      useTemplate = true;
-    } else {
-      // Template yoksa kartvizit boyutunda eser etiketi tasarımı (A4'e uygun, küçültülmüş)
-      console.warn(`Template bulunamadı: ${templatePath}. Kartvizit boyutunda etiket oluşturuluyor.`);
-      
-      // Scale faktörü: Tüm boyutları %65'e küçült (0.65) - HD çözünürlük korunuyor
-      const scale = 0.65;
-      
-      width = Math.round(750 * scale); // 488px
-      // Yükseklik dinamik olarak hesaplanacak
-      height = Math.round(480 * scale); // ~288px (geçici, sonra güncellenecek)
-      useTemplate = false;
-    }
-
-    // === HD ÇÖZÜNÜRLÜK İÇİN SCALE FAKTÖRÜ (2x retina/high DPI) ===
-    const dpiScale = 2; // 2x çözünürlük (HD/Retina kalitesi)
-    const canvasWidth = width * dpiScale;
-    const canvasHeight = height * dpiScale;
-
-    // === CANVAS OLUŞTUR (HD çözünürlükte, yükseklik içerik çizildikten sonra güncellenecek) ===
-    const canvas = createCanvas(canvasWidth, canvasHeight);
-    const ctx = canvas.getContext('2d');
-    
-    // HD çözünürlük için scale uygula (tüm çizimler 2x'de yapılacak)
-    ctx.scale(dpiScale, dpiScale);
-
-    // Beyaz arka plan
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, width, height);
-
-    // Template varsa arka plana çiz, yoksa HTML template tasarımını oluştur
-    if (useTemplate) {
-      const template = await loadImage(templatePath);
-      ctx.drawImage(template, 0, 0, width, height);
-    }
-
-    // === FONT KAYDI ===
+    const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
+    const interRegularPath = path.join(fontsDir, 'Inter-Regular.ttf');
+    const interBoldPath = path.join(fontsDir, 'Inter-Bold.ttf');
     try {
-      const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
-      const interRegular = path.join(fontsDir, 'Inter-Regular.ttf');
-      const interBold = path.join(fontsDir, 'Inter-Bold.ttf');
-
-      if (fs.existsSync(interRegular)) {
-        registerFont(interRegular, { family: 'Inter' });
+      if (fs.existsSync(interRegularPath)) {
+        registerFont(interRegularPath, { family: 'Inter' });
       }
-      if (fs.existsSync(interBold)) {
-        registerFont(interBold, { family: 'InterBold' });
+      if (fs.existsSync(interBoldPath)) {
+        registerFont(interBoldPath, { family: 'InterBold' });
       }
     } catch (error) {
-      console.warn('Font kayıt hatası (sistem fontları kullanılacak):', error);
+      console.warn('Font kayıt hatası:', error);
     }
 
-    // Font kontrolü için path
-    const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
-    const hasInterBold = fs.existsSync(path.join(fontsDir, 'Inter-Bold.ttf'));
-    const hasInterRegular = fs.existsSync(path.join(fontsDir, 'Inter-Regular.ttf'));
+    const hasInterBold = fs.existsSync(interBoldPath);
+    const hasInterRegular = fs.existsSync(interRegularPath);
+    const fontBold = hasInterBold ? 'InterBold' : 'Arial';
+    const fontReg = hasInterRegular ? 'Inter' : 'Arial';
+    const fontMono = hasInterRegular ? 'Inter' : 'Courier New';
 
-    // Padding ve içerik alanı
-    let padding: number;
-    let contentWidth: number;
-    let contentStartY: number;
-    
-    // QR kod değişkenleri (hem template hem bilet kartı için kullanılacak)
-    let qrX: number;
-    let qrY: number;
-    let qrSize: number;
-    
-    // Scale faktörü (template olmayan durum için) - HD çözünürlük korunuyor
-    const scale = useTemplate ? 1 : 0.65;
-    
-    // Logo hizalaması için textX (template kullanılmadığında tanımlanacak)
-    let textX: number | undefined;
-    
-    if (useTemplate) {
-      padding = 0;
-      contentWidth = width;
-      contentStartY = 0;
-    } else {
-      // Kartvizit boyutunda etiket için padding (küçültülmüş)
-      padding = Math.round(40 * scale); // 24px
-      contentWidth = width - (padding * 2); // 450 - 48 = 402px
-      contentStartY = padding;
-    }
+    const TICKET_W = 1000;
+    const TICKET_H = 425;
+    const width = TICKET_W;
+    const height = TICKET_H;
+    const dpiScale = 2;
 
-    // === METİNLER (HTML template tasarımı) ===
-    ctx.fillStyle = '#000000';
+    const canvas = createCanvas(width * dpiScale, height * dpiScale);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpiScale, dpiScale);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
     ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
 
-    // 🎨 Eser adı: title > caption > artworkCode (öncelik sırası)
-    const artworkName = post.title || post.caption || artworkCode;
-    const artistName = post.user.fullName || post.user.username || '';
+    const pad = 28;
+    const gapBeforeQr = 18;
 
-    if (useTemplate) {
-      // Template varsa eski koordinatlar
-      const nameFontSize = width * 0.035;
-      ctx.font = `${nameFontSize}px ${hasInterBold ? 'InterBold' : 'Arial-Bold'}`;
-      ctx.fillText(artworkName, width * (140 / 2000), height * (120 / 850));
+    const qrSize = Math.min(216, Math.max(168, Math.floor(height - pad * 2 - 128)));
+    const qrX = pad;
+    const qrY = height - pad - qrSize;
+    const headerMaxBottom = qrY - gapBeforeQr;
 
-      const artistFontSize = width * 0.03;
-      ctx.font = `${artistFontSize}px ${hasInterRegular ? 'Inter' : 'Arial'}`;
-      ctx.fillText(artistName, width * (140 / 2000), height * (180 / 850));
+    const titleRaw =
+      (post.title && post.title.trim()) ||
+      (post.caption && post.caption.trim()) ||
+      '';
+    const ownerRaw =
+      (post.user.fullName && post.user.fullName.trim()) ||
+      (post.user.username || '').trim();
 
-      const codeFontSize = width * 0.026;
-      ctx.font = `${codeFontSize}px ${hasInterRegular ? 'Inter' : 'Arial'}`;
-      ctx.fillText(`Kod: ${artworkCode}`, width * (140 / 2000), height * (220 / 850));
-    } else {
-      // Kartvizit boyutunda eser etiketi tasarımı (tüm boyutlar scale faktörü ile küçültülmüş)
-      // scale değişkeni yukarıda tanımlı (0.6)
-      let currentY = contentStartY;
-      let textX: number; // Logo hizalaması için gerekli
+    const titleMaxW = width - pad * 2;
+    let y = pad;
 
-      // === ESER ADI (Büyük, küçültülmüş) ===
-      const eserAdiFontSize = Math.round(42 * scale); // 25px
-      ctx.font = `600 ${eserAdiFontSize}px ${hasInterBold ? 'InterBold' : 'Times New Roman'}`;
-      ctx.fillStyle = '#000000';
-      ctx.textAlign = 'left';
-      const eserText = artworkName.length > 50 ? artworkName.substring(0, 50) + '...' : artworkName;
-      ctx.fillText(eserText, padding, currentY, contentWidth);
-      currentY += Math.round(60 * scale); // 36px
-
-      // === GRADIENT ÇİZGİ (Pembe-Turuncu-Mavi, küçültülmüş) ===
-      const gradientBarHeight = Math.round(6 * scale); // 4px
-      const gradient = ctx.createLinearGradient(padding, currentY, padding + contentWidth, currentY);
-      gradient.addColorStop(0, '#ff4c7f'); // Pembe
-      gradient.addColorStop(0.5, '#ffa500'); // Turuncu
-      gradient.addColorStop(1, '#007bff'); // Mavi
-      ctx.fillStyle = gradient;
-      ctx.fillRect(padding, currentY, contentWidth, gradientBarHeight);
-      currentY += gradientBarHeight + Math.round(15 * scale); // 9px boşluk
-
-      // === ESER SAHİBİ (küçültülmüş) ===
-      const sanatciFontSize = Math.round(34 * scale); // 20px
-      ctx.font = `${sanatciFontSize}px ${hasInterRegular ? 'Inter' : 'Times New Roman'}`;
-      ctx.fillStyle = '#000000';
-      const sanatciText = artistName.length > 50 ? artistName.substring(0, 50) + '...' : artistName;
-      ctx.fillText(sanatciText, padding, currentY);
-      currentY += Math.round(40 * scale); // 24px boşluk
-
-      // === ESER KODU (küçük, Gri, küçültülmüş) ===
-      const kodFontSize = Math.round(16 * scale); // 10px
-      ctx.font = `${kodFontSize}px ${hasInterRegular ? 'Inter' : 'Arial'}`;
-      ctx.fillStyle = '#888888'; // Gri renk
-      ctx.fillText(artworkCode, padding, currentY);
-      currentY += Math.round(60 * scale); // 36px boşluk
-
-      // === QR KOD KUTUSU (siyah çerçeve, yuvarlak kenarlı, küçültülmüş) ===
-      const qrBoxSize = Math.round(200 * scale); // 120px
-      const gap = Math.round(60 * scale); // 36px boşluk
-      qrX = padding; // QR kod solda
-      qrY = currentY;
-      qrSize = qrBoxSize;
-
-      // QR kod çerçevesi (küçültülmüş border, siyah, yuvarlak kenarlı)
-      const borderRadius = Math.round(15 * scale); // 9px yuvarlak köşe
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = Math.round(3 * scale); // 2px border
-      ctx.fillStyle = '#ffffff';
-      
-      // Yuvarlak kenarlı kare çizimi (rounded rectangle - manuel path)
-      ctx.beginPath();
-      const x = qrX;
-      const y = qrY;
-      const w = qrSize;
-      const h = qrSize;
-      const r = borderRadius;
-      
-      // Rounded rectangle path
-      ctx.moveTo(x + r, y);
-      ctx.lineTo(x + w - r, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-      ctx.lineTo(x + w, y + h - r);
-      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-      ctx.lineTo(x + r, y + h);
-      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-      ctx.lineTo(x, y + r);
-      ctx.quadraticCurveTo(x, y, x + r, y);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      // === SAĞ TARAF: YAZILAR (QR kodun sağında, QR kodun başlangıcı ile aynı yatay hizada, küçültülmüş) ===
-      textX = qrX + qrSize + gap; // Yazılar QR kodun sağında
-
-      // Font boyutları ve satır yükseklikleri (küçültülmüş)
-      const firstFontSize = Math.round(32 * scale); // 19px
-      const secondFontSize = Math.round(28 * scale); // 17px
-      const lineSpacing = Math.round(10 * scale); // 6px satırlar arası boşluk
-      
-      // Yaklaşık satır yükseklikleri (font size'a göre)
-      const firstLineHeight = firstFontSize * 1.2; // ~23px
-      const secondLineHeight = secondFontSize * 1.2; // ~20px
-
-      // Yazıları QR kodun başlangıç Y pozisyonu ile aynı yatay hizada başlat
-      let firstTextY = qrY;
-
-      // === FEELINK BAŞLIĞI (küçültülmüş) - Sude Esmer ile aynı font ailesi ===
-      ctx.font = `${firstFontSize}px ${hasInterRegular ? 'Inter' : 'Times New Roman'}`;
-      ctx.fillStyle = '#000000';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillText('Feellink ile sanat daha anlamlı!', textX, firstTextY);
-
-      // === İKİNCİ BAŞLIK (küçültülmüş) - Sude Esmer ile aynı font ailesi ===
-      let secondTextY = firstTextY + firstLineHeight + lineSpacing;
-      ctx.font = `${secondFontSize}px ${hasInterRegular ? 'Inter' : 'Times New Roman'}`;
-      ctx.fillStyle = '#000000';
-      ctx.fillText('Sen de duygularını paylaş!', textX, secondTextY);
-
-      // Canvas yüksekliğini QR kodun bitiş noktasına göre hesapla (alt boşluğu azalt)
-      const qrBottom = qrY + qrSize; // QR kodun alt kenarı
-      const bottomMargin = padding; // Alt margin (padding kadar, çerçeve için)
-      const calculatedHeight = qrBottom + bottomMargin;
-      
-      // Height'i güncelle (PDF oluşturma için)
-      height = calculatedHeight;
+    let titleFont = 26;
+    let titleLines: string[] = [];
+    for (; titleFont >= 15; titleFont -= 1) {
+      ctx.font = `600 ${titleFont}px ${fontBold}`;
+      titleLines = titleRaw ? wrapCanvasText(ctx, titleRaw, titleMaxW, 2) : [];
+      const titleBlockH = titleLines.length
+        ? titleLines.length * titleFont * 1.25
+        : Math.round(titleFont * 0.35);
+      const artistFs = Math.max(13, Math.round(titleFont * 0.58));
+      const codeFs = Math.max(11, Math.round(titleFont * 0.48));
+      const estBottom =
+        y +
+        titleBlockH +
+        8 +
+        (ownerRaw ? artistFs * 1.35 : artistFs * 0.4) +
+        6 +
+        codeFs * 1.35 +
+        12 +
+        5;
+      if (estBottom <= headerMaxBottom) {
+        break;
+      }
     }
 
-    // === QR KOD OLUŞTUR VE YERLEŞTİR (HD çözünürlük için daha yüksek çözünürlükte) ===
-    const hdDpiScale = useTemplate ? 1 : 2; // HD çözünürlük için 2x
-    const qrResolution = useTemplate ? 400 : 800; // HD için 2x çözünürlük
+    ctx.fillStyle = '#111827';
+    ctx.font = `600 ${titleFont}px ${fontBold}`;
+    if (titleLines.length > 0) {
+      let ty = y;
+      for (const line of titleLines) {
+        ctx.fillText(line, pad, ty);
+        ty += titleFont * 1.22;
+      }
+      y = ty + 6;
+    } else {
+      y += Math.round(titleFont * 0.2);
+    }
+
+    const artistFontSize = Math.max(13, Math.min(17, Math.round(titleFont * 0.62)));
+    ctx.font = `${artistFontSize}px ${fontReg}`;
+    ctx.fillStyle = '#374151';
+    if (ownerRaw) {
+      ctx.fillText(truncateOneLine(ctx, ownerRaw, titleMaxW), pad, y);
+      y += artistFontSize * 1.35;
+    } else {
+      y += Math.round(artistFontSize * 0.45);
+    }
+
+    const codeFontSize = Math.max(11, Math.min(14, Math.round(titleFont * 0.5)));
+    ctx.font = `${codeFontSize}px ${fontMono}`;
+    ctx.fillStyle = '#6b7280';
+    ctx.fillText(artworkCode, pad, y);
+    y += codeFontSize * 1.4 + 10;
+
+    const gradH = 4;
+    const gradient = ctx.createLinearGradient(pad, y, pad + (width - pad * 2), y);
+    gradient.addColorStop(0, '#ff4c7f');
+    gradient.addColorStop(0.5, '#ff7b00');
+    gradient.addColorStop(1, '#2563eb');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(pad, y, width - pad * 2, gradH);
+
     const qrBuffer = await QRCode.toBuffer(artworkUrl, {
       margin: 1,
-      width: qrResolution,
+      width: 640,
       type: 'png',
     });
     const qrImg = await loadImage(qrBuffer);
 
-    if (useTemplate) {
-      // Template koordinatları (dinamik hesaplama)
-      qrX = width * (140 / 2000);
-      qrY = height * (280 / 850);
-      qrSize = width * (460 / 2000);
-      
-      // QR kod çerçevesi (turuncu)
-      ctx.strokeStyle = '#ff7b00';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(qrX - 5, qrY - 5, qrSize + 10, qrSize + 10);
-      ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
-      
-      // === FEELINK LOGOSU (Template için - Sağ alt köşe, "Paylaş" yazısıyla aynı görsel ağırlık, nefes alacak şekilde) ===
-      // SVG kullanıldığında letter-spacing ile harf aralığı açılabilir (PNG'de mümkün değil)
-      try {
-        const logoSvgPath = path.join(process.cwd(), 'assets', 'logo.svg');
-        const logoPngPath = path.join(process.cwd(), 'assets', 'logo.png');
-        
-        let logoImg: any = null;
-        
-        // Önce SVG'yi dene (letter-spacing için ideal)
-        if (fs.existsSync(logoSvgPath)) {
-          // SVG'yi PNG'ye çevir (canvas SVG'yi doğrudan desteklemez)
-          const svgBuffer = fs.readFileSync(logoSvgPath);
-          const pngBuffer = await sharp(svgBuffer)
-            .resize(200, 200, { // Yüksek çözünürlük için büyük boyut
-              fit: 'contain',
-              background: { r: 255, g: 255, b: 255, alpha: 0 } // Şeffaf arka plan
-            })
-            .png()
-            .toBuffer();
-          logoImg = await loadImage(pngBuffer);
-        } else if (fs.existsSync(logoPngPath)) {
-          // PNG fallback
-          logoImg = await loadImage(logoPngPath);
-        }
-        
-        if (logoImg) {
-          
-          // Logo boyutu (56px - harflerin daha rahat algılanması için, template'e göre orantılı)
-          const logoSize = width * (56 / 2000); // Template'e göre orantılı, 56px hedef
-          const logoMargin = width * (28 / 2000); // 28px boşluk (kart kenarından, dengeli konum için)
-          
-          // Logo scaleX ile genişletildiğinde gerçek genişliği
-          const scaleXValue = 2.5;
-          const logoActualWidth = logoSize * scaleXValue;
-          
-          // Sağ alt köşe pozisyonu (eski yer, scaleX genişliği hesaba katılarak)
-          const logoX = width - logoActualWidth - logoMargin;
-          const logoY = height - logoSize - logoMargin;
-          
-          // Logo merkez noktası (scaleX için referans)
-          const logoCenterX = logoX + logoActualWidth / 2;
-          const logoCenterY = logoY + logoSize / 2;
-          
-          // Logo opacity (premium hissi)
-          ctx.globalAlpha = 0.9;
-          ctx.save(); // Canvas state'i kaydet
-          ctx.translate(logoCenterX, logoCenterY); // Logo merkezine git
-          ctx.scale(2.5, 1); // Sadece X ekseninde scale (yatay genişletme)
-          ctx.drawImage(logoImg, -logoSize / 2, -logoSize / 2, logoSize, logoSize); // Merkez noktasından çiz
-          ctx.restore(); // Canvas state'i geri yükle
-          ctx.globalAlpha = 1.0; // Opacity'yi geri al
-        }
-      } catch (error) {
-        console.warn('Logo yüklenemedi (opsiyonel):', error);
-        // Logo yoksa devam et, hata verme
+    const qrPad = 8;
+    const innerQr = qrSize - qrPad * 2;
+
+    ctx.strokeStyle = '#ff7b00';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 4);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(qrX, qrY, qrSize, qrSize);
+    ctx.drawImage(qrImg, qrX + qrPad, qrY + qrPad, innerQr, innerQr);
+
+    const slogan = 'Feellink ile sanat daha anlamlı!';
+    const sloganX = qrX + qrSize + 22;
+    const sloganMaxW = Math.max(80, width - pad - sloganX - 8);
+
+    let bestLines: string[] = [slogan];
+    let bestFont = 12;
+    for (let sloganFont = 16; sloganFont >= 11; sloganFont -= 1) {
+      ctx.font = `500 ${sloganFont}px ${fontReg}`;
+      const lines = wrapCanvasText(ctx, slogan, sloganMaxW, 2);
+      const blockH = lines.length * sloganFont * 1.3;
+      if (blockH <= qrSize + 4) {
+        bestLines = lines;
+        bestFont = sloganFont;
+        break;
       }
-    } else {
-      // Kartvizit boyutunda etiket tasarımı: QR kod sol yuvarlak kenarlı kutusunun içine (padding ile, küçültülmüş)
-      // scale değişkeni yukarıda tanımlı (0.6)
-      const qrPadding = Math.round(10 * scale); // 6px QR kod padding
-      const qrDisplaySize = qrSize - (qrPadding * 2); // QR kod görüntü boyutu
-      const qrFinalX = qrX + qrPadding;
-      const qrFinalY = qrY + qrPadding;
-      const qrBorderRadius = Math.round(12 * scale); // 7px QR kodun yuvarlak köşe yarıçapı (çerçeveden biraz küçük)
-      
-      // QR kodunu yuvarlak kenarlı alana clip et
-      ctx.save();
-      ctx.beginPath();
-      
-      // Rounded rectangle path for clipping
-      const clipX = qrFinalX;
-      const clipY = qrFinalY;
-      const clipW = qrDisplaySize;
-      const clipH = qrDisplaySize;
-      const clipR = qrBorderRadius;
-      
-      ctx.moveTo(clipX + clipR, clipY);
-      ctx.lineTo(clipX + clipW - clipR, clipY);
-      ctx.quadraticCurveTo(clipX + clipW, clipY, clipX + clipW, clipY + clipR);
-      ctx.lineTo(clipX + clipW, clipY + clipH - clipR);
-      ctx.quadraticCurveTo(clipX + clipW, clipY + clipH, clipX + clipW - clipR, clipY + clipH);
-      ctx.lineTo(clipX + clipR, clipY + clipH);
-      ctx.quadraticCurveTo(clipX, clipY + clipH, clipX, clipY + clipH - clipR);
-      ctx.lineTo(clipX, clipY + clipR);
-      ctx.quadraticCurveTo(clipX, clipY, clipX + clipR, clipY);
-      ctx.closePath();
-      ctx.clip();
-      
-      // QR kodunu çiz
-      ctx.drawImage(qrImg, qrFinalX, qrFinalY, qrDisplaySize, qrDisplaySize);
-      
-      // Clip'i kaldır
-      ctx.restore();
     }
 
-    // === TÜM ETİKETİN ÇEVRESİNE ÇERÇEVE (Kartvizit görünümü) ===
-    // QR kod çerçevesine benzer, tüm etiketi kaplayan siyah çerçeve (küçültülmüş)
-    if (!useTemplate) {
-      // scale değişkeni yukarıda tanımlı (0.6)
-      const borderWidth = Math.round(3 * scale); // 2px QR kod çerçevesi ile aynı kalınlık (küçültülmüş)
-      const borderRadius = Math.round(15 * scale); // 9px QR kod çerçevesi ile aynı yuvarlak köşe (küçültülmüş)
-      const borderMargin = 0; // Çerçeve canvas kenarından başlasın
-      
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = borderWidth;
-      ctx.beginPath();
-      
-      // Tüm canvas'ın etrafına yuvarlak köşeli çerçeve
-      // Çerçeve, hesaplanan height'e göre çizilecek (QR kodun bitiş noktasına göre)
-      const borderX = borderMargin;
-      const borderY = borderMargin;
-      const borderW = width - (borderMargin * 2);
-      const borderH = height - (borderMargin * 2); // Hesaplanan yüksekliği kullan
-      const borderR = borderRadius;
-      
-      ctx.moveTo(borderX + borderR, borderY);
-      ctx.lineTo(borderX + borderW - borderR, borderY);
-      ctx.quadraticCurveTo(borderX + borderW, borderY, borderX + borderW, borderY + borderR);
-      ctx.lineTo(borderX + borderW, borderY + borderH - borderR);
-      ctx.quadraticCurveTo(borderX + borderW, borderY + borderH, borderX + borderW - borderR, borderY + borderH);
-      ctx.lineTo(borderX + borderR, borderY + borderH);
-      ctx.quadraticCurveTo(borderX, borderY + borderH, borderX, borderY + borderH - borderR);
-      ctx.lineTo(borderX, borderY + borderR);
-      ctx.quadraticCurveTo(borderX, borderY, borderX + borderR, borderY);
-      ctx.closePath();
-      ctx.stroke();
-      
-      // Canvas yüksekliği başlangıçta 480px olarak ayarlandı
-      // QR kodun bitiş noktası (qrY + qrSize + padding) yaklaşık 466px civarında
-      // Bu yüzden canvas yüksekliği zaten uygun, crop etmeye gerek yok
+    ctx.font = `500 ${bestFont}px ${fontReg}`;
+    ctx.fillStyle = '#111827';
+    const blockH = bestLines.length * bestFont * 1.3;
+    let sy = qrY + Math.max(0, (qrSize - blockH) / 2);
+    for (const ln of bestLines) {
+      ctx.fillText(ln, sloganX, sy);
+      sy += bestFont * 1.3;
     }
 
-    // === FEELINK LOGOSU (Sağ alt köşe, "Paylaş" yazısıyla aynı görsel ağırlık, nefes alacak şekilde) ===
-    // SVG kullanıldığında letter-spacing ile harf aralığı açılabilir (PNG'de mümkün değil)
+    const logosDir = path.join(process.cwd(), 'assets', 'logos');
+    const orangeLogo = path.join(logosDir, 'feellink-turuncu.png');
+    const blueLogo = path.join(logosDir, 'feellink-mavi.png');
+    const useOrange = hashPostIdForLayout(postId) % 2 === 0;
+    let logoPath = useOrange ? orangeLogo : blueLogo;
+    if (!fs.existsSync(logoPath)) {
+      const alt = useOrange ? blueLogo : orangeLogo;
+      logoPath = fs.existsSync(alt) ? alt : path.join(process.cwd(), 'assets', 'logo.png');
+    }
+
     try {
-      const logoSvgPath = path.join(process.cwd(), 'assets', 'logo.svg');
-      const logoPngPath = path.join(process.cwd(), 'assets', 'logo.png');
-      
-      let logoImg: any = null;
-      
-      // Önce SVG'yi dene (letter-spacing için ideal)
-      if (fs.existsSync(logoSvgPath)) {
-        // SVG'yi PNG'ye çevir (canvas SVG'yi doğrudan desteklemez)
-        const svgBuffer = fs.readFileSync(logoSvgPath);
-        const pngBuffer = await sharp(svgBuffer)
-          .resize(200, 200, { // Yüksek çözünürlük için büyük boyut
-            fit: 'contain',
-            background: { r: 255, g: 255, b: 255, alpha: 0 } // Şeffaf arka plan
-          })
-          .png()
-          .toBuffer();
-        logoImg = await loadImage(pngBuffer);
-      } else if (fs.existsSync(logoPngPath)) {
-        // PNG fallback
-        logoImg = await loadImage(logoPngPath);
+      if (fs.existsSync(logoPath)) {
+        const logoImg = await loadImage(logoPath);
+        const maxLogoW = 128;
+        const maxLogoH = 38;
+        const ratio = logoImg.width / logoImg.height;
+        let lw = maxLogoW;
+        let lh = Math.round(lw / ratio);
+        if (lh > maxLogoH) {
+          lh = maxLogoH;
+          lw = Math.round(lh * ratio);
+        }
+        const lx = width - pad - lw;
+        const ly = height - pad - lh;
+        ctx.drawImage(logoImg, lx, ly, lw, lh);
       }
-      
-      if (logoImg) {
-        
-        // Logo boyutu (56px - harflerin daha rahat algılanması için, scale faktörü ile)
-        const logoSize = Math.round(56 * scale); // 56px hedef (scale 0.65 ile ~36px gerçek boyut)
-        const logoMargin = Math.round(28 * scale); // 28px boşluk (kart kenarından, dengeli konum için)
-        
-        // Logo scaleX ile genişletildiğinde gerçek genişliği
-        const scaleXValue = 2.5;
-        const logoActualWidth = logoSize * scaleXValue;
-        
-        // Sağ alt köşe pozisyonu (eski yer, scaleX genişliği hesaba katılarak)
-        const logoX = width - logoActualWidth - logoMargin;
-        const logoY = height - logoSize - logoMargin;
-        
-        // Logo merkez noktası (scaleX için referans)
-        const logoCenterX = logoX + logoActualWidth / 2;
-        const logoCenterY = logoY + logoSize / 2;
-        
-        // Logo opacity (premium hissi)
-        ctx.globalAlpha = 0.9;
-        ctx.save(); // Canvas state'i kaydet
-        ctx.translate(logoCenterX, logoCenterY); // Logo merkezine git
-        ctx.scale(2.5, 1); // Sadece X ekseninde scale (yatay genişletme)
-        ctx.drawImage(logoImg, -logoSize / 2, -logoSize / 2, logoSize, logoSize); // Merkez noktasından çiz
-        ctx.restore(); // Canvas state'i geri yükle
-        ctx.globalAlpha = 1.0; // Opacity'yi geri al
-      }
-    } catch (error) {
-      console.warn('Logo yüklenemedi (opsiyonel):', error);
-      // Logo yoksa devam et, hata verme
+    } catch (e) {
+      console.warn('Logo yüklenemedi:', e);
     }
 
-    // === CANVAS'I PNG'YE ÇEVİR (HD çözünürlük korunuyor) ===
-    // Canvas yüksekliği artık QR kodun bitiş noktasına göre ayarlanmış
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(0.75, 0.75, width - 1.5, height - 1.5);
+
     const pngBuffer = canvas.toBuffer('image/png');
 
-    // === PDF OLUŞTUR (PDF-lib ile) ===
     const pdfDoc = await PDFLibDocument.create();
-    
-    // A4 sayfa boyutları (mm cinsinden)
-    const a4Width = 210; // mm
-    const a4Height = 297; // mm
-    
-    // PNG boyutlarını mm'ye çevir
-    // HD canvas (2x çözünürlük) kullanıldığı için, görsel boyutu width x height (orijinal boyut)
-    // Ama çözünürlüğü 2x daha yüksek (144 DPI yerine 72 DPI x 2 = 144 DPI)
+    const a4Width = 210;
+    const a4Height = 297;
     const mmPerInch = 25.4;
-    const dpi = useTemplate ? 72 : 144; // HD canvas için 144 DPI
+    const dpi = 144;
     const mmPerPx = mmPerInch / dpi;
-    
-    // PDF'ye embed ederken orijinal boyutları kullan (canvas 2x çözünürlükte ama görsel boyutu aynı)
     const labelWidthMm = width * mmPerPx;
     const labelHeightMm = height * mmPerPx;
-    
-    // A4'e sığdır (pdfScale - scale değişkeni ile çakışmaması için farklı isim)
+
     let pdfScale = 1;
     if (labelWidthMm > a4Width || labelHeightMm > a4Height) {
-      const scaleX = (a4Width - 20) / labelWidthMm; // 10mm margin each side
-      const scaleY = (a4Height - 20) / labelHeightMm; // 10mm margin top/bottom
+      const scaleX = (a4Width - 20) / labelWidthMm;
+      const scaleY = (a4Height - 20) / labelHeightMm;
       pdfScale = Math.min(scaleX, scaleY, 1);
     }
-    
+
     const finalWidthMm = labelWidthMm * pdfScale;
     const finalHeightMm = labelHeightMm * pdfScale;
-    
-    // A4 sayfası oluştur
+
     const page = pdfDoc.addPage([a4Width, a4Height]);
-    
-    // PNG'yi PDF'e ekle (ortalanmış)
     const xOffset = (a4Width - finalWidthMm) / 2;
     const yOffset = (a4Height - finalHeightMm) / 2;
-    
+
     const pngImage = await pdfDoc.embedPng(pngBuffer);
     page.drawImage(pngImage, {
       x: xOffset,
-      y: a4Height - yOffset - finalHeightMm, // PDF koordinat sistemi alttan başlar
+      y: a4Height - yOffset - finalHeightMm,
       width: finalWidthMm,
       height: finalHeightMm,
     });
 
-    // PDF'i kaydet
     const pdfBytes = await pdfDoc.save();
     return Buffer.from(pdfBytes);
   }
-
   /**
    * 🎟️ Premium Bilet PDF üretimi - PNG şablon tabanlı profesyonel bilet sistemi
    * Bilet boyutu: 1400x700px, tek sayfa PDF, A4 üzerinde ortalanmış

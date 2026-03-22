@@ -36,33 +36,33 @@ export declare class PostsService {
             avatar: string;
             isVerified: boolean;
         };
+        media: {
+            id: string;
+            type: string;
+            createdAt: Date;
+            url: string;
+            thumbnailUrl: string;
+            order: number;
+            postId: string;
+        }[];
         _count: {
             comments: number;
             likes: number;
         };
-        media: {
-            id: string;
-            createdAt: Date;
-            type: string;
-            postId: string;
-            url: string;
-            thumbnailUrl: string;
-            order: number;
-        }[];
     } & {
         id: string;
+        userId: string;
+        caption: string;
+        title: string;
+        location: string;
+        type: string;
+        code: string;
+        colors: string[];
+        colorPalette: string[];
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
-        location: string;
-        userId: string;
-        type: string;
-        caption: string;
-        code: string;
-        colors: string[];
-        colorPalette: string[];
     }>;
     getPost(postId: string, currentUserId?: string): Promise<{
         id: string;
@@ -119,11 +119,11 @@ export declare class PostsService {
             postId: string;
             hashtagId: string;
         })[];
-        isDeleted: boolean;
-        deletedAt: Date;
         code: string;
         colors: string[];
         colorPalette: string[];
+        isDeleted: boolean;
+        deletedAt: Date;
     }>;
     updatePost(postId: string, userId: string, data: {
         caption?: string;
@@ -135,33 +135,33 @@ export declare class PostsService {
             fullName: string;
             avatar: string;
         };
+        media: {
+            id: string;
+            type: string;
+            createdAt: Date;
+            url: string;
+            thumbnailUrl: string;
+            order: number;
+            postId: string;
+        }[];
         _count: {
             comments: number;
             likes: number;
         };
-        media: {
-            id: string;
-            createdAt: Date;
-            type: string;
-            postId: string;
-            url: string;
-            thumbnailUrl: string;
-            order: number;
-        }[];
     } & {
         id: string;
+        userId: string;
+        caption: string;
+        title: string;
+        location: string;
+        type: string;
+        code: string;
+        colors: string[];
+        colorPalette: string[];
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
-        location: string;
-        userId: string;
-        type: string;
-        caption: string;
-        code: string;
-        colors: string[];
-        colorPalette: string[];
     }>;
     deletePost(postId: string, userId: string): Promise<{
         success: boolean;
@@ -198,6 +198,14 @@ export declare class PostsService {
         replies: any[];
     }>;
     getUserComments(userId: string): Promise<({
+        post: {
+            id: string;
+            caption: string;
+            media: {
+                type: string;
+                url: string;
+            }[];
+        };
         user: {
             id: string;
             username: string;
@@ -209,19 +217,11 @@ export declare class PostsService {
             likes: number;
             replies: number;
         };
-        post: {
-            id: string;
-            caption: string;
-            media: {
-                type: string;
-                url: string;
-            }[];
-        };
     } & {
         id: string;
+        userId: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
         postId: string;
         content: string;
         parentId: string;
@@ -237,9 +237,9 @@ export declare class PostsService {
         };
     } & {
         id: string;
+        userId: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
         postId: string;
         content: string;
         parentId: string;
@@ -320,15 +320,15 @@ export declare class PostsService {
             avatar: string;
             isVerified: boolean;
         };
+        userId: string;
+        location: string;
+        code: string;
+        colors: string[];
+        colorPalette: string[];
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
-        location: string;
-        userId: string;
-        code: string;
-        colors: string[];
-        colorPalette: string[];
     }[]>;
     private extractHashtags;
     savePost(postId: string, userId: string): Promise<{
@@ -340,8 +340,8 @@ export declare class PostsService {
         message: string;
         savedPost: {
             id: string;
-            createdAt: Date;
             userId: string;
+            createdAt: Date;
             postId: string;
         };
     }>;
@@ -365,26 +365,26 @@ export declare class PostsService {
         };
         media: {
             id: string;
-            createdAt: Date;
             type: string;
-            postId: string;
+            createdAt: Date;
             url: string;
             thumbnailUrl: string;
             order: number;
+            postId: string;
         }[];
         id: string;
+        userId: string;
+        caption: string;
+        title: string;
+        location: string;
+        type: string;
+        code: string;
+        colors: string[];
+        colorPalette: string[];
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
-        location: string;
-        userId: string;
-        type: string;
-        caption: string;
-        code: string;
-        colors: string[];
-        colorPalette: string[];
     }[]>;
     saveArtwork(postId: string, userId: string): Promise<{
         success: boolean;
@@ -410,32 +410,32 @@ export declare class PostsService {
             avatar: string;
             isVerified: boolean;
         };
+        media: {
+            id: string;
+            type: string;
+            createdAt: Date;
+            url: string;
+            thumbnailUrl: string;
+            order: number;
+            postId: string;
+        }[];
         _count: {
             comments: number;
             likes: number;
         };
-        media: {
-            id: string;
-            createdAt: Date;
-            type: string;
-            postId: string;
-            url: string;
-            thumbnailUrl: string;
-            order: number;
-        }[];
         id: string;
+        userId: string;
+        caption: string;
+        title: string;
+        location: string;
+        type: string;
+        code: string;
+        colors: string[];
+        colorPalette: string[];
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
-        location: string;
-        userId: string;
-        type: string;
-        caption: string;
-        code: string;
-        colors: string[];
-        colorPalette: string[];
     }[]>;
     getSaved(userId: string): Promise<{
         isLiked: boolean;
@@ -453,26 +453,26 @@ export declare class PostsService {
         };
         media: {
             id: string;
-            createdAt: Date;
             type: string;
-            postId: string;
+            createdAt: Date;
             url: string;
             thumbnailUrl: string;
             order: number;
+            postId: string;
         }[];
         id: string;
+        userId: string;
+        caption: string;
+        title: string;
+        location: string;
+        type: string;
+        code: string;
+        colors: string[];
+        colorPalette: string[];
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
-        location: string;
-        userId: string;
-        type: string;
-        caption: string;
-        code: string;
-        colors: string[];
-        colorPalette: string[];
     }[]>;
     toggleCommentLike(commentId: string, userId: string): Promise<{
         liked: boolean;

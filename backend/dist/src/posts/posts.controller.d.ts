@@ -23,33 +23,33 @@ export declare class PostsController {
             avatar: string;
             isVerified: boolean;
         };
+        media: {
+            id: string;
+            type: string;
+            createdAt: Date;
+            url: string;
+            thumbnailUrl: string;
+            order: number;
+            postId: string;
+        }[];
         _count: {
             comments: number;
             likes: number;
         };
-        media: {
-            id: string;
-            createdAt: Date;
-            type: string;
-            postId: string;
-            url: string;
-            thumbnailUrl: string;
-            order: number;
-        }[];
     } & {
         id: string;
+        userId: string;
+        caption: string;
+        title: string;
+        location: string;
+        type: string;
+        code: string;
+        colors: string[];
+        colorPalette: string[];
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
-        location: string;
-        userId: string;
-        type: string;
-        caption: string;
-        code: string;
-        colors: string[];
-        colorPalette: string[];
     }>;
     createPostWithUrls(user: any, dto: CreatePostDto): Promise<{
         user: {
@@ -59,33 +59,33 @@ export declare class PostsController {
             avatar: string;
             isVerified: boolean;
         };
+        media: {
+            id: string;
+            type: string;
+            createdAt: Date;
+            url: string;
+            thumbnailUrl: string;
+            order: number;
+            postId: string;
+        }[];
         _count: {
             comments: number;
             likes: number;
         };
-        media: {
-            id: string;
-            createdAt: Date;
-            type: string;
-            postId: string;
-            url: string;
-            thumbnailUrl: string;
-            order: number;
-        }[];
     } & {
         id: string;
+        userId: string;
+        caption: string;
+        title: string;
+        location: string;
+        type: string;
+        code: string;
+        colors: string[];
+        colorPalette: string[];
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
-        location: string;
-        userId: string;
-        type: string;
-        caption: string;
-        code: string;
-        colors: string[];
-        colorPalette: string[];
     }>;
     getQrLabel(id: string, res: Response): Promise<Response<any, Record<string, any>>>;
     generateArtworkQrPdf(postId: string, res: Response): Promise<void>;
@@ -144,11 +144,11 @@ export declare class PostsController {
             postId: string;
             hashtagId: string;
         })[];
-        isDeleted: boolean;
-        deletedAt: Date;
         code: string;
         colors: string[];
         colorPalette: string[];
+        isDeleted: boolean;
+        deletedAt: Date;
     }>;
     updatePost(params: PostIdDto, user: any, body: {
         caption?: string;
@@ -160,33 +160,33 @@ export declare class PostsController {
             fullName: string;
             avatar: string;
         };
+        media: {
+            id: string;
+            type: string;
+            createdAt: Date;
+            url: string;
+            thumbnailUrl: string;
+            order: number;
+            postId: string;
+        }[];
         _count: {
             comments: number;
             likes: number;
         };
-        media: {
-            id: string;
-            createdAt: Date;
-            type: string;
-            postId: string;
-            url: string;
-            thumbnailUrl: string;
-            order: number;
-        }[];
     } & {
         id: string;
+        userId: string;
+        caption: string;
+        title: string;
+        location: string;
+        type: string;
+        code: string;
+        colors: string[];
+        colorPalette: string[];
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
-        location: string;
-        userId: string;
-        type: string;
-        caption: string;
-        code: string;
-        colors: string[];
-        colorPalette: string[];
     }>;
     deletePost(params: PostIdDto, user: any): Promise<{
         success: boolean;
@@ -232,9 +232,9 @@ export declare class PostsController {
         };
     } & {
         id: string;
+        userId: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
         postId: string;
         content: string;
         parentId: string;
@@ -288,17 +288,25 @@ export declare class PostsController {
             avatar: string;
             isVerified: boolean;
         };
+        userId: string;
+        location: string;
+        code: string;
+        colors: string[];
+        colorPalette: string[];
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
-        location: string;
-        userId: string;
-        code: string;
-        colors: string[];
-        colorPalette: string[];
     }[]>;
     getUserComments(userId: string): Promise<({
+        post: {
+            id: string;
+            caption: string;
+            media: {
+                type: string;
+                url: string;
+            }[];
+        };
         user: {
             id: string;
             username: string;
@@ -310,19 +318,11 @@ export declare class PostsController {
             likes: number;
             replies: number;
         };
-        post: {
-            id: string;
-            caption: string;
-            media: {
-                type: string;
-                url: string;
-            }[];
-        };
     } & {
         id: string;
+        userId: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
         postId: string;
         content: string;
         parentId: string;
@@ -337,8 +337,8 @@ export declare class PostsController {
         message: string;
         savedPost: {
             id: string;
-            createdAt: Date;
             userId: string;
+            createdAt: Date;
             postId: string;
         };
     }>;
@@ -362,26 +362,26 @@ export declare class PostsController {
         };
         media: {
             id: string;
-            createdAt: Date;
             type: string;
-            postId: string;
+            createdAt: Date;
             url: string;
             thumbnailUrl: string;
             order: number;
+            postId: string;
         }[];
         id: string;
+        userId: string;
+        caption: string;
+        title: string;
+        location: string;
+        type: string;
+        code: string;
+        colors: string[];
+        colorPalette: string[];
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
-        location: string;
-        userId: string;
-        type: string;
-        caption: string;
-        code: string;
-        colors: string[];
-        colorPalette: string[];
     }[]>;
     saveArtwork(params: PostIdDto, user: any): Promise<{
         success: boolean;

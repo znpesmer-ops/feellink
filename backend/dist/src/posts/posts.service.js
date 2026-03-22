@@ -33,7 +33,67 @@ const QRCode = require("qrcode");
 const fs = require("fs");
 const path = require("path");
 const pdf_lib_1 = require("pdf-lib");
-const sharp_1 = require("sharp");
+function hashPostIdForLayout(id) {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) {
+        h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
+    }
+    return Math.abs(h);
+}
+function truncateOneLine(ctx, text, maxWidth) {
+    const t = text.replace(/\s+/g, ' ').trim();
+    if (!t)
+        return '';
+    if (ctx.measureText(t).width <= maxWidth)
+        return t;
+    const ell = '\u2026';
+    let lo = 0;
+    let hi = t.length;
+    while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        const slice = t.slice(0, mid) + ell;
+        if (ctx.measureText(slice).width <= maxWidth)
+            lo = mid;
+        else
+            hi = mid - 1;
+    }
+    return lo > 0 ? `${t.slice(0, lo)}${ell}` : ell;
+}
+function wrapCanvasText(ctx, text, maxWidth, maxLines) {
+    const cleaned = text.replace(/\s+/g, ' ').trim();
+    if (!cleaned)
+        return [];
+    const words = cleaned.split(' ');
+    const lines = [];
+    let current = '';
+    for (const word of words) {
+        const trial = current ? `${current} ${word}` : word;
+        if (ctx.measureText(trial).width <= maxWidth) {
+            current = trial;
+            continue;
+        }
+        if (current) {
+            lines.push(current);
+            current = word;
+        }
+        else {
+            let w = word;
+            while (w.length > 1 && ctx.measureText(`${w}…`).width > maxWidth) {
+                w = w.slice(0, -1);
+            }
+            lines.push(w.length < word.length ? `${w}…` : w);
+            current = '';
+        }
+        if (lines.length >= maxLines) {
+            const last = lines[maxLines - 1];
+            lines[maxLines - 1] = truncateOneLine(ctx, last.replace(/\u2026$/, ''), maxWidth) || last;
+            return lines.slice(0, maxLines);
+        }
+    }
+    if (current && lines.length < maxLines)
+        lines.push(current);
+    return lines.slice(0, maxLines);
+}
 let PostsService = class PostsService {
     constructor(prisma, notificationsService, notificationsGateway, analyticsService, feedService, searchService, postsGateway, commentsGateway, configService, limitsService, colorAnalysisService) {
         this.prisma = prisma;
@@ -2012,314 +2072,182 @@ let PostsService = class PostsService {
         const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
         const artworkUrl = `${frontendUrl}/posts/${postId}`;
         const { createCanvas, loadImage, registerFont } = require('canvas');
-        const templatePath = path.join(process.cwd(), 'assets', 'templates', 'artwork-label.png');
-        let width;
-        let height;
-        let useTemplate = false;
-        if (fs.existsSync(templatePath)) {
-            const template = await loadImage(templatePath);
-            width = template.width;
-            height = template.height;
-            useTemplate = true;
+        const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
+        const interRegularPath = path.join(fontsDir, 'Inter-Regular.ttf');
+        const interBoldPath = path.join(fontsDir, 'Inter-Bold.ttf');
+        try {
+            if (fs.existsSync(interRegularPath)) {
+                registerFont(interRegularPath, { family: 'Inter' });
+            }
+            if (fs.existsSync(interBoldPath)) {
+                registerFont(interBoldPath, { family: 'InterBold' });
+            }
         }
-        else {
-            console.warn(`Template bulunamadı: ${templatePath}. Kartvizit boyutunda etiket oluşturuluyor.`);
-            const scale = 0.65;
-            width = Math.round(750 * scale);
-            height = Math.round(480 * scale);
-            useTemplate = false;
+        catch (error) {
+            console.warn('Font kayıt hatası:', error);
         }
+        const hasInterBold = fs.existsSync(interBoldPath);
+        const hasInterRegular = fs.existsSync(interRegularPath);
+        const fontBold = hasInterBold ? 'InterBold' : 'Arial';
+        const fontReg = hasInterRegular ? 'Inter' : 'Arial';
+        const fontMono = hasInterRegular ? 'Inter' : 'Courier New';
+        const TICKET_W = 1000;
+        const TICKET_H = 425;
+        const width = TICKET_W;
+        const height = TICKET_H;
         const dpiScale = 2;
-        const canvasWidth = width * dpiScale;
-        const canvasHeight = height * dpiScale;
-        const canvas = createCanvas(canvasWidth, canvasHeight);
+        const canvas = createCanvas(width * dpiScale, height * dpiScale);
         const ctx = canvas.getContext('2d');
         ctx.scale(dpiScale, dpiScale);
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, width, height);
-        if (useTemplate) {
-            const template = await loadImage(templatePath);
-            ctx.drawImage(template, 0, 0, width, height);
-        }
-        try {
-            const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
-            const interRegular = path.join(fontsDir, 'Inter-Regular.ttf');
-            const interBold = path.join(fontsDir, 'Inter-Bold.ttf');
-            if (fs.existsSync(interRegular)) {
-                registerFont(interRegular, { family: 'Inter' });
-            }
-            if (fs.existsSync(interBold)) {
-                registerFont(interBold, { family: 'InterBold' });
-            }
-        }
-        catch (error) {
-            console.warn('Font kayıt hatası (sistem fontları kullanılacak):', error);
-        }
-        const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
-        const hasInterBold = fs.existsSync(path.join(fontsDir, 'Inter-Bold.ttf'));
-        const hasInterRegular = fs.existsSync(path.join(fontsDir, 'Inter-Regular.ttf'));
-        let padding;
-        let contentWidth;
-        let contentStartY;
-        let qrX;
-        let qrY;
-        let qrSize;
-        const scale = useTemplate ? 1 : 0.65;
-        let textX;
-        if (useTemplate) {
-            padding = 0;
-            contentWidth = width;
-            contentStartY = 0;
-        }
-        else {
-            padding = Math.round(40 * scale);
-            contentWidth = width - (padding * 2);
-            contentStartY = padding;
-        }
-        ctx.fillStyle = '#000000';
         ctx.textBaseline = 'top';
-        const artworkName = post.title || post.caption || artworkCode;
-        const artistName = post.user.fullName || post.user.username || '';
-        if (useTemplate) {
-            const nameFontSize = width * 0.035;
-            ctx.font = `${nameFontSize}px ${hasInterBold ? 'InterBold' : 'Arial-Bold'}`;
-            ctx.fillText(artworkName, width * (140 / 2000), height * (120 / 850));
-            const artistFontSize = width * 0.03;
-            ctx.font = `${artistFontSize}px ${hasInterRegular ? 'Inter' : 'Arial'}`;
-            ctx.fillText(artistName, width * (140 / 2000), height * (180 / 850));
-            const codeFontSize = width * 0.026;
-            ctx.font = `${codeFontSize}px ${hasInterRegular ? 'Inter' : 'Arial'}`;
-            ctx.fillText(`Kod: ${artworkCode}`, width * (140 / 2000), height * (220 / 850));
+        ctx.textAlign = 'left';
+        const pad = 28;
+        const gapBeforeQr = 18;
+        const qrSize = Math.min(216, Math.max(168, Math.floor(height - pad * 2 - 128)));
+        const qrX = pad;
+        const qrY = height - pad - qrSize;
+        const headerMaxBottom = qrY - gapBeforeQr;
+        const titleRaw = (post.title && post.title.trim()) ||
+            (post.caption && post.caption.trim()) ||
+            '';
+        const ownerRaw = (post.user.fullName && post.user.fullName.trim()) ||
+            (post.user.username || '').trim();
+        const titleMaxW = width - pad * 2;
+        let y = pad;
+        let titleFont = 26;
+        let titleLines = [];
+        for (; titleFont >= 15; titleFont -= 1) {
+            ctx.font = `600 ${titleFont}px ${fontBold}`;
+            titleLines = titleRaw ? wrapCanvasText(ctx, titleRaw, titleMaxW, 2) : [];
+            const titleBlockH = titleLines.length
+                ? titleLines.length * titleFont * 1.25
+                : Math.round(titleFont * 0.35);
+            const artistFs = Math.max(13, Math.round(titleFont * 0.58));
+            const codeFs = Math.max(11, Math.round(titleFont * 0.48));
+            const estBottom = y +
+                titleBlockH +
+                8 +
+                (ownerRaw ? artistFs * 1.35 : artistFs * 0.4) +
+                6 +
+                codeFs * 1.35 +
+                12 +
+                5;
+            if (estBottom <= headerMaxBottom) {
+                break;
+            }
+        }
+        ctx.fillStyle = '#111827';
+        ctx.font = `600 ${titleFont}px ${fontBold}`;
+        if (titleLines.length > 0) {
+            let ty = y;
+            for (const line of titleLines) {
+                ctx.fillText(line, pad, ty);
+                ty += titleFont * 1.22;
+            }
+            y = ty + 6;
         }
         else {
-            let currentY = contentStartY;
-            let textX;
-            const eserAdiFontSize = Math.round(42 * scale);
-            ctx.font = `600 ${eserAdiFontSize}px ${hasInterBold ? 'InterBold' : 'Times New Roman'}`;
-            ctx.fillStyle = '#000000';
-            ctx.textAlign = 'left';
-            const eserText = artworkName.length > 50 ? artworkName.substring(0, 50) + '...' : artworkName;
-            ctx.fillText(eserText, padding, currentY, contentWidth);
-            currentY += Math.round(60 * scale);
-            const gradientBarHeight = Math.round(6 * scale);
-            const gradient = ctx.createLinearGradient(padding, currentY, padding + contentWidth, currentY);
-            gradient.addColorStop(0, '#ff4c7f');
-            gradient.addColorStop(0.5, '#ffa500');
-            gradient.addColorStop(1, '#007bff');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(padding, currentY, contentWidth, gradientBarHeight);
-            currentY += gradientBarHeight + Math.round(15 * scale);
-            const sanatciFontSize = Math.round(34 * scale);
-            ctx.font = `${sanatciFontSize}px ${hasInterRegular ? 'Inter' : 'Times New Roman'}`;
-            ctx.fillStyle = '#000000';
-            const sanatciText = artistName.length > 50 ? artistName.substring(0, 50) + '...' : artistName;
-            ctx.fillText(sanatciText, padding, currentY);
-            currentY += Math.round(40 * scale);
-            const kodFontSize = Math.round(16 * scale);
-            ctx.font = `${kodFontSize}px ${hasInterRegular ? 'Inter' : 'Arial'}`;
-            ctx.fillStyle = '#888888';
-            ctx.fillText(artworkCode, padding, currentY);
-            currentY += Math.round(60 * scale);
-            const qrBoxSize = Math.round(200 * scale);
-            const gap = Math.round(60 * scale);
-            qrX = padding;
-            qrY = currentY;
-            qrSize = qrBoxSize;
-            const borderRadius = Math.round(15 * scale);
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = Math.round(3 * scale);
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            const x = qrX;
-            const y = qrY;
-            const w = qrSize;
-            const h = qrSize;
-            const r = borderRadius;
-            ctx.moveTo(x + r, y);
-            ctx.lineTo(x + w - r, y);
-            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-            ctx.lineTo(x + w, y + h - r);
-            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-            ctx.lineTo(x + r, y + h);
-            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-            ctx.lineTo(x, y + r);
-            ctx.quadraticCurveTo(x, y, x + r, y);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-            textX = qrX + qrSize + gap;
-            const firstFontSize = Math.round(32 * scale);
-            const secondFontSize = Math.round(28 * scale);
-            const lineSpacing = Math.round(10 * scale);
-            const firstLineHeight = firstFontSize * 1.2;
-            const secondLineHeight = secondFontSize * 1.2;
-            let firstTextY = qrY;
-            ctx.font = `${firstFontSize}px ${hasInterRegular ? 'Inter' : 'Times New Roman'}`;
-            ctx.fillStyle = '#000000';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'top';
-            ctx.fillText('Feellink ile sanat daha anlamlı!', textX, firstTextY);
-            let secondTextY = firstTextY + firstLineHeight + lineSpacing;
-            ctx.font = `${secondFontSize}px ${hasInterRegular ? 'Inter' : 'Times New Roman'}`;
-            ctx.fillStyle = '#000000';
-            ctx.fillText('Sen de duygularını paylaş!', textX, secondTextY);
-            const qrBottom = qrY + qrSize;
-            const bottomMargin = padding;
-            const calculatedHeight = qrBottom + bottomMargin;
-            height = calculatedHeight;
+            y += Math.round(titleFont * 0.2);
         }
-        const hdDpiScale = useTemplate ? 1 : 2;
-        const qrResolution = useTemplate ? 400 : 800;
+        const artistFontSize = Math.max(13, Math.min(17, Math.round(titleFont * 0.62)));
+        ctx.font = `${artistFontSize}px ${fontReg}`;
+        ctx.fillStyle = '#374151';
+        if (ownerRaw) {
+            ctx.fillText(truncateOneLine(ctx, ownerRaw, titleMaxW), pad, y);
+            y += artistFontSize * 1.35;
+        }
+        else {
+            y += Math.round(artistFontSize * 0.45);
+        }
+        const codeFontSize = Math.max(11, Math.min(14, Math.round(titleFont * 0.5)));
+        ctx.font = `${codeFontSize}px ${fontMono}`;
+        ctx.fillStyle = '#6b7280';
+        ctx.fillText(artworkCode, pad, y);
+        y += codeFontSize * 1.4 + 10;
+        const gradH = 4;
+        const gradient = ctx.createLinearGradient(pad, y, pad + (width - pad * 2), y);
+        gradient.addColorStop(0, '#ff4c7f');
+        gradient.addColorStop(0.5, '#ff7b00');
+        gradient.addColorStop(1, '#2563eb');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(pad, y, width - pad * 2, gradH);
         const qrBuffer = await QRCode.toBuffer(artworkUrl, {
             margin: 1,
-            width: qrResolution,
+            width: 640,
             type: 'png',
         });
         const qrImg = await loadImage(qrBuffer);
-        if (useTemplate) {
-            qrX = width * (140 / 2000);
-            qrY = height * (280 / 850);
-            qrSize = width * (460 / 2000);
-            ctx.strokeStyle = '#ff7b00';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(qrX - 5, qrY - 5, qrSize + 10, qrSize + 10);
-            ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
-            try {
-                const logoSvgPath = path.join(process.cwd(), 'assets', 'logo.svg');
-                const logoPngPath = path.join(process.cwd(), 'assets', 'logo.png');
-                let logoImg = null;
-                if (fs.existsSync(logoSvgPath)) {
-                    const svgBuffer = fs.readFileSync(logoSvgPath);
-                    const pngBuffer = await (0, sharp_1.default)(svgBuffer)
-                        .resize(200, 200, {
-                        fit: 'contain',
-                        background: { r: 255, g: 255, b: 255, alpha: 0 }
-                    })
-                        .png()
-                        .toBuffer();
-                    logoImg = await loadImage(pngBuffer);
-                }
-                else if (fs.existsSync(logoPngPath)) {
-                    logoImg = await loadImage(logoPngPath);
-                }
-                if (logoImg) {
-                    const logoSize = width * (56 / 2000);
-                    const logoMargin = width * (28 / 2000);
-                    const scaleXValue = 2.5;
-                    const logoActualWidth = logoSize * scaleXValue;
-                    const logoX = width - logoActualWidth - logoMargin;
-                    const logoY = height - logoSize - logoMargin;
-                    const logoCenterX = logoX + logoActualWidth / 2;
-                    const logoCenterY = logoY + logoSize / 2;
-                    ctx.globalAlpha = 0.9;
-                    ctx.save();
-                    ctx.translate(logoCenterX, logoCenterY);
-                    ctx.scale(2.5, 1);
-                    ctx.drawImage(logoImg, -logoSize / 2, -logoSize / 2, logoSize, logoSize);
-                    ctx.restore();
-                    ctx.globalAlpha = 1.0;
-                }
-            }
-            catch (error) {
-                console.warn('Logo yüklenemedi (opsiyonel):', error);
+        const qrPad = 8;
+        const innerQr = qrSize - qrPad * 2;
+        ctx.strokeStyle = '#ff7b00';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 4);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(qrX, qrY, qrSize, qrSize);
+        ctx.drawImage(qrImg, qrX + qrPad, qrY + qrPad, innerQr, innerQr);
+        const slogan = 'Feellink ile sanat daha anlamlı!';
+        const sloganX = qrX + qrSize + 22;
+        const sloganMaxW = Math.max(80, width - pad - sloganX - 8);
+        let bestLines = [slogan];
+        let bestFont = 12;
+        for (let sloganFont = 16; sloganFont >= 11; sloganFont -= 1) {
+            ctx.font = `500 ${sloganFont}px ${fontReg}`;
+            const lines = wrapCanvasText(ctx, slogan, sloganMaxW, 2);
+            const blockH = lines.length * sloganFont * 1.3;
+            if (blockH <= qrSize + 4) {
+                bestLines = lines;
+                bestFont = sloganFont;
+                break;
             }
         }
-        else {
-            const qrPadding = Math.round(10 * scale);
-            const qrDisplaySize = qrSize - (qrPadding * 2);
-            const qrFinalX = qrX + qrPadding;
-            const qrFinalY = qrY + qrPadding;
-            const qrBorderRadius = Math.round(12 * scale);
-            ctx.save();
-            ctx.beginPath();
-            const clipX = qrFinalX;
-            const clipY = qrFinalY;
-            const clipW = qrDisplaySize;
-            const clipH = qrDisplaySize;
-            const clipR = qrBorderRadius;
-            ctx.moveTo(clipX + clipR, clipY);
-            ctx.lineTo(clipX + clipW - clipR, clipY);
-            ctx.quadraticCurveTo(clipX + clipW, clipY, clipX + clipW, clipY + clipR);
-            ctx.lineTo(clipX + clipW, clipY + clipH - clipR);
-            ctx.quadraticCurveTo(clipX + clipW, clipY + clipH, clipX + clipW - clipR, clipY + clipH);
-            ctx.lineTo(clipX + clipR, clipY + clipH);
-            ctx.quadraticCurveTo(clipX, clipY + clipH, clipX, clipY + clipH - clipR);
-            ctx.lineTo(clipX, clipY + clipR);
-            ctx.quadraticCurveTo(clipX, clipY, clipX + clipR, clipY);
-            ctx.closePath();
-            ctx.clip();
-            ctx.drawImage(qrImg, qrFinalX, qrFinalY, qrDisplaySize, qrDisplaySize);
-            ctx.restore();
+        ctx.font = `500 ${bestFont}px ${fontReg}`;
+        ctx.fillStyle = '#111827';
+        const blockH = bestLines.length * bestFont * 1.3;
+        let sy = qrY + Math.max(0, (qrSize - blockH) / 2);
+        for (const ln of bestLines) {
+            ctx.fillText(ln, sloganX, sy);
+            sy += bestFont * 1.3;
         }
-        if (!useTemplate) {
-            const borderWidth = Math.round(3 * scale);
-            const borderRadius = Math.round(15 * scale);
-            const borderMargin = 0;
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = borderWidth;
-            ctx.beginPath();
-            const borderX = borderMargin;
-            const borderY = borderMargin;
-            const borderW = width - (borderMargin * 2);
-            const borderH = height - (borderMargin * 2);
-            const borderR = borderRadius;
-            ctx.moveTo(borderX + borderR, borderY);
-            ctx.lineTo(borderX + borderW - borderR, borderY);
-            ctx.quadraticCurveTo(borderX + borderW, borderY, borderX + borderW, borderY + borderR);
-            ctx.lineTo(borderX + borderW, borderY + borderH - borderR);
-            ctx.quadraticCurveTo(borderX + borderW, borderY + borderH, borderX + borderW - borderR, borderY + borderH);
-            ctx.lineTo(borderX + borderR, borderY + borderH);
-            ctx.quadraticCurveTo(borderX, borderY + borderH, borderX, borderY + borderH - borderR);
-            ctx.lineTo(borderX, borderY + borderR);
-            ctx.quadraticCurveTo(borderX, borderY, borderX + borderR, borderY);
-            ctx.closePath();
-            ctx.stroke();
+        const logosDir = path.join(process.cwd(), 'assets', 'logos');
+        const orangeLogo = path.join(logosDir, 'feellink-turuncu.png');
+        const blueLogo = path.join(logosDir, 'feellink-mavi.png');
+        const useOrange = hashPostIdForLayout(postId) % 2 === 0;
+        let logoPath = useOrange ? orangeLogo : blueLogo;
+        if (!fs.existsSync(logoPath)) {
+            const alt = useOrange ? blueLogo : orangeLogo;
+            logoPath = fs.existsSync(alt) ? alt : path.join(process.cwd(), 'assets', 'logo.png');
         }
         try {
-            const logoSvgPath = path.join(process.cwd(), 'assets', 'logo.svg');
-            const logoPngPath = path.join(process.cwd(), 'assets', 'logo.png');
-            let logoImg = null;
-            if (fs.existsSync(logoSvgPath)) {
-                const svgBuffer = fs.readFileSync(logoSvgPath);
-                const pngBuffer = await (0, sharp_1.default)(svgBuffer)
-                    .resize(200, 200, {
-                    fit: 'contain',
-                    background: { r: 255, g: 255, b: 255, alpha: 0 }
-                })
-                    .png()
-                    .toBuffer();
-                logoImg = await loadImage(pngBuffer);
-            }
-            else if (fs.existsSync(logoPngPath)) {
-                logoImg = await loadImage(logoPngPath);
-            }
-            if (logoImg) {
-                const logoSize = Math.round(56 * scale);
-                const logoMargin = Math.round(28 * scale);
-                const scaleXValue = 2.5;
-                const logoActualWidth = logoSize * scaleXValue;
-                const logoX = width - logoActualWidth - logoMargin;
-                const logoY = height - logoSize - logoMargin;
-                const logoCenterX = logoX + logoActualWidth / 2;
-                const logoCenterY = logoY + logoSize / 2;
-                ctx.globalAlpha = 0.9;
-                ctx.save();
-                ctx.translate(logoCenterX, logoCenterY);
-                ctx.scale(2.5, 1);
-                ctx.drawImage(logoImg, -logoSize / 2, -logoSize / 2, logoSize, logoSize);
-                ctx.restore();
-                ctx.globalAlpha = 1.0;
+            if (fs.existsSync(logoPath)) {
+                const logoImg = await loadImage(logoPath);
+                const maxLogoW = 128;
+                const maxLogoH = 38;
+                const ratio = logoImg.width / logoImg.height;
+                let lw = maxLogoW;
+                let lh = Math.round(lw / ratio);
+                if (lh > maxLogoH) {
+                    lh = maxLogoH;
+                    lw = Math.round(lh * ratio);
+                }
+                const lx = width - pad - lw;
+                const ly = height - pad - lh;
+                ctx.drawImage(logoImg, lx, ly, lw, lh);
             }
         }
-        catch (error) {
-            console.warn('Logo yüklenemedi (opsiyonel):', error);
+        catch (e) {
+            console.warn('Logo yüklenemedi:', e);
         }
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(0.75, 0.75, width - 1.5, height - 1.5);
         const pngBuffer = canvas.toBuffer('image/png');
         const pdfDoc = await pdf_lib_1.PDFDocument.create();
         const a4Width = 210;
         const a4Height = 297;
         const mmPerInch = 25.4;
-        const dpi = useTemplate ? 72 : 144;
+        const dpi = 144;
         const mmPerPx = mmPerInch / dpi;
         const labelWidthMm = width * mmPerPx;
         const labelHeightMm = height * mmPerPx;
