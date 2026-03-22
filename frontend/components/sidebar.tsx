@@ -219,9 +219,9 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
       {/* LOGO */}
       <div className="w-full flex items-center justify-start px-4 pt-0 pb-0 -mt-2">
         <AppLogo
-          className="h-8 w-auto object-contain pl-3"
-          width={200}
-          height={64}
+          className="h-14 w-auto max-w-[min(100%,240px)] object-contain pl-3"
+          width={360}
+          height={202}
         />
       </div>
 
