@@ -1,4 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
+
+/** Büyük multipart istekler Next.js /api-proxy üzerinden 413 verebilir; backend'e doğrudan gider */
+export type ApiRequestConfig = InternalAxiosRequestConfig & { directBackend?: boolean }
 import { useAuthStore } from './store'
 import { CapabilitySummary, SidebarVisibility } from '@/types/capabilities'
 
@@ -153,9 +156,23 @@ const api = axios.create({
 })
 
 // Her istekte güncel axios base URL (SSR + client; prod web'de /api-proxy)
+// FormData / directBackend: Next proxy gövde limiti (413) — doğrudan backend kökü kullan (CORS açık)
 // Store rehydrate olmadan (navigasyon sonrası) token için localStorage, yoksa persist yedeği kullan; istek token'sız giderse 401 → forced logout
-api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  config.baseURL = getAxiosBaseURL()
+api.interceptors.request.use((config: ApiRequestConfig) => {
+  const isFormData =
+    typeof FormData !== 'undefined' && config.data != null && config.data instanceof FormData
+  const bypassProxyForBody =
+    config.directBackend === true ||
+    (isFormData && typeof window !== 'undefined' && shouldUseBrowserApiProxy())
+
+  config.baseURL = bypassProxyForBody ? getAbsoluteBackendBaseUrl() : getAxiosBaseURL()
+
+  if (isFormData) {
+    const minMs = 120000
+    config.timeout =
+      config.timeout != null && config.timeout > minMs ? config.timeout : minMs
+  }
+
   const state = useAuthStore.getState()
   const token =
     state.accessToken ??
@@ -338,6 +355,11 @@ export const getErrorMessage = (error: any): string => {
   }
 
   // Backend error responses
+  const status = error.response?.status
+  if (status === 413) {
+    return 'Dosya veya veri boyutu çok büyük. Daha küçük bir görsel seçin veya sıkıştırılmış bir dosya kullanın.'
+  }
+
   const responseData = error.response?.data
   if (!responseData) {
     return 'Bir hata oluştu. Lütfen tekrar deneyin.'
