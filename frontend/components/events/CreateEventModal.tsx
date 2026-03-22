@@ -99,11 +99,12 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
         payload.coverImage = coverUrl;
       }
 
-      if (isFree) {
-        payload.price = null;
-      } else {
+      // Ücretsizde price gönderme (null bazı DTO/transform zincirlerinde sorun çıkarabiliyor)
+      if (!isFree) {
         const p = Number(price);
-        payload.price = Number.isFinite(p) && p >= 1 ? p : null;
+        if (Number.isFinite(p) && p >= 1) {
+          payload.price = p;
+        }
       }
 
       if (capNum !== undefined) {
@@ -145,14 +146,8 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
       }
     } catch (err: unknown) {
       console.error("Etkinlik oluşturulamadı:", err);
-      let msg = GENERIC_SAVE_ERROR;
-      try {
-        msg = getErrorMessage(err);
-      } catch {
-        /* getErrorMessage asla fırlatmasa da güvence */
-      }
-      if (!msg || msg.length < 3) msg = GENERIC_SAVE_ERROR;
-      toast.error(msg);
+      const msg = getErrorMessage(err);
+      toast.error(msg && msg.length >= 3 ? msg : GENERIC_SAVE_ERROR);
     } finally {
       if (generation === submitGeneration.current) {
         setIsSubmitting(false);

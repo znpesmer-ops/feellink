@@ -347,19 +347,42 @@ export const getErrorMessage = (error: any): string => {
   const msg = responseData?.message
   let errorMessage: string | null = null
   if (Array.isArray(msg)) {
-    errorMessage = msg.filter(Boolean).join('. ')
+    errorMessage = msg
+      .map((m: unknown) => {
+        if (typeof m === 'string') return m
+        if (m && typeof m === 'object' && m !== null && 'constraints' in m) {
+          const c = (m as { constraints?: Record<string, string> }).constraints
+          return c ? Object.values(c).join(', ') : ''
+        }
+        return ''
+      })
+      .filter(Boolean)
+      .join('. ')
   } else if (typeof msg === 'string') {
     errorMessage = msg
   } else if (msg && typeof msg === 'object' && typeof (msg as any).message === 'string') {
     errorMessage = (msg as any).message
   }
-  let finalMessage = errorMessage ?? responseData?.error ?? 'Bir hata oluştu. Lütfen tekrar deneyin.'
+
+  // Nest bazen message/error'ı nesne döndürür; .toLowerCase() patlamasın (aksi halde UI genel hataya düşer)
+  let rawFinal: unknown = errorMessage ?? responseData?.error ?? 'Bir hata oluştu. Lütfen tekrar deneyin.'
+  if (typeof rawFinal !== 'string') {
+    if (rawFinal && typeof rawFinal === 'object' && typeof (rawFinal as { message?: unknown }).message === 'string') {
+      rawFinal = (rawFinal as { message: string }).message
+    } else if (rawFinal != null && typeof rawFinal !== 'object') {
+      rawFinal = String(rawFinal)
+    } else if (Array.isArray(msg) && msg.length) {
+      rawFinal = msg.map((m: unknown) => (typeof m === 'string' ? m : JSON.stringify(m))).join('. ')
+    } else {
+      rawFinal = 'Bir hata oluştu. Lütfen tekrar deneyin.'
+    }
+  }
+  let finalMessage = String(rawFinal ?? '').trim() || 'Bir hata oluştu. Lütfen tekrar deneyin.'
 
   // API katmanının ürettiği veya env içeren mesajları sadeleştir
   if (
-    typeof finalMessage === 'string' &&
-    (/NEXT_PUBLIC_|API_URL|Backend adresini/i.test(finalMessage) ||
-      finalMessage.includes('Sunucuya ulaşılamadı'))
+    /NEXT_PUBLIC_|API_URL|Backend adresini/i.test(finalMessage) ||
+    finalMessage.includes('Sunucuya ulaşılamadı')
   ) {
     finalMessage =
       'İşlem sırasında bir bağlantı sorunu oluştu. Lütfen internet bağlantınızı kontrol edip kısa süre sonra tekrar deneyin.'
@@ -382,9 +405,8 @@ export const getErrorMessage = (error: any): string => {
     'env',
     'Environment variable',
   ]
-  const isTechnical = technicalTerms.some(term =>
-    finalMessage.toLowerCase().includes(term.toLowerCase()),
-  )
+  const lower = finalMessage.toLowerCase()
+  const isTechnical = technicalTerms.some(term => lower.includes(term.toLowerCase()))
   if (isTechnical) {
     return 'Kayıt işlemi şu anda tamamlanamıyor. Lütfen daha sonra tekrar deneyin.'
   }
@@ -397,7 +419,7 @@ export const getErrorMessage = (error: any): string => {
     'Internal Server Error',
     'internal server error',
   ]
-  if (unwantedMessages.some(m => finalMessage.toLowerCase().includes(m.toLowerCase()))) {
+  if (unwantedMessages.some(m => lower.includes(m.toLowerCase()))) {
     return 'Bir hata oluştu. Lütfen tekrar deneyin.'
   }
 
