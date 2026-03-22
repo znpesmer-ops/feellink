@@ -23,21 +23,21 @@ export declare class EventsService {
         capacity: number;
     })[]>;
     createEvent(userId: string, dto: CreateEventDto): Promise<{
+        date: Date;
         id: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
-        participantCount: number;
-        maxParticipants: number;
         title: string;
         description: string;
+        location: string;
         coverImage: string;
-        date: Date;
+        participantCount: number;
+        maxParticipants: number;
         ticketUrl: string;
         price: number;
         isFree: boolean;
-        location: string;
         ownerId: string;
         reminderMailSent: boolean;
     }>;
@@ -51,21 +51,21 @@ export declare class EventsService {
         location?: string;
         maxParticipants?: number | null;
     }): Promise<{
+        date: Date;
         id: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
-        participantCount: number;
-        maxParticipants: number;
         title: string;
         description: string;
+        location: string;
         coverImage: string;
-        date: Date;
+        participantCount: number;
+        maxParticipants: number;
         ticketUrl: string;
         price: number;
         isFree: boolean;
-        location: string;
         ownerId: string;
         reminderMailSent: boolean;
     }>;
@@ -135,10 +135,10 @@ export declare class EventsService {
             updatedAt: Date;
         };
     } & {
+        text: string;
         id: string;
         createdAt: Date;
         eventId: string;
-        text: string;
         authorId: string;
     })[]>;
     createEventComment(userId: string, eventId: string, data: {
@@ -198,10 +198,10 @@ export declare class EventsService {
             updatedAt: Date;
         };
     } & {
+        text: string;
         id: string;
         createdAt: Date;
         eventId: string;
-        text: string;
         authorId: string;
     }>;
     getParticipants(eventId: string, callerId: string): Promise<{
@@ -232,10 +232,10 @@ export declare class EventsService {
     } & {
         id: string;
         createdAt: Date;
-        eventId: string;
         userId: string;
         status: import(".prisma/client").$Enums.EventParticipantStatus;
         reminderSentAt: Date;
+        eventId: string;
         reminder24hSentAt: Date;
         reminder2hSentAt: Date;
     }>;

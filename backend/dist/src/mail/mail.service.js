@@ -1737,25 +1737,33 @@ Feellink Ekibi`;
         const mailFromName = process.env.MAIL_FROM_NAME || 'Feellink';
         const mailFrom = process.env.MAIL_FROM || 'noreply@feellink.io';
         const from = `"${mailFromName}" <${mailFrom}>`;
-        const subject = params.isPaid
-            ? 'Ücretli Etkinlik Talebiniz Onaylandı'
-            : 'Etkinlik Talebiniz Onaylandı';
-        const textFree = `Merhaba,\n\nBaşvuruda bulunduğunuz etkinlik talebiniz onaylandı. Etkinlik detaylarını Feellink üzerinden görüntüleyebilirsiniz.\nİyi deneyimler dileriz.\n\n© Feellink`;
-        const textPaid = `Merhaba,\n\nBaşvuruda bulunduğunuz ücretli etkinlik talebiniz onaylandı. Katılım ücreti ve süreç detayları etkinlik sahibi tarafından sizinle paylaşılacaktır. Etkinlik bilgilerinizi Feellink üzerinden takip edebilirsiniz.\nİyi deneyimler dileriz.\n\n© Feellink`;
-        const bodyFree = '<p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#a0a0a0;">Merhaba,</p>' +
-            '<p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#a0a0a0;">Başvuruda bulunduğunuz etkinlik talebiniz onaylandı. Etkinlik detaylarını Feellink üzerinden görüntüleyebilirsiniz.</p>' +
-            '<p style="margin:0;font-size:14px;line-height:1.6;color:#a0a0a0;">İyi deneyimler dileriz.</p>';
-        const bodyPaid = '<p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#a0a0a0;">Merhaba,</p>' +
-            '<p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#a0a0a0;">Başvuruda bulunduğunuz ücretli etkinlik talebiniz onaylandı. Katılım ücreti ve süreç detayları etkinlik sahibi tarafından sizinle paylaşılacaktır. Etkinlik bilgilerinizi Feellink üzerinden takip edebilirsiniz.</p>' +
-            '<p style="margin:0;font-size:14px;line-height:1.6;color:#a0a0a0;">İyi deneyimler dileriz.</p>';
+        const subject = 'Etkinlik Talebiniz Onaylandı';
+        const titleEsc = params.eventTitle
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        const textBody = `Merhaba,\n\n` +
+            `Başvuruda bulunduğunuz etkinlik talebiniz onaylandı. 🎉\n\n` +
+            `Etkinliğe katılım sürecine dair detaylar, etkinlik sahibi tarafından kısa süre içerisinde sizinle paylaşılacaktır. Bu süreçte gerekli tüm bilgilere Feellink üzerinden de kolayca erişebilirsiniz.\n\n` +
+            `Herhangi bir sorunuz olması durumunda etkinlik sahibi ile iletişime geçebilirsiniz.\n\n` +
+            `Keyifli bir deneyim dileriz.\n\n` +
+            `Etkinlik: ${params.eventTitle}\n\n` +
+            `© Feellink`;
+        const p = 'margin:0 0 12px;font-size:14px;line-height:1.6;color:#a0a0a0;';
+        const bodyHtml = `<p style="${p}">Merhaba,</p>` +
+            `<p style="${p}">Başvuruda bulunduğunuz etkinlik talebiniz onaylandı. 🎉</p>` +
+            `<p style="${p}">Etkinliğe katılım sürecine dair detaylar, etkinlik sahibi tarafından kısa süre içerisinde sizinle paylaşılacaktır. Bu süreçte gerekli tüm bilgilere Feellink üzerinden de kolayca erişebilirsiniz.</p>` +
+            `<p style="${p}">Herhangi bir sorunuz olması durumunda etkinlik sahibi ile iletişime geçebilirsiniz.</p>` +
+            `<p style="margin:0;font-size:14px;line-height:1.6;color:#a0a0a0;">Keyifli bir deneyim dileriz.</p>`;
         const html = `<!DOCTYPE html><html lang="tr"><body style="margin:0;padding:0;background:#0f0f0f;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0f0f0f;padding:40px 16px;">
         <tr><td align="center">
           <table width="520" style="max-width:520px;background:#1a1a1a;border-radius:16px;border:1px solid #2a2a2a;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
             <tr><td align="center" style="padding-bottom:24px;"><img src="${this.logoUrl}" width="88" height="32" alt="Feellink" style="display:block;border:0;" /></td></tr>
-            <tr><td><h1 style="margin:0 0 16px;font-size:18px;font-weight:600;color:#fff;">${params.isPaid ? 'Ücretli etkinlik talebiniz onaylandı' : 'Etkinlik talebiniz onaylandı'}</h1></td></tr>
-            <tr><td><p style="margin:0 0 8px;font-size:13px;color:#888;">${params.eventTitle}</p></td></tr>
-            <tr><td>${params.isPaid ? bodyPaid : bodyFree}</td></tr>
+            <tr><td><h1 style="margin:0 0 16px;font-size:18px;font-weight:600;color:#fff;">Etkinlik Talebiniz Onaylandı</h1></td></tr>
+            <tr><td><p style="margin:0 0 16px;font-size:13px;color:#888;">Etkinlik: ${titleEsc}</p></td></tr>
+            <tr><td>${bodyHtml}</td></tr>
           </table>
         </td></tr>
       </table></body></html>`;
@@ -1764,7 +1772,7 @@ Feellink Ekibi`;
                 from,
                 to,
                 subject,
-                text: params.isPaid ? textPaid : textFree,
+                text: textBody,
                 html,
             });
             this.logger.log(`Event approval email sent to ${to}`);

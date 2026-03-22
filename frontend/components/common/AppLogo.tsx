@@ -35,7 +35,7 @@ export function AppLogo({
         alt={alt}
         width={width}
         height={height}
-        className={[base, 'dark:hidden'].filter(Boolean).join(' ')}
+        className={[base, 'bg-transparent dark:hidden'].filter(Boolean).join(' ')}
         priority={priority}
       />
       <Image
@@ -43,7 +43,7 @@ export function AppLogo({
         alt={alt}
         width={width}
         height={height}
-        className={[base, 'hidden dark:block'].filter(Boolean).join(' ')}
+        className={[base, 'hidden bg-transparent dark:block'].filter(Boolean).join(' ')}
         priority={priority}
       />
     </>

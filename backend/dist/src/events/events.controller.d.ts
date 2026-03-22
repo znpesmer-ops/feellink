@@ -24,21 +24,21 @@ export declare class EventsController {
         capacity: number;
     }>;
     createEvent(user: any, dto: CreateEventDto): Promise<{
+        date: Date;
         id: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
-        participantCount: number;
-        maxParticipants: number;
         title: string;
         description: string;
+        location: string;
         coverImage: string;
-        date: Date;
+        participantCount: number;
+        maxParticipants: number;
         ticketUrl: string;
         price: number;
         isFree: boolean;
-        location: string;
         ownerId: string;
         reminderMailSent: boolean;
     }>;
@@ -107,10 +107,10 @@ export declare class EventsController {
             updatedAt: Date;
         };
     } & {
+        text: string;
         id: string;
         createdAt: Date;
         eventId: string;
-        text: string;
         authorId: string;
     })[]>;
     createEventComment(user: any, id: string, data: any): Promise<{
@@ -168,28 +168,28 @@ export declare class EventsController {
             updatedAt: Date;
         };
     } & {
+        text: string;
         id: string;
         createdAt: Date;
         eventId: string;
-        text: string;
         authorId: string;
     }>;
     updateEvent(user: any, id: string, data: any): Promise<{
+        date: Date;
         id: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
-        participantCount: number;
-        maxParticipants: number;
         title: string;
         description: string;
+        location: string;
         coverImage: string;
-        date: Date;
+        participantCount: number;
+        maxParticipants: number;
         ticketUrl: string;
         price: number;
         isFree: boolean;
-        location: string;
         ownerId: string;
         reminderMailSent: boolean;
     }>;
@@ -220,10 +220,10 @@ export declare class EventsController {
     } & {
         id: string;
         createdAt: Date;
-        eventId: string;
         userId: string;
         status: import(".prisma/client").$Enums.EventParticipantStatus;
         reminderSentAt: Date;
+        eventId: string;
         reminder24hSentAt: Date;
         reminder2hSentAt: Date;
     }>;

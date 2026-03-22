@@ -18,10 +18,10 @@ export declare class JobsController {
         updatedAt: Date;
         title: string;
         description: string;
-        location: string;
-        tags: string[];
         company: string;
+        location: string;
         salary: string;
+        tags: string[];
         createdById: string;
     }>;
     getPublicListings(): Promise<({
@@ -37,10 +37,10 @@ export declare class JobsController {
         updatedAt: Date;
         title: string;
         description: string;
-        location: string;
-        tags: string[];
         company: string;
+        location: string;
         salary: string;
+        tags: string[];
         createdById: string;
     })[]>;
     getMyListingsAnalytics(user: CurrentUserPayload): Promise<{
@@ -66,16 +66,16 @@ export declare class JobsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.ApplicationStatus;
+        expiresAt: Date;
         jobListing: {
             id: string;
             createdAt: Date;
             title: string;
             description: string;
-            location: string;
-            tags: string[];
             company: string;
+            location: string;
             salary: string;
+            tags: string[];
             createdBy: {
                 id: string;
                 username: string;
@@ -87,7 +87,7 @@ export declare class JobsController {
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
-        expiresAt: Date;
+        status: import(".prisma/client").$Enums.ApplicationStatus;
     }[]>;
     getMyJobs(user: CurrentUserPayload): Promise<({
         _count: {
@@ -105,10 +105,10 @@ export declare class JobsController {
         updatedAt: Date;
         title: string;
         description: string;
-        location: string;
-        tags: string[];
         company: string;
+        location: string;
         salary: string;
+        tags: string[];
         createdById: string;
     })[]>;
     updateAdminNote(applicationId: string, user: CurrentUserPayload, body: {
@@ -117,8 +117,7 @@ export declare class JobsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.ApplicationStatus;
-        reminderSentAt: Date;
+        expiresAt: Date;
         tags: string[];
         jobListingId: string;
         applicantId: string;
@@ -126,8 +125,9 @@ export declare class JobsController {
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
+        status: import(".prisma/client").$Enums.ApplicationStatus;
         conversationId: string;
-        expiresAt: Date;
+        reminderSentAt: Date;
         adminNote: string;
     }>;
     getApplicationActivities(applicationId: string, user: CurrentUserPayload): Promise<{
@@ -156,8 +156,7 @@ export declare class JobsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.ApplicationStatus;
-        reminderSentAt: Date;
+        expiresAt: Date;
         tags: string[];
         jobListingId: string;
         applicantId: string;
@@ -165,8 +164,9 @@ export declare class JobsController {
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
+        status: import(".prisma/client").$Enums.ApplicationStatus;
         conversationId: string;
-        expiresAt: Date;
+        reminderSentAt: Date;
         adminNote: string;
     }>;
     getJob(jobId: string, user: CurrentUserPayload): Promise<{
@@ -182,10 +182,10 @@ export declare class JobsController {
         updatedAt: Date;
         title: string;
         description: string;
-        location: string;
-        tags: string[];
         company: string;
+        location: string;
         salary: string;
+        tags: string[];
         createdById: string;
     }>;
     applyToJob(jobListingId: string, user: CurrentUserPayload, dto: CreateJobApplicationDto): Promise<{
@@ -200,8 +200,7 @@ export declare class JobsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.ApplicationStatus;
-        reminderSentAt: Date;
+        expiresAt: Date;
         tags: string[];
         jobListingId: string;
         applicantId: string;
@@ -209,20 +208,21 @@ export declare class JobsController {
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
+        status: import(".prisma/client").$Enums.ApplicationStatus;
         conversationId: string;
-        expiresAt: Date;
+        reminderSentAt: Date;
         adminNote: string;
     }>;
     getApplicationsForJob(jobListingId: string, user: CurrentUserPayload): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        status: import(".prisma/client").$Enums.ApplicationStatus;
+        expiresAt: Date;
         coverLetter: string;
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
-        expiresAt: Date;
+        status: import(".prisma/client").$Enums.ApplicationStatus;
         applicant: {
             id: string;
             username: string;
@@ -245,8 +245,7 @@ export declare class JobsController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            status: import(".prisma/client").$Enums.ApplicationStatus;
-            reminderSentAt: Date;
+            expiresAt: Date;
             tags: string[];
             jobListingId: string;
             applicantId: string;
@@ -254,8 +253,9 @@ export declare class JobsController {
             portfolioUrl: string;
             portfolioFileUrl: string;
             cvUrl: string;
+            status: import(".prisma/client").$Enums.ApplicationStatus;
             conversationId: string;
-            expiresAt: Date;
+            reminderSentAt: Date;
             adminNote: string;
         };
     }>;
@@ -265,10 +265,10 @@ export declare class JobsController {
         updatedAt: Date;
         title: string;
         description: string;
-        location: string;
-        tags: string[];
         company: string;
+        location: string;
         salary: string;
+        tags: string[];
         createdById: string;
     }>;
     deleteJob(jobId: string, user: CurrentUserPayload): Promise<{

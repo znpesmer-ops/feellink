@@ -26,9 +26,6 @@ export declare class AdminController {
     getUsers(page?: string, limit?: string, search?: string, role?: string, city?: string, gender?: string, ageMin?: string, ageMax?: string): Promise<{
         users: {
             id: string;
-            isDeleted: boolean;
-            deletedAt: Date;
-            createdAt: Date;
             username: string;
             email: string;
             fullName: string;
@@ -54,6 +51,9 @@ export declare class AdminController {
             suspensionReason: string;
             deletionRequestedAt: Date;
             scheduledDeletionAt: Date;
+            isDeleted: boolean;
+            deletedAt: Date;
+            createdAt: Date;
         }[];
         total: number;
         page: number;
@@ -177,13 +177,13 @@ export declare class AdminController {
             }[];
         } & {
             id: string;
-            title: string;
-            location: string;
             isDeleted: boolean;
             deletedAt: Date;
             createdAt: Date;
             updatedAt: Date;
             userId: string;
+            title: string;
+            location: string;
             type: string;
             caption: string;
             code: string;
@@ -219,13 +219,13 @@ export declare class AdminController {
             }[];
         } & {
             id: string;
-            title: string;
-            location: string;
             isDeleted: boolean;
             deletedAt: Date;
             createdAt: Date;
             updatedAt: Date;
             userId: string;
+            title: string;
+            location: string;
             type: string;
             caption: string;
             code: string;
@@ -277,10 +277,10 @@ export declare class AdminController {
             };
         } & {
             id: string;
-            title: string;
-            coverImage: string;
             createdAt: Date;
             updatedAt: Date;
+            title: string;
+            coverImage: string;
             authorId: string;
             content: string;
             excerpt: string;
@@ -297,33 +297,33 @@ export declare class AdminController {
     }>;
     getEvents(page?: string, limit?: string): Promise<{
         events: ({
+            _count: {
+                participants: number;
+                tickets: number;
+            };
             owner: {
                 id: string;
                 username: string;
                 avatar: string;
             };
-            _count: {
-                participants: number;
-                tickets: number;
-            };
         } & {
             date: Date;
-            participantCount: number;
-            maxParticipants: number;
             id: string;
-            title: string;
-            description: string;
-            coverImage: string;
-            ticketUrl: string;
-            price: number;
-            isFree: boolean;
-            location: string;
-            ownerId: string;
-            reminderMailSent: boolean;
             isDeleted: boolean;
             deletedAt: Date;
             createdAt: Date;
             updatedAt: Date;
+            title: string;
+            description: string;
+            location: string;
+            coverImage: string;
+            participantCount: number;
+            maxParticipants: number;
+            ticketUrl: string;
+            price: number;
+            isFree: boolean;
+            ownerId: string;
+            reminderMailSent: boolean;
         })[];
         total: number;
         page: number;
@@ -343,11 +343,11 @@ export declare class AdminController {
                 };
             } & {
                 id: string;
-                price: number;
                 createdAt: Date;
                 updatedAt: Date;
-                eventId: string;
                 type: string;
+                eventId: string;
+                price: number;
                 capacity: number;
                 sold: number;
                 qrCodeUrl: string;
