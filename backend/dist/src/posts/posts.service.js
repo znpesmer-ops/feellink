@@ -2091,11 +2091,21 @@ let PostsService = class PostsService {
         const fontBold = hasInterBold ? 'InterBold' : 'Arial';
         const fontReg = hasInterRegular ? 'Inter' : 'Arial';
         const fontMono = hasInterRegular ? 'Inter' : 'Courier New';
-        const TICKET_W = 1000;
-        const TICKET_H = 425;
-        const width = TICKET_W;
-        const height = TICKET_H;
+        const width = 1000;
+        const height = 425;
         const dpiScale = 2;
+        const PAD = 32;
+        const GAP_STACK = 6;
+        const GAP_SECTION = 20;
+        const GAP_QR_SLOGAN = 20;
+        const QR_SIZE = 192;
+        const QR_INNER_PAD = 8;
+        const LOGO_RESERVE_W = 132;
+        const LOGO_MAX_W = 118;
+        const LOGO_MAX_H = 34;
+        const TITLE_MAX_LINES = 2;
+        const SLOGAN_MAX_LINES = 2;
+        const sloganText = 'Feellink ile sanat daha anlamlı!';
         const canvas = createCanvas(width * dpiScale, height * dpiScale);
         const ctx = canvas.getContext('2d');
         ctx.scale(dpiScale, dpiScale);
@@ -2103,112 +2113,98 @@ let PostsService = class PostsService {
         ctx.fillRect(0, 0, width, height);
         ctx.textBaseline = 'top';
         ctx.textAlign = 'left';
-        const pad = 28;
-        const gapBeforeQr = 18;
-        const qrSize = Math.min(216, Math.max(168, Math.floor(height - pad * 2 - 128)));
-        const qrX = pad;
-        const qrY = height - pad - qrSize;
-        const headerMaxBottom = qrY - gapBeforeQr;
+        const qrX = PAD;
+        const qrY = height - PAD - QR_SIZE;
+        const bottomBandTop = qrY;
+        const topBlockMaxBottom = bottomBandTop - GAP_SECTION;
         const titleRaw = (post.title && post.title.trim()) ||
             (post.caption && post.caption.trim()) ||
             '';
         const ownerRaw = (post.user.fullName && post.user.fullName.trim()) ||
             (post.user.username || '').trim();
-        const titleMaxW = width - pad * 2;
-        let y = pad;
-        let titleFont = 26;
+        const topContentW = width - PAD * 2;
+        const ARTIST_FS = 15;
+        const CODE_FS = 12;
+        const SLOGAN_FS = 14;
+        const TITLE_LINE_HEIGHT = 1.18;
+        let titleFont = 24;
         let titleLines = [];
-        for (; titleFont >= 15; titleFont -= 1) {
+        for (; titleFont >= 16; titleFont -= 1) {
             ctx.font = `600 ${titleFont}px ${fontBold}`;
-            titleLines = titleRaw ? wrapCanvasText(ctx, titleRaw, titleMaxW, 2) : [];
-            const titleBlockH = titleLines.length
-                ? titleLines.length * titleFont * 1.25
-                : Math.round(titleFont * 0.35);
-            const artistFs = Math.max(13, Math.round(titleFont * 0.58));
-            const codeFs = Math.max(11, Math.round(titleFont * 0.48));
-            const estBottom = y +
-                titleBlockH +
-                8 +
-                (ownerRaw ? artistFs * 1.35 : artistFs * 0.4) +
-                6 +
-                codeFs * 1.35 +
-                12 +
-                5;
-            if (estBottom <= headerMaxBottom) {
+            titleLines = titleRaw ? wrapCanvasText(ctx, titleRaw, topContentW, TITLE_MAX_LINES) : [];
+            const titleH = titleLines.length > 0
+                ? titleLines.length * titleFont * TITLE_LINE_HEIGHT
+                : 0;
+            let cursorY = PAD + titleH;
+            if (titleLines.length > 0) {
+                cursorY += GAP_STACK;
+            }
+            ctx.font = `${ARTIST_FS}px ${fontReg}`;
+            const artistH = ownerRaw ? ARTIST_FS * 1.25 : 0;
+            if (ownerRaw) {
+                cursorY += artistH + GAP_STACK;
+            }
+            ctx.font = `${CODE_FS}px ${fontMono}`;
+            cursorY += CODE_FS * 1.25;
+            if (cursorY <= topBlockMaxBottom) {
                 break;
             }
         }
+        let drawY = PAD;
         ctx.fillStyle = '#111827';
         ctx.font = `600 ${titleFont}px ${fontBold}`;
+        for (const line of titleLines) {
+            ctx.fillText(line, PAD, drawY);
+            drawY += titleFont * TITLE_LINE_HEIGHT;
+        }
         if (titleLines.length > 0) {
-            let ty = y;
-            for (const line of titleLines) {
-                ctx.fillText(line, pad, ty);
-                ty += titleFont * 1.22;
-            }
-            y = ty + 6;
+            drawY += GAP_STACK;
         }
-        else {
-            y += Math.round(titleFont * 0.2);
-        }
-        const artistFontSize = Math.max(13, Math.min(17, Math.round(titleFont * 0.62)));
-        ctx.font = `${artistFontSize}px ${fontReg}`;
-        ctx.fillStyle = '#374151';
+        ctx.font = `${ARTIST_FS}px ${fontReg}`;
+        ctx.fillStyle = '#4b5563';
         if (ownerRaw) {
-            ctx.fillText(truncateOneLine(ctx, ownerRaw, titleMaxW), pad, y);
-            y += artistFontSize * 1.35;
+            ctx.fillText(truncateOneLine(ctx, ownerRaw, topContentW), PAD, drawY);
+            drawY += ARTIST_FS * 1.25 + GAP_STACK;
         }
-        else {
-            y += Math.round(artistFontSize * 0.45);
-        }
-        const codeFontSize = Math.max(11, Math.min(14, Math.round(titleFont * 0.5)));
-        ctx.font = `${codeFontSize}px ${fontMono}`;
-        ctx.fillStyle = '#6b7280';
-        ctx.fillText(artworkCode, pad, y);
-        y += codeFontSize * 1.4 + 10;
-        const gradH = 4;
-        const gradient = ctx.createLinearGradient(pad, y, pad + (width - pad * 2), y);
-        gradient.addColorStop(0, '#ff4c7f');
-        gradient.addColorStop(0.5, '#ff7b00');
-        gradient.addColorStop(1, '#2563eb');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(pad, y, width - pad * 2, gradH);
+        ctx.font = `${CODE_FS}px ${fontMono}`;
+        ctx.fillStyle = '#9ca3af';
+        ctx.fillText(artworkCode, PAD, drawY);
+        const topBlockEndY = drawY + CODE_FS * 1.2;
+        const splitY = Math.min(topBlockEndY + 10, bottomBandTop - 6);
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(PAD, splitY);
+        ctx.lineTo(width - PAD, splitY);
+        ctx.stroke();
+        ctx.fillStyle = '#f9fafb';
+        ctx.fillRect(0, bottomBandTop - 4, width, height - (bottomBandTop - 4));
         const qrBuffer = await QRCode.toBuffer(artworkUrl, {
             margin: 1,
             width: 640,
             type: 'png',
         });
         const qrImg = await loadImage(qrBuffer);
-        const qrPad = 8;
-        const innerQr = qrSize - qrPad * 2;
-        ctx.strokeStyle = '#ff7b00';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 4);
+        const innerQr = QR_SIZE - QR_INNER_PAD * 2;
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(qrX, qrY, qrSize, qrSize);
-        ctx.drawImage(qrImg, qrX + qrPad, qrY + qrPad, innerQr, innerQr);
-        const slogan = 'Feellink ile sanat daha anlamlı!';
-        const sloganX = qrX + qrSize + 22;
-        const sloganMaxW = Math.max(80, width - pad - sloganX - 8);
-        let bestLines = [slogan];
-        let bestFont = 12;
-        for (let sloganFont = 16; sloganFont >= 11; sloganFont -= 1) {
-            ctx.font = `500 ${sloganFont}px ${fontReg}`;
-            const lines = wrapCanvasText(ctx, slogan, sloganMaxW, 2);
-            const blockH = lines.length * sloganFont * 1.3;
-            if (blockH <= qrSize + 4) {
-                bestLines = lines;
-                bestFont = sloganFont;
-                break;
-            }
-        }
-        ctx.font = `500 ${bestFont}px ${fontReg}`;
+        ctx.fillRect(qrX, qrY, QR_SIZE, QR_SIZE);
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(qrX + 0.5, qrY + 0.5, QR_SIZE - 1, QR_SIZE - 1);
+        ctx.strokeStyle = 'rgba(255, 123, 0, 0.55)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(qrX + 1.5, qrY + 1.5, QR_SIZE - 3, QR_SIZE - 3);
+        ctx.drawImage(qrImg, qrX + QR_INNER_PAD, qrY + QR_INNER_PAD, innerQr, innerQr);
+        const sloganX = qrX + QR_SIZE + GAP_QR_SLOGAN;
+        const sloganMaxW = Math.max(120, width - PAD - sloganX - LOGO_RESERVE_W);
+        ctx.font = `500 ${SLOGAN_FS}px ${fontReg}`;
+        const sloganLines = wrapCanvasText(ctx, sloganText, sloganMaxW, SLOGAN_MAX_LINES);
         ctx.fillStyle = '#111827';
-        const blockH = bestLines.length * bestFont * 1.3;
-        let sy = qrY + Math.max(0, (qrSize - blockH) / 2);
-        for (const ln of bestLines) {
+        let sy = qrY;
+        const sloganLineH = SLOGAN_FS * 1.35;
+        for (const ln of sloganLines) {
             ctx.fillText(ln, sloganX, sy);
-            sy += bestFont * 1.3;
+            sy += sloganLineH;
         }
         const logosDir = path.join(process.cwd(), 'assets', 'logos');
         const orangeLogo = path.join(logosDir, 'feellink-turuncu.png');
@@ -2222,17 +2218,15 @@ let PostsService = class PostsService {
         try {
             if (fs.existsSync(logoPath)) {
                 const logoImg = await loadImage(logoPath);
-                const maxLogoW = 128;
-                const maxLogoH = 38;
                 const ratio = logoImg.width / logoImg.height;
-                let lw = maxLogoW;
+                let lw = LOGO_MAX_W;
                 let lh = Math.round(lw / ratio);
-                if (lh > maxLogoH) {
-                    lh = maxLogoH;
+                if (lh > LOGO_MAX_H) {
+                    lh = LOGO_MAX_H;
                     lw = Math.round(lh * ratio);
                 }
-                const lx = width - pad - lw;
-                const ly = height - pad - lh;
+                const lx = width - PAD - lw;
+                const ly = height - PAD - lh;
                 ctx.drawImage(logoImg, lx, ly, lw, lh);
             }
         }
