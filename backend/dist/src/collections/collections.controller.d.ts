@@ -12,22 +12,22 @@ export declare class CollectionsController {
         };
     } & {
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         title: string;
         description: string;
         coverImage: string;
         ownerId: string;
-        createdAt: Date;
-        updatedAt: Date;
         isPublic: boolean;
     })[]>;
     getMyCollections(user: any): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         title: string;
         description: string;
         coverImage: string;
         ownerId: string;
-        createdAt: Date;
-        updatedAt: Date;
         isPublic: boolean;
     }[]>;
     getCollectionById(id: string): Promise<any>;
@@ -55,22 +55,22 @@ export declare class CollectionsController {
     }>;
     createCollection(user: any, data: any): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         title: string;
         description: string;
         coverImage: string;
         ownerId: string;
-        createdAt: Date;
-        updatedAt: Date;
         isPublic: boolean;
     }>;
     updateCollection(user: any, id: string, data: any): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         title: string;
         description: string;
         coverImage: string;
         ownerId: string;
-        createdAt: Date;
-        updatedAt: Date;
         isPublic: boolean;
     }>;
     deleteCollection(user: any, id: string): Promise<{

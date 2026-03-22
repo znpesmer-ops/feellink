@@ -73,16 +73,7 @@ function CreateContent() {
     },
     onError: (error: any) => {
       console.error('Error creating post:', error)
-      const responseData = error?.response?.data
-      const nested = typeof responseData?.message === 'object' ? responseData.message : null
-      const errorCode = nested?.code ?? responseData?.code
-
-      if (errorCode === 'LIMIT_REACHED') {
-        const errorMessage = nested?.message ?? (typeof responseData?.message === 'string' ? responseData.message : responseData?.error)
-        setError(errorMessage ?? 'Bu ayki eser limitinize ulaştınız.')
-      } else {
-        setError(getErrorMessage(error))
-      }
+      setError(getErrorMessage(error))
     },
     onSettled: () => {
       setUploading(false)

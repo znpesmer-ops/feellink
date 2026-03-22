@@ -2,7 +2,6 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException,
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateJobDto } from './dto/create-job.dto';
-import { LimitsService } from '../limits/limits.service';
 import { CreateJobApplicationDto } from './dto/create-application.dto';
 import { ApplicationStatus } from './dto/update-application-status.dto';
 import { MailService } from '../mail/mail.service';
@@ -14,15 +13,12 @@ export class JobsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly limitsService: LimitsService,
     private readonly mailService: MailService,
     @Inject(forwardRef(() => ChatService))
     private readonly chatService: ChatService,
   ) {}
 
   async create(userId: string, dto: CreateJobDto) {
-    await this.limitsService.ensureLimit(userId, 'create_job');
-    
     // ✅ Yayınlama ayarları validasyonu (sadece yayınlama için, taslak için değil)
     if (!dto.saveAsDraft) {
       if (!dto.deadline && !dto.maxApplications && !dto.autoCloseOnDeadline) {

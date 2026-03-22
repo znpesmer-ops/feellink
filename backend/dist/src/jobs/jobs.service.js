@@ -16,19 +16,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.JobsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
-const limits_service_1 = require("../limits/limits.service");
 const mail_service_1 = require("../mail/mail.service");
 const chat_service_1 = require("../chat/chat.service");
 let JobsService = JobsService_1 = class JobsService {
-    constructor(prisma, limitsService, mailService, chatService) {
+    constructor(prisma, mailService, chatService) {
         this.prisma = prisma;
-        this.limitsService = limitsService;
         this.mailService = mailService;
         this.chatService = chatService;
         this.logger = new common_1.Logger(JobsService_1.name);
     }
     async create(userId, dto) {
-        await this.limitsService.ensureLimit(userId, 'create_job');
         if (!dto.saveAsDraft) {
             if (!dto.deadline && !dto.maxApplications && !dto.autoCloseOnDeadline) {
                 throw new common_1.BadRequestException('Yayınlanan ilanlar için yayınlanma ayarları zorunludur. Lütfen Son Başvuru Tarihi, Maks. Başvuru Sayısı veya Otomatik Kapatma seçeneklerinden en az birini doldurun.');
@@ -558,9 +555,8 @@ let JobsService = JobsService_1 = class JobsService {
 exports.JobsService = JobsService;
 exports.JobsService = JobsService = JobsService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __param(3, (0, common_1.Inject)((0, common_1.forwardRef)(() => chat_service_1.ChatService))),
+    __param(2, (0, common_1.Inject)((0, common_1.forwardRef)(() => chat_service_1.ChatService))),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        limits_service_1.LimitsService,
         mail_service_1.MailService,
         chat_service_1.ChatService])
 ], JobsService);

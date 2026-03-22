@@ -12,12 +12,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CollectionsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
-const limits_service_1 = require("../limits/limits.service");
 const notifications_service_1 = require("../notifications/notifications.service");
 let CollectionsService = class CollectionsService {
-    constructor(prisma, limitsService, notificationsService) {
+    constructor(prisma, notificationsService) {
         this.prisma = prisma;
-        this.limitsService = limitsService;
         this.notificationsService = notificationsService;
     }
     async ensurePermission(userId, requireManage = false) {
@@ -59,7 +57,6 @@ let CollectionsService = class CollectionsService {
     }
     async createCollection(userId, data) {
         await this.ensurePermission(userId, true);
-        await this.limitsService.ensureLimit(userId, 'create_collection');
         return this.prisma.collection.create({
             data: {
                 title: data.title,
@@ -386,7 +383,6 @@ exports.CollectionsService = CollectionsService;
 exports.CollectionsService = CollectionsService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        limits_service_1.LimitsService,
         notifications_service_1.NotificationsService])
 ], CollectionsService);
 //# sourceMappingURL=collections.service.js.map

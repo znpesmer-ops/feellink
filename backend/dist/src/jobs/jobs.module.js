@@ -11,7 +11,6 @@ const common_1 = require("@nestjs/common");
 const jobs_controller_1 = require("./jobs.controller");
 const jobs_service_1 = require("./jobs.service");
 const prisma_module_1 = require("../prisma/prisma.module");
-const limits_module_1 = require("../limits/limits.module");
 const mail_module_1 = require("../mail/mail.module");
 const chat_module_1 = require("../chat/chat.module");
 let JobsModule = class JobsModule {
@@ -19,7 +18,7 @@ let JobsModule = class JobsModule {
 exports.JobsModule = JobsModule;
 exports.JobsModule = JobsModule = __decorate([
     (0, common_1.Module)({
-        imports: [prisma_module_1.PrismaModule, limits_module_1.LimitsModule, mail_module_1.MailModule, (0, common_1.forwardRef)(() => chat_module_1.ChatModule)],
+        imports: [prisma_module_1.PrismaModule, mail_module_1.MailModule, (0, common_1.forwardRef)(() => chat_module_1.ChatModule)],
         controllers: [jobs_controller_1.JobsController],
         providers: [jobs_service_1.JobsService],
         exports: [jobs_service_1.JobsService],

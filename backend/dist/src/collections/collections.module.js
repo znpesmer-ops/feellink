@@ -11,14 +11,13 @@ const common_1 = require("@nestjs/common");
 const collections_controller_1 = require("./collections.controller");
 const collections_service_1 = require("./collections.service");
 const prisma_module_1 = require("../prisma/prisma.module");
-const limits_module_1 = require("../limits/limits.module");
 const notifications_module_1 = require("../notifications/notifications.module");
 let CollectionsModule = class CollectionsModule {
 };
 exports.CollectionsModule = CollectionsModule;
 exports.CollectionsModule = CollectionsModule = __decorate([
     (0, common_1.Module)({
-        imports: [prisma_module_1.PrismaModule, limits_module_1.LimitsModule, notifications_module_1.NotificationsModule],
+        imports: [prisma_module_1.PrismaModule, notifications_module_1.NotificationsModule],
         controllers: [collections_controller_1.CollectionsController],
         providers: [collections_service_1.CollectionsService],
     })

@@ -41,22 +41,22 @@ export declare class PostsService {
             likes: number;
         };
         media: {
-            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
-            order: number;
+            url: string;
             thumbnailUrl: string;
+            order: number;
         }[];
     } & {
         id: string;
-        title: string;
-        location: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
+        title: string;
+        location: string;
         userId: string;
         type: string;
         caption: string;
@@ -109,9 +109,9 @@ export declare class PostsService {
         };
         hashtags: ({
             hashtag: {
-                name: string;
                 id: string;
                 createdAt: Date;
+                name: string;
                 postCount: number;
             };
         } & {
@@ -140,22 +140,22 @@ export declare class PostsService {
             likes: number;
         };
         media: {
-            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
-            order: number;
+            url: string;
             thumbnailUrl: string;
+            order: number;
         }[];
     } & {
         id: string;
-        title: string;
-        location: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
+        title: string;
+        location: string;
         userId: string;
         type: string;
         caption: string;
@@ -213,8 +213,8 @@ export declare class PostsService {
             id: string;
             caption: string;
             media: {
-                url: string;
                 type: string;
+                url: string;
             }[];
         };
     } & {
@@ -320,11 +320,11 @@ export declare class PostsService {
             avatar: string;
             isVerified: boolean;
         };
-        location: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
+        location: string;
         userId: string;
         code: string;
         colors: string[];
@@ -364,21 +364,21 @@ export declare class PostsService {
             isVerified: boolean;
         };
         media: {
-            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
-            order: number;
+            url: string;
             thumbnailUrl: string;
+            order: number;
         }[];
         id: string;
-        title: string;
-        location: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
+        title: string;
+        location: string;
         userId: string;
         type: string;
         caption: string;
@@ -415,21 +415,21 @@ export declare class PostsService {
             likes: number;
         };
         media: {
-            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
-            order: number;
+            url: string;
             thumbnailUrl: string;
+            order: number;
         }[];
         id: string;
-        title: string;
-        location: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
+        title: string;
+        location: string;
         userId: string;
         type: string;
         caption: string;
@@ -452,21 +452,21 @@ export declare class PostsService {
             isVerified: boolean;
         };
         media: {
-            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
-            order: number;
+            url: string;
             thumbnailUrl: string;
+            order: number;
         }[];
         id: string;
-        title: string;
-        location: string;
         isDeleted: boolean;
         deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
+        title: string;
+        location: string;
         userId: string;
         type: string;
         caption: string;

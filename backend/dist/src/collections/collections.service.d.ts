@@ -1,20 +1,18 @@
 import { PrismaService } from '../prisma/prisma.service';
-import { LimitsService } from '../limits/limits.service';
 import { NotificationsService } from '../notifications/notifications.service';
 export declare class CollectionsService {
     private prisma;
-    private limitsService;
     private notificationsService;
-    constructor(prisma: PrismaService, limitsService: LimitsService, notificationsService: NotificationsService);
+    constructor(prisma: PrismaService, notificationsService: NotificationsService);
     private ensurePermission;
     getMyCollections(userId: string): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         title: string;
         description: string;
         coverImage: string;
         ownerId: string;
-        createdAt: Date;
-        updatedAt: Date;
         isPublic: boolean;
     }[]>;
     getAllCollections(): Promise<({
@@ -27,12 +25,12 @@ export declare class CollectionsService {
         };
     } & {
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         title: string;
         description: string;
         coverImage: string;
         ownerId: string;
-        createdAt: Date;
-        updatedAt: Date;
         isPublic: boolean;
     })[]>;
     createCollection(userId: string, data: {
@@ -41,12 +39,12 @@ export declare class CollectionsService {
         coverImage?: string;
     }): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         title: string;
         description: string;
         coverImage: string;
         ownerId: string;
-        createdAt: Date;
-        updatedAt: Date;
         isPublic: boolean;
     }>;
     updateCollection(userId: string, id: string, data: {
@@ -55,12 +53,12 @@ export declare class CollectionsService {
         coverImage?: string;
     }): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         title: string;
         description: string;
         coverImage: string;
         ownerId: string;
-        createdAt: Date;
-        updatedAt: Date;
         isPublic: boolean;
     }>;
     deleteCollection(userId: string, id: string): Promise<{

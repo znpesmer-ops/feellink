@@ -1,23 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X, Image, Loader2 } from "lucide-react";
 import api from "@/lib/api";
-import { useAuthStore } from "@/lib/store";
-
-// Tarih yardımcı fonksiyonları
-const differenceInMonths = (date1: Date, date2: Date): number => {
-  const yearDiff = date1.getFullYear() - date2.getFullYear();
-  const monthDiff = date1.getMonth() - date2.getMonth();
-  return yearDiff * 12 + monthDiff;
-};
-
-const isSameMonth = (date1: Date, date2: Date): boolean => {
-  return (
-    date1.getFullYear() === date2.getFullYear() &&
-    date1.getMonth() === date2.getMonth()
-  );
-};
-
 interface CreateEventModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -35,89 +19,6 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
   const [price, setPrice] = useState<number>(0);
   const [maxParticipantsCap, setMaxParticipantsCap] = useState("");
   const [loading, setLoading] = useState(false);
-  const [myEvents, setMyEvents] = useState<any[]>([]);
-  const [limitError, setLimitError] = useState<string | null>(null);
-  const { user, capabilities } = useAuthStore();
-
-  // Kullanıcının etkinliklerini çek
-  useEffect(() => {
-    if (isOpen && user) {
-      api.get("/events/my")
-        .then((res) => setMyEvents(res.data || []))
-        .catch(() => setMyEvents([]));
-    }
-  }, [isOpen, user]);
-
-  // Limit kontrolü fonksiyonu
-  const canCreateEvent = (): { allowed: boolean; message?: string } => {
-    if (!user || !capabilities) {
-      return { allowed: false, message: "Kullanıcı bilgileri yükleniyor..." };
-    }
-
-    const roles = capabilities.roles || user.roles || [];
-    const plan = capabilities.plan || user.plan || "FREE";
-    const primaryRole = roles[0] || "art_lover";
-
-    // Sanatçı Pro: Sınırsız
-    if (primaryRole === "artist" && plan === "PRO") {
-      return { allowed: true };
-    }
-
-    const now = new Date();
-
-    // Sanatsever Free: 6 ayda 1
-    if (primaryRole === "art_lover" && plan === "FREE") {
-      if (myEvents.length === 0) {
-        return { allowed: true };
-      }
-      // En son etkinliği bul
-      const sortedEvents = [...myEvents].sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      const lastEvent = sortedEvents[0];
-      if (lastEvent) {
-        const diff = differenceInMonths(now, new Date(lastEvent.createdAt));
-        if (diff < 6) {
-          return {
-            allowed: false,
-            message: `6 ayda bir etkinlik oluşturabilirsiniz. Son etkinliğinizden ${6 - diff} ay sonra tekrar deneyebilirsiniz.`,
-          };
-        }
-      }
-      return { allowed: true };
-    }
-
-    // Kurumsal Free: Ayda 30
-    if (primaryRole === "corporate" && plan === "FREE") {
-      const thisMonthEvents = myEvents.filter((e) =>
-        isSameMonth(new Date(e.createdAt), now)
-      );
-      if (thisMonthEvents.length >= 30) {
-        return {
-          allowed: false,
-          message: "Bu ay 30 etkinlik oluşturma limitinize ulaştınız. Gelecek ay tekrar deneyebilirsiniz.",
-        };
-      }
-      return { allowed: true };
-    }
-
-    // Koleksiyoner Free ve Sanatçı Free: Ayda 5
-    if ((primaryRole === "collector" || primaryRole === "artist") && plan === "FREE") {
-      const thisMonthEvents = myEvents.filter((e) =>
-        isSameMonth(new Date(e.createdAt), now)
-      );
-      if (thisMonthEvents.length >= 5) {
-        return {
-          allowed: false,
-          message: "Bu ay 5 etkinlik oluşturma limitinize ulaştınız. Gelecek ay tekrar deneyebilirsiniz.",
-        };
-      }
-      return { allowed: true };
-    }
-
-    // Diğer durumlar için varsayılan olarak izin ver
-    return { allowed: true };
-  };
 
   if (!isOpen) return null;
 
@@ -128,14 +29,6 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Limit kontrolü
-    const limitCheck = canCreateEvent();
-    if (!limitCheck.allowed) {
-      setLimitError(limitCheck.message || "Etkinlik oluşturma limitinize ulaştınız.");
-      return;
-    }
-    setLimitError(null);
 
     if (!title.trim() || !date.trim()) {
       alert("Etkinlik adı ve tarihi gerekli.");
@@ -238,13 +131,6 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
         <h2 className="text-2xl font-semibold text-[#ff7b00] mb-4">
           🎟️ Yeni Etkinlik Oluştur
         </h2>
-
-        {/* Limit Uyarısı */}
-        {limitError && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <p className="text-sm text-red-600 dark:text-red-400">{limitError}</p>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>

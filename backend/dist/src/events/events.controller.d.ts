@@ -24,23 +24,23 @@ export declare class EventsController {
         capacity: number;
     }>;
     createEvent(user: any, dto: CreateEventDto): Promise<{
-        date: Date;
+        id: string;
+        isDeleted: boolean;
+        deletedAt: Date;
+        createdAt: Date;
+        updatedAt: Date;
         participantCount: number;
         maxParticipants: number;
-        id: string;
         title: string;
         description: string;
         coverImage: string;
+        date: Date;
         ticketUrl: string;
         price: number;
         isFree: boolean;
         location: string;
         ownerId: string;
         reminderMailSent: boolean;
-        isDeleted: boolean;
-        deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     joinEvent(user: any, id: string): Promise<Record<string, unknown> & {
         approvedParticipantsCount: number;
@@ -55,10 +55,6 @@ export declare class EventsController {
     getEventComments(id: string): Promise<({
         author: {
             id: string;
-            isDeleted: boolean;
-            deletedAt: Date;
-            createdAt: Date;
-            updatedAt: Date;
             username: string;
             email: string;
             password: string;
@@ -104,22 +100,22 @@ export declare class EventsController {
             suspendedByAdminId: string;
             deletionRequestedAt: Date;
             scheduledDeletionAt: Date;
+            isDeleted: boolean;
+            deletedAt: Date;
             deletedBy: string;
+            createdAt: Date;
+            updatedAt: Date;
         };
     } & {
-        text: string;
         id: string;
         createdAt: Date;
         eventId: string;
+        text: string;
         authorId: string;
     })[]>;
     createEventComment(user: any, id: string, data: any): Promise<{
         author: {
             id: string;
-            isDeleted: boolean;
-            deletedAt: Date;
-            createdAt: Date;
-            updatedAt: Date;
             username: string;
             email: string;
             password: string;
@@ -165,33 +161,37 @@ export declare class EventsController {
             suspendedByAdminId: string;
             deletionRequestedAt: Date;
             scheduledDeletionAt: Date;
+            isDeleted: boolean;
+            deletedAt: Date;
             deletedBy: string;
+            createdAt: Date;
+            updatedAt: Date;
         };
     } & {
-        text: string;
         id: string;
         createdAt: Date;
         eventId: string;
+        text: string;
         authorId: string;
     }>;
     updateEvent(user: any, id: string, data: any): Promise<{
-        date: Date;
+        id: string;
+        isDeleted: boolean;
+        deletedAt: Date;
+        createdAt: Date;
+        updatedAt: Date;
         participantCount: number;
         maxParticipants: number;
-        id: string;
         title: string;
         description: string;
         coverImage: string;
+        date: Date;
         ticketUrl: string;
         price: number;
         isFree: boolean;
         location: string;
         ownerId: string;
         reminderMailSent: boolean;
-        isDeleted: boolean;
-        deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     deleteEvent(user: any, id: string): Promise<{
         success: boolean;

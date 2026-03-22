@@ -252,77 +252,11 @@ export default function EventsPageClient({ initialTab }: EventsPageClientProps) 
       toast.error("Kullanıcı bilgileri yükleniyor...");
       return;
     }
-
-    const roles = capabilities.roles || user.roles || [];
-    const plan = capabilities.plan || user.plan || "FREE";
-    const primaryRole = roles[0] || "art_lover";
-
-    // Sanatçı Pro: Sınırsız - direkt aç
-    if (primaryRole === "artist" && plan === "PRO") {
-      setShowCreateModal(true);
+    if (!capabilities.permissions?.canCreateEvents) {
+      toast.error("Bu hesap tipi ile etkinlik oluşturamazsınız.");
       return;
     }
-
-    // Diğer roller için limit kontrolü
-    const now = new Date();
-    let canCreate = true;
-    let errorMessage = "";
-
-    // Sanatsever Free: 6 ayda 1
-    if (primaryRole === "art_lover" && plan === "FREE") {
-      if (myEvents.length > 0) {
-        const sortedEvents = [...myEvents].sort(
-          (a, b) => (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0)
-        );
-        const lastEvent = sortedEvents[0];
-        if (lastEvent && lastEvent.createdAt) {
-          const lastEventDate = new Date(lastEvent.createdAt);
-          const yearDiff = now.getFullYear() - lastEventDate.getFullYear();
-          const monthDiff = now.getMonth() - lastEventDate.getMonth();
-          const totalMonths = yearDiff * 12 + monthDiff;
-          if (totalMonths < 6) {
-            canCreate = false;
-            errorMessage = `6 ayda bir etkinlik oluşturabilirsiniz. Son etkinliğinizden ${6 - totalMonths} ay sonra tekrar deneyebilirsiniz.`;
-          }
-        }
-      }
-    }
-    // Kurumsal Free: Ayda 30
-    else if (primaryRole === "corporate" && plan === "FREE") {
-      const thisMonthEvents = myEvents.filter((e) => {
-        if (!e.createdAt) return false;
-        const eventDate = new Date(e.createdAt);
-        return (
-          eventDate.getFullYear() === now.getFullYear() &&
-          eventDate.getMonth() === now.getMonth()
-        );
-      });
-      if (thisMonthEvents.length >= 30) {
-        canCreate = false;
-        errorMessage = "Bu ay 30 etkinlik oluşturma limitinize ulaştınız. Gelecek ay tekrar deneyebilirsiniz.";
-      }
-    }
-    // Koleksiyoner Free ve Sanatçı Free: Ayda 5
-    else if ((primaryRole === "collector" || primaryRole === "artist") && plan === "FREE") {
-      const thisMonthEvents = myEvents.filter((e) => {
-        if (!e.createdAt) return false;
-        const eventDate = new Date(e.createdAt);
-        return (
-          eventDate.getFullYear() === now.getFullYear() &&
-          eventDate.getMonth() === now.getMonth()
-        );
-      });
-      if (thisMonthEvents.length >= 5) {
-        canCreate = false;
-        errorMessage = "Bu ay 5 etkinlik oluşturma limitinize ulaştınız. Gelecek ay tekrar deneyebilirsiniz.";
-      }
-    }
-
-    if (canCreate) {
-      setShowCreateModal(true);
-    } else {
-      toast.error(errorMessage);
-    }
+    setShowCreateModal(true);
   };
 
   if (loading) {

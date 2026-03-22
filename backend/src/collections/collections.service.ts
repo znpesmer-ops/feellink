@@ -2,14 +2,12 @@ import { Injectable, NotFoundException, ForbiddenException, ConflictException, B
 import { PrismaService } from '../prisma/prisma.service';
 import { computeCapabilities } from '../roles/roles.utils';
 import { SubscriptionPlanCode } from '../roles/roles.types';
-import { LimitsService } from '../limits/limits.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class CollectionsService {
   constructor(
     private prisma: PrismaService,
-    private limitsService: LimitsService,
     private notificationsService: NotificationsService,
   ) {}
 
@@ -60,7 +58,6 @@ export class CollectionsService {
 
   async createCollection(userId: string, data: { title: string; description?: string; coverImage?: string }) {
     await this.ensurePermission(userId, true);
-    await this.limitsService.ensureLimit(userId, 'create_collection');
     return this.prisma.collection.create({
       data: {
         title: data.title,

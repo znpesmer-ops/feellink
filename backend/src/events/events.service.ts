@@ -91,7 +91,7 @@ export class EventsService {
     userId: string,
     dto: CreateEventDto,
   ) {
-    await this.limitsService.ensureLimit(userId, 'create_event');
+    await this.limitsService.ensureCanCreateEvent(userId);
 
     return this.prisma.event.create({
       data: {

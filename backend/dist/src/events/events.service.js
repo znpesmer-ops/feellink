@@ -84,7 +84,7 @@ let EventsService = class EventsService {
         return list.map((e) => this.mapEventForApi(e));
     }
     async createEvent(userId, dto) {
-        await this.limitsService.ensureLimit(userId, 'create_event');
+        await this.limitsService.ensureCanCreateEvent(userId);
         return this.prisma.event.create({
             data: {
                 title: dto.title,

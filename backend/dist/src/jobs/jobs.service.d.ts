@@ -1,39 +1,37 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateJobDto } from './dto/create-job.dto';
-import { LimitsService } from '../limits/limits.service';
 import { CreateJobApplicationDto } from './dto/create-application.dto';
 import { ApplicationStatus } from './dto/update-application-status.dto';
 import { MailService } from '../mail/mail.service';
 import { ChatService } from '../chat/chat.service';
 export declare class JobsService {
     private readonly prisma;
-    private readonly limitsService;
     private readonly mailService;
     private readonly chatService;
     private readonly logger;
-    constructor(prisma: PrismaService, limitsService: LimitsService, mailService: MailService, chatService: ChatService);
+    constructor(prisma: PrismaService, mailService: MailService, chatService: ChatService);
     create(userId: string, dto: CreateJobDto): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         title: string;
         description: string;
         location: string;
-        createdAt: Date;
-        updatedAt: Date;
+        tags: string[];
         company: string;
         salary: string;
-        tags: string[];
         createdById: string;
     }>;
     update(jobId: string, userId: string, dto: CreateJobDto): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         title: string;
         description: string;
         location: string;
-        createdAt: Date;
-        updatedAt: Date;
+        tags: string[];
         company: string;
         salary: string;
-        tags: string[];
         createdById: string;
     }>;
     getAll(): Promise<({
@@ -45,14 +43,14 @@ export declare class JobsService {
         };
     } & {
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         title: string;
         description: string;
         location: string;
-        createdAt: Date;
-        updatedAt: Date;
+        tags: string[];
         company: string;
         salary: string;
-        tags: string[];
         createdById: string;
     })[]>;
     getMyJobs(userId: string): Promise<({
@@ -67,14 +65,14 @@ export declare class JobsService {
         };
     } & {
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         title: string;
         description: string;
         location: string;
-        createdAt: Date;
-        updatedAt: Date;
+        tags: string[];
         company: string;
         salary: string;
-        tags: string[];
         createdById: string;
     })[]>;
     getById(jobId: string, userId: string): Promise<{
@@ -86,14 +84,14 @@ export declare class JobsService {
         };
     } & {
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         title: string;
         description: string;
         location: string;
-        createdAt: Date;
-        updatedAt: Date;
+        tags: string[];
         company: string;
         salary: string;
-        tags: string[];
         createdById: string;
     }>;
     applyToJob(jobListingId: string, userId: string, dto: CreateJobApplicationDto): Promise<{
@@ -110,7 +108,6 @@ export declare class JobsService {
         updatedAt: Date;
         status: import(".prisma/client").$Enums.ApplicationStatus;
         reminderSentAt: Date;
-        expiresAt: Date;
         tags: string[];
         jobListingId: string;
         applicantId: string;
@@ -119,6 +116,7 @@ export declare class JobsService {
         portfolioFileUrl: string;
         cvUrl: string;
         conversationId: string;
+        expiresAt: Date;
         adminNote: string;
     }>;
     getApplicationsForJob(jobListingId: string, ownerId: string): Promise<{
@@ -126,11 +124,11 @@ export declare class JobsService {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.ApplicationStatus;
-        expiresAt: Date;
         coverLetter: string;
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
+        expiresAt: Date;
         applicant: {
             id: string;
             username: string;
@@ -152,16 +150,15 @@ export declare class JobsService {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.ApplicationStatus;
-        expiresAt: Date;
         jobListing: {
             id: string;
+            createdAt: Date;
             title: string;
             description: string;
             location: string;
-            createdAt: Date;
+            tags: string[];
             company: string;
             salary: string;
-            tags: string[];
             createdBy: {
                 id: string;
                 username: string;
@@ -173,6 +170,7 @@ export declare class JobsService {
         portfolioUrl: string;
         portfolioFileUrl: string;
         cvUrl: string;
+        expiresAt: Date;
     }[]>;
     updateApplicationStatus(applicationId: string, ownerId: string, status: ApplicationStatus): Promise<{
         jobListing: {
@@ -195,7 +193,6 @@ export declare class JobsService {
         updatedAt: Date;
         status: import(".prisma/client").$Enums.ApplicationStatus;
         reminderSentAt: Date;
-        expiresAt: Date;
         tags: string[];
         jobListingId: string;
         applicantId: string;
@@ -204,6 +201,7 @@ export declare class JobsService {
         portfolioFileUrl: string;
         cvUrl: string;
         conversationId: string;
+        expiresAt: Date;
         adminNote: string;
     }>;
     checkUserApplication(jobListingId: string, userId: string): Promise<{
@@ -214,7 +212,6 @@ export declare class JobsService {
             updatedAt: Date;
             status: import(".prisma/client").$Enums.ApplicationStatus;
             reminderSentAt: Date;
-            expiresAt: Date;
             tags: string[];
             jobListingId: string;
             applicantId: string;
@@ -223,6 +220,7 @@ export declare class JobsService {
             portfolioFileUrl: string;
             cvUrl: string;
             conversationId: string;
+            expiresAt: Date;
             adminNote: string;
         };
     }>;
@@ -232,7 +230,6 @@ export declare class JobsService {
         updatedAt: Date;
         status: import(".prisma/client").$Enums.ApplicationStatus;
         reminderSentAt: Date;
-        expiresAt: Date;
         tags: string[];
         jobListingId: string;
         applicantId: string;
@@ -241,6 +238,7 @@ export declare class JobsService {
         portfolioFileUrl: string;
         cvUrl: string;
         conversationId: string;
+        expiresAt: Date;
         adminNote: string;
     }>;
     updateTags(applicationId: string, ownerId: string, tags: string[]): Promise<{
@@ -249,7 +247,6 @@ export declare class JobsService {
         updatedAt: Date;
         status: import(".prisma/client").$Enums.ApplicationStatus;
         reminderSentAt: Date;
-        expiresAt: Date;
         tags: string[];
         jobListingId: string;
         applicantId: string;
@@ -258,6 +255,7 @@ export declare class JobsService {
         portfolioFileUrl: string;
         cvUrl: string;
         conversationId: string;
+        expiresAt: Date;
         adminNote: string;
     }>;
     getApplicationActivities(applicationId: string, ownerId: string): Promise<{

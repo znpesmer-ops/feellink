@@ -69,11 +69,11 @@ exports.ROLE_LIMITS = {
     art_lover: {
         plans: {
             FREE: {
-                eventCooldownMonths: 6,
+                eventCooldownMonths: null,
                 eventLimitMonthly: null,
             },
             PRO: {
-                eventLimitMonthly: 1000,
+                eventLimitMonthly: null,
                 eventCooldownMonths: null,
             },
         },
@@ -81,33 +81,33 @@ exports.ROLE_LIMITS = {
     corporate: {
         plans: {
             FREE: {
-                eventLimitMonthly: 30,
+                eventLimitMonthly: null,
             },
             PRO: {
-                eventLimitMonthly: 1000,
+                eventLimitMonthly: null,
             },
         },
     },
     collector: {
         plans: {
             FREE: {
-                artworkLimitMonthly: 5,
+                artworkLimitMonthly: null,
             },
             PRO: {
-                artworkLimitMonthly: 1000,
+                artworkLimitMonthly: null,
             },
             ORI: {
-                artworkLimitMonthly: 1000,
+                artworkLimitMonthly: null,
             },
         },
     },
     artist: {
         plans: {
             FREE: {
-                eventLimitMonthly: 5,
+                eventLimitMonthly: null,
             },
             PRO: {
-                eventLimitMonthly: 1000,
+                eventLimitMonthly: null,
             },
         },
     },
