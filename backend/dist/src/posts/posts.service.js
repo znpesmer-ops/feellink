@@ -28,6 +28,7 @@ const artwork_utils_1 = require("./artwork.utils");
 const ticket_utils_1 = require("../tickets/ticket.utils");
 const color_analysis_service_1 = require("./color-analysis.service");
 const containsBadWord_1 = require("../common/utils/containsBadWord");
+const resolve_feellink_assets_1 = require("../common/resolve-feellink-assets");
 const pdfkit_1 = require("pdfkit");
 const QRCode = require("qrcode");
 const fs = require("fs");
@@ -2072,7 +2073,8 @@ let PostsService = class PostsService {
         const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
         const artworkUrl = `${frontendUrl}/posts/${postId}`;
         const { createCanvas, loadImage, registerFont } = require('canvas');
-        const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
+        const assetsRoot = (0, resolve_feellink_assets_1.resolveFeellinkAssetsRoot)();
+        const fontsDir = path.join(assetsRoot, 'fonts');
         const notoRegPath = path.join(fontsDir, 'NotoSans-Regular.ttf');
         const notoBoldPath = path.join(fontsDir, 'NotoSans-SemiBold.ttf');
         const interRegularPath = path.join(fontsDir, 'Inter-Regular.ttf');
@@ -2081,16 +2083,24 @@ let PostsService = class PostsService {
         const F_BOLD = 'FeellinkTicketBold';
         try {
             if (fs.existsSync(notoRegPath)) {
-                registerFont(notoRegPath, { family: F_REG });
+                registerFont((0, resolve_feellink_assets_1.fontPathForRegister)(notoRegPath, 'feellink-NotoSans-Regular.ttf'), {
+                    family: F_REG,
+                });
             }
             else if (fs.existsSync(interRegularPath)) {
-                registerFont(interRegularPath, { family: F_REG });
+                registerFont((0, resolve_feellink_assets_1.fontPathForRegister)(interRegularPath, 'feellink-Inter-Regular.ttf'), {
+                    family: F_REG,
+                });
             }
             if (fs.existsSync(notoBoldPath)) {
-                registerFont(notoBoldPath, { family: F_BOLD });
+                registerFont((0, resolve_feellink_assets_1.fontPathForRegister)(notoBoldPath, 'feellink-NotoSans-SemiBold.ttf'), {
+                    family: F_BOLD,
+                });
             }
             else if (fs.existsSync(interBoldPath)) {
-                registerFont(interBoldPath, { family: F_BOLD });
+                registerFont((0, resolve_feellink_assets_1.fontPathForRegister)(interBoldPath, 'feellink-Inter-Bold.ttf'), {
+                    family: F_BOLD,
+                });
             }
         }
         catch (error) {
@@ -2099,7 +2109,7 @@ let PostsService = class PostsService {
         const hasReg = fs.existsSync(notoRegPath) || fs.existsSync(interRegularPath);
         const hasBold = fs.existsSync(notoBoldPath) || fs.existsSync(interBoldPath);
         if (!hasReg) {
-            console.error('[generateQrLabelPdf] Eksik font: assets/fonts/NotoSans-Regular.ttf — PDF metinleri bozulur.');
+            console.error(`[generateQrLabelPdf] Font yok. cwd=${process.cwd()} assetsRoot=${assetsRoot} — PDF □ olur.`);
         }
         const fontReg = hasReg ? F_REG : 'sans-serif';
         const fontBold = hasBold ? F_BOLD : fontReg;
@@ -2219,14 +2229,17 @@ let PostsService = class PostsService {
             ctx.fillText(ln, sloganX, sy);
             sy += sloganLineH;
         }
-        const logosDir = path.join(process.cwd(), 'assets', 'logos');
+        const logosDir = path.join(assetsRoot, 'logos');
         const orangeLogo = path.join(logosDir, 'feellink-turuncu.png');
         const blueLogo = path.join(logosDir, 'feellink-mavi.png');
         const useOrange = hashPostIdForLayout(postId) % 2 === 0;
         let logoPath = useOrange ? orangeLogo : blueLogo;
         if (!fs.existsSync(logoPath)) {
             const alt = useOrange ? blueLogo : orangeLogo;
-            logoPath = fs.existsSync(alt) ? alt : path.join(process.cwd(), 'assets', 'logo.png');
+            logoPath = fs.existsSync(alt) ? alt : path.join(assetsRoot, 'logo.png');
+        }
+        if (!fs.existsSync(logoPath)) {
+            logoPath = path.join(process.cwd(), 'assets', 'logo.png');
         }
         try {
             if (fs.existsSync(logoPath)) {
@@ -2315,7 +2328,8 @@ let PostsService = class PostsService {
         const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
         const artworkUrl = `${frontendUrl}/posts/${postId}`;
         const { createCanvas, loadImage, registerFont } = require('canvas');
-        const templatePath = path.join(process.cwd(), 'assets', 'templates', 'bilet_template.png');
+        const ticketAssetsRoot = (0, resolve_feellink_assets_1.resolveFeellinkAssetsRoot)();
+        const templatePath = path.join(ticketAssetsRoot, 'templates', 'bilet_template.png');
         if (!fs.existsSync(templatePath)) {
             throw new common_1.NotFoundException(`Bilet şablonu bulunamadı: ${templatePath}. Lütfen backend/assets/templates/bilet_template.png dosyasını ekleyin.`);
         }
@@ -2326,14 +2340,30 @@ let PostsService = class PostsService {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(template, 0, 0, width, height);
         try {
-            const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
+            const fontsDir = path.join(ticketAssetsRoot, 'fonts');
             const interRegular = path.join(fontsDir, 'Inter-Regular.ttf');
             const interBold = path.join(fontsDir, 'Inter-Bold.ttf');
-            if (fs.existsSync(interRegular)) {
-                registerFont(interRegular, { family: 'Inter' });
+            const notoReg = path.join(fontsDir, 'NotoSans-Regular.ttf');
+            const notoBold = path.join(fontsDir, 'NotoSans-SemiBold.ttf');
+            if (fs.existsSync(notoReg)) {
+                registerFont((0, resolve_feellink_assets_1.fontPathForRegister)(notoReg, 'feellink-ticket-NotoSans-Regular.ttf'), {
+                    family: 'Inter',
+                });
             }
-            if (fs.existsSync(interBold)) {
-                registerFont(interBold, { family: 'InterBold' });
+            else if (fs.existsSync(interRegular)) {
+                registerFont((0, resolve_feellink_assets_1.fontPathForRegister)(interRegular, 'feellink-ticket-Inter-Regular.ttf'), {
+                    family: 'Inter',
+                });
+            }
+            if (fs.existsSync(notoBold)) {
+                registerFont((0, resolve_feellink_assets_1.fontPathForRegister)(notoBold, 'feellink-ticket-NotoSans-SemiBold.ttf'), {
+                    family: 'InterBold',
+                });
+            }
+            else if (fs.existsSync(interBold)) {
+                registerFont((0, resolve_feellink_assets_1.fontPathForRegister)(interBold, 'feellink-ticket-Inter-Bold.ttf'), {
+                    family: 'InterBold',
+                });
             }
         }
         catch (error) {
@@ -2341,9 +2371,11 @@ let PostsService = class PostsService {
         }
         ctx.fillStyle = '#000000';
         ctx.textBaseline = 'top';
-        const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
-        const hasInterBold = fs.existsSync(path.join(fontsDir, 'Inter-Bold.ttf'));
-        const hasInterRegular = fs.existsSync(path.join(fontsDir, 'Inter-Regular.ttf'));
+        const fontsDir = path.join(ticketAssetsRoot, 'fonts');
+        const hasInterBold = fs.existsSync(path.join(fontsDir, 'NotoSans-SemiBold.ttf')) ||
+            fs.existsSync(path.join(fontsDir, 'Inter-Bold.ttf'));
+        const hasInterRegular = fs.existsSync(path.join(fontsDir, 'NotoSans-Regular.ttf')) ||
+            fs.existsSync(path.join(fontsDir, 'Inter-Regular.ttf'));
         const artworkName = post.title || post.caption || artworkCode;
         const nameFontSize = width * (48 / 1400);
         ctx.font = `${nameFontSize}px ${hasInterBold ? 'InterBold' : 'Arial-Bold'}`;

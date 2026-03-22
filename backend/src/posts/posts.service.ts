@@ -15,6 +15,7 @@ import { generateUniqueArtworkCode } from './artwork.utils';
 import { generateQrDataUrl } from '../tickets/ticket.utils';
 import { ColorAnalysisService } from './color-analysis.service';
 import { containsBadWord } from '../common/utils/containsBadWord';
+import { resolveFeellinkAssetsRoot, fontPathForRegister } from '../common/resolve-feellink-assets';
 import PDFDocument from 'pdfkit';
 import * as QRCode from 'qrcode';
 import * as fs from 'fs';
@@ -2538,9 +2539,9 @@ export class PostsService {
 
     const { createCanvas, loadImage, registerFont } = require('canvas');
 
-    // Sunucuda (Vercel/Linux) Arial yok; Inter repoda yoktu → Türkçe glifler □ oluyordu.
-    // Noto Sans (OFL) Latin + Türkçe tam kapsar; mutlaka TTF ile registerFont gerekir.
-    const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
+    // Sunucuda Arial yok; Vercel’de assets/ paket dışı kalabiliyor → vercel.json includeFiles + çoklu path.
+    const assetsRoot = resolveFeellinkAssetsRoot();
+    const fontsDir = path.join(assetsRoot, 'fonts');
     const notoRegPath = path.join(fontsDir, 'NotoSans-Regular.ttf');
     const notoBoldPath = path.join(fontsDir, 'NotoSans-SemiBold.ttf');
     const interRegularPath = path.join(fontsDir, 'Inter-Regular.ttf');
@@ -2551,14 +2552,22 @@ export class PostsService {
 
     try {
       if (fs.existsSync(notoRegPath)) {
-        registerFont(notoRegPath, { family: F_REG });
+        registerFont(fontPathForRegister(notoRegPath, 'feellink-NotoSans-Regular.ttf'), {
+          family: F_REG,
+        });
       } else if (fs.existsSync(interRegularPath)) {
-        registerFont(interRegularPath, { family: F_REG });
+        registerFont(fontPathForRegister(interRegularPath, 'feellink-Inter-Regular.ttf'), {
+          family: F_REG,
+        });
       }
       if (fs.existsSync(notoBoldPath)) {
-        registerFont(notoBoldPath, { family: F_BOLD });
+        registerFont(fontPathForRegister(notoBoldPath, 'feellink-NotoSans-SemiBold.ttf'), {
+          family: F_BOLD,
+        });
       } else if (fs.existsSync(interBoldPath)) {
-        registerFont(interBoldPath, { family: F_BOLD });
+        registerFont(fontPathForRegister(interBoldPath, 'feellink-Inter-Bold.ttf'), {
+          family: F_BOLD,
+        });
       }
     } catch (error) {
       console.warn('Font kayıt hatası:', error);
@@ -2568,7 +2577,7 @@ export class PostsService {
     const hasBold = fs.existsSync(notoBoldPath) || fs.existsSync(interBoldPath);
     if (!hasReg) {
       console.error(
-        '[generateQrLabelPdf] Eksik font: assets/fonts/NotoSans-Regular.ttf — PDF metinleri bozulur.',
+        `[generateQrLabelPdf] Font yok. cwd=${process.cwd()} assetsRoot=${assetsRoot} — PDF □ olur.`,
       );
     }
     const fontReg = hasReg ? F_REG : 'sans-serif';
@@ -2730,14 +2739,17 @@ export class PostsService {
       sy += sloganLineH;
     }
 
-    const logosDir = path.join(process.cwd(), 'assets', 'logos');
+    const logosDir = path.join(assetsRoot, 'logos');
     const orangeLogo = path.join(logosDir, 'feellink-turuncu.png');
     const blueLogo = path.join(logosDir, 'feellink-mavi.png');
     const useOrange = hashPostIdForLayout(postId) % 2 === 0;
     let logoPath = useOrange ? orangeLogo : blueLogo;
     if (!fs.existsSync(logoPath)) {
       const alt = useOrange ? blueLogo : orangeLogo;
-      logoPath = fs.existsSync(alt) ? alt : path.join(process.cwd(), 'assets', 'logo.png');
+      logoPath = fs.existsSync(alt) ? alt : path.join(assetsRoot, 'logo.png');
+    }
+    if (!fs.existsSync(logoPath)) {
+      logoPath = path.join(process.cwd(), 'assets', 'logo.png');
     }
 
     try {
@@ -2851,7 +2863,8 @@ export class PostsService {
     const { createCanvas, loadImage, registerFont } = require('canvas');
 
     // === PNG ŞABLONUNU YÜKLE ===
-    const templatePath = path.join(process.cwd(), 'assets', 'templates', 'bilet_template.png');
+    const ticketAssetsRoot = resolveFeellinkAssetsRoot();
+    const templatePath = path.join(ticketAssetsRoot, 'templates', 'bilet_template.png');
     
     if (!fs.existsSync(templatePath)) {
       throw new NotFoundException(
@@ -2872,15 +2885,29 @@ export class PostsService {
 
     // === FONT KAYDI ===
     try {
-      const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
+      const fontsDir = path.join(ticketAssetsRoot, 'fonts');
       const interRegular = path.join(fontsDir, 'Inter-Regular.ttf');
       const interBold = path.join(fontsDir, 'Inter-Bold.ttf');
+      const notoReg = path.join(fontsDir, 'NotoSans-Regular.ttf');
+      const notoBold = path.join(fontsDir, 'NotoSans-SemiBold.ttf');
 
-      if (fs.existsSync(interRegular)) {
-        registerFont(interRegular, { family: 'Inter' });
+      if (fs.existsSync(notoReg)) {
+        registerFont(fontPathForRegister(notoReg, 'feellink-ticket-NotoSans-Regular.ttf'), {
+          family: 'Inter',
+        });
+      } else if (fs.existsSync(interRegular)) {
+        registerFont(fontPathForRegister(interRegular, 'feellink-ticket-Inter-Regular.ttf'), {
+          family: 'Inter',
+        });
       }
-      if (fs.existsSync(interBold)) {
-        registerFont(interBold, { family: 'InterBold' });
+      if (fs.existsSync(notoBold)) {
+        registerFont(fontPathForRegister(notoBold, 'feellink-ticket-NotoSans-SemiBold.ttf'), {
+          family: 'InterBold',
+        });
+      } else if (fs.existsSync(interBold)) {
+        registerFont(fontPathForRegister(interBold, 'feellink-ticket-Inter-Bold.ttf'), {
+          family: 'InterBold',
+        });
       }
     } catch (error) {
       console.warn('Font kayıt hatası (sistem fontları kullanılacak):', error);
@@ -2891,9 +2918,13 @@ export class PostsService {
     ctx.textBaseline = 'top';
 
     // Font kontrolü için path
-    const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
-    const hasInterBold = fs.existsSync(path.join(fontsDir, 'Inter-Bold.ttf'));
-    const hasInterRegular = fs.existsSync(path.join(fontsDir, 'Inter-Regular.ttf'));
+    const fontsDir = path.join(ticketAssetsRoot, 'fonts');
+    const hasInterBold =
+      fs.existsSync(path.join(fontsDir, 'NotoSans-SemiBold.ttf')) ||
+      fs.existsSync(path.join(fontsDir, 'Inter-Bold.ttf'));
+    const hasInterRegular =
+      fs.existsSync(path.join(fontsDir, 'NotoSans-Regular.ttf')) ||
+      fs.existsSync(path.join(fontsDir, 'Inter-Regular.ttf'));
 
     // Eser Adı (Bold, 48px) - Referans: X=120, Y=180
     // 🎨 Eser adı: title > caption > artworkCode (öncelik sırası)
