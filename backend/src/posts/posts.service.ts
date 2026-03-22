@@ -2593,12 +2593,12 @@ export class PostsService {
     const PAD = 32;
     const GAP_STACK = 6; // başlık / sanatçı / kod arası 4–8px
     const GAP_SECTION = 26; // üst blok ↔ QR — daha ferah
-    const GAP_QR_SLOGAN = 22;
+    const GAP_QR_SLOGAN = 24;
     const QR_SIZE = 192;
     const QR_INNER_PAD = 8;
-    const LOGO_MAX_W = 200;
-    const LOGO_MAX_H = 56;
-    const LOGO_RESERVE_W = Math.round(LOGO_MAX_W + 40);
+    const LOGO_MAX_W = 252;
+    const LOGO_MAX_H = 70;
+    const LOGO_RESERVE_W = Math.round(LOGO_MAX_W + 52);
     const TITLE_MAX_LINES = 2;
     /** Başlık → ince divider → sanatçı dikey ritim */
     const GAP_AFTER_TITLE = 6;
@@ -2638,14 +2638,14 @@ export class PostsService {
     const topContentW = width - PAD * 2;
 
     // Tipografi token’ları (hiyerarşi sabit; sadece başlık fontu sığmazsa küçülür)
-    const ARTIST_FS = 16;
-    const CODE_FS = 13;
+    const ARTIST_FS = 18;
+    const CODE_FS = 14;
     const SLOGAN_BASE_FS = 28;
     const TITLE_LINE_HEIGHT = 1.2;
 
-    let titleFont = 26;
+    let titleFont = 28;
     let titleLines: string[] = [];
-    for (; titleFont >= 17; titleFont -= 1) {
+    for (; titleFont >= 19; titleFont -= 1) {
       ctx.font = `${titleFont}px ${fontBold}`;
       titleLines = titleRaw ? wrapCanvasText(ctx, titleRaw, topContentW, TITLE_MAX_LINES) : [];
       const titleH =
@@ -2721,9 +2721,10 @@ export class PostsService {
       innerQr,
     );
 
-    // Slogan: tek satır, sadece bu cümle italic — üst hizası QR ile aynı
-    const sloganColumnLeft = qrX + QR_SIZE + GAP_QR_SLOGAN;
-    const sloganSlotW = Math.max(200, width - PAD - sloganColumnLeft - LOGO_RESERVE_W);
+    // Slogan: QR sağı ile logo rezervi arasındaki şeritte yatayda ortalı (metin sola hizalı)
+    const sloganBandLeft = qrX + QR_SIZE + GAP_QR_SLOGAN;
+    const sloganBandRight = width - PAD - LOGO_RESERVE_W;
+    const sloganSlotW = Math.max(160, sloganBandRight - sloganBandLeft);
     const sloganBrand = 'Feellink';
     const sloganRest = ' ile sanat daha anlamlı!';
     const sloganFontItalic = (size: number) =>
@@ -2736,13 +2737,15 @@ export class PostsService {
       ctx.font = sloganFontItalic(sloganFont);
       wBrand = ctx.measureText(sloganBrand).width;
       wRest = ctx.measureText(sloganRest).width;
-      if (wBrand + wRest <= sloganSlotW - 4) {
+      if (wBrand + wRest <= sloganSlotW - 8) {
         break;
       }
     }
 
+    const totalSloganW = wBrand + wRest;
     const sy = qrY;
-    let sx = sloganColumnLeft;
+    let sx =
+      sloganBandLeft + Math.max(0, (sloganSlotW - totalSloganW) / 2);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillStyle = BRAND_ORANGE;

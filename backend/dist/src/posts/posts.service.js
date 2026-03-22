@@ -2120,12 +2120,12 @@ let PostsService = class PostsService {
         const PAD = 32;
         const GAP_STACK = 6;
         const GAP_SECTION = 26;
-        const GAP_QR_SLOGAN = 22;
+        const GAP_QR_SLOGAN = 24;
         const QR_SIZE = 192;
         const QR_INNER_PAD = 8;
-        const LOGO_MAX_W = 200;
-        const LOGO_MAX_H = 56;
-        const LOGO_RESERVE_W = Math.round(LOGO_MAX_W + 40);
+        const LOGO_MAX_W = 252;
+        const LOGO_MAX_H = 70;
+        const LOGO_RESERVE_W = Math.round(LOGO_MAX_W + 52);
         const TITLE_MAX_LINES = 2;
         const GAP_AFTER_TITLE = 6;
         const DIVIDER_H = 1;
@@ -2151,13 +2151,13 @@ let PostsService = class PostsService {
         const ownerRaw = (post.user.fullName && post.user.fullName.trim()) ||
             (post.user.username || '').trim();
         const topContentW = width - PAD * 2;
-        const ARTIST_FS = 16;
-        const CODE_FS = 13;
+        const ARTIST_FS = 18;
+        const CODE_FS = 14;
         const SLOGAN_BASE_FS = 28;
         const TITLE_LINE_HEIGHT = 1.2;
-        let titleFont = 26;
+        let titleFont = 28;
         let titleLines = [];
-        for (; titleFont >= 17; titleFont -= 1) {
+        for (; titleFont >= 19; titleFont -= 1) {
             ctx.font = `${titleFont}px ${fontBold}`;
             titleLines = titleRaw ? wrapCanvasText(ctx, titleRaw, topContentW, TITLE_MAX_LINES) : [];
             const titleH = titleLines.length > 0
@@ -2219,8 +2219,9 @@ let PostsService = class PostsService {
         ctx.lineWidth = 1;
         ctx.strokeRect(qrX + 0.5, qrY + 0.5, QR_SIZE - 1, QR_SIZE - 1);
         ctx.drawImage(qrImg, qrX + QR_INNER_PAD, qrY + QR_INNER_PAD, innerQr, innerQr);
-        const sloganColumnLeft = qrX + QR_SIZE + GAP_QR_SLOGAN;
-        const sloganSlotW = Math.max(200, width - PAD - sloganColumnLeft - LOGO_RESERVE_W);
+        const sloganBandLeft = qrX + QR_SIZE + GAP_QR_SLOGAN;
+        const sloganBandRight = width - PAD - LOGO_RESERVE_W;
+        const sloganSlotW = Math.max(160, sloganBandRight - sloganBandLeft);
         const sloganBrand = 'Feellink';
         const sloganRest = ' ile sanat daha anlamlı!';
         const sloganFontItalic = (size) => `italic 500 ${size}px ${fontBold}`;
@@ -2231,12 +2232,13 @@ let PostsService = class PostsService {
             ctx.font = sloganFontItalic(sloganFont);
             wBrand = ctx.measureText(sloganBrand).width;
             wRest = ctx.measureText(sloganRest).width;
-            if (wBrand + wRest <= sloganSlotW - 4) {
+            if (wBrand + wRest <= sloganSlotW - 8) {
                 break;
             }
         }
+        const totalSloganW = wBrand + wRest;
         const sy = qrY;
-        let sx = sloganColumnLeft;
+        let sx = sloganBandLeft + Math.max(0, (sloganSlotW - totalSloganW) / 2);
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
         ctx.fillStyle = BRAND_ORANGE;
