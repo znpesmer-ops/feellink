@@ -515,10 +515,8 @@ export class EventsService {
         select: { email: true },
       });
       if (requester?.email) {
-        const isPaid = !event.isFree && (event.price ?? 0) > 0;
         await this.mailService.sendEventRequestApprovedEmail(requester.email, {
           eventTitle: event.title,
-          isPaid,
         });
       }
     }
