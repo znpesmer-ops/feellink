@@ -2127,25 +2127,16 @@ let PostsService = class PostsService {
         const LOGO_MAX_H = 56;
         const LOGO_RESERVE_W = Math.round(LOGO_MAX_W + 40);
         const TITLE_MAX_LINES = 2;
-        const GAP_BEFORE_TITLE_RULE = 6;
-        const GAP_AFTER_TITLE_RULE = 12;
+        const GAP_TITLE_TO_META = 14;
         const BRAND_ORANGE = '#ff7b00';
-        const BRAND_BLUE = '#2563eb';
         const canvas = createCanvas(width * dpiScale, height * dpiScale);
         const ctx = canvas.getContext('2d');
         ctx.scale(dpiScale, dpiScale);
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, width, height);
-        const topBarH = 3;
-        const topGrad = ctx.createLinearGradient(0, 0, width, 0);
-        topGrad.addColorStop(0, BRAND_ORANGE);
-        topGrad.addColorStop(0.55, '#ff9f45');
-        topGrad.addColorStop(1, BRAND_BLUE);
-        ctx.fillStyle = topGrad;
-        ctx.fillRect(0, 0, width, topBarH);
         ctx.textBaseline = 'top';
         ctx.textAlign = 'left';
-        const contentTop = PAD + 3;
+        const contentTop = PAD;
         const qrX = PAD;
         const qrY = height - PAD - QR_SIZE;
         const bottomBandTop = qrY;
@@ -2158,7 +2149,7 @@ let PostsService = class PostsService {
         const topContentW = width - PAD * 2;
         const ARTIST_FS = 16;
         const CODE_FS = 13;
-        const SLOGAN_BASE_FS = 18;
+        const SLOGAN_BASE_FS = 23;
         const TITLE_LINE_HEIGHT = 1.2;
         let titleFont = 26;
         let titleLines = [];
@@ -2168,7 +2159,7 @@ let PostsService = class PostsService {
             const titleH = titleLines.length > 0
                 ? titleLines.length * titleFont * TITLE_LINE_HEIGHT
                 : Math.round(titleFont * 0.35);
-            const ruleBlock = GAP_BEFORE_TITLE_RULE + 2 + GAP_AFTER_TITLE_RULE;
+            const ruleBlock = GAP_TITLE_TO_META;
             let cursorY = contentTop + titleH + ruleBlock;
             ctx.font = `${ARTIST_FS}px ${fontReg}`;
             const artistH = ownerRaw ? ARTIST_FS * 1.25 : 0;
@@ -2193,15 +2184,7 @@ let PostsService = class PostsService {
         else {
             drawY += Math.round(titleFont * 0.2);
         }
-        drawY += GAP_BEFORE_TITLE_RULE;
-        const titleRuleY = drawY;
-        const ruleGrad = ctx.createLinearGradient(PAD, 0, width - PAD, 0);
-        ruleGrad.addColorStop(0, BRAND_ORANGE);
-        ruleGrad.addColorStop(0.5, '#ff9f4a');
-        ruleGrad.addColorStop(1, BRAND_BLUE);
-        ctx.fillStyle = ruleGrad;
-        ctx.fillRect(PAD, titleRuleY, width - PAD * 2, 2);
-        drawY = titleRuleY + 2 + GAP_AFTER_TITLE_RULE;
+        drawY += GAP_TITLE_TO_META;
         ctx.font = `${ARTIST_FS}px ${fontReg}`;
         ctx.fillStyle = '#334155';
         if (ownerRaw) {
@@ -2225,50 +2208,30 @@ let PostsService = class PostsService {
         ctx.strokeRect(qrX + 0.5, qrY + 0.5, QR_SIZE - 1, QR_SIZE - 1);
         ctx.drawImage(qrImg, qrX + QR_INNER_PAD, qrY + QR_INNER_PAD, innerQr, innerQr);
         const sloganColumnLeft = qrX + QR_SIZE + GAP_QR_SLOGAN;
-        const sloganSlotW = Math.max(160, width - PAD - sloganColumnLeft - LOGO_RESERVE_W);
-        const sloganCenterX = sloganColumnLeft + sloganSlotW / 2;
-        const line1Brand = 'Feellink';
-        const line1Rest = ' ile sanat';
-        const line2Text = 'daha anlamlı!';
+        const sloganSlotW = Math.max(180, width - PAD - sloganColumnLeft - LOGO_RESERVE_W);
+        const sloganBrand = 'Feellink';
+        const sloganRest = ' ile sanat daha anlamlı!';
         let sloganFont = SLOGAN_BASE_FS;
-        let sloganLineH = sloganFont * 1.42;
-        let blockH = sloganLineH * 2;
         let wBrand = 0;
         let wRest = 0;
-        let wLine2 = 0;
-        for (; sloganFont >= 14; sloganFont -= 1) {
-            sloganLineH = sloganFont * 1.42;
-            blockH = sloganLineH * 2;
+        for (; sloganFont >= 16; sloganFont -= 1) {
             ctx.font = `600 ${sloganFont}px ${fontBold}`;
-            wBrand = ctx.measureText(line1Brand).width;
-            ctx.font = `500 ${sloganFont}px ${fontReg}`;
-            wRest = ctx.measureText(line1Rest).width;
-            ctx.font = `600 ${sloganFont}px ${fontBold}`;
-            wLine2 = ctx.measureText(line2Text).width;
-            const line1Total = wBrand + wRest;
-            if (blockH <= QR_SIZE + 8 &&
-                line1Total <= sloganSlotW - 4 &&
-                wLine2 <= sloganSlotW - 4) {
+            wBrand = ctx.measureText(sloganBrand).width;
+            wRest = ctx.measureText(sloganRest).width;
+            if (wBrand + wRest <= sloganSlotW - 4) {
                 break;
             }
         }
+        const sy = qrY + Math.max(0, (QR_SIZE - sloganFont * 1.15) / 2);
+        let sx = sloganColumnLeft;
         ctx.textAlign = 'left';
-        const line1Total = wBrand + wRest;
-        const maxLineW = Math.max(line1Total, wLine2);
-        let sy = qrY + Math.max(0, (QR_SIZE - blockH) / 2);
-        let sx = sloganCenterX - maxLineW / 2;
         ctx.fillStyle = BRAND_ORANGE;
         ctx.font = `600 ${sloganFont}px ${fontBold}`;
-        ctx.fillText(line1Brand, sx, sy);
+        ctx.fillText(sloganBrand, sx, sy);
         sx += wBrand;
-        ctx.fillStyle = '#0f172a';
-        ctx.font = `500 ${sloganFont}px ${fontReg}`;
-        ctx.fillText(line1Rest, sx, sy);
-        sy += sloganLineH;
+        ctx.fillStyle = '#1e293b';
         ctx.font = `600 ${sloganFont}px ${fontBold}`;
-        ctx.fillStyle = '#0f172a';
-        ctx.fillText(line2Text, sloganCenterX - wLine2 / 2, sy);
-        ctx.textAlign = 'left';
+        ctx.fillText(sloganRest, sx, sy);
         const logosDir = path.join(assetsRoot, 'logos');
         const orangeLogo = path.join(logosDir, 'feellink-turuncu.png');
         const blueLogo = path.join(logosDir, 'feellink-mavi.png');
@@ -2300,12 +2263,12 @@ let PostsService = class PostsService {
             console.warn('Logo yüklenemedi:', e);
         }
         const cardR = 14;
-        const bx = 0.5;
-        const by = 0.5;
-        const bw = width - 1;
-        const bh = height - 1;
-        ctx.strokeStyle = '#e2e8f0';
-        ctx.lineWidth = 1.25;
+        const bx = 0.75;
+        const by = 0.75;
+        const bw = width - 1.5;
+        const bh = height - 1.5;
+        ctx.strokeStyle = BRAND_ORANGE;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(bx + cardR, by);
         ctx.lineTo(bx + bw - cardR, by);
