@@ -1,8 +1,25 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
-
-/** Büyük multipart istekler Next.js /api-proxy üzerinden 413 verebilir; backend'e doğrudan gider */
-export type ApiRequestConfig = InternalAxiosRequestConfig & { directBackend?: boolean }
 import { useAuthStore } from './store'
+
+/** Büyük multipart + /events mutasyonları: proxy'de POST JSON bazen kopuyor; doğrudan backend */
+export type ApiRequestConfig = InternalAxiosRequestConfig & { directBackend?: boolean }
+
+const FEELLINK_SYNTHETIC_NETWORK = '__feellinkSyntheticNetwork' as const
+
+function apiDebugEnabled(): boolean {
+  return (
+    process.env.NODE_ENV === 'development' ||
+    process.env.NEXT_PUBLIC_API_DEBUG === '1'
+  )
+}
+
+/** /events altında POST/PUT/PATCH/DELETE → create/update/delete/join/comment vb. */
+function isEventsApiMutation(config: Pick<ApiRequestConfig, 'url' | 'method'>): boolean {
+  const path = (config.url || '').split('?')[0] || ''
+  if (!/^\/events(\/|$)/.test(path)) return false
+  const m = (config.method || 'get').toLowerCase()
+  return ['post', 'put', 'patch', 'delete'].includes(m)
+}
 import { CapabilitySummary, SidebarVisibility } from '@/types/capabilities'
 
 let isRefreshing = false
@@ -163,7 +180,9 @@ api.interceptors.request.use((config: ApiRequestConfig) => {
     typeof FormData !== 'undefined' && config.data != null && config.data instanceof FormData
   const bypassProxyForBody =
     config.directBackend === true ||
-    (isFormData && typeof window !== 'undefined' && shouldUseBrowserApiProxy())
+    (typeof window !== 'undefined' &&
+      shouldUseBrowserApiProxy() &&
+      (isFormData || isEventsApiMutation(config)))
 
   config.baseURL = bypassProxyForBody ? getAbsoluteBackendBaseUrl() : getAxiosBaseURL()
 
@@ -204,15 +223,19 @@ api.interceptors.response.use(
 
     // Network/Connection errors - daha anlaşılır hata mesajı ver
     if (!error.response) {
-      // Network hatası (bağlantı yok, timeout, vs.)
-      // Sadece development modunda logla
       const baseURL = (originalRequest?.baseURL ?? getAxiosBaseURL() ?? '') as string
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Network error (backend erişilemiyor):', {
+      const isFd =
+        typeof FormData !== 'undefined' &&
+        originalRequest?.data != null &&
+        originalRequest.data instanceof FormData
+      if (apiDebugEnabled()) {
+        console.warn('[api] !error.response (network / CORS / kesilen istek):', {
           code: error.code,
           message: error.message,
+          method: originalRequest?.method,
           url: originalRequest?.url,
           baseURL,
+          formData: isFd,
         })
       }
 
@@ -220,6 +243,7 @@ api.interceptors.response.use(
         ...error,
         response: {
           data: {
+            [FEELLINK_SYNTHETIC_NETWORK]: true,
             message: error.code === 'ECONNABORTED' || error.message?.includes('timeout')
               ? 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.'
               : error.code === 'ERR_NETWORK' || error.message === 'Network Error'
@@ -312,7 +336,7 @@ api.interceptors.response.use(
         processQueue(null, accessToken)
 
         return api(originalRequest)
-      } catch (refreshError) {
+      } catch (refreshError: unknown) {
         processQueue(refreshError, null)
         if (isAuthEndpoint) {
           if (process.env.NODE_ENV === 'development') {
@@ -320,7 +344,28 @@ api.interceptors.response.use(
           }
           performForcedLogout()
         }
-        return Promise.reject(refreshError)
+        const ax = refreshError as AxiosError
+        if (ax?.response) {
+          return Promise.reject(refreshError)
+        }
+        if (apiDebugEnabled()) {
+          console.warn('[api] Token refresh failed without HTTP response:', {
+            code: ax?.code,
+            message: ax?.message,
+          })
+        }
+        const sessionMsg =
+          'Oturum doğrulaması başarısız oldu. Lütfen yeniden giriş yapın.'
+        const sessionErr = new AxiosError(sessionMsg, 'ERR_REFRESH_FAILED', originalRequest)
+        sessionErr.response = {
+          status: 401,
+          statusText: 'Unauthorized',
+          data: { message: sessionMsg },
+          headers: {},
+          config: originalRequest as any,
+        }
+        sessionErr.isAxiosError = true
+        return Promise.reject(sessionErr)
       } finally {
         isRefreshing = false
       }
@@ -341,35 +386,44 @@ api.interceptors.response.use(
   }
 )
 
-// Utility function to extract user-friendly error messages
-export const getErrorMessage = (error: any): string => {
-  // Network/Connection errors
-  if (!error?.response) {
-    if (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
-      return 'İstek zaman aşımına uğradı. Dosya çok büyük olabilir, lütfen tekrar deneyin.'
-    }
-    if (error?.code === 'ERR_NETWORK' || error?.message === 'Network Error') {
-      return 'Sunucuya bağlanılamıyor. İnternet bağlantınızı kontrol edin veya tekrar deneyin.'
-    }
-    return 'Bağlantı hatası oluştu. Lütfen tekrar deneyin.'
-  }
+export type ApiErrorKind =
+  | 'network'
+  | 'timeout'
+  | 'auth'
+  | 'forbidden'
+  | 'validation'
+  | 'payload_too_large'
+  | 'server'
+  | 'unknown'
 
-  // Backend error responses
-  const status = error.response?.status
-  if (status === 413) {
-    return 'Dosya veya veri boyutu çok büyük. Daha küçük bir görsel seçin veya sıkıştırılmış bir dosya kullanın.'
+/** Toast / UI için hata sınıfı (generic ağ mesajı yalnızca `network` | `timeout`) */
+export function getApiErrorKind(error: unknown): ApiErrorKind {
+  const e = error as AxiosError
+  if (!e?.response) {
+    if (e?.code === 'ECONNABORTED' || e?.message?.includes('timeout')) return 'timeout'
+    if (e?.code === 'ERR_NETWORK' || e?.message === 'Network Error') return 'network'
+    return 'network'
   }
-
-  const responseData = error.response?.data
-  if (!responseData) {
-    return 'Bir hata oluştu. Lütfen tekrar deneyin.'
+  const s = e.response.status
+  const data = e.response.data as Record<string, unknown> | undefined
+  if (s === 0 && data?.[FEELLINK_SYNTHETIC_NETWORK]) {
+    const msg = typeof data.message === 'string' ? data.message : ''
+    if (msg.includes('zaman aşımı') || msg.includes('timeout')) return 'timeout'
+    return 'network'
   }
+  if (s === 401) return 'auth'
+  if (s === 403) return 'forbidden'
+  if (s === 413) return 'payload_too_large'
+  if (s === 400) return 'validation'
+  if (s >= 500) return 'server'
+  return 'unknown'
+}
 
-  // Handle NestJS format: message can be string, array of strings, or nested object
+function extractNestMessage(responseData: any): string | null {
+  if (!responseData) return null
   const msg = responseData?.message
-  let errorMessage: string | null = null
   if (Array.isArray(msg)) {
-    errorMessage = msg
+    const joined = msg
       .map((m: unknown) => {
         if (typeof m === 'string') return m
         if (m && typeof m === 'object' && m !== null && 'constraints' in m) {
@@ -380,11 +434,69 @@ export const getErrorMessage = (error: any): string => {
       })
       .filter(Boolean)
       .join('. ')
-  } else if (typeof msg === 'string') {
-    errorMessage = msg
-  } else if (msg && typeof msg === 'object' && typeof (msg as any).message === 'string') {
-    errorMessage = (msg as any).message
+    return joined || null
   }
+  if (typeof msg === 'string' && msg.trim()) return msg.trim()
+  if (msg && typeof msg === 'object' && typeof (msg as any).message === 'string') {
+    return (msg as any).message
+  }
+  return null
+}
+
+// Utility function to extract user-friendly error messages
+export const getErrorMessage = (error: any): string => {
+  // Ham Axios: henüz interceptor sentetik response eklemediyse
+  if (!error?.response) {
+    if (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
+      return 'İstek zaman aşımına uğradı. Dosya çok büyük olabilir, lütfen tekrar deneyin.'
+    }
+    if (error?.code === 'ERR_NETWORK' || error?.message === 'Network Error') {
+      return 'Şu an sunucuya bağlanılamıyor. İnternet bağlantınızı kontrol edip kısa süre sonra tekrar deneyin.'
+    }
+    return 'Bağlantı hatası oluştu. Lütfen tekrar deneyin.'
+  }
+
+  const status = error.response?.status
+  const responseData = error.response?.data
+
+  if (status === 0 && responseData?.[FEELLINK_SYNTHETIC_NETWORK]) {
+    const m = typeof responseData.message === 'string' ? responseData.message.trim() : ''
+    if (m.length >= 3) return m
+    return 'Şu an sunucuya bağlanılamıyor. İnternet bağlantınızı kontrol edip kısa süre sonra tekrar deneyin.'
+  }
+
+  if (status === 413) {
+    return 'Dosya veya veri boyutu çok büyük. Daha küçük bir görsel seçin veya sıkıştırılmış bir dosya kullanın.'
+  }
+
+  if (status === 401) {
+    const fromBody = extractNestMessage(responseData)
+    if (fromBody && fromBody.length >= 3) return fromBody
+    return 'Oturum doğrulaması başarısız oldu. Lütfen yeniden giriş yapın.'
+  }
+
+  if (status === 403) {
+    const fromBody = extractNestMessage(responseData)
+    if (fromBody && fromBody.length >= 3) return fromBody
+    return 'Bu işlem için yetkiniz yok veya hesap türünüz uygun değil.'
+  }
+
+  if (status === 400) {
+    const fromBody = extractNestMessage(responseData)
+    if (fromBody && fromBody.length >= 3) return fromBody
+    return 'Gönderilen bilgiler geçersiz. Lütfen alanları kontrol edip tekrar deneyin.'
+  }
+
+  if (status != null && status >= 500) {
+    return 'Sunucuda geçici bir sorun oluştu. Lütfen kısa süre sonra tekrar deneyin.'
+  }
+
+  if (!responseData) {
+    return 'Bir hata oluştu. Lütfen tekrar deneyin.'
+  }
+
+  const msg = responseData?.message
+  const errorMessage = extractNestMessage(responseData)
 
   // Nest bazen message/error'ı nesne döndürür; .toLowerCase() patlamasın (aksi halde UI genel hataya düşer)
   let rawFinal: unknown = errorMessage ?? responseData?.error ?? 'Bir hata oluştu. Lütfen tekrar deneyin.'

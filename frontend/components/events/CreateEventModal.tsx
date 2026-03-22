@@ -2,7 +2,13 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Image, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
-import api, { getErrorMessage } from "@/lib/api";
+import api, { getApiErrorKind, getErrorMessage } from "@/lib/api";
+import type { AxiosError } from "axios";
+
+function debugEventModal(phase: string, extra?: Record<string, unknown>) {
+  if (process.env.NEXT_PUBLIC_API_DEBUG !== "1" || typeof window === "undefined") return;
+  console.debug("[CreateEventModal]", phase, extra ?? "");
+}
 interface CreateEventModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -70,9 +76,11 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
       let coverUrl: string | null = null;
 
       if (coverImage) {
+        debugEventModal("upload:start", { name: coverImage.name, size: coverImage.size });
         const formData = new FormData();
         formData.append("file", coverImage);
         const upload = await api.post("/media/upload?type=image", formData);
+        debugEventModal("upload:ok");
         const raw = upload?.data as { url?: string; imageUrl?: string } | undefined;
         coverUrl = (raw?.url ?? raw?.imageUrl ?? "").trim() || null;
         if (!coverUrl) {
@@ -111,7 +119,9 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
         payload.maxParticipants = capNum;
       }
 
+      debugEventModal("create:start", { hasCover: Boolean(coverUrl) });
       const createRes = await api.post("/events", payload);
+      debugEventModal("create:ok", { status: createRes.status });
       if (generation !== submitGeneration.current) return;
 
       if (createRes.status >= 200 && createRes.status < 300) {
@@ -146,7 +156,39 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
       }
     } catch (err: unknown) {
       console.error("Etkinlik oluşturulamadı:", err);
-      const msg = getErrorMessage(err);
+      const ax = err as AxiosError;
+      const reqPath = ax.config?.url || "";
+      const kind = getApiErrorKind(err);
+      let msg = getErrorMessage(err);
+
+      if (reqPath.includes("/media/upload")) {
+        if (kind === "network" || kind === "timeout") {
+          msg =
+            "Kapak görseli yüklenemedi. Bağlantı sorunu oluştu; interneti kontrol edin veya daha küçük bir dosya deneyin.";
+        } else if (kind === "payload_too_large") {
+          msg =
+            "Kapak görseli çok büyük. Lütfen daha küçük bir görsel seçin.";
+        } else if (kind === "auth") {
+          msg =
+            "Oturum doğrulaması başarısız. Lütfen yeniden giriş yapıp tekrar deneyin.";
+        } else if (kind === "validation" || kind === "forbidden") {
+          /* getErrorMessage zaten gövde mesajını verir */
+        } else {
+          msg =
+            "Kapak görseli yüklenemedi. Lütfen farklı bir görsel ile tekrar deneyin.";
+        }
+      } else if (reqPath.includes("/events") && kind === "validation") {
+        if (!msg || msg.length < 3) {
+          msg =
+            "Etkinlik bilgileri geçersiz. Lütfen alanları kontrol edip tekrar deneyin.";
+        }
+      } else if (reqPath.includes("/events") && kind === "forbidden") {
+        if (!msg || msg.length < 3) {
+          msg =
+            "Bu hesap türü ile etkinlik oluşturamazsınız veya yetkiniz yok.";
+        }
+      }
+
       toast.error(msg && msg.length >= 3 ? msg : GENERIC_SAVE_ERROR);
     } finally {
       if (generation === submitGeneration.current) {
