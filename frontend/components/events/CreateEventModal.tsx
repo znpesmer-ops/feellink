@@ -1,13 +1,16 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Image, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import api, { getErrorMessage } from "@/lib/api";
 interface CreateEventModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreated: () => void;
+  onCreated?: () => void | Promise<void>;
 }
+
+const GENERIC_SAVE_ERROR =
+  "Etkinlik kaydedilirken bir sorun oluştu. Lütfen tekrar deneyin.";
 
 export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateEventModalProps) {
   const [title, setTitle] = useState("");
@@ -19,7 +22,16 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
   const [isFree, setIsFree] = useState(true);
   const [price, setPrice] = useState<number>(0);
   const [maxParticipantsCap, setMaxParticipantsCap] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitGeneration = useRef(0);
+
+  // Modal kapanınca veya yeniden açılınca takılı "Kaydediliyor" kalmasın (parent'ta mount kalıyor)
+  useEffect(() => {
+    if (!isOpen) {
+      setIsSubmitting(false);
+      submitGeneration.current += 1;
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -51,63 +63,100 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
       }
     }
 
-    setLoading(true);
+    const generation = ++submitGeneration.current;
+    setIsSubmitting(true);
+
     try {
-      let coverUrl = null;
+      let coverUrl: string | null = null;
 
       if (coverImage) {
         const formData = new FormData();
         formData.append("file", coverImage);
         const upload = await api.post("/media/upload?type=image", formData);
-        coverUrl = upload.data.url;
+        const raw = upload?.data as { url?: string; imageUrl?: string } | undefined;
+        coverUrl = (raw?.url ?? raw?.imageUrl ?? "").trim() || null;
+        if (!coverUrl) {
+          toast.error("Kapak görseli yüklenemedi. Lütfen başka bir dosya deneyin.");
+          return;
+        }
       }
 
-      // Tarih ve saat birleştirme
-      const dateTime = time ? `${date}T${time}` : date;
+      const dateTime = time ? `${date}T${time}` : `${date}T00:00`;
 
-      // Payload oluştur - undefined değerleri kaldır
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         title: title.trim(),
         date: dateTime,
         isFree: Boolean(isFree),
       };
 
-      // Opsiyonel alanları sadece doluysa ekle
-      if (description && description.trim()) {
+      if (description.trim()) {
         payload.description = description.trim();
       }
-      if (location && location.trim()) {
+      if (location.trim()) {
         payload.location = location.trim();
       }
       if (coverUrl) {
         payload.coverImage = coverUrl;
       }
 
-      // Fiyat bilgisi - ücretsiz etkinliklerde null, ücretli etkinliklerde fiyat
-      payload.price = isFree ? null : (price && price > 0 ? Number(price) : null);
+      if (isFree) {
+        payload.price = null;
+      } else {
+        const p = Number(price);
+        payload.price = Number.isFinite(p) && p >= 1 ? p : null;
+      }
+
       if (capNum !== undefined) {
         payload.maxParticipants = capNum;
       }
 
-      await api.post("/events", payload);
+      const createRes = await api.post("/events", payload);
+      if (generation !== submitGeneration.current) return;
 
-      toast.success("Etkinlik oluşturuldu.");
-      onCreated();
-      onClose();
-      setTitle("");
-      setDescription("");
-      setDate("");
-      setTime("");
-      setLocation("");
-      setCoverImage(null);
-      setIsFree(true);
-      setPrice(0);
-      setMaxParticipantsCap("");
-    } catch (err: any) {
+      if (createRes.status >= 200 && createRes.status < 300) {
+        toast.success("Etkinlik oluşturuldu.");
+
+        try {
+          await Promise.resolve(onCreated?.());
+        } catch (refreshErr) {
+          console.error("Etkinlik listesi yenilenemedi:", refreshErr);
+          toast.error(
+            "Etkinlik oluşturuldu; liste güncellenemedi. Sayfayı yenileyebilirsiniz.",
+          );
+        }
+
+        try {
+          onClose();
+        } catch (closeErr) {
+          console.error("Modal kapatılırken hata:", closeErr);
+        }
+
+        setTitle("");
+        setDescription("");
+        setDate("");
+        setTime("");
+        setLocation("");
+        setCoverImage(null);
+        setIsFree(true);
+        setPrice(0);
+        setMaxParticipantsCap("");
+      } else {
+        toast.error(GENERIC_SAVE_ERROR);
+      }
+    } catch (err: unknown) {
       console.error("Etkinlik oluşturulamadı:", err);
-      toast.error(getErrorMessage(err));
+      let msg = GENERIC_SAVE_ERROR;
+      try {
+        msg = getErrorMessage(err);
+      } catch {
+        /* getErrorMessage asla fırlatmasa da güvence */
+      }
+      if (!msg || msg.length < 3) msg = GENERIC_SAVE_ERROR;
+      toast.error(msg);
     } finally {
-      setLoading(false);
+      if (generation === submitGeneration.current) {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -302,10 +351,15 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
 
           <button
             type="submit"
-            disabled={loading || !title.trim() || !date.trim() || (!isFree && (!price || price < 1))}
+            disabled={
+              isSubmitting ||
+              !title.trim() ||
+              !date.trim() ||
+              (!isFree && (!price || price < 1))
+            }
             className="bg-[#ff7b00] hover:bg-[#e36f00] disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-2 rounded-xl mt-3 transition flex justify-center items-center font-medium"
           >
-            {loading ? (
+            {isSubmitting ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin mr-2" />
                 Kaydediliyor...

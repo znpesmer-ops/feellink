@@ -326,14 +326,6 @@ api.interceptors.response.use(
 
 // Utility function to extract user-friendly error messages
 export const getErrorMessage = (error: any): string => {
-  console.log('🔍 [getErrorMessage] Analyzing error:', {
-    hasResponse: !!error?.response,
-    status: error?.response?.status,
-    message: error?.message,
-    code: error?.code,
-    backendMessage: error?.response?.data?.message,
-  });
-
   // Network/Connection errors
   if (!error?.response) {
     if (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
