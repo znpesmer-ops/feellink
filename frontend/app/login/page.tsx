@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -37,7 +37,16 @@ type RegisterForm = z.infer<typeof registerSchema>
 
 export default function LoginPage() {
   const router = useRouter()
-  const { setAuth, accessToken, user, capabilities, loading: authLoading, hasInitialized } = useAuthStore()
+  // Tüm store'a abone olma: unreadCount vb. her güncellendiğinde re-render → effect/redirect döngüsü riski
+  const setAuth = useAuthStore((s) => s.setAuth)
+  const accessToken = useAuthStore((s) => s.accessToken)
+  const user = useAuthStore((s) => s.user)
+  const capabilities = useAuthStore((s) => s.capabilities)
+  const authLoading = useAuthStore((s) => s.loading)
+  const hasInitialized = useAuthStore((s) => s.hasInitialized)
+  const setLoading = useAuthStore((s) => s.setLoading)
+  const setHasInitialized = useAuthStore((s) => s.setHasInitialized)
+
   const [error, setError] = useState('')
   const [isChecking, setIsChecking] = useState(true)
   const [isLoginMode, setIsLoginMode] = useState(true)
@@ -47,37 +56,59 @@ export default function LoginPage() {
   const [restoreCredentials, setRestoreCredentials] = useState<{ emailOrUsername: string; password: string } | null>(null)
   const [restoreLoading, setRestoreLoading] = useState(false)
 
-  const handlePostAuthNavigation = (
-    currentUser = user,
-    currentCaps = capabilities,
-    needsRoleSelection?: boolean,
-  ) => {
-    if (!currentUser) {
+  const redirectDoneRef = useRef(false)
+
+  const loginForm = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+  })
+
+  const registerForm = useForm<RegisterForm>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      termsAccepted: false,
+    },
+  })
+
+  const handlePostAuthNavigation = useCallback(
+    (
+      currentUser = user,
+      currentCaps = capabilities,
+      needsRoleSelection?: boolean,
+    ) => {
+      if (!currentUser) {
+        setIsChecking(false)
+        return
+      }
+
+      const shouldSelectRole =
+        typeof needsRoleSelection === 'boolean'
+          ? needsRoleSelection
+          : (currentUser.roles?.length ?? 0) === 0
+
+      if (shouldSelectRole) {
+        router.replace('/select-role')
+        setIsChecking(false)
+        return
+      }
+
+      const route =
+        getDashboardRouteFromUser({
+          roles: currentCaps?.roles ?? currentUser.roles,
+          isAdmin: currentUser.isAdmin,
+          capabilities: currentCaps ?? undefined,
+        }) || '/feed'
+
+      router.replace(route || '/feed')
       setIsChecking(false)
-      return
-    }
+    },
+    [router, user, capabilities],
+  )
 
-    const shouldSelectRole =
-      typeof needsRoleSelection === 'boolean'
-        ? needsRoleSelection
-        : (currentUser.roles?.length ?? 0) === 0
-
-    if (shouldSelectRole) {
-      router.replace('/select-role')
-      setIsChecking(false)
-      return
-    }
-
-    const route =
-      getDashboardRouteFromUser({
-        roles: currentCaps?.roles ?? currentUser.roles,
-        isAdmin: currentUser.isAdmin,
-        capabilities: currentCaps ?? undefined,
-      }) || '/feed'
-
-    router.replace(route || '/feed')
-    setIsChecking(false)
-  }
+  // AuthGuard bu route'ta yok; login'de takılı kalmaması için init bayraklarını hemen netleştir
+  useEffect(() => {
+    setLoading(false)
+    setHasInitialized(true)
+  }, [setLoading, setHasInitialized])
 
   // Sistem temasını algıla ve localStorage'dan oku
   useEffect(() => {
@@ -125,36 +156,32 @@ export default function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Sadece auth resolve olduktan sonra ve user varsa feed'e yönlendir (token'a göre değil)
+  useEffect(() => {
+    if (!user?.id) redirectDoneRef.current = false
+  }, [user?.id])
+
+  // Oturum varsa tek sefer yönlendir; user/capabilities referans değişiminde tekrar replace yapma (yenileme döngüsü önlenir)
   useEffect(() => {
     if (authLoading || !hasInitialized) return
-    if (!user) {
+    if (!user?.id) {
       if (accessToken) useAuthStore.getState().clearAuth()
       setIsChecking(false)
       return
     }
-    handlePostAuthNavigation(user, capabilities ?? undefined)
-  }, [authLoading, hasInitialized, user, accessToken, capabilities, router])
-
-  const loginForm = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
-  })
-
-  const registerForm = useForm<RegisterForm>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      termsAccepted: false,
-    },
-  })
+    if (redirectDoneRef.current) return
+    redirectDoneRef.current = true
+    const latestUser = useAuthStore.getState().user
+    const latestCaps = useAuthStore.getState().capabilities
+    if (latestUser?.id) {
+      handlePostAuthNavigation(latestUser, latestCaps ?? undefined)
+    }
+  }, [authLoading, hasInitialized, user?.id, accessToken, handlePostAuthNavigation])
 
   const onLogin = async (data: LoginForm) => {
     try {
       setError('')
       // Clear any stale auth so reactivation or re-login uses only new tokens/user
       useAuthStore.getState().clearAuth()
-      // Debug: API URL'ini console'a yazdır
-      console.log('API Base URL:', api.defaults.baseURL)
-      console.log('LOGIN URL:', api.defaults.baseURL + '/auth/login')
       const response = await api.post('/auth/login', {
         emailOrUsername: data.emailOrUsername.trim(),
         password: data.password,
@@ -177,6 +204,7 @@ export default function LoginPage() {
       } = response.data
 
       setAuth(loggedUser, newAccessToken, newRefreshToken, caps ?? null, sidebar ?? null)
+      redirectDoneRef.current = false
       if (reactivated) {
         toast.success('Hesabınız yeniden aktif hale getirildi.')
       }
@@ -214,6 +242,7 @@ export default function LoginPage() {
         needsRoleSelection,
       } = response.data
       setAuth(loggedUser, newAccessToken, newRefreshToken, caps ?? null, sidebar ?? null)
+      redirectDoneRef.current = false
       toast.success('Hesabınız geri yüklendi.')
       setShowRestoreScreen(false)
       setRestoreCredentials(null)
@@ -249,6 +278,7 @@ export default function LoginPage() {
       } = response.data
 
       setAuth(registeredUser, newAccessToken, newRefreshToken, caps ?? null, sidebar ?? null)
+      redirectDoneRef.current = false
       handlePostAuthNavigation(registeredUser, caps ?? undefined, needsRoleSelection)
     } catch (err: any) {
       const responseData = err?.response?.data

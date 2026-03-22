@@ -161,6 +161,18 @@ export const useAuthStore = create<AuthState>()(
         unreadCount: state.unreadCount,
         unreadMessageCount: state.unreadMessageCount,
       }),
+      // axios / login sayfası `access_token` anahtarını da okuyor; rehydrate sonrası senkron tut
+      onRehydrateStorage: () => (state) => {
+        if (typeof window === 'undefined' || !state) return
+        try {
+          if (state.accessToken) localStorage.setItem('access_token', state.accessToken)
+          else localStorage.removeItem('access_token')
+          if (state.refreshToken) localStorage.setItem('refresh_token', state.refreshToken)
+          else localStorage.removeItem('refresh_token')
+        } catch {
+          /* ignore */
+        }
+      },
     }
   )
 )

@@ -29,36 +29,44 @@ type RegisterForm = z.infer<typeof registerSchema>
 
 export default function RegisterPage() {
   const router = useRouter()
-  const { setAuth, accessToken, user, capabilities, clearAuth } = useAuthStore()
+  const setAuth = useAuthStore((s) => s.setAuth)
+  const accessToken = useAuthStore((s) => s.accessToken)
+  const user = useAuthStore((s) => s.user)
+  const capabilities = useAuthStore((s) => s.capabilities)
+  const clearAuth = useAuthStore((s) => s.clearAuth)
+  const setLoading = useAuthStore((s) => s.setLoading)
+  const setHasInitialized = useAuthStore((s) => s.setHasInitialized)
+
   const [error, setError] = useState('')
   const [isChecking, setIsChecking] = useState(true)
   const [mode, setMode] = useState<'user' | 'corporate'>('user')
   const [showTerms, setShowTerms] = useState(false) // ✅ Sözleşme alanını göster/gizle
 
-  // Register sayfasında olduğumuz için, sayfa yüklendiğinde eski auth state'i temizle
-  // Ama sadece eğer zaten giriş yapılmamışsa
   useEffect(() => {
-    // Eğer zaten giriş yapılmışsa feed'e yönlendir
-    if (accessToken && user && capabilities) {
-      if (!capabilities.roles || capabilities.roles.length === 0) {
+    setLoading(false)
+    setHasInitialized(true)
+  }, [setLoading, setHasInitialized])
+
+  // Register sayfasında olduğumuz için, sayfa yüklendiğinde eski auth state'i temizle
+  // capabilities geç yüklenince veya null iken geçerli oturumu silme (login yenileme döngüsü önlenir)
+  useEffect(() => {
+    if (accessToken && user) {
+      const roles = capabilities?.roles?.length ? capabilities.roles : user.roles ?? []
+      if (roles.length === 0) {
         router.push('/select-role')
       } else {
         const route = getDashboardRouteFromUser({
-          roles: capabilities.roles,
+          roles,
           isAdmin: user.isAdmin,
-          capabilities,
+          capabilities: capabilities ?? undefined,
         })
-        router.push(route)
+        router.push(route || '/feed')
       }
-    } else {
-      // Giriş yapılmamışsa, eski auth state'i temizle (eğer varsa)
-      // Bu, login sayfasına dönüldüğünde header'da eski kullanıcı görünmemesini sağlar
-      if (user || accessToken) {
-        clearAuth()
-      }
-      setIsChecking(false)
+    } else if (accessToken || user) {
+      clearAuth()
     }
-  }, [accessToken, user, capabilities, router, clearAuth])
+    setIsChecking(false)
+  }, [accessToken, user?.id, capabilities, router, clearAuth])
 
 
   const {
