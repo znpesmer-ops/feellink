@@ -27,6 +27,7 @@ export function AppLogo({
   alt = 'Feellink Logo',
 }: AppLogoProps) {
   const base = className.trim()
+  const logoClass = [base, 'feellink-logo'].filter(Boolean).join(' ')
 
   return (
     <>
@@ -35,7 +36,7 @@ export function AppLogo({
         alt={alt}
         width={width}
         height={height}
-        className={[base, 'bg-transparent dark:hidden'].filter(Boolean).join(' ')}
+        className={[logoClass, 'bg-transparent dark:hidden'].filter(Boolean).join(' ')}
         priority={priority}
       />
       <Image
@@ -43,7 +44,7 @@ export function AppLogo({
         alt={alt}
         width={width}
         height={height}
-        className={[base, 'hidden bg-transparent dark:block'].filter(Boolean).join(' ')}
+        className={[logoClass, 'hidden bg-transparent dark:block'].filter(Boolean).join(' ')}
         priority={priority}
       />
     </>

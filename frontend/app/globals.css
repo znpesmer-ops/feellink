@@ -25,6 +25,8 @@
   --feellink-orange: #FF8A1F;
   --feellink-orange-soft: rgba(255, 138, 43, 0.85);
   --feellink-orange-light: rgba(255, 138, 31, 0.15);
+  --logo-brand: #7c3aed;
+  --logo-filter: brightness(0) saturate(100%) invert(32%) sepia(88%) saturate(1453%) hue-rotate(238deg) brightness(90%) contrast(96%);
   
   /* Feellink Keşfet Kartları - Soft Gradient Renkler */
   --feelink-blue-bg: linear-gradient(180deg, rgba(24, 64, 140, 0.75), rgba(24, 64, 140, 0.95));
@@ -44,6 +46,8 @@
   --border: #1f2430;
   --accent: #ff7a00;
   --primary: #3b82f6;
+  --logo-brand: #ff6a00;
+  --logo-filter: brightness(0) saturate(100%) invert(48%) sepia(90%) saturate(2102%) hue-rotate(359deg) brightness(101%) contrast(104%);
 }
 
 html,
@@ -342,6 +346,16 @@ button.secondary:hover {
 .logo-bar {
   background: linear-gradient(90deg, #ff7a00 0%, #ffb700 100%);
   color: #ffffff;
+}
+
+.feellink-logo {
+  filter: var(--logo-filter);
+  transition: transform 0.3s ease, opacity 0.3s ease, filter 0.3s ease;
+}
+
+.feellink-logo:hover {
+  transform: scale(1.03);
+  opacity: 0.95;
 }
 
 h1,
