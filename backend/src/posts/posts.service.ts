@@ -2175,12 +2175,15 @@ export class PostsService {
         OR: [
           {
             AND: [
-              { NOT: { type: 'artwork' } },
+              { NOT: { type: { in: ['artwork', 'article', 'event'] } } },
               { user: { ...publicVitrineUserWhere, isPrivate: false } },
             ],
           },
           {
-            AND: [{ type: 'artwork' }, { user: publicVitrineUserWhere }],
+            AND: [
+              { type: { in: ['artwork', 'article', 'event'] } },
+              { user: publicVitrineUserWhere },
+            ],
           },
         ],
       },

@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { isAxiosError } from 'axios'
 import { useAuthStore } from '@/lib/store'
 import { Heart, MessageCircle, Bookmark, X, Send, Trash2, CornerUpRight, Pin, PinIcon, FolderPlus, MoreVertical } from 'lucide-react'
 import MentionInput from './MentionInput'
@@ -22,6 +23,9 @@ const CommentLikeButton = dynamic(() => import('@/components/CommentLikeButton')
   ssr: false,
   loading: () => null,
 })
+
+/** Oturum geçersizken /posts/:id 401 verince public-share yanıtına düşüldüğünü işaretler (salt okunur UI) */
+const POST_QUERY_PUBLIC_FALLBACK = '_feellinkPublicFallback' as const
 
 interface PostModalProps {
   postId: string
@@ -78,6 +82,7 @@ interface Post {
     likes: number
     comments: number
   }
+  [POST_QUERY_PUBLIC_FALLBACK]?: boolean
 }
 
 export function PostModal({
@@ -90,8 +95,8 @@ export function PostModal({
   const queryClient = useQueryClient()
   const router = useRouter()
   const pathname = usePathname()
-  const isReadOnly = publicShare
-  const postQueryKey = ['post', postId, publicShare ? 'public' : 'auth'] as const
+  const resolvedPostId = typeof postId === 'string' ? postId.trim() : postId
+  const postQueryKey = ['post', resolvedPostId, publicShare ? 'public' : 'auth'] as const
   const [commentText, setCommentText] = useState('')
   const [isPostingComment, setIsPostingComment] = useState(false)
   const [animateLike, setAnimateLike] = useState(false)
@@ -111,7 +116,7 @@ export function PostModal({
   const canManageCollections = roles.includes('corporate') || roles.includes('collector')
 
   const guestReturnPath =
-    pathname?.startsWith('/') && !pathname.includes('//') ? pathname : `/posts/${postId}`
+    pathname?.startsWith('/') && !pathname.includes('//') ? pathname : `/posts/${resolvedPostId}`
   const loginHrefWithFrom = `/login?from=${encodeURIComponent(guestReturnPath)}`
 
   const promptGuestLogin = (message: string) => {
@@ -121,7 +126,7 @@ export function PostModal({
 
   // Modal açıkken body'ye class ekle (arka plan UI elementlerini gizlemek için)
   useEffect(() => {
-    if (postId) {
+    if (resolvedPostId) {
       document.body.classList.add('modal-open')
     } else {
       document.body.classList.remove('modal-open')
@@ -131,7 +136,7 @@ export function PostModal({
     return () => {
       document.body.classList.remove('modal-open')
     }
-  }, [postId])
+  }, [resolvedPostId])
 
   // Menüyü dışarı tıklanınca kapat
   useEffect(() => {
@@ -161,15 +166,33 @@ export function PostModal({
   const { data: post, isLoading, isError } = useQuery<Post>({
     queryKey: postQueryKey,
     queryFn: async () => {
-      const path = publicShare
-        ? `/posts/public-share/${postId}`
-        : `/posts/${postId}`
-      const response = await api.get(path)
-      return response.data
+      if (publicShare) {
+        const response = await api.get<Post>(`/posts/public-share/${resolvedPostId}`)
+        return response.data
+      }
+      try {
+        const response = await api.get<Post>(`/posts/${resolvedPostId}`)
+        return response.data
+      } catch (err) {
+        if (
+          isAxiosError(err) &&
+          (err.response?.status === 401 || err.response?.status === 403)
+        ) {
+          const response = await api.get<Post>(`/posts/public-share/${resolvedPostId}`)
+          return { ...response.data, [POST_QUERY_PUBLIC_FALLBACK]: true }
+        }
+        throw err
+      }
     },
-    enabled: !!postId && (!!accessToken || publicShare),
+    enabled: !!resolvedPostId && (!!accessToken || publicShare),
     staleTime: 60 * 1000, // 1 dk cache — like/comment mutation cache'i günceller, sayfa geç yüklenmez
+    retry: (failureCount, error) => {
+      if (isAxiosError(error) && error.response?.status != null) return false
+      return failureCount < 1
+    },
   })
+
+  const isReadOnly = publicShare || Boolean(post?.[POST_QUERY_PUBLIC_FALLBACK])
 
   // Yorum odaklaması - highlightCommentId varsa yorumu scroll et
   useEffect(() => {
@@ -201,8 +224,8 @@ export function PostModal({
   >({
     mutationFn: async ({ currentIsLiked, currentCount }) => {
       const res = currentIsLiked
-        ? await api.delete<{ liked?: boolean; likeCount?: number }>(`/posts/${postId}/like`)
-        : await api.post<{ liked?: boolean; likeCount?: number }>(`/posts/${postId}/like`)
+        ? await api.delete<{ liked?: boolean; likeCount?: number }>(`/posts/${resolvedPostId}/like`)
+        : await api.post<{ liked?: boolean; likeCount?: number }>(`/posts/${resolvedPostId}/like`)
       const likeCount = typeof res.data?.likeCount === 'number' ? res.data.likeCount : (currentCount + (currentIsLiked ? -1 : 1))
       return {
         liked: currentIsLiked ? false : true,
@@ -258,7 +281,7 @@ export function PostModal({
   >({
     mutationFn: async () => {
       const isArtwork = post?.type === 'artwork'
-      const endpoint = isArtwork ? `/posts/${postId}/save-artwork` : `/posts/${postId}/save`
+      const endpoint = isArtwork ? `/posts/${resolvedPostId}/save-artwork` : `/posts/${resolvedPostId}/save`
       
       console.log(`💾 [PostModal] Saving post ${postId}:`, {
         isArtwork,
@@ -347,7 +370,7 @@ export function PostModal({
           // Query zaten var, post'u ekle (eğer yoksa)
           const existingIndex = oldData.findIndex((item: any) => {
             const itemPost = item.post || item;
-            return itemPost?.id === postId;
+            return itemPost?.id === resolvedPostId;
           });
           
           if (existingIndex >= 0) {
@@ -388,7 +411,7 @@ export function PostModal({
           if (!oldData) return [];
           const newData = oldData.filter((item: any) => {
             const itemPost = item.post || item;
-            return itemPost?.id !== postId;
+            return itemPost?.id !== resolvedPostId;
           });
           
           // ✅ KRİTİK: localStorage'dan da sil!
@@ -453,7 +476,7 @@ export function PostModal({
   // Comment mutation
   const commentMutation = useMutation({
     mutationFn: async ({ content, parentId }: { content: string; parentId?: string }) => {
-      const endpoint = `/posts/${postId}/comments`
+      const endpoint = `/posts/${resolvedPostId}/comments`
       console.log(`💬 [PostModal] Comment mutation:`, {
         postId,
         contentLength: content.length,
@@ -545,7 +568,7 @@ export function PostModal({
   // Update comment mutation
   const updateCommentMutation = useMutation({
     mutationFn: async ({ commentId, content }: { commentId: string; content: string }) => {
-      await api.patch(`/posts/${postId}/comments/${commentId}`, { content })
+      await api.patch(`/posts/${resolvedPostId}/comments/${commentId}`, { content })
       return { commentId, content }
     },
     onSuccess: ({ commentId, content }) => {
@@ -568,7 +591,7 @@ export function PostModal({
   // Delete comment mutation
   const deleteCommentMutation = useMutation({
     mutationFn: async (commentId: string) => {
-      await api.delete(`/posts/${postId}/comments/${commentId}`)
+      await api.delete(`/posts/${resolvedPostId}/comments/${commentId}`)
       return commentId
     },
     onSuccess: (commentId) => {
@@ -888,7 +911,7 @@ export function PostModal({
             <div
               className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer"
               onClick={() => {
-                if (publicShare) {
+                if (isReadOnly) {
                   promptGuestLogin('Profili görmek için giriş yapın.')
                   return
                 }
@@ -921,7 +944,7 @@ export function PostModal({
                   <FeellinkRoleBadge roles={(post.user as any).roles} />
                 </div>
                 <div className="flex items-center gap-2">
-                  {!publicShare && user?.id !== post.user.id && (
+                  {!isReadOnly && user?.id !== post.user.id && (
                     <button
                       onClick={() => setShowReportModal({ contentType: 'post', contentId: post.id })}
                       className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
@@ -1093,12 +1116,12 @@ export function PostModal({
                         {/* Sol taraf avatar */}
                         <Link
                           href={
-                            publicShare
+                            isReadOnly
                               ? loginHrefWithFrom
                               : `/profile/${comment.user.username}`
                           }
                           onClick={
-                            publicShare
+                            isReadOnly
                               ? () => toast('Profili görmek için giriş yapın.', { duration: 2800 })
                               : undefined
                           }
@@ -1125,12 +1148,12 @@ export function PostModal({
                           <div className="flex items-center gap-2 mb-2">
                             <Link
                               href={
-                                publicShare
+                                isReadOnly
                                   ? loginHrefWithFrom
                                   : `/profile/${comment.user.username}`
                               }
                               onClick={
-                                publicShare
+                                isReadOnly
                                   ? () => toast('Profili görmek için giriş yapın.', { duration: 2800 })
                                   : undefined
                               }
@@ -1326,7 +1349,7 @@ export function PostModal({
 
                     {/* Emoji Tepkileri kaldırıldı */}
                     {/* <div className="ml-11 mt-1">
-                      <CommentReactions commentId={comment.id} postId={postId} />
+                      <CommentReactions commentId={comment.id} postId={resolvedPostId} />
                     </div> */}
 
                     {/* Yanıtlar (Replies) */}
@@ -1344,12 +1367,12 @@ export function PostModal({
                               <CornerUpRight size={12} className="text-gray-400 dark:text-gray-500 mt-1 flex-shrink-0" />
                               <Link
                                 href={
-                                  publicShare
+                                  isReadOnly
                                     ? loginHrefWithFrom
                                     : `/profile/${reply.user.username}`
                                 }
                                 onClick={
-                                  publicShare
+                                  isReadOnly
                                     ? () => toast('Profili görmek için giriş yapın.', { duration: 2800 })
                                     : undefined
                                 }
@@ -1375,12 +1398,12 @@ export function PostModal({
                                 <p className="text-sm text-black dark:text-white flex items-center gap-1 leading-relaxed">
                                   <Link
                                     href={
-                                      publicShare
+                                      isReadOnly
                                         ? loginHrefWithFrom
                                         : `/profile/${reply.user.username}`
                                     }
                                     onClick={
-                                      publicShare
+                                      isReadOnly
                                         ? () => toast('Profili görmek için giriş yapın.', { duration: 2800 })
                                         : undefined
                                     }
@@ -1413,7 +1436,7 @@ export function PostModal({
 
                             {/* Yanıt için Emoji Tepkileri kaldırıldı */}
                             {/* <div className="ml-9 mt-1">
-                              <CommentReactions commentId={reply.id} postId={postId} />
+                              <CommentReactions commentId={reply.id} postId={resolvedPostId} />
                             </div> */}
                           </div>
                           )
@@ -1505,7 +1528,7 @@ export function PostModal({
       {/* Add to Collection Modal */}
       {showAddToCollectionModal && (
         <AddToCollectionModal
-          postId={postId}
+          postId={resolvedPostId}
           open={showAddToCollectionModal}
           onClose={() => setShowAddToCollectionModal(false)}
         />

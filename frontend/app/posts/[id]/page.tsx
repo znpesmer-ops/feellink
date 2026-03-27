@@ -21,7 +21,13 @@ export default function PostDetailPage() {
   const { accessToken } = useAuthStore()
   const [showModal, setShowModal] = useState(true)
 
-  const postId = params?.id as string
+  const rawId = params?.id
+  const postId =
+    typeof rawId === 'string'
+      ? rawId.trim()
+      : Array.isArray(rawId)
+        ? (rawId[0] ?? '').trim()
+        : ''
   const from = searchParams.get('from')
 
   const handleCloseAuthenticated = () => {

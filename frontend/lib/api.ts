@@ -206,8 +206,11 @@ api.interceptors.request.use((config: ApiRequestConfig) => {
 
   // Girişsiz post önizleme: süresi dolmuş token 401 vermesin diye Authorization gönderme
   const method = (config.method || 'get').toLowerCase()
-  const path = (config.url || '').split('?')[0] || ''
-  if (method === 'get' && path.includes('posts/public-share')) {
+  const rawUrl = String(config.url || '')
+  const pathOnly = rawUrl.split('?')[0] || ''
+  const mergedPath =
+    pathOnly.startsWith('http') ? new URL(pathOnly, 'http://_').pathname : pathOnly
+  if (method === 'get' && /\/posts\/public-share\//.test(mergedPath)) {
     delete (config.headers as Record<string, unknown>).Authorization
   }
 
