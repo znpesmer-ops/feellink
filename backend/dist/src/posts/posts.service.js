@@ -42,9 +42,9 @@ function hashPostIdForLayout(id) {
     }
     return Math.abs(h);
 }
-function buildArtworkQrUrl(frontendUrl, ticketCode) {
+function buildArtworkQrUrl(frontendUrl, postId) {
     const base = frontendUrl.replace(/\/$/, '');
-    return `${base}/t/${encodeURIComponent(ticketCode)}`;
+    return `${base}/posts/${postId}`;
 }
 function truncateOneLine(ctx, text, maxWidth) {
     const t = text.replace(/\s+/g, ' ').trim();
@@ -1947,7 +1947,7 @@ let PostsService = class PostsService {
             });
         }
         const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
-        const qrDataUrl = await (0, ticket_utils_1.generateQrDataUrl)(buildArtworkQrUrl(frontendUrl, artworkCode));
+        const qrDataUrl = await (0, ticket_utils_1.generateQrDataUrl)(buildArtworkQrUrl(frontendUrl, postId));
         const doc = new pdfkit_1.default({
             size: [210, 120],
             margin: 10,
@@ -2178,7 +2178,7 @@ let PostsService = class PostsService {
             });
         }
         const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
-        const artworkQrUrl = buildArtworkQrUrl(frontendUrl, artworkCode);
+        const artworkQrUrl = buildArtworkQrUrl(frontendUrl, postId);
         const { createCanvas, loadImage, registerFont } = require('canvas');
         const assetsRoot = (0, resolve_feellink_assets_1.resolveFeellinkAssetsRoot)();
         const fontsDir = path.join(assetsRoot, 'fonts');
@@ -2494,7 +2494,7 @@ let PostsService = class PostsService {
             });
         }
         const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
-        const artworkQrUrl = buildArtworkQrUrl(frontendUrl, artworkCode);
+        const artworkQrUrl = buildArtworkQrUrl(frontendUrl, postId);
         const { createCanvas, loadImage, registerFont } = require('canvas');
         const ticketAssetsRoot = (0, resolve_feellink_assets_1.resolveFeellinkAssetsRoot)();
         const templatePath = path.join(ticketAssetsRoot, 'templates', 'bilet_template.png');

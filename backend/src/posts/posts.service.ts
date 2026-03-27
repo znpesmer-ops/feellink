@@ -36,10 +36,10 @@ function hashPostIdForLayout(id: string): number {
   return Math.abs(h);
 }
 
-/** Bilet QR içeriği: /t/:code çözümleyici → redirect /posts/:id (PDF düzenine dokunulmaz, yalnız string). */
-function buildArtworkQrUrl(frontendUrl: string, ticketCode: string): string {
+/** Bilet QR içeriği: doğrudan post detay URL’si (/posts/:id); karttaki PA kodu ayrı kalır. */
+function buildArtworkQrUrl(frontendUrl: string, postId: string): string {
   const base = frontendUrl.replace(/\/$/, '');
-  return `${base}/t/${encodeURIComponent(ticketCode)}`;
+  return `${base}/posts/${postId}`;
 }
 
 /** Tek satır; taşarsa kısalt */
@@ -2339,7 +2339,7 @@ export class PostsService {
     }
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    const qrDataUrl = await generateQrDataUrl(buildArtworkQrUrl(frontendUrl, artworkCode));
+    const qrDataUrl = await generateQrDataUrl(buildArtworkQrUrl(frontendUrl, postId));
 
     // PDF oluştur - Küçük etiket formatı (210mm x 120mm)
     const doc = new PDFDocument({
@@ -2670,7 +2670,7 @@ export class PostsService {
     }
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    const artworkQrUrl = buildArtworkQrUrl(frontendUrl, artworkCode);
+    const artworkQrUrl = buildArtworkQrUrl(frontendUrl, postId);
 
     const { createCanvas, loadImage, registerFont } = require('canvas');
 
@@ -3056,7 +3056,7 @@ export class PostsService {
     }
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    const artworkQrUrl = buildArtworkQrUrl(frontendUrl, artworkCode);
+    const artworkQrUrl = buildArtworkQrUrl(frontendUrl, postId);
 
     // === CANVAS LAZY IMPORT (Webpack hatası için) ===
     const { createCanvas, loadImage, registerFont } = require('canvas');

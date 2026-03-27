@@ -37,12 +37,12 @@ export declare class PostsService {
             isVerified: boolean;
         };
         media: {
-            type: string;
-            order: number;
-            url: string;
             id: string;
+            type: string;
             createdAt: Date;
+            url: string;
             thumbnailUrl: string;
+            order: number;
             postId: string;
         }[];
         _count: {
@@ -50,12 +50,12 @@ export declare class PostsService {
             likes: number;
         };
     } & {
-        type: string;
         id: string;
         userId: string;
         caption: string;
         title: string;
         location: string;
+        type: string;
         code: string;
         colors: string[];
         colorPalette: string[];
@@ -109,9 +109,9 @@ export declare class PostsService {
         };
         hashtags: ({
             hashtag: {
-                name: string;
                 id: string;
                 createdAt: Date;
+                name: string;
                 postCount: number;
             };
         } & {
@@ -136,12 +136,12 @@ export declare class PostsService {
             avatar: string;
         };
         media: {
-            type: string;
-            order: number;
-            url: string;
             id: string;
+            type: string;
             createdAt: Date;
+            url: string;
             thumbnailUrl: string;
+            order: number;
             postId: string;
         }[];
         _count: {
@@ -149,12 +149,12 @@ export declare class PostsService {
             likes: number;
         };
     } & {
-        type: string;
         id: string;
         userId: string;
         caption: string;
         title: string;
         location: string;
+        type: string;
         code: string;
         colors: string[];
         colorPalette: string[];
@@ -218,12 +218,12 @@ export declare class PostsService {
             replies: number;
         };
     } & {
-        content: string;
         id: string;
         userId: string;
         createdAt: Date;
         updatedAt: Date;
         postId: string;
+        content: string;
         parentId: string;
         isPinned: boolean;
     })[]>;
@@ -236,12 +236,12 @@ export declare class PostsService {
             isVerified: boolean;
         };
     } & {
-        content: string;
         id: string;
         userId: string;
         createdAt: Date;
         updatedAt: Date;
         postId: string;
+        content: string;
         parentId: string;
         isPinned: boolean;
     })[] | {
@@ -364,20 +364,20 @@ export declare class PostsService {
             isVerified: boolean;
         };
         media: {
-            type: string;
-            order: number;
-            url: string;
             id: string;
+            type: string;
             createdAt: Date;
+            url: string;
             thumbnailUrl: string;
+            order: number;
             postId: string;
         }[];
-        type: string;
         id: string;
         userId: string;
         caption: string;
         title: string;
         location: string;
+        type: string;
         code: string;
         colors: string[];
         colorPalette: string[];
@@ -411,24 +411,24 @@ export declare class PostsService {
             isVerified: boolean;
         };
         media: {
-            type: string;
-            order: number;
-            url: string;
             id: string;
+            type: string;
             createdAt: Date;
+            url: string;
             thumbnailUrl: string;
+            order: number;
             postId: string;
         }[];
         _count: {
             comments: number;
             likes: number;
         };
-        type: string;
         id: string;
         userId: string;
         caption: string;
         title: string;
         location: string;
+        type: string;
         code: string;
         colors: string[];
         colorPalette: string[];
@@ -452,20 +452,20 @@ export declare class PostsService {
             isVerified: boolean;
         };
         media: {
-            type: string;
-            order: number;
-            url: string;
             id: string;
+            type: string;
             createdAt: Date;
+            url: string;
             thumbnailUrl: string;
+            order: number;
             postId: string;
         }[];
-        type: string;
         id: string;
         userId: string;
         caption: string;
         title: string;
         location: string;
+        type: string;
         code: string;
         colors: string[];
         colorPalette: string[];
@@ -539,9 +539,9 @@ export declare class PostsService {
         };
         hashtags: ({
             hashtag: {
-                name: string;
                 id: string;
                 createdAt: Date;
+                name: string;
                 postCount: number;
             };
         } & {
