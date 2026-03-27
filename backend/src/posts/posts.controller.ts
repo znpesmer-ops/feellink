@@ -157,6 +157,15 @@ export class PostsController {
     return this.postsService.generateArtworkQrPdf(postId, res);
   }
 
+  /** QR /t/:code → postId (Next redirect /posts/:id) */
+  @Get('qr-resolve/:code')
+  @ApiOperation({ summary: 'Resolve artwork ticket code to post id (public QR)' })
+  @ApiResponse({ status: 200, description: '{ postId }' })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  async resolveQrCode(@Param('code') code: string) {
+    return this.postsService.resolveArtworkQrByCode(code);
+  }
+
   /** QR /ticket/:code sayfası — giriş yok; minimal doğrulama verisi */
   @Get('public-artwork-ticket/:code')
   @ApiOperation({ summary: 'Public artwork ticket by code (QR verification)' })

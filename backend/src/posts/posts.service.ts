@@ -36,10 +36,10 @@ function hashPostIdForLayout(id: string): number {
   return Math.abs(h);
 }
 
-/** Bilet QR içeriği: doğrudan Feellink post detay rotası (/posts/:id). */
-function buildArtworkQrUrl(frontendUrl: string, postId: string): string {
+/** Bilet QR içeriği: /t/:code çözümleyici → redirect /posts/:id (PDF düzenine dokunulmaz, yalnız string). */
+function buildArtworkQrUrl(frontendUrl: string, ticketCode: string): string {
   const base = frontendUrl.replace(/\/$/, '');
-  return `${base}/posts/${postId}`;
+  return `${base}/t/${encodeURIComponent(ticketCode)}`;
 }
 
 /** Tek satır; taşarsa kısalt */
@@ -2251,6 +2251,47 @@ export class PostsService {
   }
 
   /**
+   * QR /t/:code → postId (public, ticket ile aynı görünürlük kuralları).
+   */
+  async resolveArtworkQrByCode(rawCode: string): Promise<{ postId: string }> {
+    const code = rawCode?.trim();
+    if (!code) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    const post = await this.prisma.post.findFirst({
+      where: {
+        code,
+        type: 'artwork',
+        isDeleted: false,
+        deletedAt: null,
+        user: publicVitrineUserWhere,
+      },
+      select: {
+        id: true,
+        code: true,
+        user: {
+          select: {
+            isDeleted: true,
+            deletedAt: true,
+            accountStatus: true,
+          },
+        },
+      },
+    });
+
+    if (!post?.code) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    if (!isUserEligibleForPublicVitrine(post.user)) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    return { postId: post.id };
+  }
+
+  /**
    * Eser için QR kodlu PDF etiket oluşturma
    */
   async generateArtworkQrPdf(postId: string, res: Response) {
@@ -2298,7 +2339,7 @@ export class PostsService {
     }
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    const qrDataUrl = await generateQrDataUrl(buildArtworkQrUrl(frontendUrl, postId));
+    const qrDataUrl = await generateQrDataUrl(buildArtworkQrUrl(frontendUrl, artworkCode));
 
     // PDF oluştur - Küçük etiket formatı (210mm x 120mm)
     const doc = new PDFDocument({
@@ -2629,7 +2670,7 @@ export class PostsService {
     }
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    const artworkQrUrl = buildArtworkQrUrl(frontendUrl, postId);
+    const artworkQrUrl = buildArtworkQrUrl(frontendUrl, artworkCode);
 
     const { createCanvas, loadImage, registerFont } = require('canvas');
 
@@ -3015,7 +3056,7 @@ export class PostsService {
     }
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    const artworkQrUrl = buildArtworkQrUrl(frontendUrl, postId);
+    const artworkQrUrl = buildArtworkQrUrl(frontendUrl, artworkCode);
 
     // === CANVAS LAZY IMPORT (Webpack hatası için) ===
     const { createCanvas, loadImage, registerFont } = require('canvas');

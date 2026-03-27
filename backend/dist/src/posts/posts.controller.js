@@ -120,6 +120,9 @@ let PostsController = class PostsController {
     async generateArtworkQrPdf(postId, res) {
         return this.postsService.generateArtworkQrPdf(postId, res);
     }
+    async resolveQrCode(code) {
+        return this.postsService.resolveArtworkQrByCode(code);
+    }
     async getPublicArtworkTicket(code) {
         return this.postsService.getPublicArtworkTicketByCode(code);
     }
@@ -301,6 +304,16 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], PostsController.prototype, "generateArtworkQrPdf", null);
+__decorate([
+    (0, common_1.Get)('qr-resolve/:code'),
+    (0, swagger_1.ApiOperation)({ summary: 'Resolve artwork ticket code to post id (public QR)' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: '{ postId }' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Not found' }),
+    __param(0, (0, common_1.Param)('code')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], PostsController.prototype, "resolveQrCode", null);
 __decorate([
     (0, common_1.Get)('public-artwork-ticket/:code'),
     (0, swagger_1.ApiOperation)({ summary: 'Public artwork ticket by code (QR verification)' }),

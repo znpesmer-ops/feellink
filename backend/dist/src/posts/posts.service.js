@@ -42,9 +42,9 @@ function hashPostIdForLayout(id) {
     }
     return Math.abs(h);
 }
-function buildArtworkQrUrl(frontendUrl, postId) {
+function buildArtworkQrUrl(frontendUrl, ticketCode) {
     const base = frontendUrl.replace(/\/$/, '');
-    return `${base}/posts/${postId}`;
+    return `${base}/t/${encodeURIComponent(ticketCode)}`;
 }
 function truncateOneLine(ctx, text, maxWidth) {
     const t = text.replace(/\s+/g, ' ').trim();
@@ -1874,6 +1874,39 @@ let PostsService = class PostsService {
             isValid: true,
         };
     }
+    async resolveArtworkQrByCode(rawCode) {
+        const code = rawCode?.trim();
+        if (!code) {
+            throw new common_1.NotFoundException('Ticket not found');
+        }
+        const post = await this.prisma.post.findFirst({
+            where: {
+                code,
+                type: 'artwork',
+                isDeleted: false,
+                deletedAt: null,
+                user: public_vitrine_user_1.publicVitrineUserWhere,
+            },
+            select: {
+                id: true,
+                code: true,
+                user: {
+                    select: {
+                        isDeleted: true,
+                        deletedAt: true,
+                        accountStatus: true,
+                    },
+                },
+            },
+        });
+        if (!post?.code) {
+            throw new common_1.NotFoundException('Ticket not found');
+        }
+        if (!(0, public_vitrine_user_1.isUserEligibleForPublicVitrine)(post.user)) {
+            throw new common_1.NotFoundException('Ticket not found');
+        }
+        return { postId: post.id };
+    }
     async generateArtworkQrPdf(postId, res) {
         const post = await this.prisma.post.findUnique({
             where: { id: postId },
@@ -1914,7 +1947,7 @@ let PostsService = class PostsService {
             });
         }
         const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
-        const qrDataUrl = await (0, ticket_utils_1.generateQrDataUrl)(buildArtworkQrUrl(frontendUrl, postId));
+        const qrDataUrl = await (0, ticket_utils_1.generateQrDataUrl)(buildArtworkQrUrl(frontendUrl, artworkCode));
         const doc = new pdfkit_1.default({
             size: [210, 120],
             margin: 10,
@@ -2145,7 +2178,7 @@ let PostsService = class PostsService {
             });
         }
         const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
-        const artworkQrUrl = buildArtworkQrUrl(frontendUrl, postId);
+        const artworkQrUrl = buildArtworkQrUrl(frontendUrl, artworkCode);
         const { createCanvas, loadImage, registerFont } = require('canvas');
         const assetsRoot = (0, resolve_feellink_assets_1.resolveFeellinkAssetsRoot)();
         const fontsDir = path.join(assetsRoot, 'fonts');
@@ -2461,7 +2494,7 @@ let PostsService = class PostsService {
             });
         }
         const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
-        const artworkQrUrl = buildArtworkQrUrl(frontendUrl, postId);
+        const artworkQrUrl = buildArtworkQrUrl(frontendUrl, artworkCode);
         const { createCanvas, loadImage, registerFont } = require('canvas');
         const ticketAssetsRoot = (0, resolve_feellink_assets_1.resolveFeellinkAssetsRoot)();
         const templatePath = path.join(ticketAssetsRoot, 'templates', 'bilet_template.png');
