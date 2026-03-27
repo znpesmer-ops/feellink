@@ -2618,8 +2618,8 @@ export class PostsService {
       (post.user.username || '').trim();
 
     // Tipografi token’ları (hiyerarşi sabit; sadece başlık fontu sığmazsa küçülür)
-    const ARTIST_FS = 18;
-    const CODE_FS = 14;
+    const ARTIST_FS = 20;
+    const CODE_FS = 16;
     const SLOGAN_BASE_FS = 28;
     const TITLE_LINE_HEIGHT = 1.2;
 
@@ -2717,9 +2717,9 @@ export class PostsService {
 
     const topContentW = width - PAD * 2;
 
-    let titleFont = 28;
+    let titleFont = 30;
     let titleLines: string[] = [];
-    for (; titleFont >= 19; titleFont -= 1) {
+    for (; titleFont >= 18; titleFont -= 1) {
       ctx.font = `${titleFont}px ${fontBold}`;
       titleLines = titleRaw ? wrapCanvasText(ctx, titleRaw, topContentW, TITLE_MAX_LINES) : [];
       const titleH =
