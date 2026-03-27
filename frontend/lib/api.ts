@@ -210,7 +210,8 @@ api.interceptors.request.use((config: ApiRequestConfig) => {
   const pathOnly = rawUrl.split('?')[0] || ''
   const mergedPath =
     pathOnly.startsWith('http') ? new URL(pathOnly, 'http://_').pathname : pathOnly
-  if (method === 'get' && /\/posts\/public-share\//.test(mergedPath)) {
+  // Hem "/posts/public-share/..." hem "posts/public-share/..." (axios göreli url)
+  if (method === 'get' && /(^|\/)posts\/public-share\//.test(mergedPath)) {
     delete (config.headers as Record<string, unknown>).Authorization
   }
 

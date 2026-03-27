@@ -2166,6 +2166,8 @@ export class PostsService {
    * Girişsiz paylaşım (QR /posts/:id) — silinmemiş gönderi + vitrine uygun yazar.
    * Açılır: herkese açık hesabın tüm gönderileri; gizli hesapta artwork/article/event;
    * veya bilet kodu (code) dolu kayıtlar (tip yanlış yazılmış eserler dahil).
+   *
+   * Görünürlük JS ile doğrulanır: Prisma MongoDB’de iç içe user + OR where bazen hiç eşleşmez.
    */
   async getPublicSharePost(postId: string) {
     const id = typeof postId === 'string' ? postId.trim() : '';
@@ -2173,31 +2175,56 @@ export class PostsService {
       throw new NotFoundException('Post not found');
     }
 
-    const post = await this.prisma.post.findFirst({
-      where: {
-        AND: [
-          { id },
-          { isDeleted: false },
-          { deletedAt: null },
-          { user: publicVitrineUserWhere },
-          {
-            OR: [
-              { user: { isPrivate: false } },
-              { type: { in: ['artwork', 'article', 'event'] } },
-              {
-                AND: [
-                  { code: { not: null } },
-                  { NOT: { code: { equals: '' } } },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-      select: { id: true },
-    });
+    let post: {
+      isDeleted: boolean;
+      deletedAt: Date | null;
+      type: string | null;
+      code: string | null;
+      user: {
+        isPrivate: boolean | null;
+        isDeleted: boolean | null;
+        deletedAt: Date | null;
+        accountStatus: string | null;
+      } | null;
+    } | null;
 
-    if (!post) {
+    try {
+      post = await this.prisma.post.findUnique({
+        where: { id },
+        select: {
+          isDeleted: true,
+          deletedAt: true,
+          type: true,
+          code: true,
+          user: {
+            select: {
+              isPrivate: true,
+              isDeleted: true,
+              deletedAt: true,
+              accountStatus: true,
+            },
+          },
+        },
+      });
+    } catch {
+      throw new NotFoundException('Post not found');
+    }
+
+    if (!post || post.isDeleted || post.deletedAt != null) {
+      throw new NotFoundException('Post not found');
+    }
+
+    if (!post.user || !isUserEligibleForPublicVitrine(post.user)) {
+      throw new NotFoundException('Post not found');
+    }
+
+    const t = (post.type ?? 'post').trim();
+    const specialTypes = ['artwork', 'article', 'event'];
+    const isSpecialType = specialTypes.includes(t);
+    const hasShareCode = typeof post.code === 'string' && post.code.trim().length > 0;
+    const authorIsPublic = post.user.isPrivate !== true;
+
+    if (!(authorIsPublic || isSpecialType || hasShareCode)) {
       throw new NotFoundException('Post not found');
     }
 
