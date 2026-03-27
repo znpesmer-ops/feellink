@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PostsGateway } from '../posts/posts.gateway';
 import { ArticlesGateway } from './articles.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
+import { publicVitrineUserWhere } from '../common/utils/public-vitrine-user';
 
 @Injectable()
 export class ArticlesService {
@@ -727,6 +728,7 @@ export class ArticlesService {
     const articles = await this.prisma.article.findMany({
       where: {
         isPublished: true,
+        author: publicVitrineUserWhere,
         ...(range
           ? {
               createdAt: {

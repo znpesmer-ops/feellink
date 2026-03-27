@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SidebarGateway } from './sidebar.gateway';
 import { ArticlesService } from '../articles/articles.service';
 import { getCurrentWeekRange } from '../common/utils/week-range.util';
+import { publicVitrineUserWhere } from '../common/utils/public-vitrine-user';
 
 const MUSEUM_IMAGE_MAP: Record<number, string> = {
   1: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=800&q=80',
@@ -63,6 +64,7 @@ export class SidebarService {
           has: 'corporate',
         },
         isPrivate: false, // Sadece public hesaplar
+        ...publicVitrineUserWhere,
       },
       select: {
         id: true,
@@ -224,6 +226,7 @@ export class SidebarService {
       where: {
         isPublished: true,
         createdAt: { gte: weekStart, lte: weekEnd },
+        author: publicVitrineUserWhere,
       },
       orderBy: {
         views: 'desc',
@@ -250,6 +253,7 @@ export class SidebarService {
           lte: weekEnd,
         },
         type: 'post', // Sadece normal gönderiler (eserler değil)
+        user: publicVitrineUserWhere,
       },
       _count: {
         id: true,
@@ -272,6 +276,7 @@ export class SidebarService {
         where: {
           id: { in: topWriterIds },
           isPrivate: false, // Sadece public hesaplar
+          ...publicVitrineUserWhere,
         },
         select: {
           id: true,
@@ -384,8 +389,7 @@ export class SidebarService {
         author: {
           id: { notIn: followingIds },
           isPrivate: false,
-          isDeleted: { not: true }, // 🔒 Hide only truly deleted users
-          accountStatus: { not: 'SUSPENDED' }, // 🔒 Hide only suspended users
+          ...publicVitrineUserWhere,
         },
       },
       include: {
@@ -410,8 +414,7 @@ export class SidebarService {
         user: {
           id: { notIn: followingIds },
           isPrivate: false,
-          isDeleted: { not: true }, // 🔒 Hide only truly deleted users
-          accountStatus: { not: 'SUSPENDED' }, // 🔒 Hide only suspended users
+          ...publicVitrineUserWhere,
         },
         // Caption kontrolünü kaldırdık - tüm postlar dahil (caption boş olsa bile)
       },
@@ -464,6 +467,7 @@ export class SidebarService {
           isPublished: true,
           author: {
             isPrivate: false,
+            ...publicVitrineUserWhere,
           },
         },
         include: {
@@ -486,6 +490,7 @@ export class SidebarService {
         where: {
           user: {
             isPrivate: false,
+            ...publicVitrineUserWhere,
           },
           // Caption kontrolünü kaldırdık
         },
@@ -605,6 +610,7 @@ export class SidebarService {
           has: 'corporate',
         },
         isPrivate: false,
+        ...publicVitrineUserWhere,
       },
       select: {
         id: true,
@@ -683,6 +689,8 @@ export class SidebarService {
       where: {
         type: 'artwork',
         createdAt: { gte: weekStart, lte: weekEnd },
+        isDeleted: false,
+        user: publicVitrineUserWhere,
       },
       include: {
         _count: {
@@ -725,6 +733,8 @@ export class SidebarService {
     const comments = await this.prisma.comment.findMany({
       where: {
         createdAt: { gte: weekStart, lte: weekEnd },
+        user: publicVitrineUserWhere,
+        post: { isDeleted: false },
       },
       include: {
         _count: {
@@ -769,6 +779,7 @@ export class SidebarService {
           has: 'collector',
         },
         isPrivate: false,
+        ...publicVitrineUserWhere,
       },
       select: {
         id: true,

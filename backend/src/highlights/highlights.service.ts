@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  isUserEligibleForPublicVitrine,
+  publicVitrineUserWhere,
+} from '../common/utils/public-vitrine-user';
 
 @Injectable()
 export class HighlightsService {
@@ -33,6 +37,9 @@ export class HighlightsService {
                 fullName: true,
                 avatar: true,
                 bio: true,
+                isDeleted: true,
+                deletedAt: true,
+                accountStatus: true,
               },
             },
             artwork: {
@@ -43,6 +50,9 @@ export class HighlightsService {
                     username: true,
                     fullName: true,
                     avatar: true,
+                    isDeleted: true,
+                    deletedAt: true,
+                    accountStatus: true,
                   },
                 },
                 media: {
@@ -59,6 +69,9 @@ export class HighlightsService {
                     username: true,
                     fullName: true,
                     avatar: true,
+                    isDeleted: true,
+                    deletedAt: true,
+                    accountStatus: true,
                   },
                 },
                 post: {
@@ -77,6 +90,9 @@ export class HighlightsService {
                     username: true,
                     fullName: true,
                     avatar: true,
+                    isDeleted: true,
+                    deletedAt: true,
+                    accountStatus: true,
                   },
                 },
               },
@@ -99,7 +115,11 @@ export class HighlightsService {
     };
 
     // Museum
-    if (monthlyHighlight.museumId && monthlyHighlight.museum) {
+    if (
+      monthlyHighlight.museumId &&
+      monthlyHighlight.museum &&
+      isUserEligibleForPublicVitrine(monthlyHighlight.museum)
+    ) {
       response.museum = {
         id: monthlyHighlight.museum.id,
         name: monthlyHighlight.museum.fullName || monthlyHighlight.museum.username,
@@ -110,7 +130,11 @@ export class HighlightsService {
     }
 
     // Artwork
-    if (monthlyHighlight.artworkId && monthlyHighlight.artwork) {
+    if (
+      monthlyHighlight.artworkId &&
+      monthlyHighlight.artwork &&
+      isUserEligibleForPublicVitrine(monthlyHighlight.artwork.user)
+    ) {
       response.artwork = {
         id: monthlyHighlight.artwork.id,
         title: monthlyHighlight.artwork.title || monthlyHighlight.artwork.caption || 'İsimsiz',
@@ -126,7 +150,11 @@ export class HighlightsService {
     }
 
     // Comment
-    if (monthlyHighlight.commentId && monthlyHighlight.comment) {
+    if (
+      monthlyHighlight.commentId &&
+      monthlyHighlight.comment &&
+      isUserEligibleForPublicVitrine(monthlyHighlight.comment.user)
+    ) {
       response.comment = {
         id: monthlyHighlight.comment.id,
         commentId: monthlyHighlight.comment.id,
@@ -139,7 +167,11 @@ export class HighlightsService {
     }
 
     // Collection
-    if (monthlyHighlight.collectionId && monthlyHighlight.collection) {
+    if (
+      monthlyHighlight.collectionId &&
+      monthlyHighlight.collection &&
+      isUserEligibleForPublicVitrine(monthlyHighlight.collection.owner)
+    ) {
       response.collection = {
         id: monthlyHighlight.collection.id,
         title: monthlyHighlight.collection.title,
@@ -179,6 +211,7 @@ export class HighlightsService {
       where: {
         roles: { has: 'corporate' }, // Museum role'ü corporate olabilir veya ayrı bir role
         createdAt: { lte: thirtyDaysAgo },
+        ...publicVitrineUserWhere,
       },
       orderBy: {
         followerCount: 'desc',
@@ -198,7 +231,9 @@ export class HighlightsService {
       where: {
         type: 'artwork',
         createdAt: { gte: thirtyDaysAgo },
-        },
+        isDeleted: false,
+        user: publicVitrineUserWhere,
+      },
       include: {
         _count: {
           select: {
@@ -241,6 +276,8 @@ export class HighlightsService {
     const comments = await this.prisma.comment.findMany({
       where: {
         createdAt: { gte: thirtyDaysAgo },
+        user: publicVitrineUserWhere,
+        post: { isDeleted: false },
       },
       include: {
         _count: {
@@ -286,6 +323,7 @@ export class HighlightsService {
     const collections = await this.prisma.collection.findMany({
       where: {
         createdAt: { gte: thirtyDaysAgo },
+        owner: publicVitrineUserWhere,
       },
       include: {
         _count: {
@@ -339,6 +377,9 @@ export class HighlightsService {
               fullName: true,
               avatar: true,
               bio: true,
+              isDeleted: true,
+              deletedAt: true,
+              accountStatus: true,
             },
           },
           artwork: {
@@ -349,6 +390,9 @@ export class HighlightsService {
                   username: true,
                   fullName: true,
                   avatar: true,
+                  isDeleted: true,
+                  deletedAt: true,
+                  accountStatus: true,
                 },
               },
               media: {
@@ -365,6 +409,9 @@ export class HighlightsService {
                   username: true,
                   fullName: true,
                   avatar: true,
+                  isDeleted: true,
+                  deletedAt: true,
+                  accountStatus: true,
                 },
               },
               post: {
@@ -383,6 +430,9 @@ export class HighlightsService {
                   username: true,
                   fullName: true,
                   avatar: true,
+                  isDeleted: true,
+                  deletedAt: true,
+                  accountStatus: true,
                 },
               },
             },
