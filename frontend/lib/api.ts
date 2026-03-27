@@ -203,6 +203,14 @@ api.interceptors.request.use((config: ApiRequestConfig) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+
+  // Girişsiz post önizleme: süresi dolmuş token 401 vermesin diye Authorization gönderme
+  const method = (config.method || 'get').toLowerCase()
+  const path = (config.url || '').split('?')[0] || ''
+  if (method === 'get' && path.includes('posts/public-share')) {
+    delete (config.headers as Record<string, unknown>).Authorization
+  }
+
   return config
 })
 

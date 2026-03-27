@@ -2172,7 +2172,17 @@ export class PostsService {
         id: postId,
         isDeleted: false,
         deletedAt: null,
-        user: { ...publicVitrineUserWhere, isPrivate: false },
+        OR: [
+          {
+            AND: [
+              { NOT: { type: 'artwork' } },
+              { user: { ...publicVitrineUserWhere, isPrivate: false } },
+            ],
+          },
+          {
+            AND: [{ type: 'artwork' }, { user: publicVitrineUserWhere }],
+          },
+        ],
       },
       select: { id: true },
     });
@@ -2199,7 +2209,7 @@ export class PostsService {
         type: 'artwork',
         isDeleted: false,
         deletedAt: null,
-        user: { ...publicVitrineUserWhere, isPrivate: false },
+        user: publicVitrineUserWhere,
       },
       select: {
         code: true,
@@ -2265,7 +2275,7 @@ export class PostsService {
         type: 'artwork',
         isDeleted: false,
         deletedAt: null,
-        user: { ...publicVitrineUserWhere, isPrivate: false },
+        user: publicVitrineUserWhere,
       },
       select: {
         id: true,
