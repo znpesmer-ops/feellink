@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import api from '@/lib/api'
+import api, { getApiErrorKind } from '@/lib/api'
 import { isAxiosError } from 'axios'
 import { useAuthStore } from '@/lib/store'
 import { Heart, MessageCircle, Bookmark, X, Send, Trash2, CornerUpRight, Pin, PinIcon, FolderPlus, MoreVertical } from 'lucide-react'
@@ -163,7 +163,7 @@ export function PostModal({
   }, [showDeleteConfirm])
 
   // Post detay — tek istek (post + yorumlar); staleTime ile gereksiz refetch azaltılır, like sonrası refetch yok
-  const { data: post, isLoading, isError } = useQuery<Post>({
+  const { data: post, isLoading, isError, error: postQueryError } = useQuery<Post>({
     queryKey: postQueryKey,
     queryFn: async () => {
       if (publicShare) {
@@ -734,6 +734,14 @@ export function PostModal({
     'rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900'
 
   if (isError) {
+    const kind = getApiErrorKind(postQueryError)
+    const postLoadErrorMessage =
+      kind === 'network' || kind === 'timeout'
+        ? 'Şu an sunucuya bağlanılamıyor. İnternet bağlantınızı kontrol edip tekrar deneyin.'
+        : kind === 'server'
+          ? 'Sunucu geçici olarak yanıt vermiyor. Lütfen kısa süre sonra tekrar deneyin.'
+          : 'Bu gönderi görüntülenemiyor veya kaldırılmış olabilir.'
+
     return (
       <div
         className={publicShare ? publicViewOuter : modalViewOuter}
@@ -744,7 +752,7 @@ export function PostModal({
           onClick={(e) => e.stopPropagation()}
         >
           <p className="text-gray-800 dark:text-gray-100 mb-4 px-6 pt-6">
-            Bu gönderi görüntülenemiyor veya kaldırılmış olabilir.
+            {postLoadErrorMessage}
           </p>
           <button
             type="button"

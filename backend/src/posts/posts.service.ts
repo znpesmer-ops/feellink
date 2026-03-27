@@ -2163,26 +2163,33 @@ export class PostsService {
   }
 
   /**
-   * Girişsiz paylaşım (QR /posts/:id) — yalnızca silinmemiş gönderi + vitrine uygun yazar.
-   * Payload: mevcut getPost ile aynı (okuma; beğeni/yorum auth gerektirir).
+   * Girişsiz paylaşım (QR /posts/:id) — silinmemiş gönderi + vitrine uygun yazar.
+   * Açılır: herkese açık hesabın tüm gönderileri; gizli hesapta artwork/article/event;
+   * veya bilet kodu (code) dolu kayıtlar (tip yanlış yazılmış eserler dahil).
    */
   async getPublicSharePost(postId: string) {
+    const id = typeof postId === 'string' ? postId.trim() : '';
+    if (!id) {
+      throw new NotFoundException('Post not found');
+    }
+
     const post = await this.prisma.post.findFirst({
       where: {
-        id: postId,
-        isDeleted: false,
-        deletedAt: null,
-        OR: [
+        AND: [
+          { id },
+          { isDeleted: false },
+          { deletedAt: null },
+          { user: publicVitrineUserWhere },
           {
-            AND: [
-              { NOT: { type: { in: ['artwork', 'article', 'event'] } } },
-              { user: { ...publicVitrineUserWhere, isPrivate: false } },
-            ],
-          },
-          {
-            AND: [
+            OR: [
+              { user: { isPrivate: false } },
               { type: { in: ['artwork', 'article', 'event'] } },
-              { user: publicVitrineUserWhere },
+              {
+                AND: [
+                  { code: { not: null } },
+                  { NOT: { code: { equals: '' } } },
+                ],
+              },
             ],
           },
         ],
@@ -2194,7 +2201,7 @@ export class PostsService {
       throw new NotFoundException('Post not found');
     }
 
-    return this.getPost(postId, undefined);
+    return this.getPost(id, undefined);
   }
 
   /**
