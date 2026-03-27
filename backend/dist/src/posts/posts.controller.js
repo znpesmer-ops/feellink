@@ -120,6 +120,12 @@ let PostsController = class PostsController {
     async generateArtworkQrPdf(postId, res) {
         return this.postsService.generateArtworkQrPdf(postId, res);
     }
+    async getPublicArtworkTicket(code) {
+        return this.postsService.getPublicArtworkTicketByCode(code);
+    }
+    async getPublicShare(id) {
+        return this.postsService.getPublicSharePost(id);
+    }
     async getPost(params, user) {
         return this.postsService.getPost(params.id, user.id);
     }
@@ -295,6 +301,26 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], PostsController.prototype, "generateArtworkQrPdf", null);
+__decorate([
+    (0, common_1.Get)('public-artwork-ticket/:code'),
+    (0, swagger_1.ApiOperation)({ summary: 'Public artwork ticket by code (QR verification)' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Ticket payload' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Not found' }),
+    __param(0, (0, common_1.Param)('code')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], PostsController.prototype, "getPublicArtworkTicket", null);
+__decorate([
+    (0, common_1.Get)('public-share/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Public read-only post by id (share / QR)' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Same shape as authenticated get post' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Not found' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], PostsController.prototype, "getPublicShare", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

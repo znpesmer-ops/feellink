@@ -36,6 +36,12 @@ function hashPostIdForLayout(id: string): number {
   return Math.abs(h);
 }
 
+/** Bilet QR içeriği: doğrudan Feellink post detay rotası (/posts/:id). */
+function buildArtworkQrUrl(frontendUrl: string, postId: string): string {
+  const base = frontendUrl.replace(/\/$/, '');
+  return `${base}/posts/${postId}`;
+}
+
 /** Tek satır; taşarsa kısalt */
 function truncateOneLine(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
   const t = text.replace(/\s+/g, ' ').trim();
@@ -2157,7 +2163,29 @@ export class PostsService {
   }
 
   /**
-   * Public eser bileti doğrulama (QR → /ticket/:code) — JWT gerekmez, minimal alanlar.
+   * Girişsiz paylaşım (QR /posts/:id) — yalnızca silinmemiş gönderi + vitrine uygun yazar.
+   * Payload: mevcut getPost ile aynı (okuma; beğeni/yorum auth gerektirir).
+   */
+  async getPublicSharePost(postId: string) {
+    const post = await this.prisma.post.findFirst({
+      where: {
+        id: postId,
+        isDeleted: false,
+        deletedAt: null,
+        user: publicVitrineUserWhere,
+      },
+      select: { id: true },
+    });
+
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    return this.getPost(postId, undefined);
+  }
+
+  /**
+   * Public eser bileti doğrulama (/ticket/:code) — JWT gerekmez, minimal alanlar.
    */
   async getPublicArtworkTicketByCode(rawCode: string) {
     const code = rawCode?.trim();
@@ -2270,8 +2298,7 @@ export class PostsService {
     }
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    const ticketPublicUrl = `${frontendUrl}/ticket/${encodeURIComponent(artworkCode)}`;
-    const qrDataUrl = await generateQrDataUrl(ticketPublicUrl);
+    const qrDataUrl = await generateQrDataUrl(buildArtworkQrUrl(frontendUrl, postId));
 
     // PDF oluştur - Küçük etiket formatı (210mm x 120mm)
     const doc = new PDFDocument({
@@ -2602,7 +2629,7 @@ export class PostsService {
     }
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    const ticketPublicUrl = `${frontendUrl}/ticket/${encodeURIComponent(artworkCode)}`;
+    const artworkQrUrl = buildArtworkQrUrl(frontendUrl, postId);
 
     const { createCanvas, loadImage, registerFont } = require('canvas');
 
@@ -2840,7 +2867,7 @@ export class PostsService {
     ctx.fillStyle = '#475569';
     ctx.fillText(artworkCode, PAD, drawY);
 
-    const qrBuffer = await QRCode.toBuffer(ticketPublicUrl, {
+    const qrBuffer = await QRCode.toBuffer(artworkQrUrl, {
       margin: 1,
       width: 640,
       type: 'png',
@@ -2988,7 +3015,7 @@ export class PostsService {
     }
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    const ticketPublicUrl = `${frontendUrl}/ticket/${encodeURIComponent(artworkCode)}`;
+    const artworkQrUrl = buildArtworkQrUrl(frontendUrl, postId);
 
     // === CANVAS LAZY IMPORT (Webpack hatası için) ===
     const { createCanvas, loadImage, registerFont } = require('canvas');
@@ -3077,7 +3104,7 @@ export class PostsService {
     ctx.fillText(`Kod: ${artworkCode}`, width * (120 / 1400), height * (290 / 700));
 
     // === QR KOD OLUŞTUR VE YERLEŞTİR ===
-    const qrBuffer = await QRCode.toBuffer(ticketPublicUrl, {
+    const qrBuffer = await QRCode.toBuffer(artworkQrUrl, {
       margin: 1,
       width: 400,
       type: 'png',

@@ -166,6 +166,15 @@ export class PostsController {
     return this.postsService.getPublicArtworkTicketByCode(code);
   }
 
+  /** Girişsiz post önizleme (QR /posts/:id deep link) */
+  @Get('public-share/:id')
+  @ApiOperation({ summary: 'Public read-only post by id (share / QR)' })
+  @ApiResponse({ status: 200, description: 'Same shape as authenticated get post' })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  async getPublicShare(@Param('id') id: string) {
+    return this.postsService.getPublicSharePost(id);
+  }
+
   // GENEL ROUTE EN SONDA OLMALI
   @Get(':id')
   @UseGuards(JwtAuthGuard)

@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.HighlightsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
+const public_vitrine_user_1 = require("../common/utils/public-vitrine-user");
 let HighlightsService = class HighlightsService {
     constructor(prisma) {
         this.prisma = prisma;
@@ -35,6 +36,9 @@ let HighlightsService = class HighlightsService {
                             fullName: true,
                             avatar: true,
                             bio: true,
+                            isDeleted: true,
+                            deletedAt: true,
+                            accountStatus: true,
                         },
                     },
                     artwork: {
@@ -45,6 +49,9 @@ let HighlightsService = class HighlightsService {
                                     username: true,
                                     fullName: true,
                                     avatar: true,
+                                    isDeleted: true,
+                                    deletedAt: true,
+                                    accountStatus: true,
                                 },
                             },
                             media: {
@@ -61,6 +68,9 @@ let HighlightsService = class HighlightsService {
                                     username: true,
                                     fullName: true,
                                     avatar: true,
+                                    isDeleted: true,
+                                    deletedAt: true,
+                                    accountStatus: true,
                                 },
                             },
                             post: {
@@ -79,6 +89,9 @@ let HighlightsService = class HighlightsService {
                                     username: true,
                                     fullName: true,
                                     avatar: true,
+                                    isDeleted: true,
+                                    deletedAt: true,
+                                    accountStatus: true,
                                 },
                             },
                         },
@@ -95,7 +108,9 @@ let HighlightsService = class HighlightsService {
                 comment: null,
                 collection: null,
             };
-            if (monthlyHighlight.museumId && monthlyHighlight.museum) {
+            if (monthlyHighlight.museumId &&
+                monthlyHighlight.museum &&
+                (0, public_vitrine_user_1.isUserEligibleForPublicVitrine)(monthlyHighlight.museum)) {
                 response.museum = {
                     id: monthlyHighlight.museum.id,
                     name: monthlyHighlight.museum.fullName || monthlyHighlight.museum.username,
@@ -104,7 +119,9 @@ let HighlightsService = class HighlightsService {
                     bio: monthlyHighlight.museum.bio || null,
                 };
             }
-            if (monthlyHighlight.artworkId && monthlyHighlight.artwork) {
+            if (monthlyHighlight.artworkId &&
+                monthlyHighlight.artwork &&
+                (0, public_vitrine_user_1.isUserEligibleForPublicVitrine)(monthlyHighlight.artwork.user)) {
                 response.artwork = {
                     id: monthlyHighlight.artwork.id,
                     title: monthlyHighlight.artwork.title || monthlyHighlight.artwork.caption || 'İsimsiz',
@@ -118,7 +135,9 @@ let HighlightsService = class HighlightsService {
                     },
                 };
             }
-            if (monthlyHighlight.commentId && monthlyHighlight.comment) {
+            if (monthlyHighlight.commentId &&
+                monthlyHighlight.comment &&
+                (0, public_vitrine_user_1.isUserEligibleForPublicVitrine)(monthlyHighlight.comment.user)) {
                 response.comment = {
                     id: monthlyHighlight.comment.id,
                     commentId: monthlyHighlight.comment.id,
@@ -129,7 +148,9 @@ let HighlightsService = class HighlightsService {
                     avatar: monthlyHighlight.comment.user.avatar,
                 };
             }
-            if (monthlyHighlight.collectionId && monthlyHighlight.collection) {
+            if (monthlyHighlight.collectionId &&
+                monthlyHighlight.collection &&
+                (0, public_vitrine_user_1.isUserEligibleForPublicVitrine)(monthlyHighlight.collection.owner)) {
                 response.collection = {
                     id: monthlyHighlight.collection.id,
                     title: monthlyHighlight.collection.title,
@@ -161,6 +182,7 @@ let HighlightsService = class HighlightsService {
             where: {
                 roles: { has: 'corporate' },
                 createdAt: { lte: thirtyDaysAgo },
+                ...public_vitrine_user_1.publicVitrineUserWhere,
             },
             orderBy: {
                 followerCount: 'desc',
@@ -177,6 +199,8 @@ let HighlightsService = class HighlightsService {
             where: {
                 type: 'artwork',
                 createdAt: { gte: thirtyDaysAgo },
+                isDeleted: false,
+                user: public_vitrine_user_1.publicVitrineUserWhere,
             },
             include: {
                 _count: {
@@ -213,6 +237,8 @@ let HighlightsService = class HighlightsService {
         const comments = await this.prisma.comment.findMany({
             where: {
                 createdAt: { gte: thirtyDaysAgo },
+                user: public_vitrine_user_1.publicVitrineUserWhere,
+                post: { isDeleted: false },
             },
             include: {
                 _count: {
@@ -251,6 +277,7 @@ let HighlightsService = class HighlightsService {
         const collections = await this.prisma.collection.findMany({
             where: {
                 createdAt: { gte: thirtyDaysAgo },
+                owner: public_vitrine_user_1.publicVitrineUserWhere,
             },
             include: {
                 _count: {
@@ -298,6 +325,9 @@ let HighlightsService = class HighlightsService {
                         fullName: true,
                         avatar: true,
                         bio: true,
+                        isDeleted: true,
+                        deletedAt: true,
+                        accountStatus: true,
                     },
                 },
                 artwork: {
@@ -308,6 +338,9 @@ let HighlightsService = class HighlightsService {
                                 username: true,
                                 fullName: true,
                                 avatar: true,
+                                isDeleted: true,
+                                deletedAt: true,
+                                accountStatus: true,
                             },
                         },
                         media: {
@@ -324,6 +357,9 @@ let HighlightsService = class HighlightsService {
                                 username: true,
                                 fullName: true,
                                 avatar: true,
+                                isDeleted: true,
+                                deletedAt: true,
+                                accountStatus: true,
                             },
                         },
                         post: {
@@ -342,6 +378,9 @@ let HighlightsService = class HighlightsService {
                                 username: true,
                                 fullName: true,
                                 avatar: true,
+                                isDeleted: true,
+                                deletedAt: true,
+                                accountStatus: true,
                             },
                         },
                     },

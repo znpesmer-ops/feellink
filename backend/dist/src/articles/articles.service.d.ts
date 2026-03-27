@@ -18,16 +18,16 @@ export declare class ArticlesService {
         };
     } & {
         id: string;
-        title: string;
-        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        authorId: string;
+        title: string;
         content: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
+        authorId: string;
     }>;
     findDrafts(userId: string): Promise<({
         author: {
@@ -38,16 +38,16 @@ export declare class ArticlesService {
         };
     } & {
         id: string;
-        title: string;
-        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        authorId: string;
+        title: string;
         content: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
+        authorId: string;
     })[]>;
     findScheduled(userId: string): Promise<({
         author: {
@@ -58,16 +58,16 @@ export declare class ArticlesService {
         };
     } & {
         id: string;
-        title: string;
-        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        authorId: string;
+        title: string;
         content: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
+        authorId: string;
     })[]>;
     findPublished(userId: string): Promise<({
         author: {
@@ -78,16 +78,16 @@ export declare class ArticlesService {
         };
     } & {
         id: string;
-        title: string;
-        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        authorId: string;
+        title: string;
         content: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
+        authorId: string;
     })[]>;
     publish(id: string, userId: string): Promise<{
         author: {
@@ -98,16 +98,16 @@ export declare class ArticlesService {
         };
     } & {
         id: string;
-        title: string;
-        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        authorId: string;
+        title: string;
         content: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
+        authorId: string;
     }>;
     findAllPublic(): Promise<({
         author: {
@@ -118,16 +118,16 @@ export declare class ArticlesService {
         };
     } & {
         id: string;
-        title: string;
-        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        authorId: string;
+        title: string;
         content: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
+        authorId: string;
     })[]>;
     findByUserId(userId: string): Promise<{
         views: number;
@@ -142,28 +142,28 @@ export declare class ArticlesService {
             avatar: string;
         };
         id: string;
-        title: string;
-        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        authorId: string;
+        title: string;
         content: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
+        authorId: string;
     }[]>;
     findMyArticles(userId: string): Promise<{
         id: string;
-        title: string;
-        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        authorId: string;
+        title: string;
         content: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
+        authorId: string;
     }[]>;
     findOne(id: string): Promise<{
         views: number;
@@ -191,15 +191,15 @@ export declare class ArticlesService {
             avatar: string;
         };
         id: string;
-        title: string;
-        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        authorId: string;
+        title: string;
         content: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
+        authorId: string;
     }>;
     update(id: string, userId: string, data: {
         title?: string;
@@ -217,16 +217,16 @@ export declare class ArticlesService {
         };
     } & {
         id: string;
-        title: string;
-        coverImage: string;
         createdAt: Date;
         updatedAt: Date;
-        authorId: string;
+        title: string;
         content: string;
+        coverImage: string;
         excerpt: string;
         isPublished: boolean;
         scheduledAt: Date;
         views: number;
+        authorId: string;
     }>;
     delete(id: string, userId: string): Promise<{
         success: boolean;

@@ -23,16 +23,32 @@ export default function PostDetailPage() {
   const postId = params?.id as string
   const from = searchParams.get('from')
 
-  const handleClose = () => {
+  const handleCloseAuthenticated = () => {
     setShowModal(false)
     const returnTo = isSafeReturnPath(from) ? from : '/feed'
     router.push(returnTo)
   }
 
-  if (!postId || !accessToken) {
+  const handleClosePublic = () => {
+    setShowModal(false)
+    const returnTo = isSafeReturnPath(from) ? from : '/'
+    router.push(returnTo)
+  }
+
+  if (!postId) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff7b00]"></div>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Gönderi bulunamadı.</p>
+      </div>
+    )
+  }
+
+  if (!accessToken) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75">
+        {showModal && (
+          <PostModal postId={postId} onClose={handleClosePublic} publicShare />
+        )}
       </div>
     )
   }
@@ -41,7 +57,7 @@ export default function PostDetailPage() {
     <AuthGuard>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75">
         {showModal && (
-          <PostModal postId={postId} onClose={handleClose} />
+          <PostModal postId={postId} onClose={handleCloseAuthenticated} />
         )}
       </div>
     </AuthGuard>

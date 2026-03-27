@@ -23,33 +23,33 @@ export declare class PostsController {
             avatar: string;
             isVerified: boolean;
         };
-        media: {
-            id: string;
-            type: string;
-            createdAt: Date;
-            url: string;
-            thumbnailUrl: string;
-            order: number;
-            postId: string;
-        }[];
         _count: {
             comments: number;
             likes: number;
         };
+        media: {
+            id: string;
+            createdAt: Date;
+            order: number;
+            postId: string;
+            type: string;
+            url: string;
+            thumbnailUrl: string;
+        }[];
     } & {
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        isDeleted: boolean;
+        deletedAt: Date;
+        type: string;
         userId: string;
         caption: string;
         title: string;
         location: string;
-        type: string;
         code: string;
         colors: string[];
         colorPalette: string[];
-        isDeleted: boolean;
-        deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     createPostWithUrls(user: any, dto: CreatePostDto): Promise<{
         user: {
@@ -59,36 +59,105 @@ export declare class PostsController {
             avatar: string;
             isVerified: boolean;
         };
-        media: {
-            id: string;
-            type: string;
-            createdAt: Date;
-            url: string;
-            thumbnailUrl: string;
-            order: number;
-            postId: string;
-        }[];
         _count: {
             comments: number;
             likes: number;
         };
+        media: {
+            id: string;
+            createdAt: Date;
+            order: number;
+            postId: string;
+            type: string;
+            url: string;
+            thumbnailUrl: string;
+        }[];
     } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        isDeleted: boolean;
+        deletedAt: Date;
+        type: string;
+        userId: string;
+        caption: string;
+        title: string;
+        location: string;
+        code: string;
+        colors: string[];
+        colorPalette: string[];
+    }>;
+    getQrLabel(id: string, res: Response): Promise<Response<any, Record<string, any>>>;
+    generateArtworkQrPdf(postId: string, res: Response): Promise<void>;
+    getPublicArtworkTicket(code: string): Promise<{
+        ticketCode: string;
+        artworkTitle: string;
+        artistName: string;
+        artistUsername: string;
+        imageUrl: string;
+        isValid: true;
+    }>;
+    getPublicShare(id: string): Promise<{
         id: string;
         userId: string;
         caption: string;
         title: string;
         location: string;
         type: string;
+        createdAt: string;
+        updatedAt: string;
+        media: any[];
+        user: {
+            avatar: string;
+            id: string;
+            username: string;
+            fullName: string;
+            isVerified: boolean;
+        };
+        comments: {
+            id: any;
+            postId: any;
+            parentId: any;
+            content: any;
+            createdAt: any;
+            updatedAt: any;
+            userId: any;
+            isPinned: any;
+            isLikedByCurrentUser: boolean;
+            likesCount: any;
+            user: {
+                id: any;
+                username: any;
+                fullName: any;
+                avatar: any;
+                isVerified: any;
+            };
+            replies: any;
+        }[];
+        isLiked: boolean;
+        isSaved: boolean;
+        _count: {
+            likes: number;
+            comments: number;
+        };
+        hashtags: ({
+            hashtag: {
+                id: string;
+                createdAt: Date;
+                name: string;
+                postCount: number;
+            };
+        } & {
+            id: string;
+            postId: string;
+            hashtagId: string;
+        })[];
+        isDeleted: boolean;
+        deletedAt: Date;
         code: string;
         colors: string[];
         colorPalette: string[];
-        isDeleted: boolean;
-        deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
-    getQrLabel(id: string, res: Response): Promise<Response<any, Record<string, any>>>;
-    generateArtworkQrPdf(postId: string, res: Response): Promise<void>;
     getPost(params: PostIdDto, user: any): Promise<{
         id: string;
         userId: string;
@@ -144,11 +213,11 @@ export declare class PostsController {
             postId: string;
             hashtagId: string;
         })[];
+        isDeleted: boolean;
+        deletedAt: Date;
         code: string;
         colors: string[];
         colorPalette: string[];
-        isDeleted: boolean;
-        deletedAt: Date;
     }>;
     updatePost(params: PostIdDto, user: any, body: {
         caption?: string;
@@ -160,33 +229,33 @@ export declare class PostsController {
             fullName: string;
             avatar: string;
         };
-        media: {
-            id: string;
-            type: string;
-            createdAt: Date;
-            url: string;
-            thumbnailUrl: string;
-            order: number;
-            postId: string;
-        }[];
         _count: {
             comments: number;
             likes: number;
         };
+        media: {
+            id: string;
+            createdAt: Date;
+            order: number;
+            postId: string;
+            type: string;
+            url: string;
+            thumbnailUrl: string;
+        }[];
     } & {
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        isDeleted: boolean;
+        deletedAt: Date;
+        type: string;
         userId: string;
         caption: string;
         title: string;
         location: string;
-        type: string;
         code: string;
         colors: string[];
         colorPalette: string[];
-        isDeleted: boolean;
-        deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     deletePost(params: PostIdDto, user: any): Promise<{
         success: boolean;
@@ -232,10 +301,10 @@ export declare class PostsController {
         };
     } & {
         id: string;
-        userId: string;
         createdAt: Date;
         updatedAt: Date;
         postId: string;
+        userId: string;
         content: string;
         parentId: string;
         isPinned: boolean;
@@ -288,25 +357,17 @@ export declare class PostsController {
             avatar: string;
             isVerified: boolean;
         };
+        createdAt: Date;
+        updatedAt: Date;
+        isDeleted: boolean;
+        deletedAt: Date;
         userId: string;
         location: string;
         code: string;
         colors: string[];
         colorPalette: string[];
-        isDeleted: boolean;
-        deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
     }[]>;
     getUserComments(userId: string): Promise<({
-        post: {
-            id: string;
-            caption: string;
-            media: {
-                type: string;
-                url: string;
-            }[];
-        };
         user: {
             id: string;
             username: string;
@@ -318,12 +379,20 @@ export declare class PostsController {
             likes: number;
             replies: number;
         };
+        post: {
+            id: string;
+            caption: string;
+            media: {
+                type: string;
+                url: string;
+            }[];
+        };
     } & {
         id: string;
-        userId: string;
         createdAt: Date;
         updatedAt: Date;
         postId: string;
+        userId: string;
         content: string;
         parentId: string;
         isPinned: boolean;
@@ -337,9 +406,9 @@ export declare class PostsController {
         message: string;
         savedPost: {
             id: string;
-            userId: string;
             createdAt: Date;
             postId: string;
+            userId: string;
         };
     }>;
     unsavePost(params: PostIdDto, user: any): Promise<{
@@ -362,26 +431,26 @@ export declare class PostsController {
         };
         media: {
             id: string;
-            type: string;
             createdAt: Date;
-            url: string;
-            thumbnailUrl: string;
             order: number;
             postId: string;
+            type: string;
+            url: string;
+            thumbnailUrl: string;
         }[];
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        isDeleted: boolean;
+        deletedAt: Date;
+        type: string;
         userId: string;
         caption: string;
         title: string;
         location: string;
-        type: string;
         code: string;
         colors: string[];
         colorPalette: string[];
-        isDeleted: boolean;
-        deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
     }[]>;
     saveArtwork(params: PostIdDto, user: any): Promise<{
         success: boolean;

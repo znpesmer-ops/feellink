@@ -11,16 +11,29 @@ interface CommentLikeButtonProps {
   initialCount: number
   type?: 'article' | 'post'
   postId?: string // Post ID for query cache update
+  /** TanStack query key for post detail (e.g. includes 'auth' | 'public') */
+  cacheKey?: readonly unknown[]
+  disabled?: boolean
 }
 
-export default function CommentLikeButton({ commentId, initialLiked, initialCount, type = 'article', postId }: CommentLikeButtonProps) {
+export default function CommentLikeButton({
+  commentId,
+  initialLiked,
+  initialCount,
+  type = 'article',
+  postId,
+  cacheKey,
+  disabled = false,
+}: CommentLikeButtonProps) {
   const [liked, setLiked] = useState(initialLiked)
   const [count, setCount] = useState(initialCount)
   const [isToggling, setIsToggling] = useState(false)
   const queryClient = useQueryClient()
+  const postCacheKey: readonly unknown[] | null =
+    cacheKey ?? (postId ? (['post', postId] as const) : null)
 
   const toggleLike = async () => {
-    if (isToggling) return
+    if (disabled || isToggling) return
 
     setIsToggling(true)
     
@@ -41,8 +54,8 @@ export default function CommentLikeButton({ commentId, initialLiked, initialCoun
       setCount(res.data.likesCount)
       
       // 🔥 KRİTİK: Post query cache'ini güncelle (yorum kaybolmasını önle)
-      if (type === 'post' && postId) {
-        queryClient.setQueryData(['post', postId], (oldData: any) => {
+      if (type === 'post' && postCacheKey) {
+        queryClient.setQueryData(postCacheKey, (oldData: any) => {
           if (!oldData) return oldData
           
           // Yorumu bul ve güncelle (ana yorumlar ve replies içinde)
@@ -89,13 +102,14 @@ export default function CommentLikeButton({ commentId, initialLiked, initialCoun
 
   return (
     <button
+      type="button"
       onClick={toggleLike}
-      disabled={isToggling}
+      disabled={disabled || isToggling}
       className={`flex items-center gap-1 transition-colors ${
-        liked 
-          ? 'text-orange-500' 
+        liked
+          ? 'text-orange-500'
           : 'text-gray-400 hover:text-orange-500'
-      } ${isToggling ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+      } ${disabled || isToggling ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
     >
       <Heart
         className={`w-3.5 h-3.5 transition-all duration-200 ${

@@ -19,6 +19,7 @@ const prisma_service_1 = require("../prisma/prisma.service");
 const posts_gateway_1 = require("../posts/posts.gateway");
 const articles_gateway_1 = require("./articles.gateway");
 const notifications_service_1 = require("../notifications/notifications.service");
+const public_vitrine_user_1 = require("../common/utils/public-vitrine-user");
 let ArticlesService = ArticlesService_1 = class ArticlesService {
     constructor(prisma, postsGateway, articlesGateway, notificationsService) {
         this.prisma = prisma;
@@ -626,6 +627,7 @@ let ArticlesService = ArticlesService_1 = class ArticlesService {
         const articles = await this.prisma.article.findMany({
             where: {
                 isPublished: true,
+                author: public_vitrine_user_1.publicVitrineUserWhere,
                 ...(range
                     ? {
                         createdAt: {

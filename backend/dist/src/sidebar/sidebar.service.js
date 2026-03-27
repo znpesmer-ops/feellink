@@ -18,6 +18,7 @@ const prisma_service_1 = require("../prisma/prisma.service");
 const sidebar_gateway_1 = require("./sidebar.gateway");
 const articles_service_1 = require("../articles/articles.service");
 const week_range_util_1 = require("../common/utils/week-range.util");
+const public_vitrine_user_1 = require("../common/utils/public-vitrine-user");
 const MUSEUM_IMAGE_MAP = {
     1: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=800&q=80',
     2: 'https://images.unsplash.com/photo-1503389152951-9f343605f61e?auto=format&fit=crop&w=800&q=80',
@@ -56,6 +57,7 @@ let SidebarService = class SidebarService {
                     has: 'corporate',
                 },
                 isPrivate: false,
+                ...public_vitrine_user_1.publicVitrineUserWhere,
             },
             select: {
                 id: true,
@@ -169,6 +171,7 @@ let SidebarService = class SidebarService {
             where: {
                 isPublished: true,
                 createdAt: { gte: weekStart, lte: weekEnd },
+                author: public_vitrine_user_1.publicVitrineUserWhere,
             },
             orderBy: {
                 views: 'desc',
@@ -193,6 +196,7 @@ let SidebarService = class SidebarService {
                     lte: weekEnd,
                 },
                 type: 'post',
+                user: public_vitrine_user_1.publicVitrineUserWhere,
             },
             _count: {
                 id: true,
@@ -211,6 +215,7 @@ let SidebarService = class SidebarService {
                 where: {
                     id: { in: topWriterIds },
                     isPrivate: false,
+                    ...public_vitrine_user_1.publicVitrineUserWhere,
                 },
                 select: {
                     id: true,
@@ -296,8 +301,7 @@ let SidebarService = class SidebarService {
                 author: {
                     id: { notIn: followingIds },
                     isPrivate: false,
-                    isDeleted: { not: true },
-                    accountStatus: { not: 'SUSPENDED' },
+                    ...public_vitrine_user_1.publicVitrineUserWhere,
                 },
             },
             include: {
@@ -320,8 +324,7 @@ let SidebarService = class SidebarService {
                 user: {
                     id: { notIn: followingIds },
                     isPrivate: false,
-                    isDeleted: { not: true },
-                    accountStatus: { not: 'SUSPENDED' },
+                    ...public_vitrine_user_1.publicVitrineUserWhere,
                 },
             },
             include: {
@@ -369,6 +372,7 @@ let SidebarService = class SidebarService {
                     isPublished: true,
                     author: {
                         isPrivate: false,
+                        ...public_vitrine_user_1.publicVitrineUserWhere,
                     },
                 },
                 include: {
@@ -390,6 +394,7 @@ let SidebarService = class SidebarService {
                 where: {
                     user: {
                         isPrivate: false,
+                        ...public_vitrine_user_1.publicVitrineUserWhere,
                     },
                 },
                 include: {
@@ -488,6 +493,7 @@ let SidebarService = class SidebarService {
                     has: 'corporate',
                 },
                 isPrivate: false,
+                ...public_vitrine_user_1.publicVitrineUserWhere,
             },
             select: {
                 id: true,
@@ -547,6 +553,8 @@ let SidebarService = class SidebarService {
             where: {
                 type: 'artwork',
                 createdAt: { gte: weekStart, lte: weekEnd },
+                isDeleted: false,
+                user: public_vitrine_user_1.publicVitrineUserWhere,
             },
             include: {
                 _count: {
@@ -584,6 +592,8 @@ let SidebarService = class SidebarService {
         const comments = await this.prisma.comment.findMany({
             where: {
                 createdAt: { gte: weekStart, lte: weekEnd },
+                user: public_vitrine_user_1.publicVitrineUserWhere,
+                post: { isDeleted: false },
             },
             include: {
                 _count: {
@@ -624,6 +634,7 @@ let SidebarService = class SidebarService {
                     has: 'collector',
                 },
                 isPrivate: false,
+                ...public_vitrine_user_1.publicVitrineUserWhere,
             },
             select: {
                 id: true,

@@ -8,7 +8,7 @@ import api from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { Heart, MessageCircle, Bookmark, X, Send, Trash2, CornerUpRight, Pin, PinIcon, FolderPlus, MoreVertical } from 'lucide-react'
 import MentionInput from './MentionInput'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 // ⚠️ Socket.IO devre dışı - Vercel serverless'ta çalışmaz
 import { FeellinkRoleBadge } from './FeellinkRoleBadge'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
@@ -27,6 +27,8 @@ interface PostModalProps {
   postId: string
   onClose: () => void
   highlightCommentId?: string
+  /** Girişsiz paylaşım (QR deep link) — sadece okuma */
+  publicShare?: boolean
 }
 
 interface Comment {
@@ -78,10 +80,18 @@ interface Post {
   }
 }
 
-export function PostModal({ postId, onClose, highlightCommentId }: PostModalProps) {
+export function PostModal({
+  postId,
+  onClose,
+  highlightCommentId,
+  publicShare = false,
+}: PostModalProps) {
   const { accessToken, user, capabilities } = useAuthStore()
   const queryClient = useQueryClient()
   const router = useRouter()
+  const pathname = usePathname()
+  const isReadOnly = publicShare
+  const postQueryKey = ['post', postId, publicShare ? 'public' : 'auth'] as const
   const [commentText, setCommentText] = useState('')
   const [isPostingComment, setIsPostingComment] = useState(false)
   const [animateLike, setAnimateLike] = useState(false)
@@ -139,13 +149,16 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
   }, [showDeleteConfirm])
 
   // Post detay — tek istek (post + yorumlar); staleTime ile gereksiz refetch azaltılır, like sonrası refetch yok
-  const { data: post, isLoading } = useQuery<Post>({
-    queryKey: ['post', postId],
+  const { data: post, isLoading, isError } = useQuery<Post>({
+    queryKey: postQueryKey,
     queryFn: async () => {
-      const response = await api.get(`/posts/${postId}`)
+      const path = publicShare
+        ? `/posts/public-share/${postId}`
+        : `/posts/${postId}`
+      const response = await api.get(path)
       return response.data
     },
-    enabled: !!accessToken && !!postId,
+    enabled: !!postId && (!!accessToken || publicShare),
     staleTime: 60 * 1000, // 1 dk cache — like/comment mutation cache'i günceller, sayfa geç yüklenmez
   })
 
@@ -190,7 +203,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
     onMutate: async ({ currentIsLiked, currentCount }) => {
       const newLiked = !currentIsLiked
       const newCount = Math.max(0, currentCount + (newLiked ? 1 : -1))
-      queryClient.setQueryData(['post', postId], (old: any) => {
+      queryClient.setQueryData(postQueryKey, (old: any) => {
         if (!old) return old
         return {
           ...old,
@@ -200,7 +213,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       })
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(['post', postId], (old: any) => {
+      queryClient.setQueryData(postQueryKey, (old: any) => {
         if (!old) return old
         const safeCount = typeof data.likeCount === 'number' ? data.likeCount : (old._count?.likes ?? 0)
         return {
@@ -224,7 +237,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       toast.error(`❌ Beğeni kaydedilemedi: ${errorMsg}`)
       
       // ✅ ROLLBACK: POST CACHE'İNİ INVALIDATE ET (optimistic update iptal)
-      queryClient.invalidateQueries({ queryKey: ['post', postId] })
+      queryClient.invalidateQueries({ queryKey: postQueryKey })
     },
   })
 
@@ -263,12 +276,12 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       console.log(`⚡ [PostModal] OPTIMISTIC UPDATE - UI anında güncelleniyor...`);
       
       // ❗ ESKİ STATE'İ KAYDET (rollback için)
-      const previousPost = queryClient.getQueryData(['post', postId]);
+      const previousPost = queryClient.getQueryData(postQueryKey);
       const previousSavedState = (previousPost as any)?.isSaved || false;
       
       // UI'ı anında güncelle
       const newSavedState = !previousSavedState;
-      queryClient.setQueryData(['post', postId], (old: any) => {
+      queryClient.setQueryData(postQueryKey, (old: any) => {
         if (!old) return old
         return {
           ...old,
@@ -298,7 +311,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
             // Query henüz mount olmamış, post'u fetch et ve ekle
             console.log('🔄 [PostModal] saved-posts query henüz yok, post fetch ediliyor...');
             // Post'u cache'den al (zaten var)
-            const currentPost = queryClient.getQueryData(['post', postId]) as Post | undefined;
+            const currentPost = queryClient.getQueryData(postQueryKey) as Post | undefined;
             if (currentPost) {
               console.log('✅ [PostModal] Post cache\'den alındı, saved-posts\'a eklendi!');
               const newData = [{
@@ -334,7 +347,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
           }
           
           // Post'u cache'den al ve ekle
-          const currentPost = queryClient.getQueryData(['post', postId]) as Post | undefined;
+          const currentPost = queryClient.getQueryData(postQueryKey) as Post | undefined;
           if (currentPost) {
             console.log('✅ [PostModal] Post saved-posts\'a eklendi!');
             const newData = [{
@@ -412,7 +425,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       
       // ❌ UI'ı eski haline döndür (ROLLBACK - context'ten al!)
       if (context?.previousSavedState !== undefined) {
-        queryClient.setQueryData(['post', postId], (old: any) => {
+        queryClient.setQueryData(postQueryKey, (old: any) => {
           if (!old) return old
           return {
             ...old,
@@ -422,7 +435,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
         console.error(`🔄 [PostModal] UI rolled back to: isSaved = ${context.previousSavedState}`);
       } else {
         // Fallback: invalidate query
-        queryClient.invalidateQueries({ queryKey: ['post', postId] })
+        queryClient.invalidateQueries({ queryKey: postQueryKey })
         console.error(`🔄 [PostModal] Context missing - invalidating query instead`);
       }
     },
@@ -446,7 +459,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
     onSuccess: (newComment) => {
       toast.success('Yorum eklendi! ✅')
       // Optimistic: en yeni üstte (backend ile aynı sıra — pinned sonra createdAt DESC)
-      queryClient.setQueryData(['post', postId], (old: any) => {
+      queryClient.setQueryData(postQueryKey, (old: any) => {
         if (!old) return old
         const list = old.comments || []
         const pinned = list.filter((c: any) => c.isPinned)
@@ -465,7 +478,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       setReplyingTo(null)
       setIsPostingComment(false)
       // Backend'e kalıcı yazıldı; sunucu verisiyle senkronize et
-      queryClient.invalidateQueries({ queryKey: ['post', postId] })
+      queryClient.invalidateQueries({ queryKey: postQueryKey })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       queryClient.invalidateQueries({ queryKey: ['explore'] })
     },
@@ -479,6 +492,11 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
   })
 
   const handleLike = () => {
+    if (isReadOnly) {
+      toast.error('Beğenmek için giriş yapın')
+      router.push('/login')
+      return
+    }
     likeMutation.mutate({
       currentIsLiked: !!post?.isLiked,
       currentCount: post?._count?.likes ?? 0,
@@ -490,6 +508,11 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
   }
 
   const handleSave = () => {
+    if (isReadOnly) {
+      toast.error('Kaydetmek için giriş yapın')
+      router.push('/login')
+      return
+    }
     console.log('🖱️ [PostModal] BOOKMARK BUTTON TIKLANDI!', {
       postId,
       isSaved: post?.isSaved,
@@ -503,6 +526,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
 
   const handleComment = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isReadOnly) return
     if (!commentText.trim() || isPostingComment || hasBadWord) return
     
     setIsPostingComment(true)
@@ -518,7 +542,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
     onSuccess: ({ commentId, content }) => {
       // ✅ SADECE İLGİLİ COMMENT'İ GÜNCELLE
       // ❌ POST CACHE'İNİ INVALIDATE ETME! (Like/Save kaybolur)
-      queryClient.setQueryData(['post', postId], (old: any) => {
+      queryClient.setQueryData(postQueryKey, (old: any) => {
         if (!old) return old
         return {
           ...old, // ✅ Like/Save korunuyor!
@@ -541,7 +565,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
     onSuccess: (commentId) => {
       // ✅ SADECE SİLİNEN COMMENT'İ KALDIR
       // ❌ POST CACHE'İNİ INVALIDATE ETME! (Like/Save kaybolur)
-      queryClient.setQueryData(['post', postId], (old: any) => {
+      queryClient.setQueryData(postQueryKey, (old: any) => {
         if (!old) return old
         return {
           ...old, // ✅ Like/Save korunuyor!
@@ -614,11 +638,12 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
 
   // Handle pin/unpin comment
   const handlePinComment = async (commentId: string, currentPinned: boolean) => {
+    if (isReadOnly) return
     try {
       const newPinnedState = !currentPinned
       
       // ✅ Optimistic Update - UI'ı hemen güncelle
-      queryClient.setQueryData<Post>(['post', postId], (oldData) => {
+      queryClient.setQueryData<Post>(postQueryKey, (oldData) => {
         if (!oldData) return oldData
         
         return {
@@ -657,13 +682,38 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
       console.error('Error pinning comment:', error)
       
       // ❌ Hata durumunda optimistic update'i geri al (ROLLBACK)
-      queryClient.invalidateQueries({ queryKey: ['post', postId] }) // ✅ Sadece error durumunda
+      queryClient.invalidateQueries({ queryKey: postQueryKey }) // ✅ Sadece error durumunda
       
       const errorMessage = error?.response?.data?.message || error?.message || 'Yorum sabitlenemedi'
       toast.error(errorMessage, {
         duration: 3000,
       })
     }
+  }
+
+  if (isError) {
+    return (
+      <div
+        className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center z-[200] p-4"
+        onClick={onClose}
+      >
+        <div
+          className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md p-6 shadow-xl text-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="text-gray-800 dark:text-gray-100 mb-4">
+            Bu gönderi görüntülenemiyor veya kaldırılmış olabilir.
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg bg-brand-orange text-white text-sm font-medium"
+          >
+            Kapat
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (isLoading || !post) {
@@ -846,7 +896,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
                   <FeellinkRoleBadge roles={(post.user as any).roles} />
                 </div>
                 <div className="flex items-center gap-2">
-                  {user?.id !== post.user.id && (
+                  {!publicShare && user?.id !== post.user.id && (
                     <button
                       onClick={() => setShowReportModal({ contentType: 'post', contentId: post.id })}
                       className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
@@ -876,8 +926,8 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
             <div className="flex items-center gap-4 text-gray-700 dark:text-gray-400">
               <button
                 onClick={handleLike}
-                disabled={likeMutation.isPending}
-                className="relative flex items-center gap-1 hover:text-brand-orange transition-colors"
+                disabled={likeMutation.isPending || isReadOnly}
+                className={`relative flex items-center gap-1 hover:text-brand-orange transition-colors ${isReadOnly ? 'opacity-70' : ''}`}
               >
                 <Heart
                   size={24}
@@ -900,20 +950,25 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
                 <MessageCircle size={24} className="text-gray-700 dark:text-gray-300" />
               </button>
             </div>
-            <button
-              onClick={handleSave}
-              className="hover:text-brand-orange transition-colors disabled:opacity-50"
-            >
-              <Bookmark
-                size={24}
-                className={`transition-all duration-200 ${
-                  post.isSaved
-                    ? 'fill-brand-orange text-brand-orange scale-110'
-                    : 'text-gray-700 dark:text-gray-300 scale-100'
-                }`}
-              />
-              {canManageCollections && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isReadOnly}
+                className="hover:text-brand-orange transition-colors disabled:opacity-50"
+              >
+                <Bookmark
+                  size={24}
+                  className={`transition-all duration-200 ${
+                    post.isSaved
+                      ? 'fill-brand-orange text-brand-orange scale-110'
+                      : 'text-gray-700 dark:text-gray-300 scale-100'
+                  }`}
+                />
+              </button>
+              {!isReadOnly && canManageCollections && (
                 <button
+                  type="button"
                   onClick={() => setShowAddToCollectionModal(true)}
                   className="hover:text-brand-orange transition-colors"
                   title="Koleksiyona Ekle"
@@ -921,7 +976,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
                   <FolderPlus size={24} className="text-gray-700 dark:text-gray-300" />
                 </button>
               )}
-            </button>
+            </div>
           </div>
 
 
@@ -985,7 +1040,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
                         onContextMenu={(e) => {
                           e.preventDefault()
                           // Sadece gönderi sahibi pin yapabilir
-                          if (user?.id === post.user.id) {
+                          if (!isReadOnly && user?.id === post.user.id) {
                             setContextMenu({
                               commentId: comment.id,
                               x: e.pageX,
@@ -1076,19 +1131,21 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
                                   <span className="ml-1 opacity-60">(düzenlendi)</span>
                                 )}
                               </p>
-                              <button
-                                onClick={() => {
-                                  setReplyingTo(comment.id)
-                                  // Input'a focus
-                                  setTimeout(() => {
-                                    const input = document.querySelector('input[placeholder*="Yorum"]') as HTMLInputElement
-                                    input?.focus()
-                                  }, 100)
-                                }}
-                                className="text-xs text-brand-orange hover:underline font-medium transition-colors"
-                              >
-                                Yanıtla
-                              </button>
+                              {!isReadOnly && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReplyingTo(comment.id)
+                                    setTimeout(() => {
+                                      const input = document.querySelector('input[placeholder*="Yorum"]') as HTMLInputElement
+                                      input?.focus()
+                                    }, 100)
+                                  }}
+                                  className="text-xs text-brand-orange hover:underline font-medium transition-colors"
+                                >
+                                  Yanıtla
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1103,13 +1160,16 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
                                 initialLiked={comment.isLikedByCurrentUser || false}
                                 initialCount={comment.likesCount || 0}
                                 type="post"
+                                cacheKey={postQueryKey}
+                                disabled={isReadOnly}
                               />
                             </div>
                             
                             {/* 3 Nokta Menü - Sadece yetkisi olanlara görünür */}
-                            {(isCommentOwner || isPostOwner) && (
+                            {!isReadOnly && (isCommentOwner || isPostOwner) && (
                               <div className="relative">
                                 <button
+                                  type="button"
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     setCommentMenuOpen(commentMenuOpen === comment.id ? null : comment.id)
@@ -1162,8 +1222,9 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
                               </div>
                             )}
                             {/* Raporla butonu - Yorum sahibi değilse */}
-                            {!isCommentOwner && !isPostOwner && (
+                            {!isReadOnly && !isCommentOwner && !isPostOwner && (
                               <button
+                                type="button"
                                 onClick={() => setShowReportModal({ contentType: 'comment', contentId: comment.id })}
                                 className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
                                 title="Raporla"
@@ -1175,7 +1236,7 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
                         )}
                       
                       {/* Context Menu - Sadece gönderi sahibine göster */}
-                      {contextMenu?.commentId === comment.id && user?.id === post.user.id && contextMenu && (
+                      {contextMenu?.commentId === comment.id && !isReadOnly && user?.id === post.user.id && contextMenu && (
                         <div
                           className="fixed z-50 bg-gray-900 dark:bg-[#1a1a1a] text-gray-200 text-sm rounded-lg shadow-xl border border-gray-700 dark:border-gray-600 animate-in fade-in zoom-in-95 duration-150"
                           style={{
@@ -1267,6 +1328,8 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
                                   initialLiked={reply.isLikedByCurrentUser || false}
                                   initialCount={reply.likesCount || 0}
                                   type="post"
+                                  cacheKey={postQueryKey}
+                                  disabled={isReadOnly}
                                 />
                               </div>
                             </div>
@@ -1292,48 +1355,63 @@ export function PostModal({ postId, onClose, highlightCommentId }: PostModalProp
 
           {/* Comment Input */}
           <div className="border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
-            {/* Yanıt veriliyor etiketi */}
-            {replyingTo && (
-              <div className="px-4 pt-3 pb-2 flex items-center gap-2">
-                <span className="text-xs text-brand-orange bg-brand-blue/10 dark:bg-brand-blue/20 px-2 py-1 rounded-lg font-medium">
-                  Yanıt veriliyor...
-                </span>
-                <button
-                  onClick={() => setReplyingTo(null)}
-                  className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-            {/* Comment form - Instagram Style */}
-            <form onSubmit={handleComment} className="px-4 py-3">
-              <div className="flex items-center">
-                <MentionInput
-                  value={commentText}
-                  setValue={setCommentText}
-                  placeholder={replyingTo ? "Yanıt yaz..." : "Yorum ekle..."}
-                  disabled={isPostingComment}
-                  className="flex-1 bg-transparent text-gray-300 dark:text-gray-300 text-sm outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={!commentText.trim() || isPostingComment || hasBadWord}
-                  className="ml-2 bg-brand-orange hover:bg-brand-orange/90 text-white rounded-full p-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isPostingComment ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <Send size={16} />
-                  )}
-                </button>
-              </div>
-              {hasBadWord && (
-                <p className="text-xs text-orange-500 mt-1 px-1">
-                  Bu yorum Feellink topluluk kurallarına uygun değil.
+            {isReadOnly ? (
+              <div className="px-4 py-4 text-center">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  Yorum yapmak veya gönderiyi beğenmek için giriş yapın.
                 </p>
-              )}
-            </form>
+                <Link
+                  href={`/login?from=${encodeURIComponent(pathname || `/posts/${postId}`)}`}
+                  className="inline-flex items-center justify-center rounded-full bg-brand-orange px-4 py-2 text-sm font-medium text-white hover:bg-brand-orange/90 transition-colors"
+                >
+                  Giriş yap
+                </Link>
+              </div>
+            ) : (
+              <>
+                {replyingTo && (
+                  <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+                    <span className="text-xs text-brand-orange bg-brand-blue/10 dark:bg-brand-blue/20 px-2 py-1 rounded-lg font-medium">
+                      Yanıt veriliyor...
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setReplyingTo(null)}
+                      className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+                <form onSubmit={handleComment} className="px-4 py-3">
+                  <div className="flex items-center">
+                    <MentionInput
+                      value={commentText}
+                      setValue={setCommentText}
+                      placeholder={replyingTo ? 'Yanıt yaz...' : 'Yorum ekle...'}
+                      disabled={isPostingComment}
+                      className="flex-1 bg-transparent text-gray-300 dark:text-gray-300 text-sm outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!commentText.trim() || isPostingComment || hasBadWord}
+                      className="ml-2 bg-brand-orange hover:bg-brand-orange/90 text-white rounded-full p-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isPostingComment ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <Send size={16} />
+                      )}
+                    </button>
+                  </div>
+                  {hasBadWord && (
+                    <p className="text-xs text-orange-500 mt-1 px-1">
+                      Bu yorum Feellink topluluk kurallarına uygun değil.
+                    </p>
+                  )}
+                </form>
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -28,6 +28,7 @@ const artwork_utils_1 = require("./artwork.utils");
 const ticket_utils_1 = require("../tickets/ticket.utils");
 const color_analysis_service_1 = require("./color-analysis.service");
 const containsBadWord_1 = require("../common/utils/containsBadWord");
+const public_vitrine_user_1 = require("../common/utils/public-vitrine-user");
 const resolve_feellink_assets_1 = require("../common/resolve-feellink-assets");
 const pdfkit_1 = require("pdfkit");
 const QRCode = require("qrcode");
@@ -40,6 +41,10 @@ function hashPostIdForLayout(id) {
         h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
     }
     return Math.abs(h);
+}
+function buildArtworkQrUrl(frontendUrl, postId) {
+    const base = frontendUrl.replace(/\/$/, '');
+    return `${base}/posts/${postId}`;
 }
 function truncateOneLine(ctx, text, maxWidth) {
     const t = text.replace(/\s+/g, ' ').trim();
@@ -1799,6 +1804,76 @@ let PostsService = class PostsService {
             repliesCount: updatedComment._count.replies,
         };
     }
+    async getPublicSharePost(postId) {
+        const post = await this.prisma.post.findFirst({
+            where: {
+                id: postId,
+                isDeleted: false,
+                deletedAt: null,
+                user: public_vitrine_user_1.publicVitrineUserWhere,
+            },
+            select: { id: true },
+        });
+        if (!post) {
+            throw new common_1.NotFoundException('Post not found');
+        }
+        return this.getPost(postId, undefined);
+    }
+    async getPublicArtworkTicketByCode(rawCode) {
+        const code = rawCode?.trim();
+        if (!code) {
+            throw new common_1.NotFoundException('Ticket not found');
+        }
+        const post = await this.prisma.post.findFirst({
+            where: {
+                code,
+                type: 'artwork',
+                isDeleted: false,
+                deletedAt: null,
+                user: public_vitrine_user_1.publicVitrineUserWhere,
+            },
+            select: {
+                code: true,
+                title: true,
+                caption: true,
+                user: {
+                    select: {
+                        fullName: true,
+                        username: true,
+                        isDeleted: true,
+                        deletedAt: true,
+                        accountStatus: true,
+                    },
+                },
+                media: {
+                    orderBy: { order: 'asc' },
+                    take: 1,
+                    select: { url: true },
+                },
+            },
+        });
+        if (!post?.code) {
+            throw new common_1.NotFoundException('Ticket not found');
+        }
+        if (!(0, public_vitrine_user_1.isUserEligibleForPublicVitrine)(post.user)) {
+            throw new common_1.NotFoundException('Ticket not found');
+        }
+        const ticketCode = post.code;
+        const artworkTitle = (post.title && post.title.trim()) ||
+            (post.caption && post.caption.trim()) ||
+            ticketCode;
+        const artistName = (post.user?.fullName && post.user.fullName.trim()) ||
+            post.user?.username ||
+            'Sanatçı';
+        return {
+            ticketCode,
+            artworkTitle,
+            artistName,
+            artistUsername: post.user?.username ?? '',
+            imageUrl: post.media[0]?.url ?? null,
+            isValid: true,
+        };
+    }
     async generateArtworkQrPdf(postId, res) {
         const post = await this.prisma.post.findUnique({
             where: { id: postId },
@@ -1839,8 +1914,7 @@ let PostsService = class PostsService {
             });
         }
         const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
-        const artworkUrl = `${frontendUrl}/posts/${postId}`;
-        const qrDataUrl = await (0, ticket_utils_1.generateQrDataUrl)(artworkUrl);
+        const qrDataUrl = await (0, ticket_utils_1.generateQrDataUrl)(buildArtworkQrUrl(frontendUrl, postId));
         const doc = new pdfkit_1.default({
             size: [210, 120],
             margin: 10,
@@ -2071,7 +2145,7 @@ let PostsService = class PostsService {
             });
         }
         const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
-        const artworkUrl = `${frontendUrl}/posts/${postId}`;
+        const artworkQrUrl = buildArtworkQrUrl(frontendUrl, postId);
         const { createCanvas, loadImage, registerFont } = require('canvas');
         const assetsRoot = (0, resolve_feellink_assets_1.resolveFeellinkAssetsRoot)();
         const fontsDir = path.join(assetsRoot, 'fonts');
@@ -2138,8 +2212,8 @@ let PostsService = class PostsService {
             '';
         const ownerRaw = (post.user.fullName && post.user.fullName.trim()) ||
             (post.user.username || '').trim();
-        const ARTIST_FS = 18;
-        const CODE_FS = 14;
+        const ARTIST_FS = 20;
+        const CODE_FS = 16;
         const SLOGAN_BASE_FS = 28;
         const TITLE_LINE_HEIGHT = 1.2;
         const logosDir = path.join(assetsRoot, 'logos');
@@ -2221,9 +2295,9 @@ let PostsService = class PostsService {
         const bottomBandTop = qrY;
         const topBlockMaxBottom = bottomBandTop - GAP_SECTION;
         const topContentW = width - PAD * 2;
-        let titleFont = 28;
+        let titleFont = 30;
         let titleLines = [];
-        for (; titleFont >= 19; titleFont -= 1) {
+        for (; titleFont >= 18; titleFont -= 1) {
             ctx.font = `${titleFont}px ${fontBold}`;
             titleLines = titleRaw ? wrapCanvasText(ctx, titleRaw, topContentW, TITLE_MAX_LINES) : [];
             const titleH = titleLines.length > 0
@@ -2272,7 +2346,7 @@ let PostsService = class PostsService {
         ctx.font = `${CODE_FS}px ${fontMono}`;
         ctx.fillStyle = '#475569';
         ctx.fillText(artworkCode, PAD, drawY);
-        const qrBuffer = await QRCode.toBuffer(artworkUrl, {
+        const qrBuffer = await QRCode.toBuffer(artworkQrUrl, {
             margin: 1,
             width: 640,
             type: 'png',
@@ -2387,7 +2461,7 @@ let PostsService = class PostsService {
             });
         }
         const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3000';
-        const artworkUrl = `${frontendUrl}/posts/${postId}`;
+        const artworkQrUrl = buildArtworkQrUrl(frontendUrl, postId);
         const { createCanvas, loadImage, registerFont } = require('canvas');
         const ticketAssetsRoot = (0, resolve_feellink_assets_1.resolveFeellinkAssetsRoot)();
         const templatePath = path.join(ticketAssetsRoot, 'templates', 'bilet_template.png');
@@ -2449,7 +2523,7 @@ let PostsService = class PostsService {
         ctx.font = `${codeFontSize}px ${hasInterRegular ? 'Inter' : 'Arial'}`;
         ctx.fillStyle = '#555555';
         ctx.fillText(`Kod: ${artworkCode}`, width * (120 / 1400), height * (290 / 700));
-        const qrBuffer = await QRCode.toBuffer(artworkUrl, {
+        const qrBuffer = await QRCode.toBuffer(artworkQrUrl, {
             margin: 1,
             width: 400,
             type: 'png',
