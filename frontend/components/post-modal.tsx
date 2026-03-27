@@ -27,7 +27,7 @@ interface PostModalProps {
   postId: string
   onClose: () => void
   highlightCommentId?: string
-  /** Girişsiz paylaşım (QR deep link) — sadece okuma */
+  /** Doğrudan link / QR — giriş olmadan gönderi görünümü (salt okunur) */
   publicShare?: boolean
 }
 
@@ -700,23 +700,33 @@ export function PostModal({
     }
   }
 
+  const publicViewOuter =
+    'relative z-[1] w-full max-w-[935px] mx-auto flex justify-center px-0 sm:px-2'
+  const modalViewOuter =
+    'fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center z-[200] p-4'
+
+  const cardShellPublic =
+    'rounded-sm border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-gray-900 shadow-sm w-full max-w-5xl overflow-hidden'
+  const cardShellModal =
+    'rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900'
+
   if (isError) {
     return (
       <div
-        className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center z-[200] p-4"
-        onClick={onClose}
+        className={publicShare ? publicViewOuter : modalViewOuter}
+        onClick={publicShare ? undefined : onClose}
       >
         <div
-          className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md p-6 shadow-xl text-center"
+          className={`${publicShare ? cardShellPublic : 'bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md p-6 shadow-xl'} text-center`}
           onClick={(e) => e.stopPropagation()}
         >
-          <p className="text-gray-800 dark:text-gray-100 mb-4">
+          <p className="text-gray-800 dark:text-gray-100 mb-4 px-6 pt-6">
             Bu gönderi görüntülenemiyor veya kaldırılmış olabilir.
           </p>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-brand-orange text-white text-sm font-medium"
+            className="mb-6 px-4 py-2 rounded-lg bg-brand-orange text-white text-sm font-medium"
           >
             Kapat
           </button>
@@ -728,14 +738,14 @@ export function PostModal({
   if (isLoading || !post) {
     return (
       <div
-        className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center z-[200] p-4"
-        onClick={onClose}
+        className={publicShare ? publicViewOuter : modalViewOuter}
+        onClick={publicShare ? undefined : onClose}
       >
         <div
-          className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto flex animate-in fade-in slide-in-from-bottom-4 duration-300"
+          className={`${publicShare ? cardShellPublic : cardShellModal} flex animate-in fade-in slide-in-from-bottom-4 duration-300`}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-center w-full h-96">
+          <div className="flex items-center justify-center w-full h-96 min-h-[320px]">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange"></div>
           </div>
         </div>
@@ -762,11 +772,13 @@ export function PostModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center z-[200] p-4"
-      onClick={onClose}
+      className={publicShare ? publicViewOuter : modalViewOuter}
+      onClick={publicShare ? undefined : onClose}
     >
       <div
-        className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto flex flex-col md:flex-row animate-in fade-in slide-in-from-bottom-4 duration-300 transition-colors"
+        className={`${
+          publicShare ? cardShellPublic : cardShellModal
+        } max-h-[90vh] overflow-y-auto flex flex-col md:flex-row animate-in fade-in slide-in-from-bottom-4 duration-300 transition-colors`}
         style={{ height: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1421,16 +1433,25 @@ export function PostModal({
           {/* Comment Input */}
           <div className="border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
             {isReadOnly ? (
-              <div className="px-4 py-4 text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                  Yorum yapmak veya gönderiyi beğenmek için giriş yapın.
+              <div className="px-4 py-3.5 text-center border-t border-neutral-200 dark:border-neutral-800 bg-[#fafafa] dark:bg-neutral-900/50">
+                <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-2.5">
+                  Beğenmek veya yorum yapmak için Feellink&apos;te oturum açın.
                 </p>
-                <Link
-                  href={`/login?from=${encodeURIComponent(pathname || `/posts/${postId}`)}`}
-                  className="inline-flex items-center justify-center rounded-full bg-brand-orange px-4 py-2 text-sm font-medium text-white hover:bg-brand-orange/90 transition-colors"
-                >
-                  Giriş yap
-                </Link>
+                <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
+                  <Link
+                    href={loginHrefWithFrom}
+                    className="font-semibold text-brand-orange hover:opacity-90"
+                  >
+                    Giriş yap
+                  </Link>
+                  <span className="text-neutral-300 dark:text-neutral-600">·</span>
+                  <Link
+                    href={`/register?from=${encodeURIComponent(guestReturnPath)}`}
+                    className="font-semibold text-neutral-800 dark:text-neutral-200 hover:opacity-90"
+                  >
+                    Hesap oluştur
+                  </Link>
+                </div>
               </div>
             ) : (
               <>
