@@ -8,6 +8,7 @@ import HighlightsRow from '@/components/highlights-row'
 import PostCard from '@/components/PostCard'
 import api from '@/lib/api'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
+import { GC_STANDARD, STALE_SHORT } from '@/lib/query-config'
 import { PostCardSkeleton } from '@/components/ui/Skeleton'
 
 type FeedPost = {
@@ -39,6 +40,8 @@ function FeedContent() {
       return res.data
     },
     enabled: !!accessToken && !!user?.id,
+    staleTime: STALE_SHORT,
+    gcTime: GC_STANDARD,
   })
 
   const posts = feedData?.posts ?? feedData ?? []

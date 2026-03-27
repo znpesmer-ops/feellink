@@ -18,6 +18,7 @@ import { UserBadges } from '@/components/profile/UserBadges'
 import { FeellinkRoleBadge } from '@/components/FeellinkRoleBadge'
 import { ROLE_METADATA, normalizeRole } from '@/lib/role-utils'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
+import { GC_STANDARD, STALE_SHORT } from '@/lib/query-config'
 import { ProfileArtworksGrid } from '@/components/profile/ProfileArtworksGrid'
 import toast from 'react-hot-toast'
 import { ProfileCommentsList } from '@/components/profile/ProfileCommentsList'
@@ -382,6 +383,8 @@ function ProfileContent() {
       }
       return failureCount < 2
     },
+    staleTime: STALE_SHORT,
+    gcTime: GC_STANDARD,
   })
 
   // Helper function to check if user is corporate
@@ -503,6 +506,8 @@ function ProfileContent() {
       }
     },
     enabled: !!accessToken && !!profile?.id,
+    staleTime: STALE_SHORT,
+    gcTime: GC_STANDARD,
   })
 
   // Get user events (for corporate users and pro artists)

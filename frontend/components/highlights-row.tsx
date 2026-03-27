@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { ImageIcon, MessageCircle, Landmark, Palette } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
+import { GC_STANDARD, STALE_LAYOUT, sidebarKeys } from '@/lib/query-config'
 import Link from 'next/link'
 
 interface HighlightsRowProps {
@@ -17,36 +18,26 @@ interface FeaturedData {
   collector: { name: string; username: string; imageUrl: string } | null
 }
 
+const EMPTY_FEATURED: FeaturedData = {
+  museum: null,
+  artwork: null,
+  comment: null,
+  collector: null,
+}
+
 export default function HighlightsRow({ compactTop = false }: HighlightsRowProps) {
-  const [featured, setFeatured] = useState<FeaturedData>({
-    museum: null,
-    artwork: null,
-    comment: null,
-    collector: null,
+  const { data } = useQuery({
+    queryKey: sidebarKeys.featured,
+    queryFn: async () => {
+      const res = await api.get('/sidebar/featured')
+      return res.data as FeaturedData
+    },
+    staleTime: STALE_LAYOUT,
+    gcTime: GC_STANDARD,
+    refetchOnWindowFocus: false,
   })
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchFeatured = async () => {
-      try {
-        const res = await api.get('/sidebar/featured')
-        setFeatured(res.data)
-      } catch (err) {
-        console.error('Featured highlights alınamadı:', err)
-        // Hata durumunda boş veri göster
-        setFeatured({
-          museum: null,
-          artwork: null,
-          comment: null,
-          collector: null,
-        })
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchFeatured()
-  }, [])
+  const featured = data ?? EMPTY_FEATURED
 
   // Her kart için hedef URL'yi hesapla
   const getCardUrl = (item: any) => {

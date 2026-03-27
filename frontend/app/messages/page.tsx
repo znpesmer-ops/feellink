@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
+import { chatKeys, GC_STANDARD, STALE_SHORT } from '@/lib/query-config'
 import { initChatSocket } from '@/lib/socket'
 import { useAuthStore } from '@/lib/store'
 import { ProRoleBadge } from '@/components/ProRoleBadge'
@@ -97,7 +99,7 @@ interface Conversation {
 function MessagesContent() {
   const { user, accessToken } = useAuthStore()
   const searchParams = useSearchParams()
-  const [conversations, setConversations] = useState<Conversation[]>([])
+  const queryClient = useQueryClient()
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [messageText, setMessageText] = useState('')
@@ -108,7 +110,6 @@ function MessagesContent() {
   const [isUploading, setIsUploading] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [loading, setLoading] = useState(true)
   const [showNewMessageModal, setShowNewMessageModal] = useState(false)
   const [onlineUsers, setOnlineUsers] = useState<Record<string, boolean>>({})
   const [userLastSeen, setUserLastSeen] = useState<Record<string, string>>({})
@@ -131,6 +132,68 @@ function MessagesContent() {
   const menuRef = useRef<HTMLDivElement>(null)
   const isSendingRef = useRef(false) // ✅ Mesaj çift gönderme koruması
   const hasInitializedConversationRef = useRef<string | null>(null) // ✅ Conversation oluşturma tek seferlik koruması (userId saklar)
+
+  const getOtherParticipant = useCallback((conversation: Conversation) => {
+    const participant = conversation.participants?.find((p) => p.userId !== user?.id)
+    return participant ? { ...participant, user: participant.user } : null
+  }, [user?.id])
+
+  const getLastMessage = useCallback((conversation: Conversation) => {
+    if (conversation.messages && conversation.messages.length > 0) {
+      return conversation.messages[0]
+    }
+    return null
+  }, [])
+
+  const { data: conversationsData, isPending: conversationsPending } = useQuery({
+    queryKey: chatKeys.conversations(user?.id),
+    queryFn: async () => {
+      const response = await api.get('/chat/conversations')
+      return response.data as Conversation[]
+    },
+    enabled: !!accessToken && !!user?.id,
+    staleTime: STALE_SHORT,
+    gcTime: GC_STANDARD,
+    refetchOnWindowFocus: false,
+  })
+
+  const conversations = conversationsData ?? []
+  const conversationsBootstrapLoading =
+    conversationsPending && conversationsData === undefined
+
+  const refreshConversations = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: chatKeys.conversations(user?.id) })
+  }, [queryClient, user?.id])
+
+  useEffect(() => {
+    if (!conversations.length) return
+    conversations.forEach((conv: Conversation) => {
+      const otherUser = getOtherParticipant(conv)
+      if (otherUser?.user?.id) {
+        if ('isOnline' in otherUser.user && otherUser.user.isOnline !== undefined) {
+          const isOnline = Boolean(otherUser.user.isOnline)
+          setOnlineUsers((prev) => ({
+            ...prev,
+            [otherUser.user.id]: isOnline,
+          }))
+          console.log(`📊 Set initial online status for ${otherUser.user.id}:`, isOnline)
+        }
+        if ('lastSeen' in otherUser.user && otherUser.user.lastSeen) {
+          const lastSeenValue = otherUser.user.lastSeen
+          const lastSeenString =
+            typeof lastSeenValue === 'string'
+              ? lastSeenValue
+              : lastSeenValue instanceof Date
+                ? lastSeenValue.toISOString()
+                : String(lastSeenValue)
+          setUserLastSeen((prev) => ({
+            ...prev,
+            [otherUser.user.id]: lastSeenString,
+          }))
+        }
+      }
+    })
+  }, [conversations, getOtherParticipant])
 
   // Socket bağlantısı - sadece bir kez kurulmalı
   useEffect(() => {
@@ -192,7 +255,7 @@ function MessagesContent() {
       }
 
       // Konuşma listesini güncelle
-      loadConversations()
+      refreshConversations()
     }
 
     // New message notification - başka bir konuşmadan
@@ -201,7 +264,7 @@ function MessagesContent() {
 
       // Eğer aktif konuşma değilse, konuşma listesini güncelle
       if (data.conversationId !== activeConversationRef.current?.id) {
-        loadConversations()
+        refreshConversations()
       }
     }
 
@@ -335,7 +398,7 @@ function MessagesContent() {
       socket.off('user_status_update', handleUserStatusUpdate)
       socket.off('active_users_list', handleActiveUsersList)
     }
-  }, [accessToken, user])
+  }, [accessToken, user, refreshConversations])
 
   // Medya ve dosyaları yükle
   useEffect(() => {
@@ -427,44 +490,6 @@ function MessagesContent() {
     }
   }, [activeConversation])
 
-  // Konuşmaları yükle
-  const loadConversations = async () => {
-    try {
-      const response = await api.get('/chat/conversations')
-      const conversations = response.data
-      setConversations(conversations)
-
-      // İlk yüklemede kullanıcıların çevrim içi durumlarını set et
-      conversations.forEach((conv: Conversation) => {
-        const otherUser = getOtherParticipant(conv)
-        if (otherUser?.user?.id) {
-          // Backend'den gelen isOnline bilgisini kullan
-          if ('isOnline' in otherUser.user && otherUser.user.isOnline !== undefined) {
-            const isOnline = Boolean(otherUser.user.isOnline)
-            setOnlineUsers((prev) => ({
-              ...prev,
-              [otherUser.user.id]: isOnline,
-            }))
-            console.log(`📊 Set initial online status for ${otherUser.user.id}:`, isOnline)
-          }
-          // lastSeen bilgisini de set et
-          if ('lastSeen' in otherUser.user && otherUser.user.lastSeen) {
-            const lastSeenValue = otherUser.user.lastSeen
-            const lastSeenString = typeof lastSeenValue === 'string' ? lastSeenValue : (lastSeenValue instanceof Date ? lastSeenValue.toISOString() : String(lastSeenValue))
-            setUserLastSeen((prev) => ({
-              ...prev,
-              [otherUser.user.id]: lastSeenString,
-            }))
-          }
-        }
-      })
-    } catch (error) {
-      console.error('Failed to load conversations:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   // ACCEPTED başvuruları yükle (ilan üzerinden etiketi için)
   useEffect(() => {
     if (!accessToken || !user?.id) return
@@ -493,12 +518,6 @@ function MessagesContent() {
 
     loadAcceptedApplications()
   }, [accessToken, user?.id])
-
-  useEffect(() => {
-    if (accessToken) {
-      loadConversations()
-    }
-  }, [accessToken])
 
   // ✅ İlan bağlamını çek (sadece jobId query parametresi varsa)
   useEffect(() => {
@@ -547,7 +566,7 @@ function MessagesContent() {
 
     // ✅ KRİTİK KORUMA: Bu useEffect sadece bir kez çalışmalı (redirect sonrası)
     // Eğer aynı userId için zaten işlem yapıldıysa tekrar yapma
-    if (!userId || hasInitializedConversationRef.current === userId || !user?.id || loading) {
+    if (!userId || hasInitializedConversationRef.current === userId || !user?.id || conversationsBootstrapLoading) {
       return
     }
 
@@ -578,12 +597,14 @@ function MessagesContent() {
         // Tekrar kontrol et (state güncellemesi sırasında race condition önleme)
         const stillExists = conversations.some((conv) => conv.id === conversation.id)
         if (!stillExists) {
-          // Yeni konuşmayı listeye ekle
-          setConversations((prev) => {
-            // Son bir kontrol daha (state update sırasında)
-            const existsInPrev = prev.some((conv) => conv.id === conversation.id)
-            return existsInPrev ? prev : [conversation, ...prev]
-          })
+          queryClient.setQueryData<Conversation[]>(
+            chatKeys.conversations(user?.id),
+            (prev) => {
+              const list = prev ?? []
+              const existsInPrev = list.some((conv) => conv.id === conversation.id)
+              return existsInPrev ? list : [conversation, ...list]
+            }
+          )
         }
 
         // Konuşmayı aç
@@ -597,7 +618,7 @@ function MessagesContent() {
 
     // Konuşmalar yüklendikten sonra işlem yap
     initializeConversation()
-  }, [searchParams?.get('user'), user?.id, loading]) // ✅ Sadece userId ve loading değiştiğinde çalış
+  }, [searchParams?.get('user'), user?.id, conversationsBootstrapLoading]) // ✅ Sadece userId ve liste ilk yükü değiştiğinde çalış
 
   // Aktif konuşma değiştiğinde mesajları yükle ve socket room'una join ol
   useEffect(() => {
@@ -729,8 +750,9 @@ function MessagesContent() {
     try {
       await api.delete(`/chat/conversations/${conversationId}`)
 
-      // State'ten kaldır
-      setConversations((prev) => prev.filter((c) => c.id !== conversationId))
+      queryClient.setQueryData<Conversation[]>(chatKeys.conversations(user?.id), (prev) =>
+        (prev ?? []).filter((c) => c.id !== conversationId)
+      )
 
       // Eğer silinen sohbet aktif sohbetse, aktif sohbeti temizle
       if (activeConversation?.id === conversationId) {
@@ -751,8 +773,7 @@ function MessagesContent() {
       const conversation = response.data
       openConversation(conversation)
 
-      // Konuşmaları yeniden yükle (listeyi güncellemek için)
-      loadConversations()
+      refreshConversations()
     } catch (error) {
       console.error('Failed to load conversation:', error)
     }
@@ -1010,8 +1031,7 @@ function MessagesContent() {
         prev.map((m) => (m.id === tempMessageId ? response.data : m))
       )
 
-      // Konuşma listesini güncelle
-      loadConversations()
+      refreshConversations()
       setTimeout(() => scrollToBottom(), 0)
     } catch (error: any) {
       console.error('❌ [sendMessage] Failed to send message:', {
@@ -1089,18 +1109,6 @@ function MessagesContent() {
     }
   }, [])
 
-  const getOtherParticipant = (conversation: Conversation) => {
-    const participant = conversation.participants?.find((p) => p.userId !== user?.id)
-    return participant ? { ...participant, user: participant.user } : null
-  }
-
-  const getLastMessage = (conversation: Conversation) => {
-    if (conversation.messages && conversation.messages.length > 0) {
-      return conversation.messages[0]
-    }
-    return null
-  }
-
   const filteredConversations = conversations.filter((conv) => {
     if (!searchQuery) return true
     const otherUser = getOtherParticipant(conv)
@@ -1141,7 +1149,7 @@ function MessagesContent() {
 
         {/* Konuşma Listesi */}
         <div className="flex-1 overflow-y-auto">
-          {loading ? (
+          {conversationsBootstrapLoading ? (
             // ✅ Skeleton loader - konuşma listesi için
             <div className="p-4 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (

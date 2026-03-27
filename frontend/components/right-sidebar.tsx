@@ -1,13 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sparkles, PenTool, X, BookOpen, Heart } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { io, Socket } from 'socket.io-client'
+import { io } from 'socket.io-client'
 import api, { getAbsoluteBackendBaseUrl } from '@/lib/api'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
+import { GC_STANDARD, STALE_LAYOUT, sidebarKeys } from '@/lib/query-config'
 
 type Author = {
   id: number
@@ -39,178 +41,174 @@ const DEFAULT_AUTHOR_AVATAR =
 const DEFAULT_ARTICLE_IMAGE =
   'https://images.unsplash.com/photo-1526481280695-3c469b8c66b4?auto=format&fit=crop&w=960&q=80'
 
+const FALLBACK_MUSEUMS = [
+  {
+    id: 1,
+    name: 'İstanbul Modern',
+    image: MUSEUM_PLACEHOLDERS[1],
+    color: 'from-[#f97316]/80 to-[#fbbf24]/60',
+  },
+  {
+    id: 2,
+    name: 'Pera Müzesi',
+    image: MUSEUM_PLACEHOLDERS[2],
+    color: 'from-[#fb923c]/80 to-[#fed7aa]/60',
+  },
+  {
+    id: 3,
+    name: 'Odunpazarı Müzesi',
+    image: MUSEUM_PLACEHOLDERS[3],
+    color: 'from-[#fcd34d]/80 to-[#fde68a]/60',
+  },
+  {
+    id: 4,
+    name: 'Sabancı Müzesi',
+    image: MUSEUM_PLACEHOLDERS[4],
+    color: 'from-[#f59e0b]/80 to-[#fcd34d]/60',
+  },
+]
+
+const ensureAbsoluteUrl = (url?: string | null, fallback?: string) => {
+  if (!url || url.trim() === '') return fallback ?? DEFAULT_ARTICLE_IMAGE
+  if (url.startsWith('http')) {
+    if (url.includes('localhost:3000')) {
+      return fallback ?? DEFAULT_ARTICLE_IMAGE
+    }
+    return url
+  }
+  if (fallback) return fallback
+  return DEFAULT_ARTICLE_IMAGE
+}
+
+const transformMuseums = (items: any[]) =>
+  items.map((museum) => ({
+    ...museum,
+    image: ensureAbsoluteUrl(
+      museum.image,
+      MUSEUM_PLACEHOLDERS[museum.id] ?? DEFAULT_MUSEUM_IMAGE
+    ),
+  }))
+
+const transformAuthors = (items: any[]) =>
+  items.map((author, index) => ({
+    ...author,
+    avatar: ensureAbsoluteUrl(author.avatar, DEFAULT_AUTHOR_AVATAR),
+    preview:
+      author.preview ||
+      (index === 0
+        ? 'Duyguların izi her eserde saklıdır.'
+        : 'Bellek, malzeme ve zamanın sessiz diyaloğu.'),
+  }))
+
+const transformArticles = (items: any[]) =>
+  items.map((article) => ({
+    ...article,
+    coverImage: ensureAbsoluteUrl(article.coverImage, DEFAULT_ARTICLE_IMAGE),
+    author: article.author
+      ? {
+          ...article.author,
+          avatar: ensureAbsoluteUrl(article.author.avatar, DEFAULT_AUTHOR_AVATAR),
+        }
+      : article.author,
+  }))
+
 interface RightSidebarProps {
   mode?: 'feed' | 'explore'
 }
 
 export default function RightSidebar({ mode }: RightSidebarProps = {}) {
   const pathname = usePathname()
-  
+  const queryClient = useQueryClient()
+
   // 🔥 KRİTİK: Sağ sidebar feed ve explore sayfalarında görünsün
-  // Ana sayfa: /feed veya / (root)
-  // Keşfet: /explore
-  // Koleksiyonlar sayfasında görünmesin
   const isHomePage = pathname === '/feed' || pathname === '/'
   const isExplore = pathname === '/explore'
   const isFeed = pathname === '/feed'
   const isCollections = pathname === '/collections'
-  
-  // Mode prop'u yoksa pathname'den otomatik belirle
   const sidebarMode = mode || (isExplore ? 'explore' : isHomePage ? 'feed' : null)
-  
-  // Ana sayfa veya explore değilse veya koleksiyonlar sayfasındaysa hiçbir şey render etme
-  if ((!isHomePage && !isExplore) || isCollections) {
-    return null
-  }
-  
+  const showSidebar = (isHomePage || isExplore) && !isCollections
+
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
   const [selectedWriter, setSelectedWriter] = useState<Author | null>(null)
-  const [topLikedArticles, setTopLikedArticles] = useState<any[]>([])
-  const [museums, setMuseums] = useState<any[]>([])
-  const [authors, setAuthors] = useState<Author[]>([])
-  const [explorePosts, setExplorePosts] = useState<Author[]>([])
 
-  // 📊 Global sidebar verilerini yükle - feed ve explore sayfalarında
+  const feedSidebarEnabled = Boolean(showSidebar && sidebarMode === 'feed')
+  const exploreSidebarEnabled = Boolean(showSidebar && sidebarMode === 'explore')
+
+  const { data: globalRaw, isError: globalError } = useQuery({
+    queryKey: sidebarKeys.global,
+    queryFn: async () => {
+      const res = await api.get('/sidebar/global')
+      return res.data as {
+        museums?: any[]
+        authors?: any[]
+        topLikedArticles?: any[]
+      }
+    },
+    enabled: feedSidebarEnabled,
+    staleTime: STALE_LAYOUT,
+    gcTime: GC_STANDARD,
+    refetchOnWindowFocus: false,
+  })
+
+  const { data: explorePostsRaw, isError: exploreError } = useQuery({
+    queryKey: sidebarKeys.explorePosts(5),
+    queryFn: async () => {
+      const res = await api.get('/sidebar/explore/posts?limit=5')
+      return (res.data || []) as Author[]
+    },
+    enabled: exploreSidebarEnabled,
+    staleTime: STALE_LAYOUT,
+    gcTime: GC_STANDARD,
+    refetchOnWindowFocus: false,
+  })
+
+  const museums = useMemo(() => {
+    if (globalRaw) return transformMuseums(globalRaw.museums || [])
+    if (globalError) return FALLBACK_MUSEUMS
+    return []
+  }, [globalRaw, globalError])
+
+  const authors = useMemo(() => {
+    if (globalRaw) return transformAuthors(globalRaw.authors || [])
+    if (globalError) return []
+    return []
+  }, [globalRaw, globalError])
+
+  const topLikedArticles = useMemo(() => {
+    if (globalRaw) return transformArticles(globalRaw.topLikedArticles || [])
+    if (globalError) return []
+    return []
+  }, [globalRaw, globalError])
+
+  const explorePosts = exploreError ? [] : explorePostsRaw ?? []
+
   useEffect(() => {
-    // Ana sayfa veya explore değilse hiçbir şey yapma
-    if (!isHomePage && !isExplore) return
+    if (!feedSidebarEnabled) return
 
-    // 🔥 Explore modunda sadece güncel yazıları yükle
-    if (sidebarMode === 'explore') {
-      const fetchExplorePosts = async () => {
-        try {
-          // Her fetch'te farklı sonuç için timestamp ekle (cache bypass)
-          const res = await api.get(`/sidebar/explore/posts?limit=5&_t=${Date.now()}`)
-          const posts = res.data || []
-          setExplorePosts(posts)
-        } catch (err) {
-          console.error('Explore yazıları alınamadı', err)
-          setExplorePosts([])
-        }
-      }
-      fetchExplorePosts()
-      return // Explore modunda global veri yükleme
-    }
-    
-    const ensureAbsoluteUrl = (url?: string | null, fallback?: string) => {
-      if (!url || url.trim() === '') return fallback ?? DEFAULT_ARTICLE_IMAGE
-      if (url.startsWith('http')) {
-        if (url.includes('localhost:3000')) {
-          return fallback ?? DEFAULT_ARTICLE_IMAGE
-        }
-        return url
-      }
-      if (fallback) return fallback
-      return DEFAULT_ARTICLE_IMAGE
-    }
+    const baseURL = getAbsoluteBackendBaseUrl()
+    const socket = io(baseURL, {
+      transports: ['websocket'],
+    })
 
-    const transformMuseums = (items: any[]) =>
-      items.map((museum) => ({
-        ...museum,
-        image: ensureAbsoluteUrl(
-          museum.image,
-          MUSEUM_PLACEHOLDERS[museum.id] ?? DEFAULT_MUSEUM_IMAGE
-        ),
-      }))
+    socket.on('connect', () => {
+      console.log('Sidebar socket bağlı')
+    })
 
-    const transformAuthors = (items: any[]) =>
-      items.map((author, index) => ({
-        ...author,
-        avatar: ensureAbsoluteUrl(author.avatar, DEFAULT_AUTHOR_AVATAR),
-        preview:
-          author.preview ||
-          (index === 0
-            ? 'Duyguların izi her eserde saklıdır.'
-            : 'Bellek, malzeme ve zamanın sessiz diyaloğu.'),
-      }))
+    socket.on('sidebarUpdate', (newData: any) => {
+      console.log('Sidebar güncellendi:', newData)
+      queryClient.setQueryData(sidebarKeys.global, newData)
+    })
 
-    const transformArticles = (items: any[]) =>
-      items.map((article) => ({
-        ...article,
-        coverImage: ensureAbsoluteUrl(article.coverImage, DEFAULT_ARTICLE_IMAGE),
-        author: article.author
-          ? {
-              ...article.author,
-              avatar: ensureAbsoluteUrl(article.author.avatar, DEFAULT_AUTHOR_AVATAR),
-            }
-          : article.author,
-      }))
-
-    const fetchGlobalData = async () => {
-      try {
-        const res = await api.get('/sidebar/global')
-        // ✅ Backend'den gelen dinamik verileri kullan
-        setMuseums(transformMuseums(res.data.museums || []))
-        setAuthors(transformAuthors(res.data.authors || []))
-        setTopLikedArticles(transformArticles(res.data.topLikedArticles || []))
-      } catch (err) {
-        console.error('Sidebar verisi alınamadı', err)
-        // Fallback: Eğer API çalışmazsa minimal fallback verileri kullan
-        setMuseums([
-          { 
-            id: 1, 
-            name: 'İstanbul Modern', 
-            image: MUSEUM_PLACEHOLDERS[1],
-            color: 'from-[#f97316]/80 to-[#fbbf24]/60'
-          },
-          { 
-            id: 2, 
-            name: 'Pera Müzesi', 
-            image: MUSEUM_PLACEHOLDERS[2],
-            color: 'from-[#fb923c]/80 to-[#fed7aa]/60'
-          },
-          { 
-            id: 3, 
-            name: 'Odunpazarı Müzesi', 
-            image: MUSEUM_PLACEHOLDERS[3],
-            color: 'from-[#fcd34d]/80 to-[#fde68a]/60'
-          },
-          { 
-            id: 4, 
-            name: 'Sabancı Müzesi', 
-            image: MUSEUM_PLACEHOLDERS[4],
-            color: 'from-[#f59e0b]/80 to-[#fcd34d]/60'
-          },
-        ])
-        // ✅ Aktif yazarlar için fallback kaldırıldı - backend'den dinamik gelecek
-        setAuthors([])
-        setTopLikedArticles([])
-      }
-    }
-
-    fetchGlobalData()
-
-    // 🔥 Socket.IO bağlantısı - gerçek zamanlı güncelleme (sadece feed sayfasında)
-    let socket: Socket | null = null
-    
-    if (isHomePage && sidebarMode === 'feed') {
-      const baseURL = getAbsoluteBackendBaseUrl()
-      socket = io(baseURL, {
-        transports: ['websocket'],
-      })
-
-      socket.on('connect', () => {
-        console.log('Sidebar socket bağlı')
-      })
-
-      socket.on('sidebarUpdate', (newData: any) => {
-        console.log('Sidebar güncellendi:', newData)
-        setMuseums(transformMuseums(newData.museums || []))
-        setAuthors(transformAuthors(newData.authors || []))
-        setTopLikedArticles(transformArticles(newData.topLikedArticles || []))
-      })
-
-      socket.on('connect_error', (error) => {
-        console.error('Sidebar socket bağlantı hatası:', error)
-      })
-    }
+    socket.on('connect_error', (error) => {
+      console.error('Sidebar socket bağlantı hatası:', error)
+    })
 
     return () => {
-      if (socket) {
-        socket.disconnect()
-      }
+      socket.disconnect()
     }
-  }, [isHomePage, isExplore, sidebarMode])
+  }, [feedSidebarEnabled, queryClient])
+
+  if (!showSidebar) return null
 
   return (
     <>
