@@ -15,6 +15,10 @@ import { generateUniqueArtworkCode } from './artwork.utils';
 import { generateQrDataUrl } from '../tickets/ticket.utils';
 import { ColorAnalysisService } from './color-analysis.service';
 import { containsBadWord } from '../common/utils/containsBadWord';
+import {
+  publicVitrineUserWhere,
+  isUserEligibleForPublicVitrine,
+} from '../common/utils/public-vitrine-user';
 import { resolveFeellinkAssetsRoot, fontPathForRegister } from '../common/resolve-feellink-assets';
 import PDFDocument from 'pdfkit';
 import * as QRCode from 'qrcode';
@@ -2153,6 +2157,72 @@ export class PostsService {
   }
 
   /**
+   * Public eser bileti doğrulama (QR → /ticket/:code) — JWT gerekmez, minimal alanlar.
+   */
+  async getPublicArtworkTicketByCode(rawCode: string) {
+    const code = rawCode?.trim();
+    if (!code) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    const post = await this.prisma.post.findFirst({
+      where: {
+        code,
+        type: 'artwork',
+        isDeleted: false,
+        deletedAt: null,
+        user: publicVitrineUserWhere,
+      },
+      select: {
+        code: true,
+        title: true,
+        caption: true,
+        user: {
+          select: {
+            fullName: true,
+            username: true,
+            isDeleted: true,
+            deletedAt: true,
+            accountStatus: true,
+          },
+        },
+        media: {
+          orderBy: { order: 'asc' },
+          take: 1,
+          select: { url: true },
+        },
+      },
+    });
+
+    if (!post?.code) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    if (!isUserEligibleForPublicVitrine(post.user)) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    const ticketCode = post.code;
+    const artworkTitle =
+      (post.title && post.title.trim()) ||
+      (post.caption && post.caption.trim()) ||
+      ticketCode;
+    const artistName =
+      (post.user?.fullName && post.user.fullName.trim()) ||
+      post.user?.username ||
+      'Sanatçı';
+
+    return {
+      ticketCode,
+      artworkTitle,
+      artistName,
+      artistUsername: post.user?.username ?? '',
+      imageUrl: post.media[0]?.url ?? null,
+      isValid: true as const,
+    };
+  }
+
+  /**
    * Eser için QR kodlu PDF etiket oluşturma
    */
   async generateArtworkQrPdf(postId: string, res: Response) {
@@ -2199,12 +2269,9 @@ export class PostsService {
       });
     }
 
-    // Frontend URL'ini al
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    
-    // QR kod URL'i - Eser detay sayfasına yönlendir
-    const artworkUrl = `${frontendUrl}/posts/${postId}`;
-    const qrDataUrl = await generateQrDataUrl(artworkUrl);
+    const ticketPublicUrl = `${frontendUrl}/ticket/${encodeURIComponent(artworkCode)}`;
+    const qrDataUrl = await generateQrDataUrl(ticketPublicUrl);
 
     // PDF oluştur - Küçük etiket formatı (210mm x 120mm)
     const doc = new PDFDocument({
@@ -2535,7 +2602,7 @@ export class PostsService {
     }
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    const artworkUrl = `${frontendUrl}/posts/${postId}`;
+    const ticketPublicUrl = `${frontendUrl}/ticket/${encodeURIComponent(artworkCode)}`;
 
     const { createCanvas, loadImage, registerFont } = require('canvas');
 
@@ -2773,7 +2840,7 @@ export class PostsService {
     ctx.fillStyle = '#475569';
     ctx.fillText(artworkCode, PAD, drawY);
 
-    const qrBuffer = await QRCode.toBuffer(artworkUrl, {
+    const qrBuffer = await QRCode.toBuffer(ticketPublicUrl, {
       margin: 1,
       width: 640,
       type: 'png',
@@ -2920,9 +2987,8 @@ export class PostsService {
       });
     }
 
-    // Frontend URL'ini al
     const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    const artworkUrl = `${frontendUrl}/posts/${postId}`;
+    const ticketPublicUrl = `${frontendUrl}/ticket/${encodeURIComponent(artworkCode)}`;
 
     // === CANVAS LAZY IMPORT (Webpack hatası için) ===
     const { createCanvas, loadImage, registerFont } = require('canvas');
@@ -3011,7 +3077,7 @@ export class PostsService {
     ctx.fillText(`Kod: ${artworkCode}`, width * (120 / 1400), height * (290 / 700));
 
     // === QR KOD OLUŞTUR VE YERLEŞTİR ===
-    const qrBuffer = await QRCode.toBuffer(artworkUrl, {
+    const qrBuffer = await QRCode.toBuffer(ticketPublicUrl, {
       margin: 1,
       width: 400,
       type: 'png',

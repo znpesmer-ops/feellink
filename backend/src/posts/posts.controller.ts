@@ -157,6 +157,15 @@ export class PostsController {
     return this.postsService.generateArtworkQrPdf(postId, res);
   }
 
+  /** QR /ticket/:code sayfası — giriş yok; minimal doğrulama verisi */
+  @Get('public-artwork-ticket/:code')
+  @ApiOperation({ summary: 'Public artwork ticket by code (QR verification)' })
+  @ApiResponse({ status: 200, description: 'Ticket payload' })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  async getPublicArtworkTicket(@Param('code') code: string) {
+    return this.postsService.getPublicArtworkTicketByCode(code);
+  }
+
   // GENEL ROUTE EN SONDA OLMALI
   @Get(':id')
   @UseGuards(JwtAuthGuard)
