@@ -847,9 +847,36 @@ function ProfileContent() {
     }
   }
 
-  // Early return kontrolleri - JSX içinde yapılacak
+  // Misafir: boş ekran yerine giriş CTA (derin link / modal sonrası profil tıklaması)
   if (!accessToken) {
-    return null
+    const returnTo =
+      typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search || ''}` : '/feed'
+    const safeFrom =
+      returnTo.startsWith('/') && !returnTo.includes('//') ? returnTo : '/feed'
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-gray-950 px-4">
+        <div className="max-w-md rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#111827] p-8 text-center shadow-sm">
+          <p className="text-gray-900 dark:text-white font-semibold mb-2">Profili görmek için giriş yapın</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+            Feellink&apos;te sanatçı profilleri ve içerikler giriş yaptıktan sonra görüntülenebilir.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              href={`/login?from=${encodeURIComponent(safeFrom)}`}
+              className="inline-flex items-center justify-center rounded-full bg-brand-orange px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-orange/90 transition-colors"
+            >
+              Giriş yap
+            </Link>
+            <Link
+              href="/register"
+              className="inline-flex items-center justify-center rounded-full border border-gray-300 dark:border-gray-600 px-5 py-2.5 text-sm font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              Kayıt ol
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (isLoading) {

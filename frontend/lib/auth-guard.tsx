@@ -16,6 +16,7 @@ const publicRoutes = [
   '/select-role',
   '/posts',
   '/artwork',
+  '/profile',
 ]
 
 // Route değişiminde AuthGuard yeniden mount olsa bile aynı token zaten doğrulandıysa tekrar /me çağrılmasın

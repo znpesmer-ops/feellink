@@ -110,6 +110,15 @@ export function PostModal({
   const roles = capabilities?.roles ?? user?.roles ?? []
   const canManageCollections = roles.includes('corporate') || roles.includes('collector')
 
+  const guestReturnPath =
+    pathname?.startsWith('/') && !pathname.includes('//') ? pathname : `/posts/${postId}`
+  const loginHrefWithFrom = `/login?from=${encodeURIComponent(guestReturnPath)}`
+
+  const promptGuestLogin = (message: string) => {
+    toast(message, { duration: 2800 })
+    router.push(loginHrefWithFrom)
+  }
+
   // Modal açıkken body'ye class ekle (arka plan UI elementlerini gizlemek için)
   useEffect(() => {
     if (postId) {
@@ -867,6 +876,10 @@ export function PostModal({
             <div
               className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer"
               onClick={() => {
+                if (publicShare) {
+                  promptGuestLogin('Profili görmek için giriş yapın.')
+                  return
+                }
                 onClose()
                 router.push(`/profile/${post.user.username}`)
               }}
@@ -925,8 +938,13 @@ export function PostModal({
           <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-4 text-gray-700 dark:text-gray-400">
               <button
-                onClick={handleLike}
-                disabled={likeMutation.isPending || isReadOnly}
+                type="button"
+                onClick={
+                  isReadOnly
+                    ? () => promptGuestLogin('Beğenmek için giriş yapın.')
+                    : handleLike
+                }
+                disabled={likeMutation.isPending && !isReadOnly}
                 className={`relative flex items-center gap-1 hover:text-brand-orange transition-colors ${isReadOnly ? 'opacity-70' : ''}`}
               >
                 <Heart
@@ -946,16 +964,27 @@ export function PostModal({
                   <span className="text-sm font-medium">{post._count.likes}</span>
                 )}
               </button>
-              <button className="hover:text-brand-orange transition-colors">
+              <button
+                type="button"
+                className="hover:text-brand-orange transition-colors"
+                onClick={
+                  isReadOnly
+                    ? () => promptGuestLogin('Yorum yapmak için giriş yapın.')
+                    : undefined
+                }
+              >
                 <MessageCircle size={24} className="text-gray-700 dark:text-gray-300" />
               </button>
             </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleSave}
-                disabled={isReadOnly}
-                className="hover:text-brand-orange transition-colors disabled:opacity-50"
+                onClick={
+                  isReadOnly
+                    ? () => promptGuestLogin('Kaydetmek için giriş yapın.')
+                    : handleSave
+                }
+                className={`hover:text-brand-orange transition-colors ${isReadOnly ? 'opacity-70' : ''}`}
               >
                 <Bookmark
                   size={24}
@@ -1051,7 +1080,16 @@ export function PostModal({
                       >
                         {/* Sol taraf avatar */}
                         <Link
-                          href={`/profile/${comment.user.username}`}
+                          href={
+                            publicShare
+                              ? loginHrefWithFrom
+                              : `/profile/${comment.user.username}`
+                          }
+                          onClick={
+                            publicShare
+                              ? () => toast('Profili görmek için giriş yapın.', { duration: 2800 })
+                              : undefined
+                          }
                           className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden flex-shrink-0 hover:opacity-80 transition cursor-pointer"
                         >
                           {comment.user.avatar ? (
@@ -1074,7 +1112,16 @@ export function PostModal({
                           {/* Kullanıcı Bilgisi */}
                           <div className="flex items-center gap-2 mb-2">
                             <Link
-                              href={`/profile/${comment.user.username}`}
+                              href={
+                                publicShare
+                                  ? loginHrefWithFrom
+                                  : `/profile/${comment.user.username}`
+                              }
+                              onClick={
+                                publicShare
+                                  ? () => toast('Profili görmek için giriş yapın.', { duration: 2800 })
+                                  : undefined
+                              }
                               className="text-sm text-black dark:text-white font-semibold hover:opacity-80 transition cursor-pointer inline-block"
                             >
                               {comment.user.username}
@@ -1284,7 +1331,16 @@ export function PostModal({
                             <div className="flex gap-2">
                               <CornerUpRight size={12} className="text-gray-400 dark:text-gray-500 mt-1 flex-shrink-0" />
                               <Link
-                                href={`/profile/${reply.user.username}`}
+                                href={
+                                  publicShare
+                                    ? loginHrefWithFrom
+                                    : `/profile/${reply.user.username}`
+                                }
+                                onClick={
+                                  publicShare
+                                    ? () => toast('Profili görmek için giriş yapın.', { duration: 2800 })
+                                    : undefined
+                                }
                                 className="w-7 h-7 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden flex-shrink-0 hover:opacity-80 transition cursor-pointer"
                               >
                                 {reply.user.avatar ? (
@@ -1306,7 +1362,16 @@ export function PostModal({
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm text-black dark:text-white flex items-center gap-1 leading-relaxed">
                                   <Link
-                                    href={`/profile/${reply.user.username}`}
+                                    href={
+                                      publicShare
+                                        ? loginHrefWithFrom
+                                        : `/profile/${reply.user.username}`
+                                    }
+                                    onClick={
+                                      publicShare
+                                        ? () => toast('Profili görmek için giriş yapın.', { duration: 2800 })
+                                        : undefined
+                                    }
                                     className="font-semibold hover:opacity-80 transition cursor-pointer"
                                   >
                                     {reply.user.username}

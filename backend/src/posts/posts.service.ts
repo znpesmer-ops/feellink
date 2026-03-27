@@ -2172,7 +2172,7 @@ export class PostsService {
         id: postId,
         isDeleted: false,
         deletedAt: null,
-        user: publicVitrineUserWhere,
+        user: { ...publicVitrineUserWhere, isPrivate: false },
       },
       select: { id: true },
     });
@@ -2199,7 +2199,7 @@ export class PostsService {
         type: 'artwork',
         isDeleted: false,
         deletedAt: null,
-        user: publicVitrineUserWhere,
+        user: { ...publicVitrineUserWhere, isPrivate: false },
       },
       select: {
         code: true,
@@ -2265,7 +2265,7 @@ export class PostsService {
         type: 'artwork',
         isDeleted: false,
         deletedAt: null,
-        user: publicVitrineUserWhere,
+        user: { ...publicVitrineUserWhere, isPrivate: false },
       },
       select: {
         id: true,

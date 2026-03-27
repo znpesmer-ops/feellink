@@ -1810,7 +1810,7 @@ let PostsService = class PostsService {
                 id: postId,
                 isDeleted: false,
                 deletedAt: null,
-                user: public_vitrine_user_1.publicVitrineUserWhere,
+                user: { ...public_vitrine_user_1.publicVitrineUserWhere, isPrivate: false },
             },
             select: { id: true },
         });
@@ -1830,7 +1830,7 @@ let PostsService = class PostsService {
                 type: 'artwork',
                 isDeleted: false,
                 deletedAt: null,
-                user: public_vitrine_user_1.publicVitrineUserWhere,
+                user: { ...public_vitrine_user_1.publicVitrineUserWhere, isPrivate: false },
             },
             select: {
                 code: true,
@@ -1885,7 +1885,7 @@ let PostsService = class PostsService {
                 type: 'artwork',
                 isDeleted: false,
                 deletedAt: null,
-                user: public_vitrine_user_1.publicVitrineUserWhere,
+                user: { ...public_vitrine_user_1.publicVitrineUserWhere, isPrivate: false },
             },
             select: {
                 id: true,
