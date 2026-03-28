@@ -1,16 +1,9 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState, useEffect, useRef, useCallback } from 'react'
-import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  type DropResult,
-  type DraggableProvided,
-  type DraggableStateSnapshot,
-} from '@hello-pangea/dnd'
+import { useState, useEffect, useRef } from 'react'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
+import { ProfileSortableThreeColumnGrid } from '@/components/profile/ProfileSortableThreeColumnGrid'
 import { Image as ImageIcon, QrCode, Download, Loader2, MoreVertical, Trash2, Heart, MessageCircle, Edit, Bookmark } from 'lucide-react'
 import api from '@/lib/api'
 import toast from 'react-hot-toast'
@@ -211,18 +204,6 @@ export function ProfileArtworksGrid({
     }
   }, [menuOpen])
 
-  const handleArtworkDragEnd = useCallback(
-    (result: DropResult) => {
-      if (!enableReorder || !onReorder || !result.destination) return
-      if (result.destination.index === result.source.index) return
-      const next = Array.from(artworks)
-      const [removed] = next.splice(result.source.index, 1)
-      next.splice(result.destination.index, 0, removed)
-      onReorder(next)
-    },
-    [enableReorder, onReorder, artworks],
-  )
-
   if (!artworks || artworks.length === 0) {
     return (
       <div className="text-center py-12">
@@ -236,12 +217,7 @@ export function ProfileArtworksGrid({
     )
   }
 
-  const renderArtworkCard = (
-    artwork: any,
-    index: number,
-    provided?: DraggableProvided,
-    snapshot?: DraggableStateSnapshot,
-  ) => {
+  const renderArtworkCard = (artwork: any, index: number, isDragging: boolean) => {
     const colorClass =
       index % 3 === 0
         ? 'artwork-card--orange'
@@ -258,10 +234,7 @@ export function ProfileArtworksGrid({
 
     return (
       <div
-        ref={provided?.innerRef}
-        {...(provided?.draggableProps ?? {})}
-        {...(provided?.dragHandleProps ?? {})}
-        className={`${cardClass}${snapshot?.isDragging ? ' ring-2 ring-[#ff7b00] opacity-90 z-50' : ''}`}
+        className={`${cardClass}${isDragging ? ' ring-2 ring-[#ff7b00] opacity-90 z-50' : ''}`}
         onClick={() =>
           router.push(`/posts/${artwork.id}?from=${encodeURIComponent(`/profile/${username}`)}`)
         }
@@ -404,33 +377,16 @@ export function ProfileArtworksGrid({
     )
   }
 
-  const grid =
-    enableReorder && onReorder ? (
-      <DragDropContext onDragEnd={handleArtworkDragEnd}>
-        <Droppable droppableId="profile-artworks-grid" direction="horizontal">
-          {(provided) => (
-            <div
-              ref={provided.innerRef}
-              {...provided.droppableProps}
-              className="grid grid-cols-3 gap-2"
-            >
-              {artworks.map((artwork, index) => (
-                <Draggable key={artwork.id} draggableId={artwork.id} index={index}>
-                  {(dp, snap) => renderArtworkCard(artwork, index, dp, snap)}
-                </Draggable>
-              ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
-    ) : (
-      <div className="grid grid-cols-3 gap-2">
-        {artworks.map((artwork, index) => (
-          <div key={artwork.id}>{renderArtworkCard(artwork, index)}</div>
-        ))}
-      </div>
-    )
+  const grid = (
+    <ProfileSortableThreeColumnGrid
+      items={artworks}
+      disabled={!enableReorder || !onReorder}
+      onReorder={(items) => onReorder?.(items)}
+      renderItem={(artwork, index, { isDragging }) =>
+        renderArtworkCard(artwork, index, isDragging)
+      }
+    />
+  )
 
   return (
     <>

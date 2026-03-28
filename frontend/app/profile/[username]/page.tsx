@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
+import { ProfileSortableThreeColumnGrid } from '@/components/profile/ProfileSortableThreeColumnGrid'
 import api from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { AuthGuard } from '@/lib/auth-guard'
@@ -611,13 +611,9 @@ function ProfileContent() {
   const enablePostsDrag = isOwnProfile && postsSortMode === 'custom'
   const enableArtworksDrag = isOwnProfile && artworksSortMode === 'custom'
 
-  const handlePostsDragEnd = useCallback(
-    (result: DropResult) => {
-      if (!enablePostsDrag || !result.destination || !profile?.id) return
-      if (result.destination.index === result.source.index) return
-      const items = Array.from(sortedProfilePosts)
-      const [removed] = items.splice(result.source.index, 1)
-      items.splice(result.destination.index, 0, removed)
+  const handleProfilePostsReorder = useCallback(
+    (items: any[]) => {
+      if (!enablePostsDrag || !profile?.id) return
       const previous = queryClient.getQueryData<any[]>(['user-posts', profile.id])
       queryClient.setQueryData(['user-posts', profile.id], (old: any[] = []) =>
         applyPostReorderInUserPostsCache(old, items),
@@ -632,7 +628,7 @@ function ProfileContent() {
         },
       )
     },
-    [enablePostsDrag, profile?.id, sortedProfilePosts, queryClient, patchGridOrderMutation],
+    [enablePostsDrag, profile?.id, queryClient, patchGridOrderMutation],
   )
 
   const handleArtworksReorder = useCallback(
@@ -1495,36 +1491,20 @@ function ProfileContent() {
                   </p>
                 )}
               </div>
-              <DragDropContext onDragEnd={handlePostsDragEnd}>
-                <Droppable droppableId="profile-posts-grid" direction="horizontal">
-                  {(droppableProvided) => (
+              <ProfileSortableThreeColumnGrid
+                items={sortedProfilePosts}
+                disabled={!enablePostsDrag}
+                onReorder={handleProfilePostsReorder}
+                renderItem={(post: any, _index: number, { isDragging }) => {
+                  const isOwner =
+                    currentUser?.id === post.userId || currentUser?.username === username
+                  return (
                     <div
-                      ref={droppableProvided.innerRef}
-                      {...droppableProvided.droppableProps}
-                      className="grid grid-cols-3 gap-2"
+                      className={`aspect-square relative cursor-pointer group overflow-hidden rounded-xl transition-all duration-300 hover:ring-2 hover:ring-brand-orange hover:ring-offset-2 hover:ring-offset-white dark:hover:ring-offset-gray-950 ${
+                        isDragging ? 'ring-2 ring-[#ff7b00] opacity-90 z-50' : ''
+                      }`}
+                      onClick={() => setSelectedPostId(post.id)}
                     >
-                      {sortedProfilePosts.map((post: any, index: number) => {
-                        const isOwner =
-                          currentUser?.id === post.userId || currentUser?.username === username
-                        return (
-                          <Draggable
-                            key={post.id}
-                            draggableId={post.id}
-                            index={index}
-                            isDragDisabled={!enablePostsDrag}
-                          >
-                            {(dragProvided, snapshot) => (
-                              <div
-                                ref={dragProvided.innerRef}
-                                {...dragProvided.draggableProps}
-                                {...dragProvided.dragHandleProps}
-                                className={`aspect-square relative cursor-pointer group overflow-hidden rounded-xl transition-all duration-300 hover:ring-2 hover:ring-brand-orange hover:ring-offset-2 hover:ring-offset-white dark:hover:ring-offset-gray-950 ${
-                                  snapshot.isDragging
-                                    ? 'ring-2 ring-[#ff7b00] opacity-90 z-50'
-                                    : ''
-                                }`}
-                                onClick={() => setSelectedPostId(post.id)}
-                              >
                       {post.media && post.media.length > 0 ? (
                         <>
                           {post.media[0].type === 'video' ? (
@@ -1608,16 +1588,10 @@ function ProfileContent() {
                           <ImageIcon size={32} />
                         </div>
                       )}
-                              </div>
-                            )}
-                          </Draggable>
-                        )
-                      })}
-                      {droppableProvided.placeholder}
                     </div>
-                  )}
-                </Droppable>
-              </DragDropContext>
+                  )
+                }}
+              />
             </div>
           ) : (
             <div className="bg-white dark:bg-gray-950 rounded-2xl p-12 border border-gray-100 dark:border-gray-900 shadow-sm transition-colors text-center">
