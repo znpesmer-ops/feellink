@@ -63,26 +63,28 @@ function buildCollectorSummary(data: ProfileAnalysisData): string {
   return parts.join(', ') + ' bir profil.'
 }
 
-/** Üslup tutarlılığı: renk/kompozisyon sürekliliği hissi */
+/** Üslup tutarlılığı: renk/kompozisyon sürekliliği hissi (ilk 6 baskın renk; API 15 döndürse bile) */
 function getStyleConsistency(data: ProfileAnalysisData): 'Çok tutarlı' | 'Dengeli' | 'Deneysel' | 'Değişken' {
   const { colorProfile, productionProfile, palette } = data
-  if (!colorProfile || palette.length < 2) return 'Dengeli'
+  const p = palette.slice(0, 6)
+  if (!colorProfile || p.length < 2) return 'Dengeli'
   const dom = colorProfile.warmRatio > 0.65 || colorProfile.coolRatio > 0.65
   const sat = colorProfile.avgSaturation > 0.5
   if (dom && sat && productionProfile.totalPosts >= 10) return 'Çok tutarlı'
-  if (palette.length >= 5 && !dom) return 'Deneysel'
-  if (productionProfile.postingFrequency === 'high' && palette.length >= 4) return 'Değişken'
+  if (p.length >= 5 && !dom) return 'Deneysel'
+  if (productionProfile.postingFrequency === 'high' && p.length >= 4) return 'Değişken'
   return 'Dengeli'
 }
 
-/** Görsel imza gücü: ayırt edilebilir dil düzeyi */
+/** Görsel imza gücü: ayırt edilebilir dil düzeyi (ilk 6 baskın renk) */
 function getVisualSignatureStrength(data: ProfileAnalysisData): 'Belirgin' | 'Gelişiyor' | 'Nötr' {
   const { colorProfile, palette } = data
+  const p = palette.slice(0, 6)
   if (!colorProfile) return 'Nötr'
   const strong = colorProfile.warmRatio > 0.7 || colorProfile.coolRatio > 0.7
   const sat = colorProfile.avgSaturation > 0.45
-  if (strong && sat && palette.length >= 3) return 'Belirgin'
-  if (palette.length >= 2 && (colorProfile.warmRatio > 0.55 || colorProfile.coolRatio > 0.55)) return 'Gelişiyor'
+  if (strong && sat && p.length >= 3) return 'Belirgin'
+  if (p.length >= 2 && (colorProfile.warmRatio > 0.55 || colorProfile.coolRatio > 0.55)) return 'Gelişiyor'
   return 'Nötr'
 }
 
@@ -172,7 +174,7 @@ export function ProfileAnalysisPanel({ username }: ProfileAnalysisPanelProps) {
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Renk İmzası</h3>
           {palette && palette.length > 0 ? (
             <div className="flex flex-wrap gap-2">
-              {palette.map((color, i) => {
+              {palette.slice(0, 15).map((color, i) => {
                 const hexToRgb = (hex: string) => {
                   const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
                   return r ? { r: parseInt(r[1], 16), g: parseInt(r[2], 16), b: parseInt(r[3], 16) } : null

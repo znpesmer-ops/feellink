@@ -1988,7 +1988,8 @@ export class UsersService {
   }
 
   /**
-   * Profil analizi: palet, üretim ritmi, etkileşim, sanatsal özet.
+   * Profil analizi: palet (Renk İmzası en fazla 15 renk), üretim ritmi, etkileşim, sanatsal özet.
+   * Görsel Karakter oranları ilk 6 baskın renk üzerinden hesaplanır (önceki davranış).
    * Gizli profilde sadece profil sahibi erişebilir.
    */
   async getProfileAnalysis(
@@ -2117,10 +2118,10 @@ export class UsersService {
     for (const c of allColors) {
       if (c && typeof c === 'string' && c.trim()) colorFreq[c] = (colorFreq[c] || 0) + 1;
     }
-    const palette = Object.entries(colorFreq)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6)
-      .map(([color]) => color);
+    const rankedColors = Object.entries(colorFreq).sort((a, b) => b[1] - a[1]);
+    // Renk İmzası: en fazla 15; Görsel Karakter metrikleri önceki davranış için ilk 6 baskın renk
+    const palette = rankedColors.slice(0, 15).map(([color]) => color);
+    const paletteForMetrics = rankedColors.slice(0, 6).map(([color]) => color);
 
     const MONTH_NAMES_TR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
     const monthCounts: Record<number, number> = {};
@@ -2166,8 +2167,10 @@ export class UsersService {
       avgSaturation: number;
       dominantMood?: string;
     } | undefined;
-    if (palette.length > 0) {
-      const hslList = palette.map(hexToHsl).filter((x): x is { h: number; s: number; l: number } => x != null);
+    if (paletteForMetrics.length > 0) {
+      const hslList = paletteForMetrics
+        .map(hexToHsl)
+        .filter((x): x is { h: number; s: number; l: number } => x != null);
       if (hslList.length > 0) {
         const warmCount = hslList.filter((hsl) => (hsl.h >= 0 && hsl.h < 60) || (hsl.h >= 300 && hsl.h <= 360)).length;
         const coolCount = hslList.filter((hsl) => hsl.h >= 120 && hsl.h < 300).length;
