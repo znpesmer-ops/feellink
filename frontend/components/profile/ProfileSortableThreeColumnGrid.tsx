@@ -3,12 +3,14 @@
 import { useMemo, type CSSProperties, type ReactNode } from 'react'
 import {
   DndContext,
+  type CollisionDetection,
   type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
+  closestCenter,
+  pointerWithin,
   useSensor,
   useSensors,
-  closestCorners,
 } from '@dnd-kit/core'
 import {
   SortableContext,
@@ -18,6 +20,13 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+
+/** Grid gap üzerinde bırakmada over=null olmasın: önce işaretçi içi, yoksa en yakın merkez. */
+const profileGridCollisionDetection: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args)
+  if (pointerCollisions.length > 0) return pointerCollisions
+  return closestCenter(args)
+}
 
 export type ProfileSortableRenderState = {
   isDragging: boolean
@@ -54,7 +63,7 @@ function SortableCell<T extends { id: string }>({
     <div
       ref={setNodeRef}
       style={style}
-      className="min-w-0"
+      className="min-w-0 w-full"
       {...attributes}
       {...listeners}
     >
@@ -100,7 +109,7 @@ export function ProfileSortableThreeColumnGrid<T extends { id: string }>({
     return (
       <div className={gridClasses}>
         {items.map((item, index) => (
-          <div key={item.id} className="min-w-0">
+          <div key={item.id} className="min-w-0 w-full">
             {renderItem(item, index, { isDragging: false })}
           </div>
         ))}
@@ -109,7 +118,7 @@ export function ProfileSortableThreeColumnGrid<T extends { id: string }>({
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={profileGridCollisionDetection} onDragEnd={handleDragEnd}>
       <SortableContext items={itemIds} strategy={rectSortingStrategy}>
         <div className={gridClasses}>
           {items.map((item, index) => (
