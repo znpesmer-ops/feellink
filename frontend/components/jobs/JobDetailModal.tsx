@@ -94,16 +94,16 @@ export function JobDetailModal({ open, onClose, job, currentUserId, hasApplied, 
 
   return (
     <>
-      {/* Backdrop - Sadece içerik alanını kapsar, sidebar ve header kararmaz */}
+      {/* Backdrop - tam viewport; sidebar/header ile aynı dim/blur (diğer modallarla hizalı z) */}
       <div
-        className="fixed top-[64px] left-0 lg:left-64 right-0 bottom-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="fixed top-[64px] left-0 lg:left-64 right-0 bottom-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+      <div className="fixed inset-0 z-[210] flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[calc(100vh-80px)] overflow-y-auto pointer-events-auto transform transition-all duration-200 scale-100 opacity-100 border border-blue-100 dark:border-blue-900/30"
+          className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[calc(100vh-2rem)] overflow-y-auto pointer-events-auto transform transition-all duration-200 scale-100 opacity-100 border border-blue-100 dark:border-blue-900/30"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}

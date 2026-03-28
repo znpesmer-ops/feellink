@@ -80,8 +80,8 @@ function LayoutConditionalComponent({ children }: { children: React.ReactNode })
 
   return (
     <div className="bg-white dark:bg-gray-950">
-      {/* SOL SİDEBAR - Desktop */}
-      <div className="hidden lg:block fixed left-0 top-[31px] h-[calc(100vh-31px)] w-64 z-[99999]">
+      {/* SOL SİDEBAR - Desktop (z-30: modal backdrop’lerin üstüne çıkmaz; overlay tüm shell’e tutarlı uygulanır) */}
+      <div className="hidden lg:block fixed left-0 top-[31px] h-[calc(100vh-31px)] w-64 z-30">
         <SidebarPersistent />
       </div>
 
