@@ -168,22 +168,23 @@ export class ChatService {
         continue;
       }
 
-      const canonical = await this.findExistingDirectPairConversation(nu, peerKey);
-      const canonicalId = canonical?.id ?? group[0].id;
       const mergedUnread = group.reduce((s, g) => s + (Number(g.unreadCount) || 0), 0);
       const latest = group.reduce((best: any, c: any) =>
         new Date(c.updatedAt).getTime() > new Date(best.updatedAt).getTime() ? c : best,
       group[0]);
-      const base = group.find((c: any) => c.id === canonicalId) ?? latest;
       const maxUpdatedMs = Math.max(...group.map((c: any) => new Date(c.updatedAt).getTime()));
 
+      // Liste satırı id'si kanonik olsa, mesajlar latest thread'deyse UI yanlış conv açar.
+      // Önizleme/latest ile aynı gerçek conversation id'sini kullan (birleşik unread korunur).
+      const listId = latest.id;
+
       merged.push({
-        ...base,
-        id: canonicalId,
+        ...latest,
+        id: listId,
         unreadCount: mergedUnread,
         updatedAt: new Date(maxUpdatedMs),
         messages: latest.messages,
-        lastMessage: latest.lastMessage ?? base.lastMessage,
+        lastMessage: latest.lastMessage,
       });
     }
 
@@ -736,10 +737,6 @@ export class ChatService {
     });
 
     return this.pickCanonicalDirectPairFromCandidates(candidates, a, b);
-  }
-
-  private async findExistingDirectPairConversation(userA: string, userB: string) {
-    return this.findExistingDirectPairConversationForClient(this.prisma, userA, userB);
   }
 
   private conversationFullInclude() {
