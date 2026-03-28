@@ -1297,6 +1297,7 @@ export function PostModal({
                                 initialLiked={comment.isLikedByCurrentUser || false}
                                 initialCount={comment.likesCount || 0}
                                 type="post"
+                                postId={resolvedPostId}
                                 cacheKey={postQueryKey}
                                 disabled={isReadOnly}
                               />
@@ -1483,6 +1484,7 @@ export function PostModal({
                                   initialLiked={reply.isLikedByCurrentUser || false}
                                   initialCount={reply.likesCount || 0}
                                   type="post"
+                                  postId={resolvedPostId}
                                   cacheKey={postQueryKey}
                                   disabled={isReadOnly}
                                 />
