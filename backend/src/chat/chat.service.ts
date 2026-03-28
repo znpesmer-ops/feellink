@@ -622,23 +622,70 @@ export class ChatService {
     return message;
   }
 
+  private normalizeChatUserId(id: string): string {
+    return String(id ?? '').trim();
+  }
+
+  /**
+   * Tam olarak iki katılımcılı, userA–userB çiftine ait mevcut konuşmayı bulur.
+   * Birden fazlaysa: önce context DIRECT, sonra en eski createdAt.
+   */
+  private async findExistingDirectPairConversation(userA: string, userB: string) {
+    const a = this.normalizeChatUserId(userA);
+    const b = this.normalizeChatUserId(userB);
+    if (!a || !b || a === b) {
+      return null;
+    }
+
+    const candidates = await this.prisma.conversation.findMany({
+      where: {
+        AND: [
+          { participants: { some: { userId: a } } },
+          { participants: { some: { userId: b } } },
+        ],
+      },
+      include: { participants: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const pairMatches = candidates.filter((conv) => {
+      const parts = conv.participants;
+      if (parts.length !== 2) return false;
+      const ids = new Set(parts.map((p) => this.normalizeChatUserId(p.userId)));
+      return ids.size === 2 && ids.has(a) && ids.has(b);
+    });
+
+    if (pairMatches.length === 0) {
+      return null;
+    }
+
+    pairMatches.sort((x, y) => {
+      const xDirect = (x as { context?: string }).context === 'DIRECT';
+      const yDirect = (y as { context?: string }).context === 'DIRECT';
+      if (xDirect !== yDirect) return xDirect ? -1 : 1;
+      return new Date(x.createdAt).getTime() - new Date(y.createdAt).getTime();
+    });
+
+    return pairMatches[0];
+  }
+
   async createConversation(userId: string, participantIds: string[], context?: 'DIRECT' | 'JOB_APPLICATION', jobId?: string, applicationId?: string) {
-    // Geçerli participant ID'leri filtrele
-    const validParticipantIds = participantIds.filter((id) => id && typeof id === 'string' && id.trim() !== '');
-    
-    if (!userId || typeof userId !== 'string') {
+    const normUserId = this.normalizeChatUserId(userId);
+    const validParticipantIds = participantIds
+      .filter((id) => id && typeof id === 'string' && this.normalizeChatUserId(id) !== '')
+      .map((id) => this.normalizeChatUserId(id));
+
+    if (!normUserId) {
       throw new Error('Invalid userId');
     }
 
-    // Kendi ID'sini ekle
-    const allParticipants = [userId, ...validParticipantIds.filter((id) => id !== userId)];
+    const allParticipants = [normUserId, ...validParticipantIds.filter((id) => id !== normUserId)];
 
     if (allParticipants.length < 2) {
       throw new Error('At least 2 participants required');
     }
 
-    // ✅ KRİTİK: Participant sırasız unique kontrolü (A-B ve B-A aynı conversation)
-    const sortedParticipantIds = allParticipants.sort();
+    const sortedParticipantIds = [...allParticipants].sort();
 
     // 🔥 DOĞRU DUPLICATE KONTROLÜ: Context'e göre farklı mantık
     let existingConversation = null;
@@ -661,7 +708,9 @@ export class ChatService {
       // Aynı applicationId'ye sahip conversation var mı kontrol et
       for (const conv of conversationsWithApplication) {
         const convAny = conv as any;
-        const convParticipantIds = convAny.participants.map((p: any) => p.userId).sort();
+        const convParticipantIds = convAny.participants
+          .map((p: any) => this.normalizeChatUserId(p.userId))
+          .sort();
         if (
           convParticipantIds.length === sortedParticipantIds.length &&
           convParticipantIds.every((id, index) => id === sortedParticipantIds[index])
@@ -671,41 +720,46 @@ export class ChatService {
         }
       }
     } else {
-      // DIRECT: Sadece participant'lara bak (context/jobId/applicationId ignore edilir)
-      // ✅ ALTIN KURAL: İki kullanıcı arasında DIRECT context'te SADECE 1 conversation olabilir
-      // 🔥 GÜÇLENDİRİLMİŞ KONTROL: Tüm conversation'ları kontrol et (context filtresi yok)
-      const allUserConversations = await this.prisma.conversation.findMany({
-        where: {
-          participants: {
-            some: {
-              userId: userId,
+      if ((context === 'DIRECT' || !context) && sortedParticipantIds.length === 2) {
+        existingConversation = await this.findExistingDirectPairConversation(
+          sortedParticipantIds[0],
+          sortedParticipantIds[1],
+        );
+        if (existingConversation) {
+          console.log(
+            `✅ [ChatService] Found existing DIRECT conversation: ${existingConversation.id} (pair lookup)`,
+          );
+        }
+      } else if (context === 'DIRECT' || !context) {
+        const allUserConversations = await this.prisma.conversation.findMany({
+          where: {
+            participants: {
+              some: {
+                userId: normUserId,
+              },
             },
           },
-        },
-        include: {
-          participants: true,
-        },
-      });
+          include: {
+            participants: true,
+          },
+        });
 
-      // Participant sırasız kontrol (A-B ve B-A aynı)
-      // DIRECT context için: context/jobId/applicationId'yi TAMAMEN ignore et
-      for (const conv of allUserConversations) {
-        const convAny = conv as any;
-        const convParticipantIds = convAny.participants.map((p: any) => p.userId).sort();
-        
-        // Participant sayısı ve ID'leri aynı mı kontrol et
-        if (
-          convParticipantIds.length === sortedParticipantIds.length &&
-          convParticipantIds.every((id, index) => id === sortedParticipantIds[index])
-        ) {
-          // ✅ KRİTİK: DIRECT context için: context/jobId/applicationId'yi TAMAMEN ignore et
-          // Sadece participant'lara bak - aynı iki kullanıcı arasında SADECE 1 conversation olabilir
-          if (context === 'DIRECT' || !context) {
+        for (const conv of allUserConversations) {
+          const convAny = conv as any;
+          const convParticipantIds = convAny.participants
+            .map((p: any) => this.normalizeChatUserId(p.userId))
+            .sort();
+
+          if (
+            convParticipantIds.length === sortedParticipantIds.length &&
+            convParticipantIds.every((id, index) => id === sortedParticipantIds[index])
+          ) {
             existingConversation = conv;
-            console.log(`✅ [ChatService] Found existing DIRECT conversation: ${conv.id} (ignoring context/jobId/applicationId)`);
+            console.log(
+              `✅ [ChatService] Found existing DIRECT conversation: ${conv.id} (multi-participant match)`,
+            );
             break;
           }
-          // JOB_APPLICATION context için: applicationId de eşleşmeli (yukarıda kontrol edildi)
         }
       }
     }
