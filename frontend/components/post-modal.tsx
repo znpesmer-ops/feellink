@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
@@ -10,7 +10,7 @@ import { useAuthStore } from '@/lib/store'
 import { Heart, MessageCircle, Bookmark, X, Send, Trash2, CornerUpRight, Pin, PinIcon, FolderPlus, MoreVertical } from 'lucide-react'
 import MentionInput from './MentionInput'
 import { useRouter, usePathname } from 'next/navigation'
-// ⚠️ Socket.IO devre dışı - Vercel serverless'ta çalışmaz
+import { initCommentsSocket } from '@/lib/socket'
 import { FeellinkRoleBadge } from './FeellinkRoleBadge'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import { containsBadWord } from '@/lib/utils/containsBadWord'
@@ -99,6 +99,44 @@ interface Post {
   [POST_QUERY_PUBLIC_FALLBACK]?: boolean
 }
 
+/** Socket’ten gelen commentLikeUpdated — sadece ilgili yorumun likesCount’u; isLiked yalnızca aksiyonu yapan kullanıcı için */
+function patchPostCommentLikeFromSocket(
+  oldData: any,
+  targetCommentId: string,
+  likesCount: number,
+  actorUserId: string,
+  likedByActor: boolean,
+  viewerUserId: string | undefined,
+): any {
+  if (!oldData) return oldData
+  const cid = String(targetCommentId)
+  const updateCommentLikes = (comments: any[]): any[] =>
+    comments.map((comment: any) => {
+      if (String(comment.id) === cid) {
+        const isViewerActor = viewerUserId && String(actorUserId) === String(viewerUserId)
+        return {
+          ...comment,
+          likesCount,
+          isLikedByCurrentUser: isViewerActor ? likedByActor : comment.isLikedByCurrentUser,
+          _count: {
+            ...comment._count,
+            likes: likesCount,
+          },
+          likes:
+            isViewerActor ? (likedByActor ? [{ id: 'socket' }] : []) : comment.likes,
+        }
+      }
+      if (comment.replies?.length) {
+        return { ...comment, replies: updateCommentLikes(comment.replies) }
+      }
+      return comment
+    })
+  return {
+    ...oldData,
+    comments: updateCommentLikes(oldData.comments || []),
+  }
+}
+
 export function PostModal({
   postId,
   onClose,
@@ -110,7 +148,10 @@ export function PostModal({
   const router = useRouter()
   const pathname = usePathname()
   const resolvedPostId = typeof postId === 'string' ? postId.trim() : postId
-  const postQueryKey = ['post', resolvedPostId, publicShare ? 'public' : 'auth'] as const
+  const postQueryKey = useMemo(
+    () => ['post', resolvedPostId, publicShare ? 'public' : 'auth'] as const,
+    [resolvedPostId, publicShare],
+  )
   const [commentText, setCommentText] = useState('')
   const [isPostingComment, setIsPostingComment] = useState(false)
   const [animateLike, setAnimateLike] = useState(false)
@@ -200,11 +241,62 @@ export function PostModal({
     },
     enabled: !!resolvedPostId && (!!accessToken || publicShare),
     staleTime: 60 * 1000, // 1 dk cache — like/comment mutation cache'i günceller, sayfa geç yüklenmez
+    // Başka kullanıcı / sekme beğenilerini görmek: odakta taze veri (staleTime bypass)
+    refetchOnWindowFocus: publicShare ? false : 'always',
+    // Production'da socket kapalı — açık modalda periyodik tazeleme (localhost'ta socket yeter)
+    refetchInterval: (q) => {
+      if (publicShare || typeof window === 'undefined') return false
+      const h = window.location.hostname
+      if (h === 'localhost' || h === '127.0.0.1') return false
+      return q.state.data ? 20000 : false
+    },
     retry: (failureCount, error) => {
       if (isAxiosError(error) && error.response?.status != null) return false
       return failureCount < 1
     },
   })
+
+  // Gerçek zamanlı yorum beğenisi (localhost / socket açık); diğer kullanıcıların cache'ini günceller
+  useEffect(() => {
+    if (!accessToken || publicShare || !resolvedPostId) return
+
+    const commentsSocket = initCommentsSocket(accessToken)
+    const join = () => {
+      commentsSocket.emit('joinPostRoom', resolvedPostId)
+    }
+
+    const onCommentLikeUpdated = (data: {
+      commentId: string
+      postId: string
+      liked: boolean
+      likesCount: number
+      userId: string
+    }) => {
+      if (String(data.postId) !== String(resolvedPostId)) return
+      const applyLikePatch = (old: any) =>
+        patchPostCommentLikeFromSocket(
+          old,
+          data.commentId,
+          data.likesCount,
+          data.userId,
+          data.liked,
+          user?.id,
+        )
+      queryClient.setQueryData(postQueryKey, applyLikePatch)
+      queryClient.setQueriesData({ queryKey: ['post', resolvedPostId] }, applyLikePatch)
+      queryClient.invalidateQueries({ queryKey: ['user-comments'] })
+    }
+
+    commentsSocket.on('connect', join)
+    if (commentsSocket.connected) join()
+    commentsSocket.on('commentLikeUpdated', onCommentLikeUpdated)
+
+    return () => {
+      commentsSocket.off('connect', join)
+      commentsSocket.off('commentLikeUpdated', onCommentLikeUpdated)
+      commentsSocket.emit('leavePostRoom', resolvedPostId)
+    }
+  }, [accessToken, publicShare, resolvedPostId, postQueryKey, queryClient, user?.id])
 
   const isReadOnly = publicShare || Boolean(post?.[POST_QUERY_PUBLIC_FALLBACK])
 
@@ -667,9 +759,7 @@ export function PostModal({
     }
   }
 
-  // ⚠️ Socket.IO devre dışı - Vercel serverless'ta çalışmaz
-  // Like/Comment işlemleri REST API üzerinden çalışıyor
-  // Query invalidation ile state güncelleniyor
+  // Gönderi beğenisi: REST. Yorum beğenisi: localhost’ta /comments socket + production’da refetchInterval / refetchOnWindowFocus.
 
   // Close on Escape key
   useEffect(() => {
@@ -1136,8 +1226,18 @@ export function PostModal({
                       {pinnedComment.content}
                     </p>
                   </div>
+                  <div className="flex flex-col gap-1.5 flex-shrink-0 items-end pt-0.5">
+                    <CommentLikeButton
+                      commentId={pinnedComment.id}
+                      initialLiked={pinnedComment.isLikedByCurrentUser || false}
+                      initialCount={pinnedComment.likesCount || 0}
+                      type="post"
+                      postId={resolvedPostId}
+                      cacheKey={postQueryKey}
+                      disabled={isReadOnly}
+                    />
                   {showPinnedActions && (
-                    <div className="flex flex-col gap-1.5 flex-shrink-0 items-end pt-0.5">
+                    <>
                       {isPostOwnerBanner && (
                         <button
                           type="button"
@@ -1156,8 +1256,9 @@ export function PostModal({
                           {isPinnedCommentOwner ? 'Sil' : 'Yorumu Sil'}
                         </button>
                       )}
-                    </div>
+                    </>
                   )}
+                  </div>
                 </div>
               );
             })()}
