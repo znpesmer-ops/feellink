@@ -128,7 +128,6 @@ export function SharePostModal({ open, onClose, postId, shareTitle, shareCaption
   return (
     <div
       className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-[250] p-4"
-      onClick={onClose}
     >
       <div
         className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md shadow-xl max-h-[85vh] flex flex-col border border-gray-200 dark:border-gray-800"

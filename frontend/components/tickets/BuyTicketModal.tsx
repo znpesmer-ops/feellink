@@ -149,11 +149,6 @@ export default function BuyTicketModal({ event, isOpen, onClose }: BuyTicketModa
   return (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !loading) {
-          onClose();
-        }
-      }}
     >
       <div className="w-full max-w-lg mx-4 rounded-2xl bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 shadow-2xl text-gray-900 dark:text-white max-h-[90vh] overflow-y-auto">
         {/* Başlık */}

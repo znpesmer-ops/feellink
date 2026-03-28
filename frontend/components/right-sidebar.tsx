@@ -467,12 +467,6 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
       <div 
         className="fixed inset-0 z-[9999] flex items-center justify-center 
                    bg-black/50 backdrop-blur-sm animate-in"
-        onClick={(e) => {
-          // Modal dışına tıklanınca kapat
-          if (e.target === e.currentTarget) {
-            setSelectedWriter(null)
-          }
-        }}
       >
         <div 
           className="relative w-[450px] max-w-[90vw] 

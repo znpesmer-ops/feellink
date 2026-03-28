@@ -77,7 +77,6 @@ export default function LinkModal({
       {/* Overlay */}
       <div
         className="absolute inset-0 bg-black/60 dark:bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
       />
 
       {/* Modal */}

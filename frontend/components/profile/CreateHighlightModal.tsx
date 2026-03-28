@@ -253,7 +253,7 @@ export function CreateHighlightModal({ username, userId, onClose }: CreateHighli
   }
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60" onClick={handleClose}>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60">
       <div
         className="w-full max-w-3xl max-h-[80vh] bg-[#111] dark:bg-gray-900 rounded-2xl p-6 flex flex-col gap-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}

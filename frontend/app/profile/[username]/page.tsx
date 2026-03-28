@@ -1629,7 +1629,6 @@ function ProfileContent() {
       {showFollowers && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
-          onClick={() => setShowFollowers(false)}
         >
           <div
             className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col transition-colors"
@@ -1691,7 +1690,6 @@ function ProfileContent() {
       {confirmDelete && (
         <div 
           className="fixed inset-0 bg-black/60 flex items-center justify-center z-40"
-          onClick={handleCancelDelete}
         >
           <div 
             className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl"
@@ -1726,7 +1724,6 @@ function ProfileContent() {
       {showFollowing && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
-          onClick={() => setShowFollowing(false)}
         >
           <div
             className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col transition-colors"

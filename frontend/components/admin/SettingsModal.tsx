@@ -43,7 +43,7 @@ export function SettingsModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div 
         className="bg-neutral-900 rounded-xl p-6 w-[420px] max-w-[90vw] shadow-xl"
         onClick={(e) => e.stopPropagation()}

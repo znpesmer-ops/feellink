@@ -404,7 +404,6 @@ export function ProfileArtworksGrid({
       {confirmDelete && (
         <div
           className="fixed inset-0 bg-black/60 flex items-center justify-center z-40"
-          onClick={handleCancelDelete}
         >
           <div
             className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl"

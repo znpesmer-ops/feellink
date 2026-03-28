@@ -97,7 +97,6 @@ export function JobDetailModal({ open, onClose, job, currentUserId, hasApplied, 
       {/* Backdrop - tam viewport; sidebar/header ile aynı dim/blur (diğer modallarla hizalı z) */}
       <div
         className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
       />
 
       {/* Modal */}

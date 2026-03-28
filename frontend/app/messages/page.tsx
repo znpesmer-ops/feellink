@@ -2142,7 +2142,6 @@ function MessagesContent() {
       {deleteConversationId && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/70"
-          onClick={() => setDeleteConversationId(null)}
         >
           <div
             className="w-[400px] rounded-xl bg-white dark:bg-gray-900 p-6 shadow-xl border border-gray-200 dark:border-gray-800"

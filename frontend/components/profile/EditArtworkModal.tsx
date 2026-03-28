@@ -81,7 +81,6 @@ export function EditArtworkModal({ artwork, open, onClose, onSuccess }: EditArtw
   return (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
     >
       <div
         className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-6 w-full max-w-md shadow-xl border border-gray-200 dark:border-gray-700"

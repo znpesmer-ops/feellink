@@ -64,11 +64,6 @@ export function DeleteAccountModal({ isOpen, onClose }: DeleteAccountModalProps)
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose()
-        }
-      }}
       onKeyDown={handleKeyDown}
     >
       {/* Backdrop blur */}

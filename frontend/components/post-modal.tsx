@@ -860,7 +860,6 @@ export function PostModal({
     return (
       <div
         className={publicShare ? publicViewOuter : modalViewOuter}
-        onClick={publicShare ? undefined : onClose}
       >
         <div
           className={`${publicShare ? cardShellPublic : 'bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md p-6 shadow-xl'} text-center`}
@@ -885,7 +884,6 @@ export function PostModal({
     return (
       <div
         className={publicShare ? publicViewOuter : modalViewOuter}
-        onClick={publicShare ? undefined : onClose}
       >
         <div
           className={`${publicShare ? cardShellPublic : cardShellModal} flex animate-in fade-in slide-in-from-bottom-4 duration-300`}
@@ -924,7 +922,6 @@ export function PostModal({
   return (
     <div
       className={publicShare ? publicViewOuter : modalViewOuter}
-      onClick={publicShare ? undefined : onClose}
     >
       <div
         className={`${
@@ -1725,7 +1722,6 @@ export function PostModal({
       {showDeleteConfirm && (
         <div
           className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-sm"
-          onClick={() => setShowDeleteConfirm(null)}
         >
           <div
             className="bg-white dark:bg-[#0f172a] rounded-xl w-[360px] max-w-[90vw] p-6 shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in-95 duration-200"

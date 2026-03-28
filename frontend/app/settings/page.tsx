@@ -143,7 +143,6 @@ function BlockedUsersModal({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
-      onClick={onClose}
     >
       <div
         className="w-full max-w-[420px] max-h-[70vh] bg-white dark:bg-[#111827] rounded-xl shadow-xl flex flex-col overflow-hidden"

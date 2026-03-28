@@ -30,16 +30,9 @@ export default function DeleteModal({
     onConfirm()
   }
 
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      onClose()
-    }
-  }
-
   return (
     <div
       className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] animate-fadeIn"
-      onClick={handleBackdropClick}
     >
       <div className="bg-white dark:bg-[#111] rounded-2xl shadow-2xl w-[420px] max-w-[90vw] animate-modalSlide">
         {/* Header */}

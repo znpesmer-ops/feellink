@@ -390,7 +390,6 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
   return (
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
-      onClick={handleClose}
     >
       <div
         className="bg-[#101014] dark:bg-[#0f0f0f] w-full max-w-[550px] rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"

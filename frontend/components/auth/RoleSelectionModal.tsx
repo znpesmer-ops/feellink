@@ -104,7 +104,6 @@ export default function RoleSelectionModal({
       {/* Blur backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-        onClick={!isSubmitting ? onClose : undefined}
       />
 
       {/* Modal */}

@@ -178,7 +178,6 @@ export default function RoleChanger({ user, onUpdate, isOwnProfile = false }: Ro
       {open && (
         <div
           className="fixed inset-0 flex items-center justify-center bg-black/60 z-50 backdrop-blur-sm"
-          onClick={() => setOpen(false)}
         >
           <div
             className="bg-[var(--card)] p-6 rounded-2xl w-full max-w-md mx-4 border border-[var(--border)] shadow-xl"
@@ -342,7 +341,6 @@ export default function RoleChanger({ user, onUpdate, isOwnProfile = false }: Ro
       {showSuccessModal && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => setShowSuccessModal(false)}
         >
           <div 
             className="w-full max-w-md rounded-2xl bg-[#0f172a] border border-white/10 shadow-2xl p-6 text-center mx-4"

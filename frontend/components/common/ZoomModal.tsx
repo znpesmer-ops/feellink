@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { useEffect } from 'react'
+import { X } from 'lucide-react'
 
 export default function ZoomModal({ src, onClose }: { src: string; onClose: () => void }) {
   // ESC tuşu ile kapatma
@@ -16,10 +17,15 @@ export default function ZoomModal({ src, onClose }: { src: string; onClose: () =
   }, [onClose])
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center backdrop-blur-sm"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center backdrop-blur-sm">
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute top-4 right-4 z-10 rounded-full p-2 text-white/90 hover:bg-white/10 hover:text-white transition-colors"
+        aria-label="Kapat"
+      >
+        <X className="h-6 w-6" />
+      </button>
       <motion.img
         src={src}
         alt="Zoomed profile photo"
@@ -31,10 +37,9 @@ export default function ZoomModal({ src, onClose }: { src: string; onClose: () =
           rounded-full
           object-cover
           shadow-[0_0_40px_rgba(0,0,0,0.4)]
-          cursor-zoom-out
+          cursor-default
           border-4 border-white/30
         "
-        onClick={(e) => e.stopPropagation()}
         onError={(e) => {
           ;(e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
         }}
@@ -42,4 +47,3 @@ export default function ZoomModal({ src, onClose }: { src: string; onClose: () =
     </div>
   )
 }
-

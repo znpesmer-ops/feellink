@@ -72,7 +72,7 @@ export function AddToCollectionModal({ postId, open, onClose, onSuccess }: AddTo
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
         className="bg-white dark:bg-gray-950 rounded-2xl p-6 w-full max-w-md shadow-lg border border-gray-200 dark:border-white/10"
         onClick={(e) => e.stopPropagation()}

@@ -36,7 +36,7 @@ export function HighlightDetailModal({ highlight, onClose, returnTo = '/feed' }:
   const displayItems = rawItems.filter((i) => i?.post?.id)
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60">
       <div
         className="w-full max-w-4xl max-h-[85vh] bg-[#111] dark:bg-gray-900 rounded-2xl p-6 flex flex-col gap-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}

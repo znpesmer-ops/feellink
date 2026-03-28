@@ -33,7 +33,6 @@ export default function ApproveParticipantModal({
   return (
     <div
       className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 animate-fadeIn"
-      onClick={onCancel}
     >
       <div
         className="bg-white dark:bg-[#1a1a1a] p-6 rounded-2xl shadow-xl w-full max-w-md mx-4 border border-gray-200 dark:border-gray-700 transition-all duration-300"

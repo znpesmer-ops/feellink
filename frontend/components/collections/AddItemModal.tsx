@@ -208,7 +208,7 @@ export function AddItemModal({ collectionId, open, onClose, onSuccess }: AddItem
   const showNoResults = !loading && debouncedQuery.length >= 2 && results.artworks.length === 0 && results.users.length === 0
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
         className="bg-white dark:bg-gray-950 rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-lg border border-gray-200 dark:border-white/10 flex flex-col"
         onClick={(e) => e.stopPropagation()}

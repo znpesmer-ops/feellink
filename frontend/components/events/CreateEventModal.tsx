@@ -257,7 +257,6 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: CreateE
   return (
     <div 
       className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-[100] transition-all"
-      onClick={onClose}
     >
       <div 
         className="bg-white dark:bg-[#1a1a1a]/95 backdrop-blur-md rounded-2xl shadow-2xl w-full max-w-lg p-6 relative border border-gray-200 dark:border-gray-700/40 max-h-[90vh] overflow-y-auto"

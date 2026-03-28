@@ -219,7 +219,7 @@ export function AddArtworkToHighlightModal({
 
   if (isLoadingArtworks) {
     return (
-      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60">
         <div
           className="bg-[#0d0d10] dark:bg-gray-900 p-6 rounded-xl w-[400px] shadow-xl flex items-center justify-center"
           onClick={(e) => e.stopPropagation()}
@@ -231,7 +231,7 @@ export function AddArtworkToHighlightModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60">
       <div
         className="bg-[#0d0d10] dark:bg-gray-900 p-6 rounded-xl w-[400px] max-h-[80vh] flex flex-col shadow-xl"
         onClick={(e) => e.stopPropagation()}

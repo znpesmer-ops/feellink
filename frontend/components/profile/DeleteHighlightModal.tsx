@@ -52,7 +52,7 @@ export function DeleteHighlightModal({ highlight, onClose, onDelete }: DeleteHig
   }
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div
         className="bg-[#0d0d10] dark:bg-gray-900 p-6 rounded-xl w-[350px] shadow-xl"
         onClick={(e) => e.stopPropagation()}

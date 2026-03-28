@@ -28,7 +28,6 @@ export default function DeleteConfirmModal({
   return (
     <div
       className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-[9999] animate-fadeIn"
-      onClick={onClose}
     >
       <div
         className="bg-white dark:bg-[#0d0e10] border border-gray-200 dark:border-white/10 shadow-xl rounded-xl p-6 w-[90%] max-w-[420px] animate-fadeIn"
