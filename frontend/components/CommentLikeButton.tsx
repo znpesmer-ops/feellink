@@ -111,6 +111,7 @@ export default function CommentLikeButton({
         } else if (postCacheKey) {
           queryClient.setQueryData(postCacheKey, updater)
         }
+        queryClient.invalidateQueries({ queryKey: ['user-comments'] })
       }
     } catch (err) {
       console.error('Like error:', err)

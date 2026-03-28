@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -1305,7 +1306,7 @@ export class PostsService {
     // Kullanıcının tüm yorumlarını getir (ana yorumlar ve yanıtlar dahil)
     const comments = await this.prisma.comment.findMany({
       where: {
-        userId: userId, // ✅ Kullanıcının yaptığı tüm yorumlar
+        userId: String(userId),
       },
       include: {
         user: {
@@ -1341,16 +1342,22 @@ export class PostsService {
       orderBy: { createdAt: 'desc' }, // En yeni yorumlar önce
     });
 
-    return comments;
+    return comments.map((c) => ({
+      ...c,
+      likesCount: c._count?.likes ?? 0,
+    }));
   }
 
   async getComments(postId: string, parentId?: string) {
+    const CDN_BASE = this.configService.get('CDN_BASE_URL') ||
+      `http://${this.configService.get('MINIO_ENDPOINT')}:${this.configService.get('MINIO_PORT')}/${this.configService.get('MINIO_BUCKET_NAME')}`;
+
     // Eğer parentId varsa sadece o parent'ın yanıtlarını getir
     if (parentId) {
-      return this.prisma.comment.findMany({
+      const rows = await this.prisma.comment.findMany({
         where: {
-          postId,
-          parentId,
+          postId: String(postId),
+          parentId: String(parentId),
         },
         include: {
           user: {
@@ -1362,16 +1369,39 @@ export class PostsService {
               isVerified: true,
             },
           },
+          _count: {
+            select: {
+              likes: true,
+            },
+          },
         },
         orderBy: { createdAt: 'asc' },
       });
+
+      return rows.map((comment) => ({
+        id: comment.id,
+        postId: comment.postId,
+        parentId: comment.parentId,
+        content: comment.content,
+        createdAt: comment.createdAt,
+        likesCount: comment._count?.likes ?? 0,
+        isLikedByCurrentUser: false,
+        user: {
+          id: comment.user.id,
+          username: comment.user.username,
+          fullName: comment.user.fullName,
+          avatar: comment.user.avatar ? (comment.user.avatar.startsWith('http') ? comment.user.avatar : `${CDN_BASE}/${comment.user.avatar}`) : null,
+          isVerified: comment.user.isVerified,
+        },
+        _count: comment._count,
+      }));
     }
 
     // Ana yorumları ve yanıtlarını getir
     const comments = await this.prisma.comment.findMany({
       where: {
-        postId: postId, // ✅ Açıkça postId ile filtrele (tüm yorumlar görünür)
-        parentId: null, // Sadece ana yorumlar
+        postId: String(postId),
+        parentId: null,
       },
       include: {
         user: {
@@ -1394,21 +1424,23 @@ export class PostsService {
                 isVerified: true,
               },
             },
+            _count: {
+              select: {
+                likes: true,
+              },
+            },
           },
           orderBy: { createdAt: 'asc' },
         },
         _count: {
           select: {
             replies: true,
+            likes: true,
           },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
-
-    // Avatar URL'lerini formatla
-    const CDN_BASE = this.configService.get('CDN_BASE_URL') || 
-      `http://${this.configService.get('MINIO_ENDPOINT')}:${this.configService.get('MINIO_PORT')}/${this.configService.get('MINIO_BUCKET_NAME')}`;
 
     return comments.map((comment) => ({
       id: comment.id,
@@ -1416,6 +1448,8 @@ export class PostsService {
       parentId: comment.parentId,
       content: comment.content,
       createdAt: comment.createdAt,
+      likesCount: comment._count?.likes ?? 0,
+      isLikedByCurrentUser: false,
       user: {
         id: comment.user.id,
         username: comment.user.username,
@@ -1429,6 +1463,8 @@ export class PostsService {
         parentId: reply.parentId,
         content: reply.content,
         createdAt: reply.createdAt,
+        likesCount: reply._count?.likes ?? 0,
+        isLikedByCurrentUser: false,
         user: {
           id: reply.user.id,
           username: reply.user.username,
@@ -1436,6 +1472,7 @@ export class PostsService {
           avatar: reply.user.avatar ? (reply.user.avatar.startsWith('http') ? reply.user.avatar : `${CDN_BASE}/${reply.user.avatar}`) : null,
           isVerified: reply.user.isVerified,
         },
+        _count: reply._count,
       })),
       _count: comment._count,
     }));
@@ -2207,9 +2244,11 @@ export class PostsService {
   }
 
   async toggleCommentLike(commentId: string, userId: string) {
-    // Yorumun var olup olmadığını kontrol et
+    const cid = String(commentId);
+    const uid = String(userId);
+
     const comment = await this.prisma.comment.findUnique({
-      where: { id: commentId },
+      where: { id: cid },
       include: {
         user: {
           select: { id: true, username: true },
@@ -2221,74 +2260,80 @@ export class PostsService {
       throw new NotFoundException('Comment not found');
     }
 
-    // Kullanıcı daha önce beğenmiş mi?
     const existingLike = await this.prisma.commentLike.findUnique({
       where: {
         commentId_userId: {
-          commentId,
-          userId,
+          commentId: cid,
+          userId: uid,
         },
       },
     });
 
+    let liked: boolean;
+
     if (existingLike) {
-      // Beğenmeyi kaldır
       await this.prisma.commentLike.delete({
         where: { id: existingLike.id },
       });
+      liked = false;
     } else {
-      // Beğeniyi ekle
-      await this.prisma.commentLike.create({
-        data: {
-          commentId,
-          userId,
-        },
-      });
-
-      // 🔔 Bildirim oluştur (kendine beğenme hariç)
-      if (comment.userId !== userId && this.notificationsService) {
-        await this.notificationsService.createNotificationSync({
-          userId: comment.userId,
-          type: 'comment_like',
-          message: `${comment.user.username} yorumunu beğendi.`,
-          fromUserId: userId,
-          postId: comment.postId,
-          commentId: commentId,
-          targetUrl: `/posts/${comment.postId}#cmt-${commentId}`,
+      try {
+        await this.prisma.commentLike.create({
+          data: {
+            commentId: cid,
+            userId: uid,
+          },
         });
+        liked = true;
 
-        console.log(`🔔 Comment like notification created for comment author: ${comment.userId}`);
+        if (comment.userId !== uid && this.notificationsService) {
+          await this.notificationsService.createNotificationSync({
+            userId: comment.userId,
+            type: 'comment_like',
+            message: `${comment.user.username} yorumunu beğendi.`,
+            fromUserId: uid,
+            postId: comment.postId,
+            commentId: cid,
+            targetUrl: `/posts/${comment.postId}#cmt-${cid}`,
+          });
+
+          console.log(`🔔 Comment like notification created for comment author: ${comment.userId}`);
+        }
+      } catch (e) {
+        if (e instanceof PrismaClientKnownRequestError && e.code === 'P2002') {
+          liked = true;
+        } else {
+          throw e;
+        }
       }
     }
 
-    // Güncel beğeni sayısını al
     const likesCount = await this.prisma.commentLike.count({
-      where: { commentId },
+      where: { commentId: cid },
     });
 
-    // 🔔 Socket.IO ile real-time güncelleme gönder (MongoDB entegrasyonu)
     if (this.commentsGateway) {
       const room = `post_${comment.postId}`;
       this.commentsGateway.server.to(room).emit('commentLikeUpdated', {
-        commentId,
+        commentId: cid,
         postId: comment.postId,
-        liked: !existingLike,
+        liked,
         likesCount,
-        userId,
+        userId: uid,
       });
-      // Global event de gönder
       this.commentsGateway.server.emit('commentLikeUpdated', {
-        commentId,
+        commentId: cid,
         postId: comment.postId,
-        liked: !existingLike,
+        liked,
         likesCount,
-        userId,
+        userId: uid,
       });
-      console.log(`💬 Comment like updated event broadcasted: ${commentId} (liked: ${!existingLike}, count: ${likesCount})`);
+      console.log(`💬 Comment like updated event broadcasted: ${cid} (liked: ${liked}, count: ${likesCount})`);
     }
 
     return {
-      liked: !existingLike,
+      commentId: cid,
+      liked,
       likesCount,
     };
   }
