@@ -68,4 +68,10 @@ __decorate([
     (0, class_validator_1.IsString)({ each: true }),
     __metadata("design:type", Array)
 ], CreatePostDto.prototype, "colorPalette", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, description: 'Eserin oluşturulduğu tarih (ISO date string, opsiyonel)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsDateString)(),
+    __metadata("design:type", String)
+], CreatePostDto.prototype, "artworkCreatedDate", void 0);
 //# sourceMappingURL=create-post.dto.js.map

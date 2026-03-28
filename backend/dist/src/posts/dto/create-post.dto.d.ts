@@ -9,4 +9,5 @@ export declare class CreatePostDto {
     location?: string;
     type?: string;
     colorPalette?: string[];
+    artworkCreatedDate?: string;
 }

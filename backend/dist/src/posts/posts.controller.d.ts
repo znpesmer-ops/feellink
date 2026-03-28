@@ -15,6 +15,7 @@ export declare class PostsController {
         location?: string;
         type?: string;
         colorPalette?: string | string[];
+        artworkCreatedDate?: string;
     }): Promise<{
         user: {
             id: string;
@@ -23,33 +24,34 @@ export declare class PostsController {
             avatar: string;
             isVerified: boolean;
         };
-        media: {
-            type: string;
-            order: number;
-            url: string;
-            id: string;
-            createdAt: Date;
-            thumbnailUrl: string;
-            postId: string;
-        }[];
         _count: {
             comments: number;
             likes: number;
         };
+        media: {
+            id: string;
+            createdAt: Date;
+            type: string;
+            postId: string;
+            order: number;
+            url: string;
+            thumbnailUrl: string;
+        }[];
     } & {
-        type: string;
         id: string;
         userId: string;
+        code: string;
+        createdAt: Date;
+        type: string;
+        updatedAt: Date;
+        isDeleted: boolean;
+        deletedAt: Date;
         caption: string;
         title: string;
         location: string;
-        code: string;
         colors: string[];
         colorPalette: string[];
-        isDeleted: boolean;
-        deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
+        artworkCreatedDate: Date;
     }>;
     createPostWithUrls(user: any, dto: CreatePostDto): Promise<{
         user: {
@@ -59,33 +61,34 @@ export declare class PostsController {
             avatar: string;
             isVerified: boolean;
         };
-        media: {
-            type: string;
-            order: number;
-            url: string;
-            id: string;
-            createdAt: Date;
-            thumbnailUrl: string;
-            postId: string;
-        }[];
         _count: {
             comments: number;
             likes: number;
         };
+        media: {
+            id: string;
+            createdAt: Date;
+            type: string;
+            postId: string;
+            order: number;
+            url: string;
+            thumbnailUrl: string;
+        }[];
     } & {
-        type: string;
         id: string;
         userId: string;
+        code: string;
+        createdAt: Date;
+        type: string;
+        updatedAt: Date;
+        isDeleted: boolean;
+        deletedAt: Date;
         caption: string;
         title: string;
         location: string;
-        code: string;
         colors: string[];
         colorPalette: string[];
-        isDeleted: boolean;
-        deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
+        artworkCreatedDate: Date;
     }>;
     getQrLabel(id: string, res: Response): Promise<Response<any, Record<string, any>>>;
     generateArtworkQrPdf(postId: string, res: Response): Promise<void>;
@@ -107,6 +110,7 @@ export declare class PostsController {
         title: string;
         location: string;
         type: string;
+        artworkCreatedDate: string;
         createdAt: string;
         updatedAt: string;
         media: any[];
@@ -115,6 +119,7 @@ export declare class PostsController {
             id: string;
             username: string;
             fullName: string;
+            isPrivate: boolean;
             isVerified: boolean;
         };
         comments: {
@@ -145,9 +150,9 @@ export declare class PostsController {
         };
         hashtags: ({
             hashtag: {
-                name: string;
                 id: string;
                 createdAt: Date;
+                name: string;
                 postCount: number;
             };
         } & {
@@ -156,10 +161,17 @@ export declare class PostsController {
             hashtagId: string;
         })[];
         code: string;
-        colors: string[];
-        colorPalette: string[];
         isDeleted: boolean;
         deletedAt: Date;
+        colors: string[];
+        colorPalette: string[];
+    }>;
+    sharePost(postId: string, user: any, body: {
+        recipientIds?: string[];
+    }): Promise<{
+        sent: number;
+        skipped: number;
+        errors: string[];
     }>;
     getPost(params: PostIdDto, user: any): Promise<{
         id: string;
@@ -168,6 +180,7 @@ export declare class PostsController {
         title: string;
         location: string;
         type: string;
+        artworkCreatedDate: string;
         createdAt: string;
         updatedAt: string;
         media: any[];
@@ -176,6 +189,7 @@ export declare class PostsController {
             id: string;
             username: string;
             fullName: string;
+            isPrivate: boolean;
             isVerified: boolean;
         };
         comments: {
@@ -206,9 +220,9 @@ export declare class PostsController {
         };
         hashtags: ({
             hashtag: {
-                name: string;
                 id: string;
                 createdAt: Date;
+                name: string;
                 postCount: number;
             };
         } & {
@@ -217,14 +231,15 @@ export declare class PostsController {
             hashtagId: string;
         })[];
         code: string;
-        colors: string[];
-        colorPalette: string[];
         isDeleted: boolean;
         deletedAt: Date;
+        colors: string[];
+        colorPalette: string[];
     }>;
     updatePost(params: PostIdDto, user: any, body: {
         caption?: string;
         title?: string;
+        artworkCreatedDate?: string | null;
     }): Promise<{
         user: {
             id: string;
@@ -232,33 +247,34 @@ export declare class PostsController {
             fullName: string;
             avatar: string;
         };
-        media: {
-            type: string;
-            order: number;
-            url: string;
-            id: string;
-            createdAt: Date;
-            thumbnailUrl: string;
-            postId: string;
-        }[];
         _count: {
             comments: number;
             likes: number;
         };
+        media: {
+            id: string;
+            createdAt: Date;
+            type: string;
+            postId: string;
+            order: number;
+            url: string;
+            thumbnailUrl: string;
+        }[];
     } & {
-        type: string;
         id: string;
         userId: string;
+        code: string;
+        createdAt: Date;
+        type: string;
+        updatedAt: Date;
+        isDeleted: boolean;
+        deletedAt: Date;
         caption: string;
         title: string;
         location: string;
-        code: string;
         colors: string[];
         colorPalette: string[];
-        isDeleted: boolean;
-        deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
+        artworkCreatedDate: Date;
     }>;
     deletePost(params: PostIdDto, user: any): Promise<{
         success: boolean;
@@ -303,14 +319,14 @@ export declare class PostsController {
             isVerified: boolean;
         };
     } & {
-        content: string;
         id: string;
         userId: string;
         createdAt: Date;
         updatedAt: Date;
+        content: string;
+        isPinned: boolean;
         postId: string;
         parentId: string;
-        isPinned: boolean;
     })[] | {
         id: string;
         postId: string;
@@ -361,24 +377,17 @@ export declare class PostsController {
             isVerified: boolean;
         };
         userId: string;
-        location: string;
         code: string;
-        colors: string[];
-        colorPalette: string[];
-        isDeleted: boolean;
-        deletedAt: Date;
         createdAt: Date;
         updatedAt: Date;
+        isDeleted: boolean;
+        deletedAt: Date;
+        location: string;
+        colors: string[];
+        colorPalette: string[];
+        artworkCreatedDate: Date;
     }[]>;
     getUserComments(userId: string): Promise<({
-        post: {
-            id: string;
-            caption: string;
-            media: {
-                type: string;
-                url: string;
-            }[];
-        };
         user: {
             id: string;
             username: string;
@@ -390,15 +399,23 @@ export declare class PostsController {
             likes: number;
             replies: number;
         };
+        post: {
+            id: string;
+            caption: string;
+            media: {
+                type: string;
+                url: string;
+            }[];
+        };
     } & {
-        content: string;
         id: string;
         userId: string;
         createdAt: Date;
         updatedAt: Date;
+        content: string;
+        isPinned: boolean;
         postId: string;
         parentId: string;
-        isPinned: boolean;
     })[]>;
     savePost(params: PostIdDto, user: any): Promise<{
         success: boolean;
@@ -433,27 +450,28 @@ export declare class PostsController {
             isVerified: boolean;
         };
         media: {
-            type: string;
-            order: number;
-            url: string;
             id: string;
             createdAt: Date;
-            thumbnailUrl: string;
+            type: string;
             postId: string;
+            order: number;
+            url: string;
+            thumbnailUrl: string;
         }[];
-        type: string;
         id: string;
         userId: string;
+        code: string;
+        createdAt: Date;
+        type: string;
+        updatedAt: Date;
+        isDeleted: boolean;
+        deletedAt: Date;
         caption: string;
         title: string;
         location: string;
-        code: string;
         colors: string[];
         colorPalette: string[];
-        isDeleted: boolean;
-        deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
+        artworkCreatedDate: Date;
     }[]>;
     saveArtwork(params: PostIdDto, user: any): Promise<{
         success: boolean;
@@ -487,6 +505,7 @@ export declare class PostsController {
     deleteComment(postId: string, commentId: string, user: any): Promise<{
         success: boolean;
         message: string;
+        deletedCount: number;
     }>;
     toggleCommentLike(commentId: string, user: any): Promise<{
         liked: boolean;

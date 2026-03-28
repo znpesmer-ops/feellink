@@ -4,13 +4,13 @@ export declare class NotificationPreferencesController {
     constructor(notificationsService: NotificationsService);
     getMyPrefs(user: any): Promise<{
         id: string;
+        userId: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
-        like: boolean;
         comment: boolean;
-        follow: boolean;
         mention: boolean;
+        follow: boolean;
+        like: boolean;
     }>;
     updatePrefs(user: any, body: {
         mention?: boolean;
@@ -19,12 +19,12 @@ export declare class NotificationPreferencesController {
         comment?: boolean;
     }): Promise<{
         id: string;
+        userId: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
-        like: boolean;
         comment: boolean;
-        follow: boolean;
         mention: boolean;
+        follow: boolean;
+        like: boolean;
     }>;
 }

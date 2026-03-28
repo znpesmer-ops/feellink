@@ -46,6 +46,8 @@ export declare class UsersService {
     }>;
     updateUsername(userId: string, newUsername: string): Promise<{
         id: string;
+        city: string;
+        gender: string;
         username: string;
         email: string;
         fullName: string;
@@ -60,8 +62,6 @@ export declare class UsersService {
         website: string;
         dateOfBirth: Date;
         country: string;
-        city: string;
-        gender: string;
         profileCompleted: boolean;
     } | {
         id: string;
@@ -73,6 +73,8 @@ export declare class UsersService {
         success: boolean;
         user: {
             id: string;
+            city: string;
+            gender: string;
             username: string;
             email: string;
             fullName: string;
@@ -87,8 +89,6 @@ export declare class UsersService {
             superAdmin: boolean;
             dateOfBirth: Date;
             country: string;
-            city: string;
-            gender: string;
             profileCompleted: boolean;
         };
         message: string;
@@ -179,27 +179,28 @@ export declare class UsersService {
             likes: number;
         };
         media: {
-            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
             order: number;
+            url: string;
             thumbnailUrl: string;
         }[];
         id: string;
-        title: string;
-        location: string;
+        userId: string;
+        code: string;
+        createdAt: Date;
+        type: string;
+        updatedAt: Date;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        type: string;
         caption: string;
-        code: string;
+        title: string;
+        location: string;
         colors: string[];
         colorPalette: string[];
+        artworkCreatedDate: Date;
     }[]>;
     getSaved(userId: string): Promise<{
         isLiked: boolean;
@@ -216,27 +217,28 @@ export declare class UsersService {
             likes: number;
         };
         media: {
-            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
             order: number;
+            url: string;
             thumbnailUrl: string;
         }[];
         id: string;
-        title: string;
-        location: string;
+        userId: string;
+        code: string;
+        createdAt: Date;
+        type: string;
+        updatedAt: Date;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        type: string;
         caption: string;
-        code: string;
+        title: string;
+        location: string;
         colors: string[];
         colorPalette: string[];
+        artworkCreatedDate: Date;
     }[]>;
     private sendPhoneVerificationCode;
     verifyPhone(userId: string, code: string): Promise<{

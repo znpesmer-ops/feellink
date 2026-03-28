@@ -28,18 +28,18 @@ export declare class NotificationsService {
             isVerified: boolean;
         };
     } & {
-        id: string;
-        createdAt: Date;
-        userId: string;
-        type: string;
         message: string;
-        fromUserId: string;
+        id: string;
+        userId: string;
+        createdAt: Date;
+        type: string;
         postId: string;
         articleId: string;
         commentId: string;
         targetUrl: string;
         targetPath: string;
         isRead: boolean;
+        fromUserId: string;
     }) | {
         queued: boolean;
     }>;
@@ -52,18 +52,18 @@ export declare class NotificationsService {
             isVerified: boolean;
         };
     } & {
-        id: string;
-        createdAt: Date;
-        userId: string;
-        type: string;
         message: string;
-        fromUserId: string;
+        id: string;
+        userId: string;
+        createdAt: Date;
+        type: string;
         postId: string;
         articleId: string;
         commentId: string;
         targetUrl: string;
         targetPath: string;
         isRead: boolean;
+        fromUserId: string;
     }>;
     getNotifications(userId: string, limit?: number, offset?: number): Promise<{
         notifications: {
@@ -79,18 +79,18 @@ export declare class NotificationsService {
                 postId: string;
                 commentId: string;
             };
-            id: string;
-            createdAt: Date;
-            userId: string;
-            type: string;
             message: string;
-            fromUserId: string;
+            id: string;
+            userId: string;
+            createdAt: Date;
+            type: string;
             postId: string;
             articleId: string;
             commentId: string;
             targetUrl: string;
             targetPath: string;
             isRead: boolean;
+            fromUserId: string;
         }[];
         unreadCount: number;
     }>;
@@ -102,23 +102,23 @@ export declare class NotificationsService {
     getUnreadCount(userId: string, excludeProfileIncomplete?: boolean): Promise<number>;
     getPrefs(userId: string): Promise<{
         id: string;
+        userId: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
-        like: boolean;
         comment: boolean;
-        follow: boolean;
         mention: boolean;
+        follow: boolean;
+        like: boolean;
     }>;
     updatePrefs(userId: string, data: Partial<Record<NotifType, boolean>>): Promise<{
         id: string;
+        userId: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
-        like: boolean;
         comment: boolean;
-        follow: boolean;
         mention: boolean;
+        follow: boolean;
+        like: boolean;
     }>;
     isAllowed(toUserId: string, type: NotifType): Promise<boolean>;
     createEventTicketNotification(eventId: string, buyerId: string): Promise<void>;

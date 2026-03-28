@@ -46,6 +46,8 @@ export declare class ChatGateway implements OnGatewayInit, OnGatewayConnection, 
         fileUrl?: string;
         fileName?: string;
         fileType?: string;
+        messageType?: string;
+        sharedPostId?: string;
     }, client: Socket): Promise<{
         success: boolean;
         message: {
@@ -56,21 +58,23 @@ export declare class ChatGateway implements OnGatewayInit, OnGatewayConnection, 
             };
         } & {
             id: string;
-            isDeleted: boolean;
             createdAt: Date;
             updatedAt: Date;
-            conversationId: string;
-            applicationId: string;
-            context: import(".prisma/client").$Enums.ConversationContext;
-            jobId: string;
+            isDeleted: boolean;
             content: string;
             imageUrl: string;
             fileUrl: string;
             fileName: string;
             fileType: string;
+            context: import(".prisma/client").$Enums.ConversationContext;
+            jobId: string;
+            applicationId: string;
             read: boolean;
             isEdited: boolean;
             isRequest: boolean;
+            messageType: string;
+            sharedPostId: string;
+            conversationId: string;
             senderId: string;
         };
         error?: undefined;
@@ -116,21 +120,23 @@ export declare class ChatGateway implements OnGatewayInit, OnGatewayConnection, 
             };
         } & {
             id: string;
-            isDeleted: boolean;
             createdAt: Date;
             updatedAt: Date;
-            conversationId: string;
-            applicationId: string;
-            context: import(".prisma/client").$Enums.ConversationContext;
-            jobId: string;
+            isDeleted: boolean;
             content: string;
             imageUrl: string;
             fileUrl: string;
             fileName: string;
             fileType: string;
+            context: import(".prisma/client").$Enums.ConversationContext;
+            jobId: string;
+            applicationId: string;
             read: boolean;
             isEdited: boolean;
             isRequest: boolean;
+            messageType: string;
+            sharedPostId: string;
+            conversationId: string;
             senderId: string;
         };
         error?: undefined;

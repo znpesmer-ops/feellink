@@ -80,6 +80,7 @@ let PostsController = class PostsController {
                     colorPalette = body.colorPalette;
                 }
             }
+            const rawArtworkDate = typeof body.artworkCreatedDate === 'string' ? body.artworkCreatedDate.trim() : '';
             const dto = {
                 caption: body.caption,
                 title: body.title,
@@ -87,6 +88,7 @@ let PostsController = class PostsController {
                 type: body.type || 'post',
                 media: mediaUploads,
                 colorPalette,
+                ...(rawArtworkDate ? { artworkCreatedDate: rawArtworkDate } : {}),
             };
             console.log('💾 [POST /posts/create] Creating post in database...');
             const post = await this.postsService.createPost(user.id, dto);
@@ -129,11 +131,21 @@ let PostsController = class PostsController {
     async getPublicShare(id) {
         return this.postsService.getPublicSharePost(id);
     }
+    async sharePost(postId, user, body) {
+        if (!user?.id) {
+            throw new common_1.BadRequestException('Kullanıcı doğrulaması başarısız');
+        }
+        return this.postsService.sharePostToRecipients(user.id, postId, body.recipientIds ?? []);
+    }
     async getPost(params, user) {
         return this.postsService.getPost(params.id, user.id);
     }
     async updatePost(params, user, body) {
-        return this.postsService.updatePost(params.id, user.id, { caption: body.caption, title: body.title });
+        return this.postsService.updatePost(params.id, user.id, {
+            caption: body.caption,
+            title: body.title,
+            artworkCreatedDate: body.artworkCreatedDate,
+        });
     }
     async deletePost(params, user) {
         if (!user || !user.id) {
@@ -334,6 +346,18 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], PostsController.prototype, "getPublicShare", null);
+__decorate([
+    (0, common_1.Post)(':id/share'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiOperation)({ summary: 'Share post to users via direct message' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Share result' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], PostsController.prototype, "sharePost", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

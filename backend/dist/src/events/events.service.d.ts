@@ -23,22 +23,22 @@ export declare class EventsService {
         capacity: number;
     })[]>;
     createEvent(userId: string, dto: CreateEventDto): Promise<{
-        date: Date;
         id: string;
+        createdAt: Date;
+        price: number;
+        updatedAt: Date;
+        date: Date;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
         title: string;
-        description: string;
         location: string;
         coverImage: string;
+        description: string;
+        ownerId: string;
         participantCount: number;
         maxParticipants: number;
         ticketUrl: string;
-        price: number;
         isFree: boolean;
-        ownerId: string;
         reminderMailSent: boolean;
     }>;
     updateEvent(userId: string, id: string, data: {
@@ -51,22 +51,22 @@ export declare class EventsService {
         location?: string;
         maxParticipants?: number | null;
     }): Promise<{
-        date: Date;
         id: string;
+        createdAt: Date;
+        price: number;
+        updatedAt: Date;
+        date: Date;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
         title: string;
-        description: string;
         location: string;
         coverImage: string;
+        description: string;
+        ownerId: string;
         participantCount: number;
         maxParticipants: number;
         ticketUrl: string;
-        price: number;
         isFree: boolean;
-        ownerId: string;
         reminderMailSent: boolean;
     }>;
     deleteEvent(userId: string, id: string): Promise<{
@@ -83,6 +83,10 @@ export declare class EventsService {
     getEventComments(id: string): Promise<({
         author: {
             id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            city: string;
+            gender: string;
             username: string;
             email: string;
             password: string;
@@ -109,8 +113,6 @@ export declare class EventsService {
             website: string;
             dateOfBirth: Date;
             country: string;
-            city: string;
-            gender: string;
             profileCompleted: boolean;
             phoneNumber: string;
             phoneVerified: boolean;
@@ -131,21 +133,23 @@ export declare class EventsService {
             isDeleted: boolean;
             deletedAt: Date;
             deletedBy: string;
-            createdAt: Date;
-            updatedAt: Date;
         };
     } & {
-        text: string;
         id: string;
         createdAt: Date;
         eventId: string;
         authorId: string;
+        text: string;
     })[]>;
     createEventComment(userId: string, eventId: string, data: {
         text: string;
     }): Promise<{
         author: {
             id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            city: string;
+            gender: string;
             username: string;
             email: string;
             password: string;
@@ -172,8 +176,6 @@ export declare class EventsService {
             website: string;
             dateOfBirth: Date;
             country: string;
-            city: string;
-            gender: string;
             profileCompleted: boolean;
             phoneNumber: string;
             phoneVerified: boolean;
@@ -194,15 +196,13 @@ export declare class EventsService {
             isDeleted: boolean;
             deletedAt: Date;
             deletedBy: string;
-            createdAt: Date;
-            updatedAt: Date;
         };
     } & {
-        text: string;
         id: string;
         createdAt: Date;
         eventId: string;
         authorId: string;
+        text: string;
     }>;
     getParticipants(eventId: string, callerId: string): Promise<{
         id: string;
@@ -231,11 +231,11 @@ export declare class EventsService {
         };
     } & {
         id: string;
-        createdAt: Date;
         userId: string;
+        createdAt: Date;
+        eventId: string;
         status: import(".prisma/client").$Enums.EventParticipantStatus;
         reminderSentAt: Date;
-        eventId: string;
         reminder24hSentAt: Date;
         reminder2hSentAt: Date;
     }>;

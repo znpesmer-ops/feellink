@@ -17,6 +17,7 @@ const follow_module_1 = require("../follow/follow.module");
 const notifications_module_1 = require("../notifications/notifications.module");
 const jwt_1 = require("@nestjs/jwt");
 const config_1 = require("@nestjs/config");
+const posts_module_1 = require("../posts/posts.module");
 let ChatModule = class ChatModule {
 };
 exports.ChatModule = ChatModule;
@@ -27,6 +28,7 @@ exports.ChatModule = ChatModule = __decorate([
             blocks_module_1.BlocksModule,
             follow_module_1.FollowModule,
             notifications_module_1.NotificationsModule,
+            (0, common_1.forwardRef)(() => posts_module_1.PostsModule),
             jwt_1.JwtModule.registerAsync({
                 imports: [config_1.ConfigModule],
                 useFactory: async (configService) => ({

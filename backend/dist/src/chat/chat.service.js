@@ -17,11 +17,15 @@ const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const chat_gateway_1 = require("./chat.gateway");
 const notifications_service_1 = require("../notifications/notifications.service");
+const posts_service_1 = require("../posts/posts.service");
+const blocks_service_1 = require("../blocks/blocks.service");
 let ChatService = class ChatService {
-    constructor(prisma, chatGateway, notificationsService) {
+    constructor(prisma, chatGateway, notificationsService, postsService, blocksService) {
         this.prisma = prisma;
         this.chatGateway = chatGateway;
         this.notificationsService = notificationsService;
+        this.postsService = postsService;
+        this.blocksService = blocksService;
     }
     async getConversations(userId) {
         console.log(`📋 [ChatService] getConversations called for user: ${userId}`);
@@ -237,11 +241,176 @@ let ChatService = class ChatService {
         });
         const hasMore = messages.length > limit;
         const messagesToReturn = hasMore ? messages.slice(0, limit) : messages;
+        const shareIds = messagesToReturn
+            .filter((m) => (m.messageType || 'TEXT') === 'POST_SHARE' && m.sharedPostId)
+            .map((m) => String(m.sharedPostId));
+        let previewMap = {};
+        if (shareIds.length > 0 && this.postsService) {
+            previewMap = await this.postsService.getSharedPostPreviewsMap(userId, shareIds);
+        }
+        const messagesWithPreview = messagesToReturn.map((m) => {
+            const mt = m.messageType || 'TEXT';
+            const sid = m.sharedPostId ? String(m.sharedPostId) : null;
+            const sharedPostPreview = mt === 'POST_SHARE' && sid
+                ? previewMap[sid] || { postId: sid, state: 'deleted' }
+                : undefined;
+            return { ...m, messageType: mt, sharedPostPreview };
+        });
         return {
-            messages: messagesToReturn,
+            messages: messagesWithPreview,
             hasMore,
             nextCursor: hasMore ? messagesToReturn[messagesToReturn.length - 1]?.createdAt.toISOString() : null,
         };
+    }
+    async sendPostShareMessage(senderId, conversationId, sharedPostId) {
+        const pid = String(sharedPostId || '').trim();
+        if (!pid) {
+            throw new common_1.BadRequestException('sharedPostId gerekli');
+        }
+        const conversation = await this.prisma.conversation.findUnique({
+            where: { id: conversationId },
+            include: {
+                participants: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                username: true,
+                                avatar: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        if (!conversation) {
+            throw new common_1.NotFoundException('Conversation not found');
+        }
+        const hasAccess = conversation.participants.some((p) => p.userId === senderId);
+        if (!hasAccess) {
+            throw new common_1.ForbiddenException('Access denied');
+        }
+        const otherParticipant = conversation.participants.find((p) => p.userId !== senderId);
+        if (!otherParticipant) {
+            throw new common_1.BadRequestException('Invalid conversation');
+        }
+        if (await this.blocksService.isBlocked(senderId, otherParticipant.userId)) {
+            throw new common_1.ForbiddenException('Bu kullanıcıyla paylaşım yapılamıyor.');
+        }
+        let isRequest = false;
+        const recipientUser = await this.prisma.user.findUnique({
+            where: { id: otherParticipant.userId },
+            select: { id: true, isPrivate: true },
+        });
+        if (recipientUser?.isPrivate) {
+            const isFollowing = await this.prisma.follow.findUnique({
+                where: {
+                    followerId_followingId: {
+                        followerId: senderId,
+                        followingId: recipientUser.id,
+                    },
+                },
+            });
+            if (!isFollowing) {
+                isRequest = true;
+            }
+        }
+        try {
+            await this.prisma.user.update({
+                where: { id: senderId },
+                data: { lastSeen: new Date(), isOnline: true },
+            });
+        }
+        catch {
+        }
+        const conversationAny = conversation;
+        const messageContext = conversationAny.context || 'DIRECT';
+        const messageJobId = conversationAny.jobId || null;
+        const messageApplicationId = conversationAny.applicationId || null;
+        const messageData = {
+            conversationId,
+            senderId,
+            content: null,
+            imageUrl: null,
+            fileUrl: null,
+            fileName: null,
+            fileType: null,
+            messageType: 'POST_SHARE',
+            sharedPostId: pid,
+            isRequest,
+            isDeleted: false,
+            read: false,
+        };
+        if (messageContext) {
+            messageData.context = messageContext;
+        }
+        if (messageJobId) {
+            messageData.jobId = messageJobId;
+        }
+        if (messageApplicationId) {
+            messageData.applicationId = messageApplicationId;
+        }
+        const message = await this.prisma.message.create({
+            data: messageData,
+            include: {
+                sender: {
+                    select: {
+                        id: true,
+                        username: true,
+                        avatar: true,
+                        fullName: true,
+                    },
+                },
+            },
+        });
+        const lastMessageText = '📎 Bir gönderi paylaştı';
+        await this.prisma.conversation.update({
+            where: { id: conversationId },
+            data: {
+                lastMessage: lastMessageText,
+                updatedAt: new Date(),
+            },
+        });
+        if (this.chatGateway && typeof this.chatGateway.broadcastMessageImmediately === 'function') {
+            try {
+                const msgForSocket = { ...message, messageType: 'POST_SHARE', sharedPostId: pid };
+                this.chatGateway.broadcastMessageImmediately(msgForSocket, conversation, senderId, conversationId);
+            }
+            catch (error) {
+                console.warn('[ChatService] sendPostShare broadcast failed:', error);
+            }
+        }
+        const recipient = conversation.participants.find((p) => p.userId !== senderId);
+        if (recipient) {
+            this.notificationsService
+                .createNotificationSync({
+                userId: recipient.userId,
+                type: 'message',
+                fromUserId: senderId,
+                targetPath: '/messages',
+                targetUrl: '/messages',
+            })
+                .catch((err) => {
+                console.warn('[ChatService] Post share notification failed:', err?.message || err);
+            });
+            await this.prisma.userConversation
+                .upsert({
+                where: {
+                    userId_conversationId: {
+                        userId: recipient.userId,
+                        conversationId,
+                    },
+                },
+                create: {
+                    userId: recipient.userId,
+                    conversationId,
+                    isDeleted: false,
+                },
+                update: { isDeleted: false },
+            })
+                .catch(() => undefined);
+        }
+        return message;
     }
     async createMessage(userId, conversationId, content, imageUrl, fileUrl, fileName, fileType) {
         if (!content && !imageUrl && !fileUrl) {
@@ -868,8 +1037,11 @@ exports.ChatService = ChatService;
 exports.ChatService = ChatService = __decorate([
     (0, common_1.Injectable)(),
     __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => chat_gateway_1.ChatGateway))),
+    __param(3, (0, common_1.Inject)((0, common_1.forwardRef)(() => posts_service_1.PostsService))),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         chat_gateway_1.ChatGateway,
-        notifications_service_1.NotificationsService])
+        notifications_service_1.NotificationsService,
+        posts_service_1.PostsService,
+        blocks_service_1.BlocksService])
 ], ChatService);
 //# sourceMappingURL=chat.service.js.map

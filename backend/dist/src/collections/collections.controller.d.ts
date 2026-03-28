@@ -15,20 +15,20 @@ export declare class CollectionsController {
         createdAt: Date;
         updatedAt: Date;
         title: string;
-        description: string;
         coverImage: string;
-        ownerId: string;
+        description: string;
         isPublic: boolean;
+        ownerId: string;
     })[]>;
     getMyCollections(user: any): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
         title: string;
-        description: string;
         coverImage: string;
-        ownerId: string;
+        description: string;
         isPublic: boolean;
+        ownerId: string;
     }[]>;
     getCollectionById(id: string): Promise<any>;
     searchAddableItems(user: any, collectionId: string, query?: string, ownerId?: string, cursor?: string, take?: string): Promise<{
@@ -58,20 +58,20 @@ export declare class CollectionsController {
         createdAt: Date;
         updatedAt: Date;
         title: string;
-        description: string;
         coverImage: string;
-        ownerId: string;
+        description: string;
         isPublic: boolean;
+        ownerId: string;
     }>;
     updateCollection(user: any, id: string, data: any): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
         title: string;
-        description: string;
         coverImage: string;
-        ownerId: string;
+        description: string;
         isPublic: boolean;
+        ownerId: string;
     }>;
     deleteCollection(user: any, id: string): Promise<{
         success: boolean;

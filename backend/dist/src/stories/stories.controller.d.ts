@@ -15,11 +15,11 @@ export declare class StoriesController {
         };
     } & {
         id: string;
-        createdAt: Date;
         userId: string;
-        expiresAt: Date;
+        createdAt: Date;
         mediaUrl: string;
         mediaType: string;
+        expiresAt: Date;
     }>;
     getStories(user: any): Promise<unknown[]>;
     viewStory(id: string, user: any): Promise<{

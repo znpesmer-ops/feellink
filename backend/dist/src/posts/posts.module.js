@@ -21,6 +21,8 @@ const comments_gateway_1 = require("./comments.gateway");
 const posts_gateway_1 = require("./posts.gateway");
 const config_1 = require("@nestjs/config");
 const limits_module_1 = require("../limits/limits.module");
+const chat_module_1 = require("../chat/chat.module");
+const blocks_module_1 = require("../blocks/blocks.module");
 let PostsModule = class PostsModule {
 };
 exports.PostsModule = PostsModule;
@@ -35,6 +37,8 @@ exports.PostsModule = PostsModule = __decorate([
             analytics_module_1.AnalyticsModule,
             config_1.ConfigModule,
             limits_module_1.LimitsModule,
+            (0, common_1.forwardRef)(() => chat_module_1.ChatModule),
+            blocks_module_1.BlocksModule,
         ],
         controllers: [posts_controller_1.PostsController],
         providers: [posts_service_1.PostsService, color_analysis_service_1.ColorAnalysisService, comments_gateway_1.CommentsGateway, posts_gateway_1.PostsGateway],

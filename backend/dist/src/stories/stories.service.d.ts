@@ -14,11 +14,11 @@ export declare class StoriesService {
         };
     } & {
         id: string;
-        createdAt: Date;
         userId: string;
-        expiresAt: Date;
+        createdAt: Date;
         mediaUrl: string;
         mediaType: string;
+        expiresAt: Date;
     }>;
     getStories(userId: string): Promise<unknown[]>;
     viewStory(storyId: string, userId: string): Promise<{

@@ -16,67 +16,67 @@ export declare class TicketsService {
         capacity: number;
     }): Promise<{
         id: string;
-        price: number;
         createdAt: Date;
-        updatedAt: Date;
         eventId: string;
         type: string;
+        price: number;
         capacity: number;
         sold: number;
         qrCodeUrl: string;
+        updatedAt: Date;
     }>;
     getMyTickets(userId: string): Promise<({
         ticket: {
             event: {
-                date: Date;
-                participantCount: number;
-                maxParticipants: number;
                 id: string;
-                title: string;
-                description: string;
-                coverImage: string;
-                ticketUrl: string;
+                createdAt: Date;
                 price: number;
-                isFree: boolean;
-                location: string;
-                ownerId: string;
-                reminderMailSent: boolean;
+                updatedAt: Date;
+                date: Date;
                 isDeleted: boolean;
                 deletedAt: Date;
-                createdAt: Date;
-                updatedAt: Date;
+                title: string;
+                location: string;
+                coverImage: string;
+                description: string;
+                ownerId: string;
+                participantCount: number;
+                maxParticipants: number;
+                ticketUrl: string;
+                isFree: boolean;
+                reminderMailSent: boolean;
             };
         } & {
             id: string;
-            price: number;
             createdAt: Date;
-            updatedAt: Date;
             eventId: string;
             type: string;
+            price: number;
             capacity: number;
             sold: number;
             qrCodeUrl: string;
+            updatedAt: Date;
         };
     } & {
         id: string;
-        createdAt: Date;
+        ticketId: string;
         userId: string;
         code: string;
-        ticketId: string;
         qrUrl: string;
         used: boolean;
         usedAt: Date;
+        createdAt: Date;
     })[]>;
     getEventTickets(eventId: string): Promise<{
         id: string;
-        price: number;
         createdAt: Date;
-        updatedAt: Date;
         eventId: string;
         type: string;
+        price: number;
         capacity: number;
         sold: number;
         qrCodeUrl: string;
+        updatedAt: Date;
     }[]>;
     purchaseTicket(userId: string, data: {
         ticketId: string;

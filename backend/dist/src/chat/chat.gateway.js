@@ -178,7 +178,8 @@ let ChatGateway = class ChatGateway {
         if (!userId) {
             return { error: 'Unauthorized' };
         }
-        if (!data.content && !data.imageUrl && !data.fileUrl) {
+        const isPostShare = data.messageType === 'POST_SHARE' && data.sharedPostId;
+        if (!data.content && !data.imageUrl && !data.fileUrl && !isPostShare) {
             return { error: 'Message must have content, imageUrl, or fileUrl' };
         }
         try {
@@ -239,11 +240,13 @@ let ChatGateway = class ChatGateway {
             const messageData = {
                 conversationId: data.conversationId,
                 senderId: userId,
-                content: data.content || null,
-                imageUrl: data.imageUrl || null,
-                fileUrl: data.fileUrl || null,
-                fileName: data.fileName || null,
-                fileType: data.fileType || null,
+                content: isPostShare ? null : data.content || null,
+                imageUrl: isPostShare ? null : data.imageUrl || null,
+                fileUrl: isPostShare ? null : data.fileUrl || null,
+                fileName: isPostShare ? null : data.fileName || null,
+                fileType: isPostShare ? null : data.fileType || null,
+                messageType: isPostShare ? 'POST_SHARE' : 'TEXT',
+                sharedPostId: isPostShare ? String(data.sharedPostId) : null,
                 isRequest: isRequest,
                 isDeleted: false,
                 read: false,
@@ -283,7 +286,9 @@ let ChatGateway = class ChatGateway {
                     console.warn('[ChatGateway] Message notification failed:', err?.message || err);
                 });
             }
-            const lastMessageText = message.content ?? (message.imageUrl ? '📷 Fotoğraf' : (message.fileUrl ? '📎 Dosya' : 'Yeni mesaj'));
+            const lastMessageText = isPostShare
+                ? '📎 Bir gönderi paylaştı'
+                : message.content ?? (message.imageUrl ? '📷 Fotoğraf' : (message.fileUrl ? '📎 Dosya' : 'Yeni mesaj'));
             await this.prisma.conversation.update({
                 where: { id: data.conversationId },
                 data: {
@@ -351,7 +356,9 @@ let ChatGateway = class ChatGateway {
             id: conversation.id,
             createdAt: conversation.createdAt,
             updatedAt: new Date(),
-            lastMessage: message.content ?? (message.imageUrl ? '📷 Fotoğraf' : (message.fileUrl ? '📎 Dosya' : 'Yeni mesaj')),
+            lastMessage: message.messageType === 'POST_SHARE'
+                ? '📎 Bir gönderi paylaştı'
+                : message.content ?? (message.imageUrl ? '📷 Fotoğraf' : (message.fileUrl ? '📎 Dosya' : 'Yeni mesaj')),
             context: conversationAny.context || 'DIRECT',
             jobId: conversationAny.jobId || null,
             applicationId: conversationAny.applicationId || null,

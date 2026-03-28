@@ -71,6 +71,8 @@ export declare class UsersController {
     getProfile(username: string, user: any): Promise<any>;
     updateUsername(user: any, data: UpdateUsernameDto): Promise<{
         id: string;
+        city: string;
+        gender: string;
         username: string;
         email: string;
         fullName: string;
@@ -85,8 +87,6 @@ export declare class UsersController {
         website: string;
         dateOfBirth: Date;
         country: string;
-        city: string;
-        gender: string;
         profileCompleted: boolean;
     } | {
         id: string;
@@ -98,6 +98,8 @@ export declare class UsersController {
         success: boolean;
         user: {
             id: string;
+            city: string;
+            gender: string;
             username: string;
             email: string;
             fullName: string;
@@ -112,8 +114,6 @@ export declare class UsersController {
             superAdmin: boolean;
             dateOfBirth: Date;
             country: string;
-            city: string;
-            gender: string;
             profileCompleted: boolean;
         };
         message: string;
@@ -204,27 +204,28 @@ export declare class UsersController {
             likes: number;
         };
         media: {
-            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
             order: number;
+            url: string;
             thumbnailUrl: string;
         }[];
         id: string;
-        title: string;
-        location: string;
+        userId: string;
+        code: string;
+        createdAt: Date;
+        type: string;
+        updatedAt: Date;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        type: string;
         caption: string;
-        code: string;
+        title: string;
+        location: string;
         colors: string[];
         colorPalette: string[];
+        artworkCreatedDate: Date;
     }[]>;
     getSaved(userId: string, user: any): Promise<{
         isLiked: boolean;
@@ -241,27 +242,28 @@ export declare class UsersController {
             likes: number;
         };
         media: {
-            url: string;
             id: string;
             createdAt: Date;
             type: string;
             postId: string;
             order: number;
+            url: string;
             thumbnailUrl: string;
         }[];
         id: string;
-        title: string;
-        location: string;
+        userId: string;
+        code: string;
+        createdAt: Date;
+        type: string;
+        updatedAt: Date;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        type: string;
         caption: string;
-        code: string;
+        title: string;
+        location: string;
         colors: string[];
         colorPalette: string[];
+        artworkCreatedDate: Date;
     }[]>;
     verifyPhone(user: any, data: {
         code: string;

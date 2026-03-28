@@ -24,22 +24,22 @@ export declare class EventsController {
         capacity: number;
     }>;
     createEvent(user: any, dto: CreateEventDto): Promise<{
-        date: Date;
         id: string;
+        createdAt: Date;
+        price: number;
+        updatedAt: Date;
+        date: Date;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
         title: string;
-        description: string;
         location: string;
         coverImage: string;
+        description: string;
+        ownerId: string;
         participantCount: number;
         maxParticipants: number;
         ticketUrl: string;
-        price: number;
         isFree: boolean;
-        ownerId: string;
         reminderMailSent: boolean;
     }>;
     joinEvent(user: any, id: string): Promise<Record<string, unknown> & {
@@ -55,6 +55,10 @@ export declare class EventsController {
     getEventComments(id: string): Promise<({
         author: {
             id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            city: string;
+            gender: string;
             username: string;
             email: string;
             password: string;
@@ -81,8 +85,6 @@ export declare class EventsController {
             website: string;
             dateOfBirth: Date;
             country: string;
-            city: string;
-            gender: string;
             profileCompleted: boolean;
             phoneNumber: string;
             phoneVerified: boolean;
@@ -103,19 +105,21 @@ export declare class EventsController {
             isDeleted: boolean;
             deletedAt: Date;
             deletedBy: string;
-            createdAt: Date;
-            updatedAt: Date;
         };
     } & {
-        text: string;
         id: string;
         createdAt: Date;
         eventId: string;
         authorId: string;
+        text: string;
     })[]>;
     createEventComment(user: any, id: string, data: any): Promise<{
         author: {
             id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            city: string;
+            gender: string;
             username: string;
             email: string;
             password: string;
@@ -142,8 +146,6 @@ export declare class EventsController {
             website: string;
             dateOfBirth: Date;
             country: string;
-            city: string;
-            gender: string;
             profileCompleted: boolean;
             phoneNumber: string;
             phoneVerified: boolean;
@@ -164,33 +166,31 @@ export declare class EventsController {
             isDeleted: boolean;
             deletedAt: Date;
             deletedBy: string;
-            createdAt: Date;
-            updatedAt: Date;
         };
     } & {
-        text: string;
         id: string;
         createdAt: Date;
         eventId: string;
         authorId: string;
+        text: string;
     }>;
     updateEvent(user: any, id: string, data: any): Promise<{
-        date: Date;
         id: string;
+        createdAt: Date;
+        price: number;
+        updatedAt: Date;
+        date: Date;
         isDeleted: boolean;
         deletedAt: Date;
-        createdAt: Date;
-        updatedAt: Date;
         title: string;
-        description: string;
         location: string;
         coverImage: string;
+        description: string;
+        ownerId: string;
         participantCount: number;
         maxParticipants: number;
         ticketUrl: string;
-        price: number;
         isFree: boolean;
-        ownerId: string;
         reminderMailSent: boolean;
     }>;
     deleteEvent(user: any, id: string): Promise<{
@@ -219,11 +219,11 @@ export declare class EventsController {
         };
     } & {
         id: string;
-        createdAt: Date;
         userId: string;
+        createdAt: Date;
+        eventId: string;
         status: import(".prisma/client").$Enums.EventParticipantStatus;
         reminderSentAt: Date;
-        eventId: string;
         reminder24hSentAt: Date;
         reminder2hSentAt: Date;
     }>;

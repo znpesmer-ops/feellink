@@ -17,17 +17,17 @@ export declare class NotificationsProcessor extends WorkerHost {
             isVerified: boolean;
         };
     } & {
-        id: string;
-        createdAt: Date;
-        userId: string;
-        type: string;
         message: string;
-        fromUserId: string;
+        id: string;
+        userId: string;
+        createdAt: Date;
+        type: string;
         postId: string;
         articleId: string;
         commentId: string;
         targetUrl: string;
         targetPath: string;
         isRead: boolean;
+        fromUserId: string;
     }>;
 }

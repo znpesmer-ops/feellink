@@ -10,10 +10,10 @@ export declare class CollectionsService {
         createdAt: Date;
         updatedAt: Date;
         title: string;
-        description: string;
         coverImage: string;
-        ownerId: string;
+        description: string;
         isPublic: boolean;
+        ownerId: string;
     }[]>;
     getAllCollections(): Promise<({
         owner: {
@@ -28,10 +28,10 @@ export declare class CollectionsService {
         createdAt: Date;
         updatedAt: Date;
         title: string;
-        description: string;
         coverImage: string;
-        ownerId: string;
+        description: string;
         isPublic: boolean;
+        ownerId: string;
     })[]>;
     createCollection(userId: string, data: {
         title: string;
@@ -42,10 +42,10 @@ export declare class CollectionsService {
         createdAt: Date;
         updatedAt: Date;
         title: string;
-        description: string;
         coverImage: string;
-        ownerId: string;
+        description: string;
         isPublic: boolean;
+        ownerId: string;
     }>;
     updateCollection(userId: string, id: string, data: {
         title?: string;
@@ -56,10 +56,10 @@ export declare class CollectionsService {
         createdAt: Date;
         updatedAt: Date;
         title: string;
-        description: string;
         coverImage: string;
-        ownerId: string;
+        description: string;
         isPublic: boolean;
+        ownerId: string;
     }>;
     deleteCollection(userId: string, id: string): Promise<{
         success: boolean;
