@@ -611,44 +611,67 @@ function ProfileContent() {
   const enablePostsDrag = isOwnProfile && postsSortMode === 'custom'
   const enableArtworksDrag = isOwnProfile && artworksSortMode === 'custom'
 
+  const profileQueryKey = useMemo(
+    () => ['profile', username, paramUsername, currentUser?.id] as const,
+    [username, paramUsername, currentUser?.id],
+  )
+
   const handleProfilePostsReorder = useCallback(
     (items: any[]) => {
       if (!enablePostsDrag || !profile?.id) return
-      const previous = queryClient.getQueryData<any[]>(['user-posts', profile.id])
+      const previousPosts = queryClient.getQueryData<any[]>(['user-posts', profile.id])
+      const previousProfile = queryClient.getQueryData<any>(profileQueryKey)
       queryClient.setQueryData(['user-posts', profile.id], (old: any[] = []) =>
         applyPostReorderInUserPostsCache(old, items),
+      )
+      queryClient.setQueryData(profileQueryKey, (old: any) =>
+        old && old.id === profile.id
+          ? { ...old, profilePostOrder: items.map((p: any) => String(p.id)) }
+          : old,
       )
       patchGridOrderMutation.mutate(
         { postOrder: items.map((p) => p.id) },
         {
           onError: () => {
-            if (previous) queryClient.setQueryData(['user-posts', profile.id], previous)
+            if (previousPosts) queryClient.setQueryData(['user-posts', profile.id], previousPosts)
+            if (previousProfile !== undefined) {
+              queryClient.setQueryData(profileQueryKey, previousProfile)
+            }
             toast.error('Sıra kaydedilemedi')
           },
         },
       )
     },
-    [enablePostsDrag, profile?.id, queryClient, patchGridOrderMutation],
+    [enablePostsDrag, profile?.id, profileQueryKey, queryClient, patchGridOrderMutation],
   )
 
   const handleArtworksReorder = useCallback(
     (items: any[]) => {
       if (!profile?.id) return
-      const previous = queryClient.getQueryData<any[]>(['user-posts', profile.id])
+      const previousPosts = queryClient.getQueryData<any[]>(['user-posts', profile.id])
+      const previousProfile = queryClient.getQueryData<any>(profileQueryKey)
       queryClient.setQueryData(['user-posts', profile.id], (old: any[] = []) =>
         applyArtworkReorderInUserPostsCache(old, items),
+      )
+      queryClient.setQueryData(profileQueryKey, (old: any) =>
+        old && old.id === profile.id
+          ? { ...old, profileArtworkOrder: items.map((a: any) => String(a.id)) }
+          : old,
       )
       patchGridOrderMutation.mutate(
         { artworkOrder: items.map((a) => a.id) },
         {
           onError: () => {
-            if (previous) queryClient.setQueryData(['user-posts', profile.id], previous)
+            if (previousPosts) queryClient.setQueryData(['user-posts', profile.id], previousPosts)
+            if (previousProfile !== undefined) {
+              queryClient.setQueryData(profileQueryKey, previousProfile)
+            }
             toast.error('Sıra kaydedilemedi')
           },
         },
       )
     },
-    [profile?.id, queryClient, patchGridOrderMutation],
+    [profile?.id, profileQueryKey, queryClient, patchGridOrderMutation],
   )
 
   // Delete post mutation

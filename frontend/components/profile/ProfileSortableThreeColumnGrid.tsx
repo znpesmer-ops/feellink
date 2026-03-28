@@ -96,9 +96,12 @@ export function ProfileSortableThreeColumnGrid<T extends { id: string }>({
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
-    if (!over || active.id === over.id) return
-    const oldIndex = items.findIndex((i) => i.id === active.id)
-    const newIndex = items.findIndex((i) => i.id === over.id)
+    if (!over) return
+    const activeId = String(active.id)
+    const overId = String(over.id)
+    if (activeId === overId) return
+    const oldIndex = items.findIndex((i) => String(i.id) === activeId)
+    const newIndex = items.findIndex((i) => String(i.id) === overId)
     if (oldIndex < 0 || newIndex < 0) return
     onReorder(arrayMove(items, oldIndex, newIndex))
   }
