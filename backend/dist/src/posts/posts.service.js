@@ -28,7 +28,10 @@ const artwork_utils_1 = require("./artwork.utils");
 const ticket_utils_1 = require("../tickets/ticket.utils");
 const color_analysis_service_1 = require("./color-analysis.service");
 const containsBadWord_1 = require("../common/utils/containsBadWord");
+const chat_service_1 = require("../chat/chat.service");
+const blocks_service_1 = require("../blocks/blocks.service");
 const public_vitrine_user_1 = require("../common/utils/public-vitrine-user");
+const comment_delete_subtree_1 = require("../common/utils/comment-delete-subtree");
 const resolve_feellink_assets_1 = require("../common/resolve-feellink-assets");
 const pdfkit_1 = require("pdfkit");
 const QRCode = require("qrcode");
@@ -101,7 +104,7 @@ function wrapCanvasText(ctx, text, maxWidth, maxLines) {
     return lines.slice(0, maxLines);
 }
 let PostsService = class PostsService {
-    constructor(prisma, notificationsService, notificationsGateway, analyticsService, feedService, searchService, postsGateway, commentsGateway, configService, limitsService, colorAnalysisService) {
+    constructor(prisma, notificationsService, notificationsGateway, analyticsService, feedService, searchService, postsGateway, commentsGateway, configService, limitsService, colorAnalysisService, chatService, blocksService) {
         this.prisma = prisma;
         this.notificationsService = notificationsService;
         this.notificationsGateway = notificationsGateway;
@@ -113,6 +116,8 @@ let PostsService = class PostsService {
         this.configService = configService;
         this.limitsService = limitsService;
         this.colorAnalysisService = colorAnalysisService;
+        this.chatService = chatService;
+        this.blocksService = blocksService;
     }
     transformMediaUrl(url) {
         if (!url)
@@ -172,6 +177,155 @@ let PostsService = class PostsService {
         const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
         return `${baseUrl}${cleanPath}`;
     }
+    async assertViewerCanAccessPost(viewerId, post) {
+        if (post.isDeleted || post.deletedAt != null) {
+            throw new common_1.NotFoundException('Post not found');
+        }
+        if (String(post.userId) === String(viewerId)) {
+            return;
+        }
+        let isPrivate = post.user?.isPrivate;
+        if (isPrivate === undefined) {
+            const u = await this.prisma.user.findUnique({
+                where: { id: post.userId },
+                select: { isPrivate: true },
+            });
+            isPrivate = u?.isPrivate ?? false;
+        }
+        if (!isPrivate) {
+            return;
+        }
+        const follow = await this.prisma.follow.findFirst({
+            where: {
+                followerId: String(viewerId),
+                followingId: String(post.userId),
+            },
+        });
+        if (!follow) {
+            throw new common_1.ForbiddenException('Bu gönderiyi görüntüleme yetkiniz yok.');
+        }
+    }
+    async sharePostToRecipients(sharerId, postId, recipientIds) {
+        const raw = Array.isArray(recipientIds) ? recipientIds : [];
+        const unique = [...new Set(raw.map((id) => String(id).trim()).filter(Boolean))].filter((id) => id !== String(sharerId));
+        if (unique.length === 0) {
+            throw new common_1.BadRequestException('En az bir alıcı seçin.');
+        }
+        const post = await this.prisma.post.findUnique({
+            where: { id: postId },
+            include: {
+                user: { select: { id: true, username: true, isPrivate: true } },
+            },
+        });
+        if (!post) {
+            throw new common_1.NotFoundException('Post not found');
+        }
+        await this.assertViewerCanAccessPost(sharerId, post);
+        let sent = 0;
+        const errors = [];
+        for (const recipientId of unique) {
+            const recipient = await this.prisma.user.findUnique({ where: { id: recipientId } });
+            if (!recipient) {
+                errors.push(`Kullanıcı bulunamadı: ${recipientId}`);
+                continue;
+            }
+            if (await this.blocksService.isBlocked(sharerId, recipientId)) {
+                errors.push(`@${recipient.username || recipientId} ile paylaşım yapılamıyor.`);
+                continue;
+            }
+            try {
+                const conv = await this.chatService.createConversation(sharerId, [recipientId], 'DIRECT');
+                if (!conv?.id) {
+                    errors.push(`Konuşma oluşturulamadı: ${recipientId}`);
+                    continue;
+                }
+                await this.chatService.sendPostShareMessage(sharerId, conv.id, postId);
+                sent += 1;
+            }
+            catch (e) {
+                errors.push(e?.message || `Gönderilemedi: ${recipientId}`);
+            }
+        }
+        if (sent === 0 && errors.length > 0) {
+            throw new common_1.BadRequestException(errors[0]);
+        }
+        return { sent, skipped: unique.length - sent, errors: errors.length ? errors : undefined };
+    }
+    async getSharedPostPreviewsMap(viewerId, postIds) {
+        const uniq = [...new Set(postIds.filter(Boolean))];
+        const out = {};
+        if (uniq.length === 0) {
+            return out;
+        }
+        const posts = await this.prisma.post.findMany({
+            where: { id: { in: uniq } },
+            include: {
+                user: { select: { id: true, username: true, isPrivate: true } },
+                media: { orderBy: { order: 'asc' }, take: 1 },
+            },
+        });
+        for (const id of uniq) {
+            const p = posts.find((x) => x.id === id);
+            if (!p) {
+                out[id] = { postId: id, state: 'deleted' };
+                continue;
+            }
+            if (p.isDeleted || p.deletedAt != null) {
+                out[id] = { postId: id, state: 'deleted' };
+                continue;
+            }
+            try {
+                await this.assertViewerCanAccessPost(viewerId, p);
+            }
+            catch {
+                out[id] = {
+                    postId: id,
+                    state: 'inaccessible',
+                    username: p.user?.username ?? null,
+                };
+                continue;
+            }
+            const m0 = p.media?.[0];
+            const thumbnailUrl = m0?.url ? this.transformMediaUrl(m0.url) : null;
+            const title = (p.title && p.title.trim()) || null;
+            const captionSnippet = p.caption ? p.caption.slice(0, 160) : null;
+            out[id] = {
+                postId: id,
+                state: 'ok',
+                thumbnailUrl,
+                title: title || (p.caption ? p.caption.slice(0, 80) : null),
+                username: p.user?.username ?? null,
+                captionSnippet,
+            };
+        }
+        return out;
+    }
+    parseArtworkCreatedDateForCreate(raw) {
+        if (raw == null)
+            return undefined;
+        const t = String(raw).trim();
+        if (!t)
+            return undefined;
+        const d = new Date(t);
+        if (Number.isNaN(d.getTime())) {
+            throw new common_1.BadRequestException('Geçersiz eser tarihi.');
+        }
+        return d;
+    }
+    resolveArtworkCreatedDateForUpdate(raw) {
+        if (raw === undefined)
+            return { apply: false };
+        if (raw === null)
+            return { apply: true, value: null };
+        const t = String(raw).trim();
+        if (!t)
+            return { apply: true, value: null };
+        const d = new Date(t);
+        if (Number.isNaN(d.getTime())) {
+            throw new common_1.BadRequestException('Geçersiz eser tarihi.');
+        }
+        return { apply: true, value: d };
+    }
     async createPost(userId, dto) {
         try {
             if (!dto.media || dto.media.length === 0) {
@@ -194,6 +348,7 @@ let PostsService = class PostsService {
                 artworkCode = await (0, artwork_utils_1.generateUniqueArtworkCode)(this.prisma);
                 console.log(`[createPost] Generated artwork code: ${artworkCode}`);
             }
+            const artworkCreatedDateParsed = this.parseArtworkCreatedDateForCreate(dto.artworkCreatedDate);
             console.log('[createPost] Creating post in database...');
             const post = await this.prisma.post.create({
                 data: {
@@ -204,6 +359,7 @@ let PostsService = class PostsService {
                     type: postType,
                     code: artworkCode,
                     colorPalette: dto.colorPalette ?? [],
+                    ...(artworkCreatedDateParsed !== undefined ? { artworkCreatedDate: artworkCreatedDateParsed } : {}),
                     isDeleted: false,
                     media: {
                         create: dto.media.map(m => ({
@@ -301,6 +457,7 @@ let PostsService = class PostsService {
                         fullName: true,
                         avatar: true,
                         isVerified: true,
+                        isPrivate: true,
                     },
                 },
                 media: {
@@ -315,6 +472,9 @@ let PostsService = class PostsService {
         });
         if (!post) {
             throw new common_1.NotFoundException('Post not found');
+        }
+        if (currentUserId) {
+            await this.assertViewerCanAccessPost(currentUserId, post);
         }
         const allComments = await this.prisma.comment.findMany({
             where: {
@@ -476,6 +636,11 @@ let PostsService = class PostsService {
             ...post.user,
             avatar: this.transformAvatarUrl(post.user.avatar),
         };
+        const artworkCreatedDateIso = post.artworkCreatedDate != null
+            ? post.artworkCreatedDate instanceof Date
+                ? post.artworkCreatedDate.toISOString()
+                : String(post.artworkCreatedDate)
+            : null;
         return {
             ...post,
             id: post.id,
@@ -484,6 +649,7 @@ let PostsService = class PostsService {
             title: post.title,
             location: post.location,
             type: post.type,
+            artworkCreatedDate: artworkCreatedDateIso,
             createdAt: post.createdAt instanceof Date ? post.createdAt.toISOString() : post.createdAt,
             updatedAt: post.updatedAt instanceof Date ? post.updatedAt.toISOString() : post.updatedAt,
             media: transformedMedia,
@@ -510,11 +676,13 @@ let PostsService = class PostsService {
         if (data.caption && (0, containsBadWord_1.containsBadWord)(data.caption)) {
             throw new common_1.BadRequestException('Bu içerik topluluk kurallarına uygun değil.');
         }
+        const datePatch = this.resolveArtworkCreatedDateForUpdate(data.artworkCreatedDate);
         const updatedPost = await this.prisma.post.update({
             where: { id: postId },
             data: {
                 ...(data.caption !== undefined && { caption: data.caption }),
                 ...(data.title !== undefined && { title: data.title }),
+                ...(datePatch.apply && { artworkCreatedDate: datePatch.value }),
             },
             include: {
                 user: {
@@ -1105,18 +1273,21 @@ let PostsService = class PostsService {
             throw new common_1.ForbiddenException('You do not have permission to delete this comment');
         }
         const postId = comment.postId;
-        await this.prisma.comment.delete({
-            where: { id: commentId },
-        });
+        const deletedCount = await this.prisma.$transaction(async (tx) => (0, comment_delete_subtree_1.deleteCommentSubtreeTx)(tx, commentId));
         if (this.commentsGateway) {
             const room = `post_${postId}`;
-            this.commentsGateway.server.to(room).emit('commentDeleted', { id: commentId, postId });
+            this.commentsGateway.server.to(room).emit('commentDeleted', {
+                id: commentId,
+                postId,
+                deletedCount,
+            });
             this.commentsGateway.server.emit('commentDeleted', {
                 id: commentId,
                 postId,
-                change: -1,
+                change: -deletedCount,
+                deletedCount,
             });
-            console.log(`🗑️ Comment deleted event broadcasted: ${commentId}`);
+            console.log(`🗑️ Comment deleted event broadcasted: ${commentId} (${deletedCount} row(s))`);
         }
         if (this.postsGateway) {
             const updatedPost = await this.prisma.post.findUnique({
@@ -1136,7 +1307,11 @@ let PostsService = class PostsService {
                 });
             }
         }
-        return { success: true, message: 'Comment deleted successfully' };
+        return {
+            success: true,
+            message: 'Comment deleted successfully',
+            deletedCount,
+        };
     }
     async toggleCommentReaction(userId, commentId, emoji) {
         const comment = await this.prisma.comment.findUnique({
@@ -2639,6 +2814,7 @@ exports.PostsService = PostsService = __decorate([
     (0, common_1.Injectable)(),
     __param(6, (0, common_1.Inject)((0, common_1.forwardRef)(() => posts_gateway_1.PostsGateway))),
     __param(7, (0, common_1.Inject)((0, common_1.forwardRef)(() => comments_gateway_1.CommentsGateway))),
+    __param(11, (0, common_1.Inject)((0, common_1.forwardRef)(() => chat_service_1.ChatService))),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         notifications_service_1.NotificationsService,
         notifications_gateway_1.NotificationsGateway,
@@ -2649,6 +2825,8 @@ exports.PostsService = PostsService = __decorate([
         comments_gateway_1.CommentsGateway,
         config_1.ConfigService,
         limits_service_1.LimitsService,
-        color_analysis_service_1.ColorAnalysisService])
+        color_analysis_service_1.ColorAnalysisService,
+        chat_service_1.ChatService,
+        blocks_service_1.BlocksService])
 ], PostsService);
 //# sourceMappingURL=posts.service.js.map

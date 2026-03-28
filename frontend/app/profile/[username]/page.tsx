@@ -701,7 +701,10 @@ function ProfileContent() {
       queryClient.invalidateQueries({ queryKey: ['user-comments', profile?.id] })
     })
 
-    commentsSocket.on('commentDeleted', (data: { id: string; postId: string }) => {
+    commentsSocket.on(
+      'commentDeleted',
+      (data: { id: string; postId: string; deletedCount?: number }) => {
+      const dec = typeof data.deletedCount === 'number' && data.deletedCount > 0 ? data.deletedCount : 1
       // Profil postlarından bu post'un yorum sayısını güncelle
       setProfilePosts((prev) =>
         prev.map((p: any) => {
@@ -710,7 +713,7 @@ function ProfileContent() {
               ...p,
               _count: {
                 ...p._count,
-                comments: Math.max(0, (p._count?.comments || 0) - 1),
+                comments: Math.max(0, (p._count?.comments || 0) - dec),
               },
             }
           }

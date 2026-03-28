@@ -1,6 +1,7 @@
 import { Injectable, Inject, forwardRef, NotFoundException, BadRequestException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
 import { Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { deleteCommentSubtreeTx } from '../common/utils/comment-delete-subtree';
 import { ColorAnalysisService } from '../posts/color-analysis.service';
 import { MailService } from '../mail/mail.service';
 
@@ -715,9 +716,9 @@ export class AdminService {
   }
 
   async deleteComment(commentId: string, actorId: string) {
-    await this.prisma.comment.delete({
-      where: { id: commentId },
-    });
+    await this.prisma.$transaction(async (tx) =>
+      deleteCommentSubtreeTx(tx, commentId),
+    );
 
     await this.createAuditLog({
       actorId,

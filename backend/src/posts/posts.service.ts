@@ -21,6 +21,7 @@ import {
   publicVitrineUserWhere,
   isUserEligibleForPublicVitrine,
 } from '../common/utils/public-vitrine-user';
+import { deleteCommentSubtreeTx } from '../common/utils/comment-delete-subtree';
 import { resolveFeellinkAssetsRoot, fontPathForRegister } from '../common/resolve-feellink-assets';
 import PDFDocument from 'pdfkit';
 import * as QRCode from 'qrcode';
@@ -1524,21 +1525,28 @@ export class PostsService {
 
     const postId = comment.postId;
 
-    await this.prisma.comment.delete({
-      where: { id: commentId },
-    });
+    const deletedCount = await this.prisma.$transaction(async (tx) =>
+      deleteCommentSubtreeTx(tx, commentId),
+    );
 
     // 🔔 Real-time yayın - Socket.IO ile yorum silme güncellemesi
     if (this.commentsGateway) {
       const room = `post_${postId}`;
-      this.commentsGateway.server.to(room).emit('commentDeleted', { id: commentId, postId });
+      this.commentsGateway.server.to(room).emit('commentDeleted', {
+        id: commentId,
+        postId,
+        deletedCount,
+      });
       // Global yayın
       this.commentsGateway.server.emit('commentDeleted', {
         id: commentId,
         postId,
-        change: -1,
+        change: -deletedCount,
+        deletedCount,
       });
-      console.log(`🗑️ Comment deleted event broadcasted: ${commentId}`);
+      console.log(
+        `🗑️ Comment deleted event broadcasted: ${commentId} (${deletedCount} row(s))`,
+      );
     }
 
     // Admin panel için post comment sayısını güncelle
@@ -1561,7 +1569,11 @@ export class PostsService {
       }
     }
 
-    return { success: true, message: 'Comment deleted successfully' };
+    return {
+      success: true,
+      message: 'Comment deleted successfully',
+      deletedCount,
+    };
   }
 
   async toggleCommentReaction(userId: string, commentId: string, emoji: string) {

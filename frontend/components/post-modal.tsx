@@ -605,10 +605,14 @@ export function PostModal({
   // Delete comment mutation
   const deleteCommentMutation = useMutation({
     mutationFn: async (commentId: string) => {
-      await api.delete(`/posts/${resolvedPostId}/comments/${commentId}`)
-      return commentId
+      const res = await api.delete(`/posts/${resolvedPostId}/comments/${commentId}`)
+      const deletedCount =
+        typeof res.data?.deletedCount === 'number' && res.data.deletedCount > 0
+          ? res.data.deletedCount
+          : 1
+      return { commentId, deletedCount }
     },
-    onSuccess: (commentId) => {
+    onSuccess: ({ commentId, deletedCount }) => {
       // ✅ SADECE SİLİNEN COMMENT'İ KALDIR
       // ❌ POST CACHE'İNİ INVALIDATE ETME! (Like/Save kaybolur)
       queryClient.setQueryData(postQueryKey, (old: any) => {
@@ -618,13 +622,20 @@ export function PostModal({
           comments: old.comments?.filter((c: any) => c.id !== commentId),
           _count: {
             ...old._count,
-            comments: Math.max(0, (old._count?.comments || 0) - 1),
+            comments: Math.max(0, (old._count?.comments || 0) - deletedCount),
           },
         }
       })
       queryClient.invalidateQueries({ queryKey: ['profile'] })
       queryClient.invalidateQueries({ queryKey: ['explore'] })
       setCommentMenuOpen(null)
+    },
+    onError: (err: unknown) => {
+      const msg =
+        isAxiosError(err) && err.response?.data?.message
+          ? String(err.response.data.message)
+          : 'Yorum silinemedi'
+      toast.error(msg)
     },
   })
 

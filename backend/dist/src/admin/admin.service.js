@@ -16,6 +16,7 @@ exports.AdminService = void 0;
 const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../prisma/prisma.service");
+const comment_delete_subtree_1 = require("../common/utils/comment-delete-subtree");
 const color_analysis_service_1 = require("../posts/color-analysis.service");
 const mail_service_1 = require("../mail/mail.service");
 let AdminService = class AdminService {
@@ -562,9 +563,7 @@ let AdminService = class AdminService {
         return { comments, total, page, limit };
     }
     async deleteComment(commentId, actorId) {
-        await this.prisma.comment.delete({
-            where: { id: commentId },
-        });
+        await this.prisma.$transaction(async (tx) => (0, comment_delete_subtree_1.deleteCommentSubtreeTx)(tx, commentId));
         await this.createAuditLog({
             actorId,
             action: 'comment.delete',
