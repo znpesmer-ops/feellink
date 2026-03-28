@@ -838,36 +838,14 @@ export class ChatService {
         },
       };
 
+      // Nested participants.create zaten UserConversation satırlarını oluşturur.
+      // Aynı tx içinde tekrar userConversation.create duplicate key ile Mongo transaction'ı abort eder.
       const created = await tx.conversation.create({
         data: conversationData,
         include: fullInc,
       });
 
-      await Promise.all(
-        [a, b].map(async (participantId) => {
-          try {
-            await tx.userConversation.create({
-              data: {
-                userId: participantId,
-                conversationId: created.id,
-                isDeleted: false,
-              },
-            });
-          } catch (error: any) {
-            if (error?.code !== 'P2002') {
-              console.error(
-                `❌ [ChatService] UserConversation create failed for ${participantId}:`,
-                error?.message,
-              );
-            }
-          }
-        }),
-      );
-
-      return tx.conversation.findUnique({
-        where: { id: created.id },
-        include: fullInc,
-      });
+      return created;
     });
   }
 
