@@ -1,7 +1,15 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  type DropResult,
+  type DraggableProvided,
+  type DraggableStateSnapshot,
+} from '@hello-pangea/dnd'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import { Image as ImageIcon, QrCode, Download, Loader2, MoreVertical, Trash2, Heart, MessageCircle, Edit, Bookmark } from 'lucide-react'
 import api from '@/lib/api'
@@ -16,6 +24,10 @@ interface ProfileArtworksGridProps {
   userId?: string // Kullanıcı ID'si (sahip kontrolü için)
   /** Kart üzerinde renk paleti şeridi; varsayılan kapalı — veri yine de API’de kalır */
   showColorPalette?: boolean
+  /** Serbest dizim: sürükle-bırak (yalnızca profil sahibi + custom mod) */
+  enableReorder?: boolean
+  /** Sürükleme sonrası yeni sıra (tam artwork nesneleri) — önbellek + PATCH üst bileşende */
+  onReorder?: (orderedArtworks: any[]) => void
 }
 
 export function ProfileArtworksGrid({
@@ -23,6 +35,8 @@ export function ProfileArtworksGrid({
   username,
   userId,
   showColorPalette = false,
+  enableReorder = false,
+  onReorder,
 }: ProfileArtworksGridProps) {
   const router = useRouter()
   const { user } = useAuthStore()
@@ -197,6 +211,18 @@ export function ProfileArtworksGrid({
     }
   }, [menuOpen])
 
+  const handleArtworkDragEnd = useCallback(
+    (result: DropResult) => {
+      if (!enableReorder || !onReorder || !result.destination) return
+      if (result.destination.index === result.source.index) return
+      const next = Array.from(artworks)
+      const [removed] = next.splice(result.source.index, 1)
+      next.splice(result.destination.index, 0, removed)
+      onReorder(next)
+    },
+    [enableReorder, onReorder, artworks],
+  )
+
   if (!artworks || artworks.length === 0) {
     return (
       <div className="text-center py-12">
@@ -210,180 +236,205 @@ export function ProfileArtworksGrid({
     )
   }
 
-  return (
-    <div className="grid grid-cols-3 gap-2">
-      {artworks.map((artwork, index) => {
-        // Index bazlı ritmik renk ataması (turuncu → mavi → beyaz) - Normal çerçeve
-        const colorClass = index % 3 === 0 
-          ? 'artwork-card--orange' 
-          : index % 3 === 1 
-          ? 'artwork-card--blue' 
+  const renderArtworkCard = (
+    artwork: any,
+    index: number,
+    provided?: DraggableProvided,
+    snapshot?: DraggableStateSnapshot,
+  ) => {
+    const colorClass =
+      index % 3 === 0
+        ? 'artwork-card--orange'
+        : index % 3 === 1
+          ? 'artwork-card--blue'
           : 'artwork-card--white'
+    const hoverColorClass =
+      index % 3 === 0
+        ? 'hover-outline-orange'
+        : index % 3 === 1
+          ? 'hover-outline-blue'
+          : 'hover-outline-white'
+    const cardClass = `artwork-card aspect-square relative cursor-pointer group overflow-hidden rounded-xl transition-all duration-300 hover:ring-2 hover:ring-brand-orange hover:ring-offset-2 hover:ring-offset-white dark:hover:ring-offset-gray-950 ${colorClass} ${hoverColorClass}`
 
-        // Index bazlı hover çerçeve rengi (döngüsel)
-        const hoverColorClass =
-          index % 3 === 0
-            ? 'hover-outline-orange'
-            : index % 3 === 1
-            ? 'hover-outline-blue'
-            : 'hover-outline-white'
-
-        return (
-        <div
-          key={artwork.id}
-          className={`artwork-card aspect-square relative cursor-pointer group overflow-hidden rounded-xl transition-all duration-300 hover:ring-2 hover:ring-brand-orange hover:ring-offset-2 hover:ring-offset-white dark:hover:ring-offset-gray-950 ${colorClass} ${hoverColorClass}`}
-          onClick={() => router.push(`/posts/${artwork.id}?from=${encodeURIComponent(`/profile/${username}`)}`)}
-        >
-          {/* İçerik container - overflow-hidden burada, görselleri sınırlıyor */}
-          <div className="w-full h-full rounded-xl overflow-hidden">
-            {artwork.media && artwork.media.length > 0 ? (
-              <>
-                {artwork.media[0].type === 'video' ? (
-                  <video
-                    src={resolveImageUrl(artwork.media[0].url)}
-                    className="w-full h-full object-cover rounded-xl group-hover:scale-105 transition-transform duration-300"
-                    muted
-                  />
-                ) : (
-                  <img
-                    src={resolveImageUrl(artwork.media[0].url)}
-                    alt={artwork.caption || 'Eser'}
-                    className="w-full h-full object-cover rounded-xl group-hover:scale-105 transition-transform duration-300"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
-                    }}
-                  />
-                )}
-              </>
-            ) : (
-              <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center rounded-xl">
-                <ImageIcon className="w-8 h-8 text-gray-400 dark:text-gray-500" />
-              </div>
-            )}
-          </div>
-
-          {/* QR Kod Butonu ve Silme Menüsü - Sadece eser sahibi görür - Yüksek z-index */}
-          {isOwner ? (
+    return (
+      <div
+        ref={provided?.innerRef}
+        {...(provided?.draggableProps ?? {})}
+        {...(provided?.dragHandleProps ?? {})}
+        className={`${cardClass}${snapshot?.isDragging ? ' ring-2 ring-[#ff7b00] opacity-90 z-50' : ''}`}
+        onClick={() =>
+          router.push(`/posts/${artwork.id}?from=${encodeURIComponent(`/profile/${username}`)}`)
+        }
+      >
+        <div className="w-full h-full rounded-xl overflow-hidden">
+          {artwork.media && artwork.media.length > 0 ? (
             <>
-              <button
-                onClick={(e) => handleDownloadQr(e, artwork.id, artwork)}
-                disabled={downloadingQr === artwork.id}
-                className="absolute top-2 left-2 rounded-full bg-[#ff7b00] hover:bg-[#e36f00] text-white p-1.5 shadow-lg z-[115] transition-colors disabled:opacity-50 disabled:cursor-not-allowed pointer-events-auto"
-                title="QR Kod Etiketi İndir"
-              >
-                {downloadingQr === artwork.id ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <QrCode size={14} strokeWidth={2.5} />
-                )}
-              </button>
-              
-              {/* Menü butonu - Silme seçeneği - En yüksek z-index (tema menüsünden üstte) */}
-              <div 
-                ref={(el) => {
-                  menuRefs.current[artwork.id] = el
-                }}
-                className="absolute bottom-2 right-2 z-[120]"
-              >
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setMenuOpen(menuOpen === artwork.id ? null : artwork.id)
+              {artwork.media[0].type === 'video' ? (
+                <video
+                  src={resolveImageUrl(artwork.media[0].url)}
+                  className="w-full h-full object-cover rounded-xl group-hover:scale-105 transition-transform duration-300"
+                  muted
+                />
+              ) : (
+                <img
+                  src={resolveImageUrl(artwork.media[0].url)}
+                  alt={artwork.caption || 'Eser'}
+                  className="w-full h-full object-cover rounded-xl group-hover:scale-105 transition-transform duration-300"
+                  onError={(e) => {
+                    ;(e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
                   }}
-                  className="p-1.5 rounded-full bg-black/60 backdrop-blur-sm text-white hover:bg-black/80 transition-colors pointer-events-auto"
-                  title="Menü"
-                >
-                  <MoreVertical size={14} strokeWidth={2.5} />
-                </button>
-                
-                {/* Açılır menü - En yüksek z-index ile tema menüsünden üstte */}
-                {menuOpen === artwork.id && (
-                  <div 
-                    onClick={(e) => e.stopPropagation()}
-                    className="absolute bottom-10 right-0 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden min-w-[120px] z-[120]"
-                  >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditingArtwork(artwork)
-                        setMenuOpen(null)
-                      }}
-                      className="w-full px-4 py-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 text-sm font-medium transition-colors"
-                    >
-                      <Edit size={16} />
-                      Düzenle
-                    </button>
-                    <button
-                      onClick={(e) => handleDeleteClick(e, artwork.id)}
-                      disabled={deleteMutation.isPending}
-                      className="w-full px-4 py-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Trash2 size={16} />
-                      Sil
-                    </button>
-                  </div>
-                )}
-              </div>
+                />
+              )}
             </>
           ) : (
-            /* Kaydet butonu - Sadece sahip değilse görünür */
-            <button
-              onClick={(e) => handleSaveToggle(e, artwork.id)}
-              className="absolute top-2 left-2 rounded-full bg-black/60 backdrop-blur-sm text-white p-1.5 shadow-lg z-[115] hover:bg-black/80 transition-colors"
-              title={savedArtworks.has(artwork.id) ? 'Kaydedilenlerden kaldır' : 'Kaydet'}
-            >
-              <Bookmark 
-                size={14} 
-                strokeWidth={2.5} 
-                fill={savedArtworks.has(artwork.id) ? 'currentColor' : 'none'}
-              />
-            </button>
-          )}
-
-          {/* Modern Hover Overlay - Glass Effect - Düşük z-index ile menü butonlarının altında */}
-          {artwork.media && artwork.media.length > 0 && (
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center rounded-xl z-[5] pointer-events-none">
-              <div className="flex items-center gap-8">
-                {/* Likes */}
-                <div className="flex items-center gap-2 text-white text-lg font-semibold">
-                  <Heart className="w-6 h-6" fill="currentColor" />
-                  <span>{artwork._count?.likes || artwork.likeCount || 0}</span>
-                </div>
-                
-                {/* Comments */}
-                <div className="flex items-center gap-2 text-white text-lg font-semibold">
-                  <MessageCircle className="w-6 h-6" />
-                  <span>{artwork._count?.comments || artwork.commentCount || 0}</span>
-                </div>
-              </div>
+            <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center rounded-xl">
+              <ImageIcon className="w-8 h-8 text-gray-400 dark:text-gray-500" />
             </div>
           )}
-          
-          {showColorPalette &&
-            artwork.colorPalette &&
-            Array.isArray(artwork.colorPalette) &&
-            artwork.colorPalette.length > 0 && (
-              <div className="absolute bottom-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-[50]">
-                {artwork.colorPalette.slice(0, 5).map((hex: string, idx: number) => (
-                  <div
-                    key={idx}
-                    style={{
-                      width: 16,
-                      height: 16,
-                      borderRadius: 4,
-                      backgroundColor: hex,
-                      border: '1px solid rgba(255,255,255,0.1)',
-                    }}
-                    title={hex}
-                  />
-                ))}
-              </div>
-            )}
         </div>
-        )
-      })}
-      
-      {/* Düzenleme modalı */}
+
+        {isOwner ? (
+          <>
+            <button
+              onClick={(e) => handleDownloadQr(e, artwork.id, artwork)}
+              disabled={downloadingQr === artwork.id}
+              className="absolute top-2 left-2 rounded-full bg-[#ff7b00] hover:bg-[#e36f00] text-white p-1.5 shadow-lg z-[115] transition-colors disabled:opacity-50 disabled:cursor-not-allowed pointer-events-auto"
+              title="QR Kod Etiketi İndir"
+            >
+              {downloadingQr === artwork.id ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <QrCode size={14} strokeWidth={2.5} />
+              )}
+            </button>
+            <div
+              ref={(el) => {
+                menuRefs.current[artwork.id] = el
+              }}
+              className="absolute bottom-2 right-2 z-[120]"
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setMenuOpen(menuOpen === artwork.id ? null : artwork.id)
+                }}
+                className="p-1.5 rounded-full bg-black/60 backdrop-blur-sm text-white hover:bg-black/80 transition-colors pointer-events-auto"
+                title="Menü"
+              >
+                <MoreVertical size={14} strokeWidth={2.5} />
+              </button>
+              {menuOpen === artwork.id && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute bottom-10 right-0 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden min-w-[120px] z-[120]"
+                >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setEditingArtwork(artwork)
+                      setMenuOpen(null)
+                    }}
+                    className="w-full px-4 py-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 text-sm font-medium transition-colors"
+                  >
+                    <Edit size={16} />
+                    Düzenle
+                  </button>
+                  <button
+                    onClick={(e) => handleDeleteClick(e, artwork.id)}
+                    disabled={deleteMutation.isPending}
+                    className="w-full px-4 py-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 size={16} />
+                    Sil
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <button
+            onClick={(e) => handleSaveToggle(e, artwork.id)}
+            className="absolute top-2 left-2 rounded-full bg-black/60 backdrop-blur-sm text-white p-1.5 shadow-lg z-[115] hover:bg-black/80 transition-colors"
+            title={savedArtworks.has(artwork.id) ? 'Kaydedilenlerden kaldır' : 'Kaydet'}
+          >
+            <Bookmark
+              size={14}
+              strokeWidth={2.5}
+              fill={savedArtworks.has(artwork.id) ? 'currentColor' : 'none'}
+            />
+          </button>
+        )}
+
+        {artwork.media && artwork.media.length > 0 && (
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center rounded-xl z-[5] pointer-events-none">
+            <div className="flex items-center gap-8">
+              <div className="flex items-center gap-2 text-white text-lg font-semibold">
+                <Heart className="w-6 h-6" fill="currentColor" />
+                <span>{artwork._count?.likes || artwork.likeCount || 0}</span>
+              </div>
+              <div className="flex items-center gap-2 text-white text-lg font-semibold">
+                <MessageCircle className="w-6 h-6" />
+                <span>{artwork._count?.comments || artwork.commentCount || 0}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showColorPalette &&
+          artwork.colorPalette &&
+          Array.isArray(artwork.colorPalette) &&
+          artwork.colorPalette.length > 0 && (
+            <div className="absolute bottom-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-[50]">
+              {artwork.colorPalette.slice(0, 5).map((hex: string, idx: number) => (
+                <div
+                  key={idx}
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: 4,
+                    backgroundColor: hex,
+                    border: '1px solid rgba(255,255,255,0.1)',
+                  }}
+                  title={hex}
+                />
+              ))}
+            </div>
+          )}
+      </div>
+    )
+  }
+
+  const grid =
+    enableReorder && onReorder ? (
+      <DragDropContext onDragEnd={handleArtworkDragEnd}>
+        <Droppable droppableId="profile-artworks-grid" direction="horizontal">
+          {(provided) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className="grid grid-cols-3 gap-2"
+            >
+              {artworks.map((artwork, index) => (
+                <Draggable key={artwork.id} draggableId={artwork.id} index={index}>
+                  {(dp, snap) => renderArtworkCard(artwork, index, dp, snap)}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
+    ) : (
+      <div className="grid grid-cols-3 gap-2">
+        {artworks.map((artwork, index) => (
+          <div key={artwork.id}>{renderArtworkCard(artwork, index)}</div>
+        ))}
+      </div>
+    )
+
+  return (
+    <>
+      {grid}
       {editingArtwork && (
         <EditArtworkModal
           artwork={editingArtwork}
@@ -394,20 +445,16 @@ export function ProfileArtworksGrid({
           }}
         />
       )}
-
-      {/* Silme onay modalı - Sadece açıkken görünür, z-index sidebar'dan düşük */}
       {confirmDelete && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 flex items-center justify-center z-40"
           onClick={handleCancelDelete}
         >
-          <div 
+          <div
             className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Eseri Sil
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Eseri Sil</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
               Bu eseri silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
             </p>
@@ -429,7 +476,7 @@ export function ProfileArtworksGrid({
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 

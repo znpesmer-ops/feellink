@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
 import api from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { AuthGuard } from '@/lib/auth-guard'
@@ -25,6 +26,34 @@ import { ProfileCommentsList } from '@/components/profile/ProfileCommentsList'
 import { ArtistHighlights } from '@/components/profile/ArtistHighlights'
 import { ProfileAnalysisPanel } from '@/components/profile/ProfileAnalysisPanel'
 import ZoomModal from '@/components/common/ZoomModal'
+import {
+  type ProfileGridSortMode,
+  sortProfileItems,
+  applyPostReorderInUserPostsCache,
+  applyArtworkReorderInUserPostsCache,
+} from '@/lib/profileGridSort'
+
+const LS_PROFILE_SORT_POSTS = 'feellink-profile-sort-posts'
+const LS_PROFILE_SORT_ARTWORKS = 'feellink-profile-sort-artworks'
+
+function readProfileGridSortMode(key: string): ProfileGridSortMode {
+  if (typeof window === 'undefined') return 'newest'
+  try {
+    const v = localStorage.getItem(key)
+    if (v === 'newest' || v === 'oldest' || v === 'custom') return v
+  } catch {
+    /* ignore */
+  }
+  return 'newest'
+}
+
+function persistProfileGridSortMode(key: string, mode: ProfileGridSortMode) {
+  try {
+    localStorage.setItem(key, mode)
+  } catch {
+    /* ignore */
+  }
+}
 
 // 🔖 Kaydedilenler Grid Component
 function SavedPostsGrid() {
@@ -319,7 +348,21 @@ function ProfileContent() {
   const [creatingConversation, setCreatingConversation] = useState(false)
   const [activeTab, setActiveTab] = useState<'posts' | 'articles' | 'comments' | 'artworks' | 'events' | 'drafts' | 'saved' | 'analysis'>('posts')
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
-  const [profilePosts, setProfilePosts] = useState<any[]>([])
+  const [postsSortMode, setPostsSortModeState] = useState<ProfileGridSortMode>(() =>
+    readProfileGridSortMode(LS_PROFILE_SORT_POSTS),
+  )
+  const [artworksSortMode, setArtworksSortModeState] = useState<ProfileGridSortMode>(() =>
+    readProfileGridSortMode(LS_PROFILE_SORT_ARTWORKS),
+  )
+
+  const setPostsSortMode = (m: ProfileGridSortMode) => {
+    setPostsSortModeState(m)
+    persistProfileGridSortMode(LS_PROFILE_SORT_POSTS, m)
+  }
+  const setArtworksSortMode = (m: ProfileGridSortMode) => {
+    setArtworksSortModeState(m)
+    persistProfileGridSortMode(LS_PROFILE_SORT_ARTWORKS, m)
+  }
   const [zoomImage, setZoomImage] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -522,9 +565,94 @@ function ProfileContent() {
   })
 
   // Eserler: user-posts ile aynı kaynak (tek istek, upload sonrası invalidate ile senkron)
-  const profileArtworks = useMemo(
+  const profileArtworksBase = useMemo(
     () => (userPostsData || []).filter((p: any) => p.type === 'artwork'),
     [userPostsData],
+  )
+
+  const rawProfilePostsOnly = useMemo(
+    () =>
+      (userPostsData || []).filter((p: any) => !p.type || p.type === 'post'),
+    [userPostsData],
+  )
+
+  const profilePostOrder = useMemo(
+    () => (Array.isArray(profile?.profilePostOrder) ? profile.profilePostOrder : []) as string[],
+    [profile?.profilePostOrder],
+  )
+  const profileArtworkOrder = useMemo(
+    () =>
+      (Array.isArray(profile?.profileArtworkOrder) ? profile.profileArtworkOrder : []) as string[],
+    [profile?.profileArtworkOrder],
+  )
+
+  const sortedProfilePosts = useMemo(
+    () => sortProfileItems(rawProfilePostsOnly, postsSortMode, profilePostOrder),
+    [rawProfilePostsOnly, postsSortMode, profilePostOrder],
+  )
+
+  const sortedProfileArtworks = useMemo(
+    () => sortProfileItems(profileArtworksBase, artworksSortMode, profileArtworkOrder),
+    [profileArtworksBase, artworksSortMode, profileArtworkOrder],
+  )
+
+  const patchGridOrderMutation = useMutation({
+    mutationFn: async (body: { postOrder?: string[]; artworkOrder?: string[] }) => {
+      const { data } = await api.patch('/users/me/profile-grid-order', body)
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'profile',
+      })
+    },
+  })
+
+  const enablePostsDrag = isOwnProfile && postsSortMode === 'custom'
+  const enableArtworksDrag = isOwnProfile && artworksSortMode === 'custom'
+
+  const handlePostsDragEnd = useCallback(
+    (result: DropResult) => {
+      if (!enablePostsDrag || !result.destination || !profile?.id) return
+      if (result.destination.index === result.source.index) return
+      const items = Array.from(sortedProfilePosts)
+      const [removed] = items.splice(result.source.index, 1)
+      items.splice(result.destination.index, 0, removed)
+      const previous = queryClient.getQueryData<any[]>(['user-posts', profile.id])
+      queryClient.setQueryData(['user-posts', profile.id], (old: any[] = []) =>
+        applyPostReorderInUserPostsCache(old, items),
+      )
+      patchGridOrderMutation.mutate(
+        { postOrder: items.map((p) => p.id) },
+        {
+          onError: () => {
+            if (previous) queryClient.setQueryData(['user-posts', profile.id], previous)
+            toast.error('Sıra kaydedilemedi')
+          },
+        },
+      )
+    },
+    [enablePostsDrag, profile?.id, sortedProfilePosts, queryClient, patchGridOrderMutation],
+  )
+
+  const handleArtworksReorder = useCallback(
+    (items: any[]) => {
+      if (!profile?.id) return
+      const previous = queryClient.getQueryData<any[]>(['user-posts', profile.id])
+      queryClient.setQueryData(['user-posts', profile.id], (old: any[] = []) =>
+        applyArtworkReorderInUserPostsCache(old, items),
+      )
+      patchGridOrderMutation.mutate(
+        { artworkOrder: items.map((a) => a.id) },
+        {
+          onError: () => {
+            if (previous) queryClient.setQueryData(['user-posts', profile.id], previous)
+            toast.error('Sıra kaydedilemedi')
+          },
+        },
+      )
+    },
+    [profile?.id, queryClient, patchGridOrderMutation],
   )
 
   // Delete post mutation
@@ -534,9 +662,6 @@ function ProfileContent() {
     },
     onSuccess: (_, postId) => {
       toast.success('Gönderi başarıyla silindi')
-      // Remove from local state
-      setProfilePosts((prev) => prev.filter((p) => p.id !== postId))
-      
       // 🎯 OPTIMISTIC UPDATE - Instagram mantığı: Anında sayacı azalt
       queryClient.setQueriesData(
         { 
@@ -610,31 +735,6 @@ function ProfileContent() {
     }
   }, [menuOpen])
 
-  // Update profilePosts when data changes - filter by type for posts tab
-  useEffect(() => {
-    if (userPostsData) {
-      // Posts tab'ında sadece type='post' olanları veya type olmayanları göster
-      // (Eski postlar type alanına sahip olmayabilir, onları da göster)
-      // 'artwork' tipindekileri hariç tut
-      const filteredPosts = (userPostsData || []).filter((p: any) => {
-        // type yoksa veya 'post' ise göster, 'artwork' değilse göster
-        return !p.type || p.type === 'post'
-      })
-      setProfilePosts(filteredPosts)
-      
-      // Debug log
-      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-        console.log('🔍 Profile Posts Debug:', {
-          totalPosts: userPostsData?.length || 0,
-          filteredPosts: filteredPosts.length,
-          posts: filteredPosts.map((p: any) => ({ id: p.id, type: p.type }))
-        })
-      }
-    } else {
-      setProfilePosts([])
-    }
-  }, [userPostsData])
-
   // 🔔 Socket.IO ile real-time post dinleme
   useEffect(() => {
     if (!accessToken || !profile?.id) return
@@ -642,25 +742,19 @@ function ProfileContent() {
     const postsSocket = initPostsSocket(accessToken)
 
     postsSocket.on('postCreated', (newPost: any) => {
-      // Eğer yeni gönderi bu profil kullanıcısına aitse listeye ekle
       if (newPost.author?.id === profile.id) {
-        setProfilePosts((prev) => {
-          // Çift eklemeyi önle
-          if (prev.some((p) => p.id === newPost.id)) {
-            return prev
-          }
-          return [newPost, ...prev]
+        queryClient.setQueryData(['user-posts', profile.id], (old: any[] = []) => {
+          if (old.some((p) => p.id === newPost.id)) return old
+          return [newPost, ...old]
         })
-        // Profil query'sini de invalidate et
         queryClient.invalidateQueries({ queryKey: ['profile', username] })
       }
     })
 
     // 🔔 Real-time beğeni güncellemeleri
     postsSocket.on('postLikeUpdated', (data: { postId: string; change: number; likeCount: number; isLiked: boolean; userId: string }) => {
-      // Profil postlarından bu post'u güncelle
-      setProfilePosts((prev) =>
-        prev.map((p: any) => {
+      queryClient.setQueryData(['user-posts', profile.id], (old: any[] = []) =>
+        old.map((p: any) => {
           if (p.id === data.postId) {
             return {
               ...p,
@@ -671,9 +765,8 @@ function ProfileContent() {
             }
           }
           return p
-        })
+        }),
       )
-      // Profil query'sini de güncelle
       queryClient.invalidateQueries({ queryKey: ['profile', username] })
       queryClient.invalidateQueries({ queryKey: ['user-posts', profile?.id] })
     })
@@ -681,9 +774,8 @@ function ProfileContent() {
     // 🔔 Real-time yorum güncellemeleri (yorum sayısı için)
     const commentsSocket = initCommentsSocket(accessToken)
     commentsSocket.on('commentCreated', (data: any) => {
-      // Profil postlarından bu post'un yorum sayısını güncelle
-      setProfilePosts((prev) =>
-        prev.map((p: any) => {
+      queryClient.setQueryData(['user-posts', profile.id], (old: any[] = []) =>
+        old.map((p: any) => {
           if (p.id === data.postId) {
             return {
               ...p,
@@ -694,7 +786,7 @@ function ProfileContent() {
             }
           }
           return p
-        })
+        }),
       )
       queryClient.invalidateQueries({ queryKey: ['profile', username] })
       // ✅ Yorumlar grid'ini de güncelle (eğer aktif sekme yorumlar ise)
@@ -705,9 +797,8 @@ function ProfileContent() {
       'commentDeleted',
       (data: { id: string; postId: string; deletedCount?: number }) => {
       const dec = typeof data.deletedCount === 'number' && data.deletedCount > 0 ? data.deletedCount : 1
-      // Profil postlarından bu post'un yorum sayısını güncelle
-      setProfilePosts((prev) =>
-        prev.map((p: any) => {
+      queryClient.setQueryData(['user-posts', profile.id], (old: any[] = []) =>
+        old.map((p: any) => {
           if (p.id === data.postId) {
             return {
               ...p,
@@ -718,7 +809,7 @@ function ProfileContent() {
             }
           }
           return p
-        })
+        }),
       )
       queryClient.invalidateQueries({ queryKey: ['profile', username] })
       // ✅ Yorumlar grid'ini de güncelle (eğer aktif sekme yorumlar ise)
@@ -1197,11 +1288,36 @@ function ProfileContent() {
           </div>
         ) : activeTab === 'artworks' && canShowProfileArtworks ? (
           <div className="bg-white dark:bg-gray-950 rounded-2xl p-4 md:p-6 border border-gray-100 dark:border-gray-900 shadow-sm transition-colors">
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="inline-flex rounded-xl border border-gray-200 dark:border-gray-700 p-0.5 bg-gray-50/80 dark:bg-gray-900/50">
+                {(['newest', 'oldest', 'custom'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setArtworksSortMode(m)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                      artworksSortMode === m
+                        ? 'bg-white dark:bg-gray-800 text-[#ff7b00] shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    {m === 'newest' ? 'En Yeni' : m === 'oldest' ? 'En Eski' : 'Serbest Dizim'}
+                  </button>
+                ))}
+              </div>
+              {isOwnProfile && artworksSortMode === 'custom' && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 sm:text-right">
+                  Kartları sürükleyip bırakarak sıralayabilirsin.
+                </p>
+              )}
+            </div>
             <ProfileArtworksGrid
               username={username}
-              artworks={profileArtworks}
+              artworks={sortedProfileArtworks}
               userId={profile?.id}
               showColorPalette={false}
+              enableReorder={enableArtworksDrag}
+              onReorder={handleArtworksReorder}
             />
           </div>
         ) : activeTab === 'artworks' && !canShowProfileArtworks ? (
@@ -1354,19 +1470,61 @@ function ProfileContent() {
             <div className="text-center py-12">
               <p className="text-sm text-red-500 dark:text-red-400">Gönderiler yüklenirken bir hata oluştu.</p>
             </div>
-          ) : profilePosts.length > 0 ? (
+          ) : sortedProfilePosts.length > 0 ? (
             <div className="bg-white dark:bg-gray-950 rounded-2xl p-4 md:p-6 border border-gray-100 dark:border-gray-900 shadow-sm transition-colors">
-              <div className="grid grid-cols-3 gap-2">
-                {profilePosts.map((post: any) => {
-                  // Check if current user is the post owner
-                  const isOwner = currentUser?.id === post.userId || currentUser?.username === username
-                  
-                  return (
-                    <div
-                      key={post.id}
-                      className="aspect-square relative cursor-pointer group overflow-hidden rounded-xl transition-all duration-300 hover:ring-2 hover:ring-brand-orange hover:ring-offset-2 hover:ring-offset-white dark:hover:ring-offset-gray-950"
-                      onClick={() => setSelectedPostId(post.id)}
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="inline-flex rounded-xl border border-gray-200 dark:border-gray-700 p-0.5 bg-gray-50/80 dark:bg-gray-900/50">
+                  {(['newest', 'oldest', 'custom'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setPostsSortMode(m)}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                        postsSortMode === m
+                          ? 'bg-white dark:bg-gray-800 text-[#ff7b00] shadow-sm'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                      }`}
                     >
+                      {m === 'newest' ? 'En Yeni' : m === 'oldest' ? 'En Eski' : 'Serbest Dizim'}
+                    </button>
+                  ))}
+                </div>
+                {isOwnProfile && postsSortMode === 'custom' && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 sm:text-right">
+                    Kartları sürükleyip bırakarak sıralayabilirsin.
+                  </p>
+                )}
+              </div>
+              <DragDropContext onDragEnd={handlePostsDragEnd}>
+                <Droppable droppableId="profile-posts-grid" direction="horizontal">
+                  {(droppableProvided) => (
+                    <div
+                      ref={droppableProvided.innerRef}
+                      {...droppableProvided.droppableProps}
+                      className="grid grid-cols-3 gap-2"
+                    >
+                      {sortedProfilePosts.map((post: any, index: number) => {
+                        const isOwner =
+                          currentUser?.id === post.userId || currentUser?.username === username
+                        return (
+                          <Draggable
+                            key={post.id}
+                            draggableId={post.id}
+                            index={index}
+                            isDragDisabled={!enablePostsDrag}
+                          >
+                            {(dragProvided, snapshot) => (
+                              <div
+                                ref={dragProvided.innerRef}
+                                {...dragProvided.draggableProps}
+                                {...dragProvided.dragHandleProps}
+                                className={`aspect-square relative cursor-pointer group overflow-hidden rounded-xl transition-all duration-300 hover:ring-2 hover:ring-brand-orange hover:ring-offset-2 hover:ring-offset-white dark:hover:ring-offset-gray-950 ${
+                                  snapshot.isDragging
+                                    ? 'ring-2 ring-[#ff7b00] opacity-90 z-50'
+                                    : ''
+                                }`}
+                                onClick={() => setSelectedPostId(post.id)}
+                              >
                       {post.media && post.media.length > 0 ? (
                         <>
                           {post.media[0].type === 'video' ? (
@@ -1450,10 +1608,16 @@ function ProfileContent() {
                           <ImageIcon size={32} />
                         </div>
                       )}
+                              </div>
+                            )}
+                          </Draggable>
+                        )
+                      })}
+                      {droppableProvided.placeholder}
                     </div>
-                  )
-                })}
-              </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
             </div>
           ) : (
             <div className="bg-white dark:bg-gray-950 rounded-2xl p-12 border border-gray-100 dark:border-gray-900 shadow-sm transition-colors text-center">

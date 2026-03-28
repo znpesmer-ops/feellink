@@ -7,6 +7,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 import { RoleChangeRequestDto } from './dto/role-change-request.dto';
 import { UpdateUsernameDto } from './dto/update-username.dto';
+import { UpdateProfileGridOrderDto } from './dto/update-profile-grid-order.dto';
 
 @Controller('users')
 export class UsersController {
@@ -20,6 +21,18 @@ export class UsersController {
       throw new NotFoundException('Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın.');
     }
     return this.usersService.getSelf(user.id);
+  }
+
+  @Patch('me/profile-grid-order')
+  @UseGuards(JwtAuthGuard)
+  async updateProfileGridOrder(
+    @CurrentUser() user: { id?: string },
+    @Body() dto: UpdateProfileGridOrderDto,
+  ) {
+    if (!user?.id) {
+      throw new NotFoundException('Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın.');
+    }
+    return this.usersService.updateProfileGridOrder(user.id, dto);
   }
 
   // ✅ ÖNEMLİ: Daha spesifik route'lar önce tanımlanmalı

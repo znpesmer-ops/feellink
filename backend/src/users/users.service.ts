@@ -5,6 +5,7 @@ import { ensureRoleAssignment, computeCapabilities, getRoleOverview, getSidebarV
 import { CapabilitySummary, SubscriptionPlanCode, RoleOverview, UserRoleCode } from '../roles/roles.types';
 import { getDashboardSnapshot } from '../dashboard/dashboard.features';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateProfileGridOrderDto } from './dto/update-profile-grid-order.dto';
 import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 import { isValidTürkiyeCity } from '../constants/cities.tr';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -129,6 +130,8 @@ export class UsersService {
           gender: true,
           showProfileColorSignature: true, // 🎨 Profil renk imzası göster/gizle
           isDeleted: true,
+          profilePostOrder: true,
+          profileArtworkOrder: true,
           _count: {
             select: {
               posts: true,
@@ -188,6 +191,8 @@ export class UsersService {
               gender: true,
               showProfileColorSignature: true, // 🎨 Profil renk imzası göster/gizle
               isDeleted: true,
+              profilePostOrder: true,
+              profileArtworkOrder: true,
               _count: {
                 select: {
                   posts: true,
@@ -447,6 +452,8 @@ export class UsersService {
       activeRole: activeRole || null, // ✅ null ise null döndür (undefined değil)
       // 🎨 Profil renk imzası göster/gizle flag'i
       showProfileColorSignature: user.showProfileColorSignature ?? true, // Default: true (geriye dönük uyumluluk)
+      profilePostOrder: user.profilePostOrder ?? [],
+      profileArtworkOrder: user.profileArtworkOrder ?? [],
     };
     } catch (error) {
       // HttpException ise olduğu gibi fırlat
@@ -467,6 +474,67 @@ export class UsersService {
       console.error('❌ [getProfile] Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
       throw new NotFoundException(`Profil yüklenirken bir hata oluştu: ${errorMessage}. Lütfen tekrar deneyin.`);
     }
+  }
+
+  private async sanitizeProfileGridOrder(
+    userId: string,
+    raw: string[] | undefined,
+    slot: 'post' | 'artwork',
+  ): Promise<string[]> {
+    if (!raw || !Array.isArray(raw)) return [];
+    const MAX = 500;
+    const seen = new Set<string>();
+    const unique: string[] = [];
+    for (const id of raw) {
+      if (typeof id !== 'string' || !id.trim()) continue;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      unique.push(id);
+      if (unique.length >= MAX) break;
+    }
+    if (unique.length === 0) return [];
+
+    const typeWhere =
+      slot === 'artwork'
+        ? { type: 'artwork' as const }
+        : { NOT: { type: 'artwork' } };
+
+    const validRows = await this.prisma.post.findMany({
+      where: {
+        userId,
+        isDeleted: false,
+        id: { in: unique },
+        ...typeWhere,
+      },
+      select: { id: true },
+    });
+    const validSet = new Set(validRows.map((p) => p.id));
+    return unique.filter((id) => validSet.has(id));
+  }
+
+  async updateProfileGridOrder(userId: string, dto: UpdateProfileGridOrderDto) {
+    if (!userId) {
+      throw new BadRequestException('Kullanıcı kimliği geçersiz.');
+    }
+    const hasPost = dto.postOrder !== undefined;
+    const hasArt = dto.artworkOrder !== undefined;
+    if (!hasPost && !hasArt) {
+      throw new BadRequestException('postOrder veya artworkOrder alanlarından en az biri gönderilmelidir.');
+    }
+
+    const data: { profilePostOrder?: string[]; profileArtworkOrder?: string[] } = {};
+    if (hasPost) {
+      data.profilePostOrder = await this.sanitizeProfileGridOrder(userId, dto.postOrder, 'post');
+    }
+    if (hasArt) {
+      data.profileArtworkOrder = await this.sanitizeProfileGridOrder(userId, dto.artworkOrder, 'artwork');
+    }
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data,
+      select: { profilePostOrder: true, profileArtworkOrder: true },
+    });
   }
 
   async getSelf(userId: string) {

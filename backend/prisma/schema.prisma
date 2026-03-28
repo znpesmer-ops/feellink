@@ -86,6 +86,10 @@ model User {
   deletedBy                 String?          @db.ObjectId // 🗑️ Admin who deleted
   createdAt                 DateTime         @default(now())
   updatedAt                 DateTime         @updatedAt
+  /// Profil gönderiler sekmesi serbest sıra (post id listesi, artwork hariç)
+  profilePostOrder          String[]         @default([])
+  /// Profil eserler sekmesi serbest sıra (artwork post id listesi)
+  profileArtworkOrder       String[]         @default([])
 
   // Relations
   posts                      Post[]
