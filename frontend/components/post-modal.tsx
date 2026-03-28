@@ -1107,6 +1107,13 @@ export function PostModal({
               if (!pinnedComment) return null;
               
               const isHighlighted = highlightCommentId === pinnedComment.id
+              const isPostOwnerBanner = user?.id === post.user.id
+              const isPinnedCommentOwner =
+                pinnedComment.userId === user?.id || pinnedComment.user?.id === user?.id
+              const showPinnedActions =
+                !isReadOnly && (isPostOwnerBanner || isPinnedCommentOwner)
+              const showDeleteOnBanner =
+                isPinnedCommentOwner || (isPostOwnerBanner && !isPinnedCommentOwner)
               
               return (
                 <div 
@@ -1129,6 +1136,28 @@ export function PostModal({
                       {pinnedComment.content}
                     </p>
                   </div>
+                  {showPinnedActions && (
+                    <div className="flex flex-col gap-1.5 flex-shrink-0 items-end pt-0.5">
+                      {isPostOwnerBanner && (
+                        <button
+                          type="button"
+                          onClick={() => handlePinComment(pinnedComment.id, true)}
+                          className="text-xs font-medium text-brand-orange hover:underline whitespace-nowrap"
+                        >
+                          Sabitlemeyi kaldır
+                        </button>
+                      )}
+                      {showDeleteOnBanner && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteComment(pinnedComment.id)}
+                          className="text-xs font-medium text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 whitespace-nowrap"
+                        >
+                          {isPinnedCommentOwner ? 'Sil' : 'Yorumu Sil'}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })()}
