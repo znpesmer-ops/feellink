@@ -130,7 +130,66 @@ export class ChatService {
       }),
     );
 
-    return conversationsWithUnread;
+    return this.dedupeDirectPeerConversations(userId, conversationsWithUnread);
+  }
+
+  /**
+   * Aynı kişiyle birden fazla DIRECT 1:1 thread listelenmesin: kanonik conversation id + birleşik unread;
+   * önizleme için en güncel updatedAt'lı satırın mesajları kullanılır.
+   */
+  private async dedupeDirectPeerConversations(userId: string, items: any[]): Promise<any[]> {
+    const nu = this.normalizeChatUserId(userId);
+    const rest: any[] = [];
+    const buckets = new Map<string, any[]>();
+
+    for (const item of items) {
+      const ctx = (item as { context?: string }).context;
+      const parts = item.participants || [];
+      if (parts.length === 2 && ctx === 'DIRECT') {
+        const other = parts.find((p: { userId: string }) => this.normalizeChatUserId(p.userId) !== nu);
+        const peerId = other ? this.normalizeChatUserId(other.userId) : '';
+        if (!peerId) {
+          rest.push(item);
+          continue;
+        }
+        const arr = buckets.get(peerId) || [];
+        arr.push(item);
+        buckets.set(peerId, arr);
+      } else {
+        rest.push(item);
+      }
+    }
+
+    const merged: any[] = [];
+
+    for (const [peerKey, group] of buckets) {
+      if (group.length === 1) {
+        merged.push(group[0]);
+        continue;
+      }
+
+      const canonical = await this.findExistingDirectPairConversation(nu, peerKey);
+      const canonicalId = canonical?.id ?? group[0].id;
+      const mergedUnread = group.reduce((s, g) => s + (Number(g.unreadCount) || 0), 0);
+      const latest = group.reduce((best: any, c: any) =>
+        new Date(c.updatedAt).getTime() > new Date(best.updatedAt).getTime() ? c : best,
+      group[0]);
+      const base = group.find((c: any) => c.id === canonicalId) ?? latest;
+      const maxUpdatedMs = Math.max(...group.map((c: any) => new Date(c.updatedAt).getTime()));
+
+      merged.push({
+        ...base,
+        id: canonicalId,
+        unreadCount: mergedUnread,
+        updatedAt: new Date(maxUpdatedMs),
+        messages: latest.messages,
+        lastMessage: latest.lastMessage ?? base.lastMessage,
+      });
+    }
+
+    return [...merged, ...rest].sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
   }
 
   // 🔥 OKUNMAMIŞ MESAJ SAYISI (Bildirimler gibi - sidebar için)
@@ -630,24 +689,9 @@ export class ChatService {
    * Tam olarak iki katılımcılı, userA–userB çiftine ait mevcut konuşmayı bulur.
    * Birden fazlaysa: önce context DIRECT, sonra en eski createdAt.
    */
-  private async findExistingDirectPairConversation(userA: string, userB: string) {
-    const a = this.normalizeChatUserId(userA);
-    const b = this.normalizeChatUserId(userB);
-    if (!a || !b || a === b) {
-      return null;
-    }
-
-    const candidates = await this.prisma.conversation.findMany({
-      where: {
-        AND: [
-          { participants: { some: { userId: a } } },
-          { participants: { some: { userId: b } } },
-        ],
-      },
-      include: { participants: true },
-      orderBy: { createdAt: 'asc' },
-    });
-
+  private pickCanonicalDirectPairFromCandidates<
+    T extends { participants: { userId: string }[]; createdAt: Date; context?: string },
+  >(candidates: T[], a: string, b: string): T | null {
     const pairMatches = candidates.filter((conv) => {
       const parts = conv.participants;
       if (parts.length !== 2) return false;
@@ -667,6 +711,164 @@ export class ChatService {
     });
 
     return pairMatches[0];
+  }
+
+  private async findExistingDirectPairConversationForClient(
+    db: Pick<PrismaService, 'conversation'>,
+    userA: string,
+    userB: string,
+  ) {
+    const a = this.normalizeChatUserId(userA);
+    const b = this.normalizeChatUserId(userB);
+    if (!a || !b || a === b) {
+      return null;
+    }
+
+    const candidates = await db.conversation.findMany({
+      where: {
+        AND: [
+          { participants: { some: { userId: a } } },
+          { participants: { some: { userId: b } } },
+        ],
+      },
+      include: { participants: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return this.pickCanonicalDirectPairFromCandidates(candidates, a, b);
+  }
+
+  private async findExistingDirectPairConversation(userA: string, userB: string) {
+    return this.findExistingDirectPairConversationForClient(this.prisma, userA, userB);
+  }
+
+  private conversationFullInclude() {
+    return {
+      participants: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              avatar: true,
+              fullName: true,
+              isOnline: true,
+              lastSeen: true,
+            },
+          },
+        },
+      },
+    } as const;
+  }
+
+  private async ensureUserConversationsForParticipants(
+    db: Pick<PrismaService, 'userConversation'>,
+    conversationId: string,
+    participantIds: string[],
+  ) {
+    await Promise.all(
+      participantIds.map(async (participantId) => {
+        try {
+          await db.userConversation.upsert({
+            where: {
+              userId_conversationId: {
+                userId: participantId,
+                conversationId,
+              },
+            },
+            create: {
+              userId: participantId,
+              conversationId,
+              isDeleted: false,
+            },
+            update: {
+              isDeleted: false,
+            },
+          });
+        } catch (error: any) {
+          if (error?.code !== 'P2002') {
+            console.error(
+              `❌ [ChatService] ensureUserConversationsForParticipants failed for ${participantId}:`,
+              error?.message,
+            );
+          }
+        }
+      }),
+    );
+  }
+
+  /**
+   * İki kullanıcı arasında tek DIRECT thread: varsa döner + UserConversation garanti, yoksa transaction içinde çift kontrol ile oluşturur.
+   */
+  async findOrCreateDirectConversation(userA: string, userB: string) {
+    const a = this.normalizeChatUserId(userA);
+    const b = this.normalizeChatUserId(userB);
+    if (!a || !b) {
+      throw new BadRequestException('Geçersiz kullanıcı');
+    }
+    if (a === b) {
+      throw new BadRequestException('Kendinize mesaj akışı açılamaz');
+    }
+
+    const fullInc = this.conversationFullInclude();
+
+    return this.prisma.$transaction(async (tx) => {
+      let existing = await this.findExistingDirectPairConversationForClient(tx, a, b);
+      if (existing) {
+        await this.ensureUserConversationsForParticipants(tx, existing.id, [a, b]);
+        return tx.conversation.findUnique({
+          where: { id: existing.id },
+          include: fullInc,
+        });
+      }
+
+      existing = await this.findExistingDirectPairConversationForClient(tx, a, b);
+      if (existing) {
+        await this.ensureUserConversationsForParticipants(tx, existing.id, [a, b]);
+        return tx.conversation.findUnique({
+          where: { id: existing.id },
+          include: fullInc,
+        });
+      }
+
+      const conversationData: any = {
+        context: 'DIRECT',
+        participants: {
+          create: [{ userId: a }, { userId: b }],
+        },
+      };
+
+      const created = await tx.conversation.create({
+        data: conversationData,
+        include: fullInc,
+      });
+
+      await Promise.all(
+        [a, b].map(async (participantId) => {
+          try {
+            await tx.userConversation.create({
+              data: {
+                userId: participantId,
+                conversationId: created.id,
+                isDeleted: false,
+              },
+            });
+          } catch (error: any) {
+            if (error?.code !== 'P2002') {
+              console.error(
+                `❌ [ChatService] UserConversation create failed for ${participantId}:`,
+                error?.message,
+              );
+            }
+          }
+        }),
+      );
+
+      return tx.conversation.findUnique({
+        where: { id: created.id },
+        include: fullInc,
+      });
+    });
   }
 
   async createConversation(userId: string, participantIds: string[], context?: 'DIRECT' | 'JOB_APPLICATION', jobId?: string, applicationId?: string) {
@@ -719,47 +921,39 @@ export class ChatService {
           break;
         }
       }
-    } else {
-      if ((context === 'DIRECT' || !context) && sortedParticipantIds.length === 2) {
-        existingConversation = await this.findExistingDirectPairConversation(
-          sortedParticipantIds[0],
-          sortedParticipantIds[1],
-        );
-        if (existingConversation) {
-          console.log(
-            `✅ [ChatService] Found existing DIRECT conversation: ${existingConversation.id} (pair lookup)`,
-          );
-        }
-      } else if (context === 'DIRECT' || !context) {
-        const allUserConversations = await this.prisma.conversation.findMany({
-          where: {
-            participants: {
-              some: {
-                userId: normUserId,
-              },
+    } else if ((context === 'DIRECT' || !context) && sortedParticipantIds.length === 2) {
+      const conv = await this.findOrCreateDirectConversation(sortedParticipantIds[0], sortedParticipantIds[1]);
+      console.log(`✅ [ChatService] findOrCreateDirectConversation -> ${conv?.id}`);
+      return conv;
+    } else if (context === 'DIRECT' || !context) {
+      const allUserConversations = await this.prisma.conversation.findMany({
+        where: {
+          participants: {
+            some: {
+              userId: normUserId,
             },
           },
-          include: {
-            participants: true,
-          },
-        });
+        },
+        include: {
+          participants: true,
+        },
+      });
 
-        for (const conv of allUserConversations) {
-          const convAny = conv as any;
-          const convParticipantIds = convAny.participants
-            .map((p: any) => this.normalizeChatUserId(p.userId))
-            .sort();
+      for (const conv of allUserConversations) {
+        const convAny = conv as any;
+        const convParticipantIds = convAny.participants
+          .map((p: any) => this.normalizeChatUserId(p.userId))
+          .sort();
 
-          if (
-            convParticipantIds.length === sortedParticipantIds.length &&
-            convParticipantIds.every((id, index) => id === sortedParticipantIds[index])
-          ) {
-            existingConversation = conv;
-            console.log(
-              `✅ [ChatService] Found existing DIRECT conversation: ${conv.id} (multi-participant match)`,
-            );
-            break;
-          }
+        if (
+          convParticipantIds.length === sortedParticipantIds.length &&
+          convParticipantIds.every((id, index) => id === sortedParticipantIds[index])
+        ) {
+          existingConversation = conv;
+          console.log(
+            `✅ [ChatService] Found existing DIRECT conversation: ${conv.id} (multi-participant match)`,
+          );
+          break;
         }
       }
     }

@@ -264,7 +264,7 @@ export class PostsService {
         continue;
       }
       try {
-        const conv = await this.chatService.createConversation(sharerId, [recipientId], 'DIRECT');
+        const conv = await this.chatService.findOrCreateDirectConversation(sharerId, recipientId);
         if (!conv?.id) {
           errors.push(`Konuşma oluşturulamadı: ${recipientId}`);
           continue;
