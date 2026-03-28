@@ -297,7 +297,11 @@ export function ArtistHighlights({ username, userId, isOwnProfile = false }: Art
             <div className="w-full h-full rounded-2xl overflow-hidden">
               <button
                 className="w-full h-full"
-                onClick={() => setActiveHighlight(hl)}
+                onClick={() =>
+                  setActiveHighlight(
+                    highlightsArray.find((x) => x.id === hl.id) ?? hl,
+                  )
+                }
               >
                 <div className="w-full h-full bg-neutral-900 dark:bg-gray-800">
                   {hl.coverPost?.media && hl.coverPost.media.length > 0 && hl.coverPost.media[0]?.url ? (

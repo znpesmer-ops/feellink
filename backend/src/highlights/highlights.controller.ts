@@ -13,8 +13,46 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Prisma } from '@prisma/client';
 import { HighlightsService } from './highlights.service';
 import { PrismaService } from '../prisma/prisma.service';
+
+/** GET list / create response — aynı şekil (items.post + media) */
+function getHighlightListInclude(): Prisma.HighlightInclude {
+  return {
+    coverPost: {
+      select: {
+        id: true,
+        media: {
+          select: {
+            url: true,
+            type: true,
+          },
+          take: 1,
+        },
+      },
+    },
+    items: {
+      include: {
+        post: {
+          select: {
+            id: true,
+            caption: true,
+            title: true,
+            media: {
+              select: {
+                url: true,
+                type: true,
+              },
+              take: 1,
+            },
+          },
+        },
+      },
+      orderBy: { sortOrder: 'asc' },
+    },
+  };
+}
 
 @ApiTags('Highlights')
 @Controller('highlights')
@@ -36,39 +74,7 @@ export class HighlightsController {
   async getHighlightsByUserId(@Param('userId') userId: string) {
     return this.prisma.highlight.findMany({
       where: { userId },
-      include: {
-        coverPost: {
-          select: {
-            id: true,
-            media: {
-              select: {
-                url: true,
-                type: true,
-              },
-              take: 1,
-            },
-          },
-        },
-        items: {
-          include: {
-            post: {
-              select: {
-                id: true,
-                caption: true,
-                title: true,
-                media: {
-                  select: {
-                    url: true,
-                    type: true,
-                  },
-                  take: 1,
-                },
-              },
-            },
-          },
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
+      include: getHighlightListInclude(),
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -91,39 +97,7 @@ export class HighlightsController {
 
     return this.prisma.highlight.findMany({
       where: { userId: user.id },
-      include: {
-        coverPost: {
-          select: {
-            id: true,
-            media: {
-              select: {
-                url: true,
-                type: true,
-              },
-              take: 1,
-            },
-          },
-        },
-        items: {
-          include: {
-            post: {
-              select: {
-                id: true,
-                caption: true,
-                title: true,
-                media: {
-                  select: {
-                    url: true,
-                    type: true,
-                  },
-                  take: 1,
-                },
-              },
-            },
-          },
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
+      include: getHighlightListInclude(),
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -134,33 +108,83 @@ export class HighlightsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new highlight' })
   async createHighlight(
-    @Body() body: { title: string; coverPostId?: string },
+    @Body()
+    body: { title: string; coverPostId?: string; postIds?: string[] },
     @Req() req,
   ) {
     if (!req.user || !req.user.id) {
       throw new BadRequestException('Kullanıcı doğrulaması başarısız');
     }
+    const ownerId = req.user.id as string;
+    const title = typeof body.title === 'string' ? body.title.trim() : '';
+    if (!title) {
+      throw new BadRequestException('Tema adı gerekli');
+    }
+
+    if (body.coverPostId) {
+      const cover = await this.prisma.post.findFirst({
+        where: {
+          id: body.coverPostId,
+          userId: ownerId,
+          type: 'artwork',
+          isDeleted: false,
+        },
+        select: { id: true },
+      });
+      if (!cover) {
+        throw new BadRequestException('Geçersiz kapak eseri');
+      }
+    }
+
+    const rawIds = Array.isArray(body.postIds) ? body.postIds : [];
+    const orderedUnique: string[] = [];
+    const seen = new Set<string>();
+    for (const id of rawIds) {
+      if (typeof id !== 'string' || !id.trim()) continue;
+      const pid = id.trim();
+      if (seen.has(pid)) continue;
+      seen.add(pid);
+      orderedUnique.push(pid);
+    }
+
+    if (orderedUnique.length > 0) {
+      const posts = await this.prisma.post.findMany({
+        where: {
+          id: { in: orderedUnique },
+          userId: ownerId,
+          type: 'artwork',
+          isDeleted: false,
+        },
+        select: { id: true },
+      });
+      const allowed = new Set(posts.map((p) => p.id));
+      for (const pid of orderedUnique) {
+        if (!allowed.has(pid)) {
+          throw new BadRequestException(
+            'Bazı eserler geçersiz, size ait değil veya silinmiş',
+          );
+        }
+      }
+    }
+
+    const itemCreates =
+      orderedUnique.length > 0
+        ? orderedUnique.map((postId, index) => ({
+            postId,
+            sortOrder: index + 1,
+          }))
+        : undefined;
+
     return this.prisma.highlight.create({
       data: {
-        title: body.title,
-        userId: req.user.id,
+        title,
+        userId: ownerId,
         coverPostId: body.coverPostId || null,
+        ...(itemCreates?.length
+          ? { items: { create: itemCreates } }
+          : {}),
       },
-      include: {
-        coverPost: {
-          select: {
-            id: true,
-            media: {
-              select: {
-                url: true,
-                type: true,
-              },
-              take: 1,
-            },
-          },
-        },
-        items: true,
-      },
+      include: getHighlightListInclude(),
     });
   }
 

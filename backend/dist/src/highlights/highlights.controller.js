@@ -18,6 +18,41 @@ const swagger_1 = require("@nestjs/swagger");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const highlights_service_1 = require("./highlights.service");
 const prisma_service_1 = require("../prisma/prisma.service");
+function getHighlightListInclude() {
+    return {
+        coverPost: {
+            select: {
+                id: true,
+                media: {
+                    select: {
+                        url: true,
+                        type: true,
+                    },
+                    take: 1,
+                },
+            },
+        },
+        items: {
+            include: {
+                post: {
+                    select: {
+                        id: true,
+                        caption: true,
+                        title: true,
+                        media: {
+                            select: {
+                                url: true,
+                                type: true,
+                            },
+                            take: 1,
+                        },
+                    },
+                },
+            },
+            orderBy: { sortOrder: 'asc' },
+        },
+    };
+}
 let HighlightsController = class HighlightsController {
     constructor(highlightsService, prisma) {
         this.highlightsService = highlightsService;
@@ -29,39 +64,7 @@ let HighlightsController = class HighlightsController {
     async getHighlightsByUserId(userId) {
         return this.prisma.highlight.findMany({
             where: { userId },
-            include: {
-                coverPost: {
-                    select: {
-                        id: true,
-                        media: {
-                            select: {
-                                url: true,
-                                type: true,
-                            },
-                            take: 1,
-                        },
-                    },
-                },
-                items: {
-                    include: {
-                        post: {
-                            select: {
-                                id: true,
-                                caption: true,
-                                title: true,
-                                media: {
-                                    select: {
-                                        url: true,
-                                        type: true,
-                                    },
-                                    take: 1,
-                                },
-                            },
-                        },
-                    },
-                    orderBy: { sortOrder: 'asc' },
-                },
-            },
+            include: getHighlightListInclude(),
             orderBy: { createdAt: 'desc' },
         });
     }
@@ -77,39 +80,7 @@ let HighlightsController = class HighlightsController {
         }
         return this.prisma.highlight.findMany({
             where: { userId: user.id },
-            include: {
-                coverPost: {
-                    select: {
-                        id: true,
-                        media: {
-                            select: {
-                                url: true,
-                                type: true,
-                            },
-                            take: 1,
-                        },
-                    },
-                },
-                items: {
-                    include: {
-                        post: {
-                            select: {
-                                id: true,
-                                caption: true,
-                                title: true,
-                                media: {
-                                    select: {
-                                        url: true,
-                                        type: true,
-                                    },
-                                    take: 1,
-                                },
-                            },
-                        },
-                    },
-                    orderBy: { sortOrder: 'asc' },
-                },
-            },
+            include: getHighlightListInclude(),
             orderBy: { createdAt: 'desc' },
         });
     }
@@ -117,27 +88,70 @@ let HighlightsController = class HighlightsController {
         if (!req.user || !req.user.id) {
             throw new common_1.BadRequestException('Kullanıcı doğrulaması başarısız');
         }
+        const ownerId = req.user.id;
+        const title = typeof body.title === 'string' ? body.title.trim() : '';
+        if (!title) {
+            throw new common_1.BadRequestException('Tema adı gerekli');
+        }
+        if (body.coverPostId) {
+            const cover = await this.prisma.post.findFirst({
+                where: {
+                    id: body.coverPostId,
+                    userId: ownerId,
+                    type: 'artwork',
+                    isDeleted: false,
+                },
+                select: { id: true },
+            });
+            if (!cover) {
+                throw new common_1.BadRequestException('Geçersiz kapak eseri');
+            }
+        }
+        const rawIds = Array.isArray(body.postIds) ? body.postIds : [];
+        const orderedUnique = [];
+        const seen = new Set();
+        for (const id of rawIds) {
+            if (typeof id !== 'string' || !id.trim())
+                continue;
+            const pid = id.trim();
+            if (seen.has(pid))
+                continue;
+            seen.add(pid);
+            orderedUnique.push(pid);
+        }
+        if (orderedUnique.length > 0) {
+            const posts = await this.prisma.post.findMany({
+                where: {
+                    id: { in: orderedUnique },
+                    userId: ownerId,
+                    type: 'artwork',
+                    isDeleted: false,
+                },
+                select: { id: true },
+            });
+            const allowed = new Set(posts.map((p) => p.id));
+            for (const pid of orderedUnique) {
+                if (!allowed.has(pid)) {
+                    throw new common_1.BadRequestException('Bazı eserler geçersiz, size ait değil veya silinmiş');
+                }
+            }
+        }
+        const itemCreates = orderedUnique.length > 0
+            ? orderedUnique.map((postId, index) => ({
+                postId,
+                sortOrder: index + 1,
+            }))
+            : undefined;
         return this.prisma.highlight.create({
             data: {
-                title: body.title,
-                userId: req.user.id,
+                title,
+                userId: ownerId,
                 coverPostId: body.coverPostId || null,
+                ...(itemCreates?.length
+                    ? { items: { create: itemCreates } }
+                    : {}),
             },
-            include: {
-                coverPost: {
-                    select: {
-                        id: true,
-                        media: {
-                            select: {
-                                url: true,
-                                type: true,
-                            },
-                            take: 1,
-                        },
-                    },
-                },
-                items: true,
-            },
+            include: getHighlightListInclude(),
         });
     }
     async deleteHighlight(id, req) {

@@ -6,73 +6,64 @@ export declare class HighlightsController {
     constructor(highlightsService: HighlightsService, prisma: PrismaService);
     getMonthlyHighlights(): Promise<any>;
     getHighlightsByUserId(userId: string): Promise<({
-        items: ({
-            post: {
-                id: string;
-                title: string;
-                caption: string;
-                media: {
-                    url: string;
-                    type: string;
-                }[];
-            };
-        } & {
+        user: {
             id: string;
-            postId: string;
-            sortOrder: number;
-            highlightId: string;
-        })[];
-        coverPost: {
-            id: string;
-            media: {
-                url: string;
-                type: string;
-            }[];
+            createdAt: Date;
+            updatedAt: Date;
+            city: string;
+            gender: string;
+            username: string;
+            email: string;
+            password: string;
+            fullName: string;
+            bio: string;
+            avatar: string;
+            roles: import(".prisma/client").$Enums.UserRole[];
+            extras: string[];
+            plan: import(".prisma/client").$Enums.SubscriptionPlan;
+            badges: string[];
+            isPrivate: boolean;
+            isVerified: boolean;
+            isAdmin: boolean;
+            superAdmin: boolean;
+            followerCount: number;
+            followingCount: number;
+            isOnline: boolean;
+            lastSeen: Date;
+            lastActiveAt: Date;
+            passwordResetToken: string;
+            passwordResetExpires: Date;
+            usernameLastChangedAt: Date;
+            nameLastChangedAt: Date;
+            website: string;
+            dateOfBirth: Date;
+            country: string;
+            profileCompleted: boolean;
+            phoneNumber: string;
+            phoneVerified: boolean;
+            gdprConsent: boolean;
+            gdprConsentAt: Date;
+            analyticsConsent: boolean;
+            showProfileColorSignature: boolean;
+            termsAccepted: boolean;
+            termsAcceptedAt: Date;
+            accountStatus: import(".prisma/client").$Enums.AccountStatus;
+            suspendedAt: Date;
+            suspendedUntil: Date;
+            suspensionReason: string;
+            suspensionNote: string;
+            suspendedByAdminId: string;
+            deletionRequestedAt: Date;
+            scheduledDeletionAt: Date;
+            isDeleted: boolean;
+            deletedAt: Date;
+            deletedBy: string;
         };
-    } & {
-        id: string;
-        title: string;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        coverPostId: string;
-    })[]>;
-    getHighlightsByUsername(username: string): Promise<({
-        items: ({
-            post: {
-                id: string;
-                title: string;
-                caption: string;
-                media: {
-                    url: string;
-                    type: string;
-                }[];
-            };
-        } & {
-            id: string;
-            postId: string;
-            sortOrder: number;
-            highlightId: string;
-        })[];
-        coverPost: {
-            id: string;
-            media: {
-                url: string;
-                type: string;
-            }[];
+        _count: {
+            coverPost: number;
+            user: number;
+            items: number;
         };
-    } & {
-        id: string;
-        title: string;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        coverPostId: string;
-    })[]>;
-    createHighlight(body: {
-        title: string;
-        coverPostId?: string;
-    }, req: any): Promise<{
         items: {
             id: string;
             postId: string;
@@ -81,17 +72,208 @@ export declare class HighlightsController {
         }[];
         coverPost: {
             id: string;
-            media: {
-                url: string;
-                type: string;
-            }[];
+            userId: string;
+            code: string;
+            createdAt: Date;
+            type: string;
+            updatedAt: Date;
+            isDeleted: boolean;
+            deletedAt: Date;
+            caption: string;
+            title: string;
+            location: string;
+            colors: string[];
+            colorPalette: string[];
+            artworkCreatedDate: Date;
         };
     } & {
         id: string;
-        title: string;
+        userId: string;
         createdAt: Date;
         updatedAt: Date;
+        title: string;
+        coverPostId: string;
+    })[]>;
+    getHighlightsByUsername(username: string): Promise<({
+        user: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            city: string;
+            gender: string;
+            username: string;
+            email: string;
+            password: string;
+            fullName: string;
+            bio: string;
+            avatar: string;
+            roles: import(".prisma/client").$Enums.UserRole[];
+            extras: string[];
+            plan: import(".prisma/client").$Enums.SubscriptionPlan;
+            badges: string[];
+            isPrivate: boolean;
+            isVerified: boolean;
+            isAdmin: boolean;
+            superAdmin: boolean;
+            followerCount: number;
+            followingCount: number;
+            isOnline: boolean;
+            lastSeen: Date;
+            lastActiveAt: Date;
+            passwordResetToken: string;
+            passwordResetExpires: Date;
+            usernameLastChangedAt: Date;
+            nameLastChangedAt: Date;
+            website: string;
+            dateOfBirth: Date;
+            country: string;
+            profileCompleted: boolean;
+            phoneNumber: string;
+            phoneVerified: boolean;
+            gdprConsent: boolean;
+            gdprConsentAt: Date;
+            analyticsConsent: boolean;
+            showProfileColorSignature: boolean;
+            termsAccepted: boolean;
+            termsAcceptedAt: Date;
+            accountStatus: import(".prisma/client").$Enums.AccountStatus;
+            suspendedAt: Date;
+            suspendedUntil: Date;
+            suspensionReason: string;
+            suspensionNote: string;
+            suspendedByAdminId: string;
+            deletionRequestedAt: Date;
+            scheduledDeletionAt: Date;
+            isDeleted: boolean;
+            deletedAt: Date;
+            deletedBy: string;
+        };
+        _count: {
+            coverPost: number;
+            user: number;
+            items: number;
+        };
+        items: {
+            id: string;
+            postId: string;
+            sortOrder: number;
+            highlightId: string;
+        }[];
+        coverPost: {
+            id: string;
+            userId: string;
+            code: string;
+            createdAt: Date;
+            type: string;
+            updatedAt: Date;
+            isDeleted: boolean;
+            deletedAt: Date;
+            caption: string;
+            title: string;
+            location: string;
+            colors: string[];
+            colorPalette: string[];
+            artworkCreatedDate: Date;
+        };
+    } & {
+        id: string;
         userId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        title: string;
+        coverPostId: string;
+    })[]>;
+    createHighlight(body: {
+        title: string;
+        coverPostId?: string;
+        postIds?: string[];
+    }, req: any): Promise<{
+        user: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            city: string;
+            gender: string;
+            username: string;
+            email: string;
+            password: string;
+            fullName: string;
+            bio: string;
+            avatar: string;
+            roles: import(".prisma/client").$Enums.UserRole[];
+            extras: string[];
+            plan: import(".prisma/client").$Enums.SubscriptionPlan;
+            badges: string[];
+            isPrivate: boolean;
+            isVerified: boolean;
+            isAdmin: boolean;
+            superAdmin: boolean;
+            followerCount: number;
+            followingCount: number;
+            isOnline: boolean;
+            lastSeen: Date;
+            lastActiveAt: Date;
+            passwordResetToken: string;
+            passwordResetExpires: Date;
+            usernameLastChangedAt: Date;
+            nameLastChangedAt: Date;
+            website: string;
+            dateOfBirth: Date;
+            country: string;
+            profileCompleted: boolean;
+            phoneNumber: string;
+            phoneVerified: boolean;
+            gdprConsent: boolean;
+            gdprConsentAt: Date;
+            analyticsConsent: boolean;
+            showProfileColorSignature: boolean;
+            termsAccepted: boolean;
+            termsAcceptedAt: Date;
+            accountStatus: import(".prisma/client").$Enums.AccountStatus;
+            suspendedAt: Date;
+            suspendedUntil: Date;
+            suspensionReason: string;
+            suspensionNote: string;
+            suspendedByAdminId: string;
+            deletionRequestedAt: Date;
+            scheduledDeletionAt: Date;
+            isDeleted: boolean;
+            deletedAt: Date;
+            deletedBy: string;
+        };
+        _count: {
+            coverPost: number;
+            user: number;
+            items: number;
+        };
+        items: {
+            id: string;
+            postId: string;
+            sortOrder: number;
+            highlightId: string;
+        }[];
+        coverPost: {
+            id: string;
+            userId: string;
+            code: string;
+            createdAt: Date;
+            type: string;
+            updatedAt: Date;
+            isDeleted: boolean;
+            deletedAt: Date;
+            caption: string;
+            title: string;
+            location: string;
+            colors: string[];
+            colorPalette: string[];
+            artworkCreatedDate: Date;
+        };
+    } & {
+        id: string;
+        userId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        title: string;
         coverPostId: string;
     }>;
     deleteHighlight(id: string, req: any): Promise<{
@@ -114,10 +296,10 @@ export declare class HighlightsController {
         title: string;
     }, req: any): Promise<{
         id: string;
-        title: string;
+        userId: string;
         createdAt: Date;
         updatedAt: Date;
-        userId: string;
+        title: string;
         coverPostId: string;
     }>;
 }

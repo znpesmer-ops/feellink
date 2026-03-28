@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
@@ -65,16 +65,51 @@ export function AddArtworkToHighlightModal({
     enabled: !!(userId || username),
   })
 
-  // Mevcut highlight'taki eserleri al
-  const { data: currentHighlight } = useQuery({
-    queryKey: ['highlights', username],
+  // ArtistHighlights ile aynı cache anahtarı ve fetch sırası (userId önce, 404'te username)
+  const highlightsQueryKey = userId
+    ? ['highlights', userId, username]
+    : ['highlights', username]
+
+  const { data: highlightsList } = useQuery({
+    queryKey: highlightsQueryKey,
     queryFn: async () => {
-      const response = await api.get(`/highlights/${username}`)
-      const highlights = response.data || []
-      return highlights.find((h: any) => h.id === highlight.id)
+      try {
+        let response
+        if (userId) {
+          try {
+            response = await api.get(`/highlights/user/${userId}`)
+          } catch (err: any) {
+            if (err?.response?.status === 404 && username) {
+              response = await api.get(`/highlights/${username}`)
+            } else {
+              throw err
+            }
+          }
+        } else if (username) {
+          response = await api.get(`/highlights/${username}`)
+        } else {
+          return []
+        }
+        const data = response.data
+        return Array.isArray(data) ? data : []
+      } catch (error: any) {
+        if (error?.response?.status === 404) return []
+        console.error('❌ Highlights yüklenemedi (AddArtwork modal):', error)
+        return []
+      }
     },
-    enabled: !!username,
+    enabled: !!(username || userId),
+    placeholderData: (previousData) => previousData ?? [],
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    gcTime: 10 * 60 * 1000,
   })
+
+  const currentHighlight = useMemo(
+    () => highlightsList?.find((h: any) => h.id === highlight.id),
+    [highlightsList, highlight.id],
+  )
 
   // Modal açıldığında initial state'i set et - ÖNCE highlight prop, SONRA currentHighlight query
   useEffect(() => {
@@ -157,9 +192,7 @@ export function AddArtworkToHighlightModal({
 
       // 🔥 KRİTİK: Query'yi refetch et ama await etme (background'da çalışır)
       // invalidateQueries yerine refetchQueries kullan - daha güvenli, placeholderData ile UI kaybolmaz
-      // userId varsa query key'e ekle (daha stabil cache)
-      const queryKey = userId ? ['highlights', userId, username] : ['highlights', username]
-      queryClient.refetchQueries({ queryKey }).catch(() => {
+      queryClient.refetchQueries({ queryKey: highlightsQueryKey }).catch(() => {
         // Refetch hatası olsa bile UI kaybolmasın
       })
       

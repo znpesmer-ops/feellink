@@ -11,18 +11,18 @@ const cn = (...classes: (string | undefined | false)[]) => {
 interface Highlight {
   id: string
   title: string
-  items: Array<{
+  items?: Array<{
     id: string
-    post: {
+    post?: {
       id: string
-      media: Array<{
+      media?: Array<{
         url: string
         type: string
       }>
       caption: string | null
       title: string | null
-    }
-  }>
+    } | null
+  }> | null
 }
 
 interface HighlightDetailModalProps {
@@ -32,6 +32,9 @@ interface HighlightDetailModalProps {
 }
 
 export function HighlightDetailModal({ highlight, onClose, returnTo = '/feed' }: HighlightDetailModalProps) {
+  const rawItems = Array.isArray(highlight.items) ? highlight.items : []
+  const displayItems = rawItems.filter((i) => i?.post?.id)
+
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60" onClick={onClose}>
       <div
@@ -52,31 +55,32 @@ export function HighlightDetailModal({ highlight, onClose, returnTo = '/feed' }:
           {/* 🔥 DEBUG: Highlight items kontrolü */}
           {process.env.NODE_ENV === 'development' && (
             <div className="mb-2 text-xs text-neutral-500">
-              Items count: {highlight.items?.length || 0}
+              Items: {displayItems.length} gösteriliyor (ham: {rawItems.length})
             </div>
           )}
           
-          {highlight.items && highlight.items.length > 0 ? (
+          {displayItems.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-1">
-              {highlight.items.map((item) => {
+              {displayItems.map((item) => {
+              const post = item.post!
               // ✅ Backend'den media array geliyor, ilk media'nın URL'ini al
-              const imageUrl = item.post.media && item.post.media.length > 0 
-                ? item.post.media[0].url 
+              const imageUrl = post.media && post.media.length > 0 
+                ? post.media[0].url 
                 : null
               
               // Güvenli başlık çıkarma - title öncelikli, sonra caption
               const artworkTitle = (
-                (item.post.title && typeof item.post.title === 'string' && item.post.title.trim().length > 0)
-                  ? item.post.title.trim()
-                  : (item.post.caption && typeof item.post.caption === 'string' && item.post.caption.trim().length > 0)
-                  ? item.post.caption.trim()
+                (post.title && typeof post.title === 'string' && post.title.trim().length > 0)
+                  ? post.title.trim()
+                  : (post.caption && typeof post.caption === 'string' && post.caption.trim().length > 0)
+                  ? post.caption.trim()
                   : 'İsimsiz Eser'
               )
 
               return (
                 <Link
                   key={item.id}
-                  href={`/posts/${item.post.id}?from=${encodeURIComponent(returnTo)}`}
+                  href={`/posts/${post.id}?from=${encodeURIComponent(returnTo)}`}
                   prefetch={false}
                   className="relative aspect-[3/4] rounded-xl overflow-hidden bg-neutral-800 dark:bg-gray-800 group cursor-pointer hover:scale-[1.02] transition-transform block"
                   onClick={(e) => {
@@ -123,7 +127,7 @@ export function HighlightDetailModal({ highlight, onClose, returnTo = '/feed' }:
               <p className="text-sm mb-2">Bu temada henüz eser bulunmuyor.</p>
               {process.env.NODE_ENV === 'development' && (
                 <p className="text-xs text-neutral-600">
-                  Debug: highlight.items = {highlight.items ? 'array (empty)' : 'undefined/null'}
+                  Debug: ham kayıt {rawItems.length}, geçerli post {displayItems.length}
                 </p>
               )}
             </div>
