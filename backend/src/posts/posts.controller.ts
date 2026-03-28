@@ -187,6 +187,22 @@ export class PostsController {
     return this.postsService.getPublicSharePost(id);
   }
 
+  /** Gönderiyi DM ile paylaş (Instagram tarzı) */
+  @Post(':id/share')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Share post to users via direct message' })
+  @ApiResponse({ status: 200, description: 'Share result' })
+  async sharePost(
+    @Param('id') postId: string,
+    @CurrentUser() user: any,
+    @Body() body: { recipientIds?: string[] },
+  ) {
+    if (!user?.id) {
+      throw new BadRequestException('Kullanıcı doğrulaması başarısız');
+    }
+    return this.postsService.sharePostToRecipients(user.id, postId, body.recipientIds ?? []);
+  }
+
   // GENEL ROUTE EN SONDA OLMALI
   @Get(':id')
   @UseGuards(JwtAuthGuard)

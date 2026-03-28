@@ -10,6 +10,7 @@ import api from '@/lib/api'
 import { ProRoleBadge } from './ProRoleBadge'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import toast from 'react-hot-toast'
+import { SharePostTrigger } from '@/components/share/SharePostTrigger'
 
 interface PostCardProps {
   post: {
@@ -420,28 +421,38 @@ export default function PostCard({ post, onLike, onDelete, returnTo, variant = '
           </div>
         </Link>
 
-        {/* Beğeni butonu - Animasyonlu */}
-        <button
-          onClick={handleLike}
-          disabled={likeMutation.isPending}
-          className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all hover:scale-110 active:scale-95 ${
-            isLiked
-              ? 'text-brand-orange bg-brand-blue/10 dark:bg-brand-blue/20'
-              : 'text-gray-600 dark:text-gray-400 hover:text-brand-orange'
-          } disabled:opacity-50 disabled:cursor-not-allowed`}
-        >
-          <Heart
-            size={18}
-            className={`transition-all duration-300 ${animateLike ? 'scale-125' : 'scale-100'} ${
-              isLiked ? 'fill-brand-orange text-brand-orange' : ''
-            }`}
-            strokeWidth={isLiked ? 0 : 2}
-          />
-          {(animateLike || pingAnimating) && (
-            <span className="absolute inset-0 animate-ping bg-brand-orange/40 rounded-lg"></span>
+        <div className="flex items-center gap-1">
+          {accessToken && (
+            <SharePostTrigger
+              postId={post.id}
+              shareTitle={hasRealTitle ? post.title : undefined}
+              shareCaption={post.content || undefined}
+              className="relative flex items-center justify-center p-2 rounded-lg transition-all hover:scale-110 active:scale-95 text-gray-600 dark:text-gray-400 hover:text-brand-orange"
+            />
           )}
-          <span className="text-sm font-medium">{likesCount}</span>
-        </button>
+          {/* Beğeni butonu - Animasyonlu */}
+          <button
+            onClick={handleLike}
+            disabled={likeMutation.isPending}
+            className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all hover:scale-110 active:scale-95 ${
+              isLiked
+                ? 'text-brand-orange bg-brand-blue/10 dark:bg-brand-blue/20'
+                : 'text-gray-600 dark:text-gray-400 hover:text-brand-orange'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            <Heart
+              size={18}
+              className={`transition-all duration-300 ${animateLike ? 'scale-125' : 'scale-100'} ${
+                isLiked ? 'fill-brand-orange text-brand-orange' : ''
+              }`}
+              strokeWidth={isLiked ? 0 : 2}
+            />
+            {(animateLike || pingAnimating) && (
+              <span className="absolute inset-0 animate-ping bg-brand-orange/40 rounded-lg"></span>
+            )}
+            <span className="text-sm font-medium">{likesCount}</span>
+          </button>
+        </div>
       </div>
     </div>
   )

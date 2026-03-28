@@ -15,6 +15,8 @@ import { generateUniqueArtworkCode } from './artwork.utils';
 import { generateQrDataUrl } from '../tickets/ticket.utils';
 import { ColorAnalysisService } from './color-analysis.service';
 import { containsBadWord } from '../common/utils/containsBadWord';
+import { ChatService } from '../chat/chat.service';
+import { BlocksService } from '../blocks/blocks.service';
 import {
   publicVitrineUserWhere,
   isUserEligibleForPublicVitrine,
@@ -114,6 +116,9 @@ export class PostsService {
     private configService: ConfigService,
     private readonly limitsService: LimitsService,
     private colorAnalysisService: ColorAnalysisService,
+    @Inject(forwardRef(() => ChatService))
+    private readonly chatService: ChatService,
+    private readonly blocksService: BlocksService,
   ) {}
 
   // Helper: Transform media URLs for mobile compatibility
@@ -184,6 +189,178 @@ export class PostsService {
     
     const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
     return `${baseUrl}${cleanPath}`;
+  }
+
+  /** Gizli hesap + takip: gönderi sahibi değilse takip şartı */
+  private async assertViewerCanAccessPost(
+    viewerId: string,
+    post: {
+      userId: string;
+      isDeleted?: boolean;
+      deletedAt?: Date | null;
+      user?: { isPrivate?: boolean | null };
+    },
+  ): Promise<void> {
+    if (post.isDeleted || post.deletedAt != null) {
+      throw new NotFoundException('Post not found');
+    }
+    if (String(post.userId) === String(viewerId)) {
+      return;
+    }
+    let isPrivate = post.user?.isPrivate;
+    if (isPrivate === undefined) {
+      const u = await this.prisma.user.findUnique({
+        where: { id: post.userId },
+        select: { isPrivate: true },
+      });
+      isPrivate = u?.isPrivate ?? false;
+    }
+    if (!isPrivate) {
+      return;
+    }
+    const follow = await this.prisma.follow.findFirst({
+      where: {
+        followerId: String(viewerId),
+        followingId: String(post.userId),
+      },
+    });
+    if (!follow) {
+      throw new ForbiddenException('Bu gönderiyi görüntüleme yetkiniz yok.');
+    }
+  }
+
+  async sharePostToRecipients(sharerId: string, postId: string, recipientIds: string[]) {
+    const raw = Array.isArray(recipientIds) ? recipientIds : [];
+    const unique = [...new Set(raw.map((id) => String(id).trim()).filter(Boolean))].filter(
+      (id) => id !== String(sharerId),
+    );
+    if (unique.length === 0) {
+      throw new BadRequestException('En az bir alıcı seçin.');
+    }
+
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        user: { select: { id: true, username: true, isPrivate: true } },
+      },
+    });
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+    await this.assertViewerCanAccessPost(sharerId, post);
+
+    let sent = 0;
+    const errors: string[] = [];
+    for (const recipientId of unique) {
+      const recipient = await this.prisma.user.findUnique({ where: { id: recipientId } });
+      if (!recipient) {
+        errors.push(`Kullanıcı bulunamadı: ${recipientId}`);
+        continue;
+      }
+      if (await this.blocksService.isBlocked(sharerId, recipientId)) {
+        errors.push(`@${recipient.username || recipientId} ile paylaşım yapılamıyor.`);
+        continue;
+      }
+      try {
+        const conv = await this.chatService.createConversation(sharerId, [recipientId], 'DIRECT');
+        if (!conv?.id) {
+          errors.push(`Konuşma oluşturulamadı: ${recipientId}`);
+          continue;
+        }
+        await this.chatService.sendPostShareMessage(sharerId, conv.id, postId);
+        sent += 1;
+      } catch (e: any) {
+        errors.push(e?.message || `Gönderilemedi: ${recipientId}`);
+      }
+    }
+
+    if (sent === 0 && errors.length > 0) {
+      throw new BadRequestException(errors[0]);
+    }
+
+    return { sent, skipped: unique.length - sent, errors: errors.length ? errors : undefined };
+  }
+
+  /**
+   * DM içinde POST_SHARE önizlemesi — alıcının görebileceği alanlar (yetki yoksa inaccessible).
+   */
+  async getSharedPostPreviewsMap(
+    viewerId: string,
+    postIds: string[],
+  ): Promise<
+    Record<
+      string,
+      {
+        postId: string;
+        state: 'ok' | 'deleted' | 'inaccessible';
+        thumbnailUrl?: string | null;
+        title?: string | null;
+        username?: string | null;
+        captionSnippet?: string | null;
+      }
+    >
+  > {
+    const uniq = [...new Set(postIds.filter(Boolean))];
+    const out: Record<
+      string,
+      {
+        postId: string;
+        state: 'ok' | 'deleted' | 'inaccessible';
+        thumbnailUrl?: string | null;
+        title?: string | null;
+        username?: string | null;
+        captionSnippet?: string | null;
+      }
+    > = {};
+    if (uniq.length === 0) {
+      return out;
+    }
+
+    const posts = await this.prisma.post.findMany({
+      where: { id: { in: uniq } },
+      include: {
+        user: { select: { id: true, username: true, isPrivate: true } },
+        media: { orderBy: { order: 'asc' }, take: 1 },
+      },
+    });
+
+    for (const id of uniq) {
+      const p = posts.find((x) => x.id === id);
+      if (!p) {
+        out[id] = { postId: id, state: 'deleted' };
+        continue;
+      }
+      if (p.isDeleted || p.deletedAt != null) {
+        out[id] = { postId: id, state: 'deleted' };
+        continue;
+      }
+
+      try {
+        await this.assertViewerCanAccessPost(viewerId, p);
+      } catch {
+        out[id] = {
+          postId: id,
+          state: 'inaccessible',
+          username: p.user?.username ?? null,
+        };
+        continue;
+      }
+
+      const m0 = p.media?.[0];
+      const thumbnailUrl = m0?.url ? this.transformMediaUrl(m0.url) : null;
+      const title = (p.title && p.title.trim()) || null;
+      const captionSnippet = p.caption ? p.caption.slice(0, 160) : null;
+      out[id] = {
+        postId: id,
+        state: 'ok',
+        thumbnailUrl,
+        title: title || (p.caption ? p.caption.slice(0, 80) : null),
+        username: p.user?.username ?? null,
+        captionSnippet,
+      };
+    }
+
+    return out;
   }
 
   /** Opsiyonel eser tarihi: boş → create’te yazılmaz; geçersiz → 400 */
@@ -381,6 +558,7 @@ export class PostsService {
             fullName: true,
             avatar: true,
             isVerified: true,
+            isPrivate: true,
           },
         },
         media: {
@@ -397,6 +575,10 @@ export class PostsService {
 
     if (!post) {
       throw new NotFoundException('Post not found');
+    }
+
+    if (currentUserId) {
+      await this.assertViewerCanAccessPost(currentUserId, post);
     }
 
     // 🔥 KRİTİK: MongoDB'de relation'lar bazen include ile çalışmayabilir, manuel query yap

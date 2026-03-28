@@ -12,6 +12,8 @@ import { CommentsGateway } from './comments.gateway';
 import { PostsGateway } from './posts.gateway';
 import { ConfigModule } from '@nestjs/config';
 import { LimitsModule } from '../limits/limits.module';
+import { ChatModule } from '../chat/chat.module';
+import { BlocksModule } from '../blocks/blocks.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { LimitsModule } from '../limits/limits.module';
     AnalyticsModule,
     ConfigModule,
     LimitsModule,
+    forwardRef(() => ChatModule),
+    BlocksModule,
   ],
   controllers: [PostsController],
   providers: [PostsService, ColorAnalysisService, CommentsGateway, PostsGateway],

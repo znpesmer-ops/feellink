@@ -203,7 +203,16 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   @SubscribeMessage('send_message')
   async handleSendMessage(
     @MessageBody()
-    data: { conversationId: string; content?: string; imageUrl?: string; fileUrl?: string; fileName?: string; fileType?: string },
+    data: {
+      conversationId: string;
+      content?: string;
+      imageUrl?: string;
+      fileUrl?: string;
+      fileName?: string;
+      fileType?: string;
+      messageType?: string;
+      sharedPostId?: string;
+    },
     @ConnectedSocket() client: Socket,
   ) {
     const userId = this.socketToUser.get(client.id);
@@ -211,8 +220,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       return { error: 'Unauthorized' };
     }
 
-    // En az content, imageUrl veya fileUrl biri olmalı
-    if (!data.content && !data.imageUrl && !data.fileUrl) {
+    const isPostShare = data.messageType === 'POST_SHARE' && data.sharedPostId;
+    // En az content, imageUrl, fileUrl veya POST_SHARE + sharedPostId
+    if (!data.content && !data.imageUrl && !data.fileUrl && !isPostShare) {
       return { error: 'Message must have content, imageUrl, or fileUrl' };
     }
 
@@ -293,11 +303,13 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       const messageData: any = {
         conversationId: data.conversationId,
         senderId: userId,
-        content: data.content || null,
-        imageUrl: data.imageUrl || null,
-        fileUrl: data.fileUrl || null,
-        fileName: data.fileName || null,
-        fileType: data.fileType || null,
+        content: isPostShare ? null : data.content || null,
+        imageUrl: isPostShare ? null : data.imageUrl || null,
+        fileUrl: isPostShare ? null : data.fileUrl || null,
+        fileName: isPostShare ? null : data.fileName || null,
+        fileType: isPostShare ? null : data.fileType || null,
+        messageType: isPostShare ? 'POST_SHARE' : 'TEXT',
+        sharedPostId: isPostShare ? String(data.sharedPostId) : null,
         isRequest: isRequest, // 🔥 Instagram tarzı mesaj isteği
         isDeleted: false, // 🔥 KRİTİK: Mesaj kalıcı olmalı
         read: false, // İlk başta okunmamış
@@ -350,7 +362,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       // ✅ KRİTİK: Conversation metadata güncelle (sol panel için - lastMessage)
       // MongoDB'de manuel yapmak ZORUNLU (Postgres otomatik yapıyordu)
       // await ile yapmalıyız - lastMessage her zaman güncel olmalı
-      const lastMessageText = message.content ?? (message.imageUrl ? '📷 Fotoğraf' : (message.fileUrl ? '📎 Dosya' : 'Yeni mesaj'));
+      const lastMessageText = isPostShare
+        ? '📎 Bir gönderi paylaştı'
+        : message.content ?? (message.imageUrl ? '📷 Fotoğraf' : (message.fileUrl ? '📎 Dosya' : 'Yeni mesaj'));
       await this.prisma.conversation.update({
         where: { id: data.conversationId },
         data: {
@@ -440,7 +454,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       id: conversation.id,
       createdAt: conversation.createdAt,
       updatedAt: new Date(),
-      lastMessage: message.content ?? (message.imageUrl ? '📷 Fotoğraf' : (message.fileUrl ? '📎 Dosya' : 'Yeni mesaj')),
+      lastMessage:
+        message.messageType === 'POST_SHARE'
+          ? '📎 Bir gönderi paylaştı'
+          : message.content ?? (message.imageUrl ? '📷 Fotoğraf' : (message.fileUrl ? '📎 Dosya' : 'Yeni mesaj')),
       context: conversationAny.context || 'DIRECT', // ✅ Context bilgisi eklendi
       jobId: conversationAny.jobId || null, // ✅ JobId bilgisi eklendi
       applicationId: conversationAny.applicationId || null, // ✅ ApplicationId bilgisi eklendi

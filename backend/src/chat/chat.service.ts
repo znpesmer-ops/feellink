@@ -2,6 +2,8 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException,
 import { PrismaService } from '../prisma/prisma.service';
 import { ChatGateway } from './chat.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PostsService } from '../posts/posts.service';
+import { BlocksService } from '../blocks/blocks.service';
 
 @Injectable()
 export class ChatService {
@@ -9,6 +11,9 @@ export class ChatService {
     private prisma: PrismaService,
     @Inject(forwardRef(() => ChatGateway)) private chatGateway: ChatGateway,
     private notificationsService: NotificationsService,
+    @Inject(forwardRef(() => PostsService))
+    private postsService: PostsService,
+    private blocksService: BlocksService,
   ) {}
 
   async getConversations(userId: string) {
@@ -272,11 +277,202 @@ export class ChatService {
     const hasMore = messages.length > limit;
     const messagesToReturn = hasMore ? messages.slice(0, limit) : messages;
 
+    const shareIds = messagesToReturn
+      .filter((m: any) => (m.messageType || 'TEXT') === 'POST_SHARE' && m.sharedPostId)
+      .map((m: any) => String(m.sharedPostId));
+    let previewMap: Record<string, any> = {};
+    if (shareIds.length > 0 && this.postsService) {
+      previewMap = await this.postsService.getSharedPostPreviewsMap(userId, shareIds);
+    }
+
+    const messagesWithPreview = messagesToReturn.map((m: any) => {
+      const mt = m.messageType || 'TEXT';
+      const sid = m.sharedPostId ? String(m.sharedPostId) : null;
+      const sharedPostPreview =
+        mt === 'POST_SHARE' && sid
+          ? previewMap[sid] || { postId: sid, state: 'deleted' as const }
+          : undefined;
+      return { ...m, messageType: mt, sharedPostPreview };
+    });
+
     return {
-      messages: messagesToReturn, // ✅ Eski mesajlar en başta, yeni mesajlar en altta
+      messages: messagesWithPreview,
       hasMore,
       nextCursor: hasMore ? messagesToReturn[messagesToReturn.length - 1]?.createdAt.toISOString() : null,
     };
+  }
+
+  /**
+   * POST_SHARE mesajı (REST paylaşım akışı). Metin/görsel DM akışını bozmaz.
+   */
+  async sendPostShareMessage(senderId: string, conversationId: string, sharedPostId: string) {
+    const pid = String(sharedPostId || '').trim();
+    if (!pid) {
+      throw new BadRequestException('sharedPostId gerekli');
+    }
+
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    const hasAccess = conversation.participants.some((p) => p.userId === senderId);
+    if (!hasAccess) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const otherParticipant = conversation.participants.find((p) => p.userId !== senderId);
+    if (!otherParticipant) {
+      throw new BadRequestException('Invalid conversation');
+    }
+
+    if (await this.blocksService.isBlocked(senderId, otherParticipant.userId)) {
+      throw new ForbiddenException('Bu kullanıcıyla paylaşım yapılamıyor.');
+    }
+
+    let isRequest = false;
+    const recipientUser = await this.prisma.user.findUnique({
+      where: { id: otherParticipant.userId },
+      select: { id: true, isPrivate: true },
+    });
+    if (recipientUser?.isPrivate) {
+      const isFollowing = await this.prisma.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: senderId,
+            followingId: recipientUser.id,
+          },
+        },
+      });
+      if (!isFollowing) {
+        isRequest = true;
+      }
+    }
+
+    try {
+      await this.prisma.user.update({
+        where: { id: senderId },
+        data: { lastSeen: new Date(), isOnline: true },
+      });
+    } catch {
+      /* ignore */
+    }
+
+    const conversationAny = conversation as any;
+    const messageContext = conversationAny.context || 'DIRECT';
+    const messageJobId = conversationAny.jobId || null;
+    const messageApplicationId = conversationAny.applicationId || null;
+
+    const messageData: any = {
+      conversationId,
+      senderId,
+      content: null,
+      imageUrl: null,
+      fileUrl: null,
+      fileName: null,
+      fileType: null,
+      messageType: 'POST_SHARE',
+      sharedPostId: pid,
+      isRequest,
+      isDeleted: false,
+      read: false,
+    };
+    if (messageContext) {
+      messageData.context = messageContext;
+    }
+    if (messageJobId) {
+      messageData.jobId = messageJobId;
+    }
+    if (messageApplicationId) {
+      messageData.applicationId = messageApplicationId;
+    }
+
+    const message = await this.prisma.message.create({
+      data: messageData,
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    const lastMessageText = '📎 Bir gönderi paylaştı';
+    await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        lastMessage: lastMessageText,
+        updatedAt: new Date(),
+      },
+    });
+
+    if (this.chatGateway && typeof (this.chatGateway as any).broadcastMessageImmediately === 'function') {
+      try {
+        const msgForSocket = { ...message, messageType: 'POST_SHARE', sharedPostId: pid };
+        (this.chatGateway as any).broadcastMessageImmediately(
+          msgForSocket,
+          conversation,
+          senderId,
+          conversationId,
+        );
+      } catch (error) {
+        console.warn('[ChatService] sendPostShare broadcast failed:', error);
+      }
+    }
+
+    const recipient = conversation.participants.find((p) => p.userId !== senderId);
+    if (recipient) {
+      this.notificationsService
+        .createNotificationSync({
+          userId: recipient.userId,
+          type: 'message',
+          fromUserId: senderId,
+          targetPath: '/messages',
+          targetUrl: '/messages',
+        })
+        .catch((err) => {
+          console.warn('[ChatService] Post share notification failed:', err?.message || err);
+        });
+
+      await this.prisma.userConversation
+        .upsert({
+          where: {
+            userId_conversationId: {
+              userId: recipient.userId,
+              conversationId,
+            },
+          },
+          create: {
+            userId: recipient.userId,
+            conversationId,
+            isDeleted: false,
+          },
+          update: { isDeleted: false },
+        })
+        .catch(() => undefined);
+    }
+
+    return message;
   }
 
   // ✅ REST API için mesaj gönderme metodu (ChatGateway'den taşındı)

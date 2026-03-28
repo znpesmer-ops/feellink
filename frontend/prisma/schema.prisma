@@ -468,6 +468,8 @@ model Message {
   isEdited        Boolean              @default(false)
   isDeleted       Boolean              @default(false)
   isRequest       Boolean              @default(false) // 🔥 Instagram tarzı mesaj isteği
+  messageType     String               @default("TEXT") // TEXT | POST_SHARE
+  sharedPostId    String?              @db.ObjectId
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
   sender          User                 @relation(fields: [senderId], references: [id])
@@ -476,6 +478,7 @@ model Message {
   @@index([conversationId, createdAt])
   @@index([senderId])
   @@index([read])
+  @@index([sharedPostId])
   @@index([isRequest])
   @@index([context, jobId])
   @@index([context, applicationId]) // ✅ Başvuruya bağlı mesajlar için index

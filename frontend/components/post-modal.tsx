@@ -18,6 +18,7 @@ import Slider from 'react-slick'
 import toast from 'react-hot-toast'
 import { AddToCollectionModal } from './collections/AddToCollectionModal'
 import { ReportModal } from './ReportModal'
+import { SharePostTrigger } from '@/components/share/SharePostTrigger'
 
 const CommentLikeButton = dynamic(() => import('@/components/CommentLikeButton'), {
   ssr: false,
@@ -69,6 +70,7 @@ function formatArtworkCreatedDateDisplay(iso: string): string {
 interface Post {
   id: string
   caption: string | null
+  title?: string | null
   location: string | null
   createdAt: string
   artworkCreatedDate?: string | null
@@ -1043,6 +1045,15 @@ export function PostModal({
               >
                 <MessageCircle size={24} className="text-gray-700 dark:text-gray-300" />
               </button>
+              {!isReadOnly && (
+                <SharePostTrigger
+                  postId={post.id}
+                  shareTitle={post.title?.trim() || undefined}
+                  shareCaption={post.caption || undefined}
+                  stopPropagation={false}
+                  className="hover:text-brand-orange transition-colors flex items-center justify-center"
+                />
+              )}
             </div>
             <div className="flex items-center gap-2">
               <button

@@ -10,6 +10,10 @@ import { useAuthStore } from '@/lib/store'
 import { ProRoleBadge } from '@/components/ProRoleBadge'
 import { Send, Search, Image as ImageIcon, X, Edit, Trash2, MoreVertical, Paperclip, Download, FileText, Loader2, MessageCircle } from 'lucide-react'
 import { NewMessageModal } from '@/components/new-message-modal'
+import {
+  SharedPostMessageCard,
+  type SharedPostPreview,
+} from '@/components/share/SharedPostMessageCard'
 
 const formatTimeAgo = (date: string | Date) => {
   const now = new Date()
@@ -68,6 +72,9 @@ interface Message {
   isDeleted?: boolean
   createdAt: string
   pending?: boolean // Geçici mesaj flag'i
+  messageType?: string
+  sharedPostId?: string | null
+  sharedPostPreview?: SharedPostPreview | null
   sender: {
     id: string
     username: string
@@ -240,6 +247,26 @@ function MessagesContent() {
           return [...prev, message]
         })
         setTimeout(() => scrollToBottom(), 0)
+
+        const mt = (message as Message).messageType || 'TEXT'
+        if (
+          mt === 'POST_SHARE' &&
+          (message as Message).sharedPostId &&
+          !(message as Message).sharedPostPreview
+        ) {
+          const convId = message.conversationId
+          setTimeout(() => {
+            if (convId !== activeConversationRef.current?.id) return
+            api
+              .get(`/chat/conversations/${convId}/messages`)
+              .then((res) => {
+                const loaded = res.data.messages || []
+                setMessages(loaded)
+                setTimeout(() => scrollToBottom(), 0)
+              })
+              .catch(() => {})
+          }, 0)
+        }
 
         // Karşı taraftan gelen yeni mesajı otomatik okundu işaretle
         if (message.senderId !== user.id && !message.read && chatSocketRef.current?.connected) {
@@ -1384,6 +1411,16 @@ function MessagesContent() {
                               <p className="text-sm italic text-gray-400 dark:text-gray-500">
                                 Bu mesaj silindi
                               </p>
+                            ) : (message.messageType || 'TEXT') === 'POST_SHARE' && message.sharedPostId ? (
+                              <SharedPostMessageCard
+                                preview={
+                                  message.sharedPostPreview || {
+                                    postId: message.sharedPostId,
+                                    state: 'ok',
+                                  }
+                                }
+                                isOwnBubble={isOwn}
+                              />
                             ) : (
                               <>
                                 {/* Görsel mesaj */}
@@ -1439,7 +1476,7 @@ function MessagesContent() {
                             )}
 
                             {/* Menü sadece kendi mesajlarında ve silinmemiş mesajlarda */}
-                            {isOwn && !message.isDeleted && (
+                            {isOwn && !message.isDeleted && (message.messageType || 'TEXT') !== 'POST_SHARE' && (
                               <div className="absolute -right-8 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <div className="relative" ref={menuRef}>
                                   <button
@@ -1850,6 +1887,16 @@ function MessagesContent() {
                             <p className="text-sm italic text-gray-400 dark:text-gray-500">
                               Bu mesaj silindi
                             </p>
+                          ) : (message.messageType || 'TEXT') === 'POST_SHARE' && message.sharedPostId ? (
+                            <SharedPostMessageCard
+                              preview={
+                                message.sharedPostPreview || {
+                                  postId: message.sharedPostId,
+                                  state: 'ok',
+                                }
+                              }
+                              isOwnBubble={isOwn}
+                            />
                           ) : (
                             <>
                               {/* Görsel mesaj */}
@@ -1905,7 +1952,7 @@ function MessagesContent() {
                           )}
 
                           {/* Menü sadece kendi mesajlarında ve silinmemiş mesajlarda (mobil) */}
-                          {isOwn && !message.isDeleted && (
+                          {isOwn && !message.isDeleted && (message.messageType || 'TEXT') !== 'POST_SHARE' && (
                             <div className="absolute -right-8 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
                               <div className="relative" ref={menuRef}>
                                 <button
