@@ -55,11 +55,23 @@ interface Comment {
   replies?: Comment[]
 }
 
+function formatArtworkCreatedDateDisplay(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('tr-TR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Europe/Istanbul',
+  })
+}
+
 interface Post {
   id: string
   caption: string | null
   location: string | null
   createdAt: string
+  artworkCreatedDate?: string | null
   isLiked: boolean
   isSaved: boolean
   type?: 'post' | 'artwork' | 'article' | 'event'
@@ -787,6 +799,11 @@ export function PostModal({
   const mediaArray = post.media && post.media.length > 0 ? post.media : []
   const hasMultipleMedia = mediaArray.length > 1
 
+  const artworkCreatedDateLabel =
+    post.type === 'artwork' && post.artworkCreatedDate
+      ? formatArtworkCreatedDateDisplay(post.artworkCreatedDate)
+      : ''
+
   // Slider settings
   const sliderSettings = {
     dots: hasMultipleMedia,
@@ -974,6 +991,14 @@ export function PostModal({
                   {post.caption}
                 </p>
               )}
+              {artworkCreatedDateLabel ? (
+                <p className="text-gray-600 dark:text-gray-400 text-xs mt-2 leading-snug">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    Eserin Oluşturulduğu Tarih:{' '}
+                  </span>
+                  {artworkCreatedDateLabel}
+                </p>
+              ) : null}
             </div>
           </div>
 

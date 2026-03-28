@@ -28,7 +28,7 @@ export class PostsController {
   async createPost(
     @CurrentUser() user: any,
     @UploadedFiles() files: Express.Multer.File[],
-    @Body() body: { caption?: string; title?: string; location?: string; type?: string; colorPalette?: string | string[] },
+    @Body() body: { caption?: string; title?: string; location?: string; type?: string; colorPalette?: string | string[]; artworkCreatedDate?: string },
   ) {
     console.log('🚀 [POST /posts/create] Request received:', {
       userId: user?.id,
@@ -89,6 +89,8 @@ export class PostsController {
         }
       }
 
+      const rawArtworkDate =
+        typeof body.artworkCreatedDate === 'string' ? body.artworkCreatedDate.trim() : '';
       const dto: CreatePostDto = {
         caption: body.caption,
         title: body.title, // 🎨 Eser adı (artwork için)
@@ -96,6 +98,7 @@ export class PostsController {
         type: body.type || 'post', // Default to 'post' if not provided
         media: mediaUploads,
         colorPalette, // 🎨 Frontend'den gelen renk paleti
+        ...(rawArtworkDate ? { artworkCreatedDate: rawArtworkDate } : {}),
       };
 
       console.log('💾 [POST /posts/create] Creating post in database...');
@@ -200,9 +203,13 @@ export class PostsController {
   async updatePost(
     @Param() params: PostIdDto,
     @CurrentUser() user: any,
-    @Body() body: { caption?: string; title?: string },
+    @Body() body: { caption?: string; title?: string; artworkCreatedDate?: string | null },
   ) {
-    return this.postsService.updatePost(params.id, user.id, { caption: body.caption, title: body.title });
+    return this.postsService.updatePost(params.id, user.id, {
+      caption: body.caption,
+      title: body.title,
+      artworkCreatedDate: body.artworkCreatedDate,
+    });
   }
 
   @Delete(':id')

@@ -1805,29 +1805,48 @@ let PostsService = class PostsService {
         };
     }
     async getPublicSharePost(postId) {
-        const post = await this.prisma.post.findFirst({
-            where: {
-                id: postId,
-                isDeleted: false,
-                deletedAt: null,
-                OR: [
-                    {
-                        AND: [
-                            { NOT: { type: 'artwork' } },
-                            { user: { ...public_vitrine_user_1.publicVitrineUserWhere, isPrivate: false } },
-                        ],
-                    },
-                    {
-                        AND: [{ type: 'artwork' }, { user: public_vitrine_user_1.publicVitrineUserWhere }],
-                    },
-                ],
-            },
-            select: { id: true },
-        });
-        if (!post) {
+        const id = typeof postId === 'string' ? postId.trim() : '';
+        if (!id) {
             throw new common_1.NotFoundException('Post not found');
         }
-        return this.getPost(postId, undefined);
+        let post;
+        try {
+            post = await this.prisma.post.findUnique({
+                where: { id },
+                select: {
+                    isDeleted: true,
+                    deletedAt: true,
+                    type: true,
+                    code: true,
+                    user: {
+                        select: {
+                            isPrivate: true,
+                            isDeleted: true,
+                            deletedAt: true,
+                            accountStatus: true,
+                        },
+                    },
+                },
+            });
+        }
+        catch {
+            throw new common_1.NotFoundException('Post not found');
+        }
+        if (!post || post.isDeleted || post.deletedAt != null) {
+            throw new common_1.NotFoundException('Post not found');
+        }
+        if (!post.user || !(0, public_vitrine_user_1.isUserEligibleForPublicVitrine)(post.user)) {
+            throw new common_1.NotFoundException('Post not found');
+        }
+        const t = (post.type ?? 'post').trim();
+        const specialTypes = ['artwork', 'article', 'event'];
+        const isSpecialType = specialTypes.includes(t);
+        const hasShareCode = typeof post.code === 'string' && post.code.trim().length > 0;
+        const authorIsPublic = post.user.isPrivate !== true;
+        if (!(authorIsPublic || isSpecialType || hasShareCode)) {
+            throw new common_1.NotFoundException('Post not found');
+        }
+        return this.getPost(id, undefined);
     }
     async getPublicArtworkTicketByCode(rawCode) {
         const code = rawCode?.trim();

@@ -186,6 +186,33 @@ export class PostsService {
     return `${baseUrl}${cleanPath}`;
   }
 
+  /** Opsiyonel eser tarihi: boş → create’te yazılmaz; geçersiz → 400 */
+  private parseArtworkCreatedDateForCreate(raw?: string | null): Date | undefined {
+    if (raw == null) return undefined;
+    const t = String(raw).trim();
+    if (!t) return undefined;
+    const d = new Date(t);
+    if (Number.isNaN(d.getTime())) {
+      throw new BadRequestException('Geçersiz eser tarihi.');
+    }
+    return d;
+  }
+
+  /** PATCH: undefined → dokunma; null veya boş string → null */
+  private resolveArtworkCreatedDateForUpdate(
+    raw: string | null | undefined,
+  ): { apply: boolean; value?: Date | null } {
+    if (raw === undefined) return { apply: false };
+    if (raw === null) return { apply: true, value: null };
+    const t = String(raw).trim();
+    if (!t) return { apply: true, value: null };
+    const d = new Date(t);
+    if (Number.isNaN(d.getTime())) {
+      throw new BadRequestException('Geçersiz eser tarihi.');
+    }
+    return { apply: true, value: d };
+  }
+
   async createPost(userId: string, dto: CreatePostDto) {
     try {
       if (!dto.media || dto.media.length === 0) {
@@ -222,6 +249,8 @@ export class PostsService {
         console.log(`[createPost] Generated artwork code: ${artworkCode}`);
       }
 
+      const artworkCreatedDateParsed = this.parseArtworkCreatedDateForCreate(dto.artworkCreatedDate);
+
       // Create post
       console.log('[createPost] Creating post in database...');
       const post = await this.prisma.post.create({
@@ -233,6 +262,7 @@ export class PostsService {
         type: postType, // postType değişkenini kullan (artwork kontrolü yapıldı)
         code: artworkCode, // Artwork için otomatik kod
         colorPalette: dto.colorPalette ?? [], // 🎨 Frontend'den gelen renk paleti (hex string listesi)
+        ...(artworkCreatedDateParsed !== undefined ? { artworkCreatedDate: artworkCreatedDateParsed } : {}),
         isDeleted: false, // 🗑️ Default: not deleted
         media: {
           create: dto.media.map(m => ({
@@ -554,6 +584,13 @@ export class PostsService {
       avatar: this.transformAvatarUrl(post.user.avatar),
     };
 
+    const artworkCreatedDateIso =
+      post.artworkCreatedDate != null
+        ? post.artworkCreatedDate instanceof Date
+          ? post.artworkCreatedDate.toISOString()
+          : String(post.artworkCreatedDate)
+        : null;
+
     return {
       ...post,
       id: post.id,
@@ -562,6 +599,7 @@ export class PostsService {
       title: post.title,
       location: post.location,
       type: post.type,
+      artworkCreatedDate: artworkCreatedDateIso,
       createdAt: post.createdAt instanceof Date ? post.createdAt.toISOString() : post.createdAt,
       updatedAt: post.updatedAt instanceof Date ? post.updatedAt.toISOString() : post.updatedAt,
       media: transformedMedia,
@@ -576,7 +614,11 @@ export class PostsService {
     };
   }
 
-  async updatePost(postId: string, userId: string, data: { caption?: string; title?: string }) {
+  async updatePost(
+    postId: string,
+    userId: string,
+    data: { caption?: string; title?: string; artworkCreatedDate?: string | null },
+  ) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
     });
@@ -594,11 +636,14 @@ export class PostsService {
       throw new BadRequestException('Bu içerik topluluk kurallarına uygun değil.');
     }
 
+    const datePatch = this.resolveArtworkCreatedDateForUpdate(data.artworkCreatedDate);
+
     const updatedPost = await this.prisma.post.update({
       where: { id: postId },
       data: {
         ...(data.caption !== undefined && { caption: data.caption }),
         ...(data.title !== undefined && { title: data.title }),
+        ...(datePatch.apply && { artworkCreatedDate: datePatch.value }),
       },
       include: {
         user: {

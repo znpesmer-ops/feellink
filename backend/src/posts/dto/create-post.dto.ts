@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsOptional, IsString, IsIn } from 'class-validator';
+import { IsArray, IsOptional, IsString, IsIn, IsDateString } from 'class-validator';
 
 export class CreatePostDto {
   @ApiProperty({ required: false, description: 'Post caption with hashtags' })
@@ -49,6 +49,11 @@ export class CreatePostDto {
   @IsArray()
   @IsString({ each: true })
   colorPalette?: string[];
+
+  @ApiProperty({ required: false, description: 'Eserin oluşturulduğu tarih (ISO date string, opsiyonel)' })
+  @IsOptional()
+  @IsDateString()
+  artworkCreatedDate?: string;
 }
 
 

@@ -6,11 +6,22 @@ import api from '@/lib/api'
 import toast from 'react-hot-toast'
 import { useQueryClient } from '@tanstack/react-query'
 
+function isoOrDateToInputValue(v: string | null | undefined): string {
+  if (!v || typeof v !== 'string') return ''
+  const s = v.trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.slice(0, 10)
+  const d = new Date(s)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toISOString().slice(0, 10)
+}
+
 interface EditArtworkModalProps {
   artwork: {
     id: string
     title?: string | null
     caption?: string | null
+    artworkCreatedDate?: string | null
   }
   open: boolean
   onClose: () => void
@@ -20,6 +31,9 @@ interface EditArtworkModalProps {
 export function EditArtworkModal({ artwork, open, onClose, onSuccess }: EditArtworkModalProps) {
   const [title, setTitle] = useState(artwork.title || '')
   const [caption, setCaption] = useState(artwork.caption || '')
+  const [artworkCreatedDate, setArtworkCreatedDate] = useState(() =>
+    isoOrDateToInputValue(artwork.artworkCreatedDate),
+  )
   const [saving, setSaving] = useState(false)
   const queryClient = useQueryClient()
 
@@ -28,6 +42,7 @@ export function EditArtworkModal({ artwork, open, onClose, onSuccess }: EditArtw
     if (open && artwork) {
       setTitle(artwork.title || '')
       setCaption(artwork.caption || '')
+      setArtworkCreatedDate(isoOrDateToInputValue(artwork.artworkCreatedDate))
     }
   }, [open, artwork])
 
@@ -39,6 +54,7 @@ export function EditArtworkModal({ artwork, open, onClose, onSuccess }: EditArtw
       await api.patch(`/posts/${artwork.id}`, {
         title: title.trim() || null,
         caption: caption.trim() || null,
+        artworkCreatedDate: artworkCreatedDate.trim() || null,
       })
 
       toast.success('Eser başarıyla güncellendi')
@@ -47,6 +63,7 @@ export function EditArtworkModal({ artwork, open, onClose, onSuccess }: EditArtw
       queryClient.invalidateQueries({ queryKey: ['user-artworks'] })
       queryClient.invalidateQueries({ queryKey: ['user-posts'] })
       queryClient.invalidateQueries({ queryKey: ['posts'] })
+      queryClient.invalidateQueries({ queryKey: ['post'] })
       // Profil query'sini invalidate etme - kullanıcı profil sayfasında kalmalı
 
       onSuccess?.()
@@ -99,6 +116,20 @@ export function EditArtworkModal({ artwork, open, onClose, onSuccess }: EditArtw
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff7b00]/30 focus:border-[#ff7b00] dark:bg-gray-800 dark:text-gray-100"
               disabled={saving}
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Eserin Oluşturulduğu Tarih
+            </label>
+            <input
+              type="date"
+              value={artworkCreatedDate}
+              onChange={(e) => setArtworkCreatedDate(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff7b00]/30 focus:border-[#ff7b00] dark:bg-gray-800 dark:text-gray-100 [color-scheme:dark]"
+              disabled={saving}
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">İsteğe bağlı</p>
           </div>
 
           {/* Açıklama */}

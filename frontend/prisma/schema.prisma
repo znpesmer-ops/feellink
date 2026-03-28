@@ -131,6 +131,7 @@ model Post {
   code         String? // Artwork için otomatik üretilen kod (PA24-00001 gibi)
   colors       String[] @default([]) // Artwork için otomatik çıkarılan renkler (HEX formatında) - DEPRECATED
   colorPalette String[] @default([]) // 🎨 Basit renk paleti: hex string listesi (frontend'den gelir)
+  artworkCreatedDate DateTime? // 🎨 Eserin oluşturulduğu tarih (kullanıcı girişi, opsiyonel)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

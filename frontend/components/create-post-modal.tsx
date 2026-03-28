@@ -26,6 +26,7 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
   const [previews, setPreviews] = useState<string[]>([])
   const [caption, setCaption] = useState('')
   const [title, setTitle] = useState('') // 🎨 Eser adı (artwork için)
+  const [artworkCreatedDate, setArtworkCreatedDate] = useState('') // 🎨 Eserin oluşturulduğu tarih (opsiyonel)
   const [location, setLocation] = useState('')
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
@@ -65,6 +66,10 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
       if (title) {
         formData.append('title', title)
       }
+
+      if (artworkCreatedDate.trim()) {
+        formData.append('artworkCreatedDate', artworkCreatedDate.trim())
+      }
       
       // Konum alanı kaldırıldı - artık gönderilmiyor
 
@@ -89,6 +94,7 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
       setPreviews([])
       setCaption('')
       setTitle('')
+      setArtworkCreatedDate('')
       setLocation('')
       setColorPalette([])
       setCurrentSlide(0)
@@ -348,6 +354,7 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
     setPreviews([])
     setCaption('')
     setTitle('')
+    setArtworkCreatedDate('')
     setLocation('')
     setColorPalette([])
     setCurrentSlide(0)
@@ -650,24 +657,42 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
 
           {/* Eser Adı (sadece artwork için) */}
           {postType === 'artwork' && (
-            <div>
-              <label htmlFor="title" className="block text-gray-300 dark:text-gray-300 text-sm mb-2">
-                Eser Adı <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="title"
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Eserinizin adını girin"
-                required
-                disabled={uploading}
-                className="w-full mt-2 bg-[#151519] dark:bg-gray-800 text-gray-200 dark:text-gray-200 rounded-xl px-4 py-3 border border-gray-700 dark:border-gray-600 focus:border-brand-orange focus:outline-none resize-none placeholder-gray-500 transition-all"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Eserinizi tanımlayan bir ad girin
-              </p>
-            </div>
+            <>
+              <div>
+                <label htmlFor="title" className="block text-gray-300 dark:text-gray-300 text-sm mb-2">
+                  Eser Adı <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="title"
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Eserinizin adını girin"
+                  required
+                  disabled={uploading}
+                  className="w-full mt-2 bg-[#151519] dark:bg-gray-800 text-gray-200 dark:text-gray-200 rounded-xl px-4 py-3 border border-gray-700 dark:border-gray-600 focus:border-brand-orange focus:outline-none resize-none placeholder-gray-500 transition-all"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Eserinizi tanımlayan bir ad girin
+                </p>
+              </div>
+              <div>
+                <label htmlFor="artworkCreatedDate" className="block text-gray-300 dark:text-gray-300 text-sm mb-2">
+                  Eserin Oluşturulduğu Tarih
+                </label>
+                <input
+                  id="artworkCreatedDate"
+                  type="date"
+                  value={artworkCreatedDate}
+                  onChange={(e) => setArtworkCreatedDate(e.target.value)}
+                  disabled={uploading}
+                  className="w-full mt-2 bg-[#151519] dark:bg-gray-800 text-gray-200 dark:text-gray-200 rounded-xl px-4 py-3 border border-gray-700 dark:border-gray-600 focus:border-brand-orange focus:outline-none placeholder-gray-500 transition-all [color-scheme:dark]"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  İsteğe bağlı — eserin yapıldığı günü kaydedebilirsin
+                </p>
+              </div>
+            </>
           )}
 
           {/* Caption */}
