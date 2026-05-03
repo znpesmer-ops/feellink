@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, NotFoundException, Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, NotFoundException, Logger, BadRequestException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
@@ -441,17 +441,10 @@ export class AuthService {
       tokens = await this.generateTokens(user.id);
     } catch (tokenError: any) {
       const errorMessage = tokenError?.message || '';
-      const isConnectionError = 
-        errorMessage.includes('No available servers') ||
-        errorMessage.includes('ECONNREFUSED') ||
-        errorMessage.includes('Connection pool') ||
-        errorMessage.includes('timeout');
-      
-      if (isConnectionError) {
-        this.logger.error(`[LOGIN] Database connection error during token generation: ${errorMessage}`);
-        throw new UnauthorizedException('Veritabanı bağlantı hatası. Lütfen tekrar deneyin.');
-      }
-      throw tokenError;
+      this.logger.error(`[LOGIN] Token generation error: ${errorMessage}`);
+      // Re-throw if it's already an HTTP exception (e.g. InternalServerErrorException from generateTokens)
+      if (tokenError?.status) throw tokenError;
+      throw new InternalServerErrorException('Giriş işlemi tamamlanamadı. Lütfen tekrar deneyin.');
     }
 
     const { password: _, ...userWithoutPassword } = user;
@@ -588,12 +581,9 @@ export class AuthService {
         },
       });
     } catch (error: any) {
-      // MongoDB connection timeout hatası
-      if (error.message?.includes('timeout') || error.message?.includes('Connection pool')) {
-        this.logger.error(`MongoDB connection timeout in generateTokens: ${error.message}`);
-        throw new UnauthorizedException('Veritabanı bağlantı hatası. Lütfen tekrar deneyin.');
-      }
-      throw error;
+      const errorMessage = error?.message || '';
+      this.logger.error(`[generateTokens] DB error for user ${userId}: ${errorMessage}`);
+      throw new InternalServerErrorException('Giriş işlemi tamamlanamadı. Lütfen tekrar deneyin.');
     }
 
     return {
