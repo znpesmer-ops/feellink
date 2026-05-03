@@ -944,19 +944,6 @@ export class UsersService {
       }
     }
 
-    // Dev mode'da kodu response'a ekle
-    const isDev = this.configService.get('NODE_ENV') !== 'production';
-    if (isDev && devModeCode) {
-      return {
-        ...updatedUser,
-        _devMode: {
-          smsCode: devModeCode,
-          message: 'Geliştirme modu: SMS kodu console\'da ve response\'da gösteriliyor',
-        },
-      };
-    }
-
-    // 🔒 KRİTİK: Response formatı - frontend'in beklediği formatta döndür
     return updatedUser;
   }
 
@@ -1811,20 +1798,9 @@ export class UsersService {
       },
     });
 
-    // 🔧 DEV MODE: Console'a yaz (gerçek SMS servisi yok)
-    const isDev = this.configService.get('NODE_ENV') !== 'production';
-    if (isDev) {
-      console.log('\n📱 [DEV SMS] ============================================');
-      console.log(`📞 Telefon: ${phoneNumber}`);
-      console.log(`🔐 Doğrulama Kodu: ${code}`);
-      console.log(`⏰ Geçerlilik: 5 dakika`);
-      console.log('================================================\n');
-      return code; // Dev mode'da kodu döndür
-    } else {
-      // TODO: PROD'da gerçek SMS servisi entegrasyonu (Twilio, Netgsm, vb.)
-      // await this.smsService.send(phoneNumber, `Feellink doğrulama kodunuz: ${code}`);
-      return null; // Production'da null döndür
-    }
+    // TODO: Gerçek SMS servisi entegrasyonu (Twilio, Netgsm, vb.)
+    // await this.smsService.send(phoneNumber, `Feellink doğrulama kodunuz: ${code}`);
+    return null;
   }
 
   /**
@@ -1885,22 +1861,12 @@ export class UsersService {
       throw new BadRequestException('Telefon numarası bulunamadı. Lütfen önce telefon numaranızı ekleyin.');
     }
 
-    const devModeCode = await this.sendPhoneVerificationCode(userId, user.phoneNumber);
+    await this.sendPhoneVerificationCode(userId, user.phoneNumber);
 
-    const response: { success: boolean; message: string; _devMode?: { smsCode: string } } = {
+    return {
       success: true,
       message: 'Doğrulama kodu yeniden gönderildi.',
     };
-
-    // Dev mode'da kodu response'a ekle
-    const isDev = this.configService.get('NODE_ENV') !== 'production';
-    if (isDev && devModeCode) {
-      response._devMode = {
-        smsCode: devModeCode,
-      };
-    }
-
-    return response;
   }
 
   /**

@@ -56,8 +56,8 @@ export class FeedService {
     if (!baseUrl) {
       const backendPort = this.configService.get('PORT') || '3002';
       const endpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
-      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1' 
-        ? '192.168.1.38' 
+      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1'
+        ? '127.0.0.1'
         : endpoint;
       const cleanPath = url.startsWith('/') ? url : `/${url}`;
       return `http://${resolvedEndpoint}:${backendPort}${cleanPath}`;
@@ -90,8 +90,8 @@ export class FeedService {
     if (!baseUrl) {
       const backendPort = this.configService.get('PORT') || '3002';
       const endpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
-      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1' 
-        ? '192.168.1.38' 
+      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1'
+        ? '127.0.0.1'
         : endpoint;
       const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
       return `http://${resolvedEndpoint}:${backendPort}${cleanPath}`;
@@ -152,8 +152,8 @@ export class FeedService {
     // Get ALL posts (not just from followed users!)
     const posts = await this.prisma.post.findMany({
       where: {
-        isDeleted: false, // 🗑️ Sadece silinmemiş postlar
-        userId: { not: userId }, // Kendi postlarını hariç tut
+        isDeleted: false,
+        userId: { not: userId },
       },
       include: {
         user: {
@@ -174,28 +174,18 @@ export class FeedService {
             user: { select: { username: true, fullName: true } },
           },
         },
+        _count: {
+          select: {
+            likes: true,
+            comments: { where: { parentId: null } },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
 
-    // 🔥 MongoDB: Manuel count ile beğeni ve yorum sayılarını hesapla
-    const postsWithCounts = await Promise.all(
-      posts.map(async (post) => {
-        const [likeCount, commentCount] = await Promise.all([
-          this.prisma.like.count({ where: { postId: post.id } }),
-          this.prisma.comment.count({ where: { postId: post.id, parentId: null } }),
-        ]);
-        
-        return {
-          ...post,
-          _count: {
-            likes: likeCount,
-            comments: commentCount,
-          },
-        };
-      }),
-    );
+    const postsWithCounts = posts;
 
     // Cache the post IDs (if Redis is available)
     const isRedisAvailable = this.redis && (this.redis.status === 'ready' || this.redis.status === 'connect');

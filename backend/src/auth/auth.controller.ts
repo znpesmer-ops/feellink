@@ -21,17 +21,13 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('register')
-  async register(@Body() registerDto: RegisterDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    // Debug: Gelen raw request body'yi logla
-    this.logger.log(`Register RAW request body: ${JSON.stringify(req.body, null, 2)}`);
-    this.logger.log(`Register DTO (after validation): ${JSON.stringify(registerDto, null, 2)}`);
-    
+  async register(@Body() registerDto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.register(registerDto);
     // OTP akışında token dönülmez; cookie sadece verify-signup-otp sonrası set edilir
     if ('refreshToken' in result && result.refreshToken) {
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
-        secure: false,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
         maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -46,7 +42,7 @@ export class AuthController {
     if ('refreshToken' in result && result.refreshToken) {
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
-        secure: false,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
         maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -67,7 +63,7 @@ export class AuthController {
     if ((result as any).status !== 'DELETED_ACCOUNT' && (result as any).refreshToken) {
       res.cookie('refreshToken', (result as any).refreshToken, {
         httpOnly: true,
-        secure: false,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
         maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -82,7 +78,7 @@ export class AuthController {
     if ((result as any).status !== 'DELETED_ACCOUNT' && (result as any).refreshToken) {
       res.cookie('refreshToken', (result as any).refreshToken, {
         httpOnly: true,
-        secure: false,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
         maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -97,7 +93,7 @@ export class AuthController {
     if ((result as any).status !== 'DELETED_ACCOUNT' && (result as any).refreshToken) {
       res.cookie('refreshToken', (result as any).refreshToken, {
         httpOnly: true,
-        secure: false,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
         maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -111,7 +107,7 @@ export class AuthController {
     const result = await this.authService.restoreAccount(loginDto);
     res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
       maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -138,7 +134,7 @@ export class AuthController {
     // Set new refreshToken as HTTP-only cookie
     res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
-      secure: false, // LOCAL DEVELOPMENT - set to true in production with HTTPS
+      secure: process.env.NODE_ENV === 'production', // LOCAL DEVELOPMENT - set to true in production with HTTPS
       sameSite: 'lax', // Works with mobile browsers
       path: '/',
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
@@ -159,7 +155,7 @@ export class AuthController {
     // Clear refreshToken cookie
     res.clearCookie('refreshToken', {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
     });
@@ -190,7 +186,7 @@ export class AuthController {
     if (result.refreshToken) {
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
-        secure: false,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
         maxAge: 30 * 24 * 60 * 60 * 1000,
