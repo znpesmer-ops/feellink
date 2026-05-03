@@ -349,21 +349,9 @@ export class AuthService {
     try {
       user = await this.validateUser(loginDto);
     } catch (dbError: any) {
-      // DB hatası (connection timeout, etc.) - auth hatası değil
       const errorMessage = dbError?.message || '';
-      const isConnectionError = 
-        errorMessage.includes('No available servers') ||
-        errorMessage.includes('ECONNREFUSED') ||
-        errorMessage.includes('Connection pool') ||
-        errorMessage.includes('timeout');
-      
-      if (isConnectionError) {
-        this.logger.error(`[LOGIN] Database connection error during user lookup: ${errorMessage}`);
-        throw new UnauthorizedException('Veritabanı bağlantı hatası. Lütfen tekrar deneyin.');
-      }
-      // Diğer hatalar için normal auth hatası olarak devam et
-      this.logger.warn(`[LOGIN] User lookup error (treating as user not found): ${errorMessage}`);
-      user = null;
+      this.logger.error(`[LOGIN] User lookup DB error: ${errorMessage}`);
+      throw new InternalServerErrorException('Giriş işlemi tamamlanamadı. Lütfen tekrar deneyin.');
     }
 
     if (!user) {
@@ -435,17 +423,8 @@ export class AuthService {
       }
     }
 
-    // 🔥 4. Token oluşturma
-    let tokens;
-    try {
-      tokens = await this.generateTokens(user.id);
-    } catch (tokenError: any) {
-      const errorMessage = tokenError?.message || '';
-      this.logger.error(`[LOGIN] Token generation error: ${errorMessage}`);
-      // Re-throw if it's already an HTTP exception (e.g. InternalServerErrorException from generateTokens)
-      if (tokenError?.status) throw tokenError;
-      throw new InternalServerErrorException('Giriş işlemi tamamlanamadı. Lütfen tekrar deneyin.');
-    }
+    // 🔥 4. Token oluşturma (hata yönetimi generateTokens içinde)
+    const tokens = await this.generateTokens(user.id);
 
     const { password: _, ...userWithoutPassword } = user;
     const payload = this.hydrateAuthUser(userWithoutPassword);
@@ -556,40 +535,28 @@ export class AuthService {
   }
 
   private async generateTokens(userId: string) {
-    // Generate access token (15 minutes)
-    const accessToken = this.jwtService.sign(
-      { userId },
-      {
-        expiresIn: '15m',
-      },
-    );
-
-    // Generate refresh token (30 days)
-    const refreshToken = randomBytes(32).toString('hex');
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
-
-    // Save refresh token to database
-    // 🔥 Connection string'de readPreference=primary yapıldı, transaction gerekmez
-    // ✅ MongoDB timeout hatalarını yakalamak için try-catch
     try {
+      const accessToken = this.jwtService.sign(
+        { userId },
+        { expiresIn: '15m' },
+      );
+
+      const refreshToken = randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
+
       await this.prisma.refreshToken.create({
-        data: {
-          token: refreshToken,
-          userId,
-          expiresAt,
-        },
+        data: { token: refreshToken, userId, expiresAt },
       });
+
+      return { accessToken, refreshToken };
     } catch (error: any) {
+      // Re-throw already-HTTP exceptions as-is
+      if (error?.status) throw error;
       const errorMessage = error?.message || '';
-      this.logger.error(`[generateTokens] DB error for user ${userId}: ${errorMessage}`);
+      this.logger.error(`[generateTokens] Error for user ${userId}: ${errorMessage}`);
       throw new InternalServerErrorException('Giriş işlemi tamamlanamadı. Lütfen tekrar deneyin.');
     }
-
-    return {
-      accessToken,
-      refreshToken,
-    };
   }
 
   async refreshTokens(refreshToken: string) {
