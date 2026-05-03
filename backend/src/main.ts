@@ -7,6 +7,7 @@ import cookieParser from 'cookie-parser';
 import * as express from 'express';
 import { join } from 'path';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 // Deploy trigger: isDeleted filter fix - 2026-01-18
 
@@ -103,6 +104,8 @@ async function bootstrapServer() {
     preflightContinue: false,
     optionsSuccessStatus: 204,
   });
+
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   app.useGlobalPipes(
     new ValidationPipe({
