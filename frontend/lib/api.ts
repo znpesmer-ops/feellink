@@ -138,9 +138,7 @@ export function getAbsoluteBackendBaseUrl(): string {
 
 /** feellink.io / Vercel ön yüzünde tarayıcı istekleri same-origin proxy üzerinden gider */
 function shouldUseBrowserApiProxy(): boolean {
-  if (typeof window === 'undefined') return false
-  const h = window.location.hostname
-  return h === 'feellink.io' || h.endsWith('.feellink.io') || h.includes('vercel.app')
+  return false // Proxy devre dışı — doğrudan backend'e git (feellink-backend.vercel.app)
 }
 
 /** Axios istekleri için base URL (production web'de /api-proxy) */
