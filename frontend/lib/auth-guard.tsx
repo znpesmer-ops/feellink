@@ -99,7 +99,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         setLoading(false)
         setHasInitialized(true)
         hasRunRef.current = false
-      }, 8000)
+      }, 25000)
 
       try {
         setLoading(true)

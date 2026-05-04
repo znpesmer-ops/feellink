@@ -168,7 +168,7 @@ if (typeof window === 'undefined') {
 const api = axios.create({
   baseURL,
   withCredentials: true,
-  timeout: 30000, // ⚡ 30 saniye (optimistic UI ile kullanıcı beklemez)
+  timeout: 60000, // 60 saniye (Vercel serverless cold start için)
   maxContentLength: 100 * 1024 * 1024, // 100MB
   maxBodyLength: 100 * 1024 * 1024, // 100MB
 })
