@@ -46,10 +46,11 @@ export class PrismaService
       if (process.env.VERCEL) return;
       throw new Error('DATABASE_URL is not set');
     }
-    // Vercel serverless'ta $connect() çağrısı cold start'ı uzatır.
-    // Prisma ilk query'de lazy-connect yapar, önceden bağlanmak gerekmez.
     if (process.env.VERCEL) {
-      this.logger.log('📦 Prisma ready (Vercel serverless - lazy connect)');
+      // Vercel'de bağlantıyı arka planda başlat (cold start'ı bloklamadan ön ısıtma)
+      this.$connect()
+        .then(() => this.logger.log('✅ Prisma pre-warmed (background)'))
+        .catch(() => this.logger.warn('⚠️ Prisma pre-warm failed (will lazy-connect)'));
       return;
     }
     try {
