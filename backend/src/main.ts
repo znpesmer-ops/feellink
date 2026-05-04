@@ -66,16 +66,8 @@ async function bootstrapServer() {
 
   app.enableCors({
     origin: (origin, callback) => {
-      // Origin header yoksa (sunucu-sunucu, non-browser) sadece production'da reddet
-      if (!origin) {
-        if (process.env.NODE_ENV === 'production') {
-          callback(new Error('Not allowed by CORS'));
-          return;
-        }
-        // Development'ta origin'siz isteklere (Postman, curl) izin ver
-        callback(null, true);
-        return;
-      }
+      // Origin yoksa (sunucu-sunucu, proxy, curl) — izin ver
+      if (!origin) { callback(null, true); return; }
 
       // Allowed origins listesinde varsa izin ver
       if (allowedOrigins.some(allowed => origin.startsWith(allowed))) {
