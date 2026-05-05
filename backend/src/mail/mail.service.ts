@@ -374,8 +374,8 @@ export class MailService {
     }
     const transport = this.transporter || this.ensureTransporter();
     if (!transport) {
-      this.logger.warn('Mail transporter not configured. Skipping password reset OTP email.');
-      return;
+      this.logger.error('Mail transporter not configured. SMTP_USER ve SMTP_PASS Vercel ortam değişkenlerinde tanımlı olmalı.');
+      throw new Error('E-posta servisi yapılandırılmamış. Lütfen daha sonra tekrar deneyin.');
     }
     const mailFromName = process.env.MAIL_FROM_NAME || 'Feellink';
     const mailFrom = process.env.MAIL_FROM || 'noreply@feellink.io';

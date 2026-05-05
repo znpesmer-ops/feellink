@@ -1122,24 +1122,31 @@ export class AuthService {
   async forgotPassword(dto: ForgotPasswordDto) {
     const { email } = dto;
     const normalized = email.trim().toLowerCase();
-    try {
-      const user = await this.prisma.user.findUnique({
-        where: { email: normalized },
-      });
-      if (!user) {
-        return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.' };
-      }
-      const { code, expiresAt } = await this.otpService.createOtp(normalized, OtpPurpose.password_reset);
-      await this.mailService.sendPasswordResetOtpMail(normalized, code);
-      this.logger.log(`✅ Password reset OTP sent to ${normalized}`);
-      return {
-        message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.',
-        expiresAt: expiresAt.toISOString(),
-      };
-    } catch (error: any) {
-      this.logger.error(`forgotPassword for ${normalized}:`, error?.message || error);
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalized },
+    });
+    if (!user) {
+      // Güvenlik: kullanıcı var mı yok mu belli olmasın
       return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.' };
     }
+
+    const { code, expiresAt } = await this.otpService.createOtp(normalized, OtpPurpose.password_reset);
+
+    try {
+      await this.mailService.sendPasswordResetOtpMail(normalized, code);
+      this.logger.log(`✅ Password reset OTP sent to ${normalized}`);
+    } catch (mailError: any) {
+      this.logger.error(`forgotPassword: mail gönderilemedi → ${normalized}: ${mailError?.message || mailError}`);
+      throw new InternalServerErrorException(
+        'Doğrulama kodu e-posta ile gönderilemedi. Lütfen birkaç dakika sonra tekrar deneyin.',
+      );
+    }
+
+    return {
+      message: 'Doğrulama kodu e-posta adresinize gönderildi.',
+      expiresAt: expiresAt.toISOString(),
+    };
   }
 
   async verifyResetOtp(email: string, code: string) {
