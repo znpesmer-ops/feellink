@@ -12,7 +12,7 @@ import { AppLogo } from '@/components/common/AppLogo'
 import { useAuthStore } from '@/lib/store'
 import { getDashboardRouteFromUser } from '@/lib/role-utils'
 import toast from 'react-hot-toast'
-import { AuthGuard } from '@/lib/auth-guard'
+import { AuthGuard, markTokenAsValidated } from '@/lib/auth-guard'
 
 const unicodeEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u
 
@@ -146,6 +146,8 @@ function LoginPageInner() {
       } = response.data
 
       setAuth(loggedUser, newAccessToken, newRefreshToken, caps ?? null, sidebar ?? null)
+      // Login sonrası AuthGuard'ın /auth/me çağırmasını engelle (token zaten validate edildi)
+      markTokenAsValidated(newAccessToken)
       if (reactivated) {
         toast.success('Hesabınız yeniden aktif hale getirildi.')
       }

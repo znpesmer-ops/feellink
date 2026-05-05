@@ -22,6 +22,11 @@ const publicRoutes = [
 // Route değişiminde AuthGuard yeniden mount olsa bile aynı token zaten doğrulandıysa tekrar /me çağrılmasın
 let lastValidatedToken: string | null = null
 
+// Login sayfasından çağrılır: başarılı login sonrası /auth/me tekrar çağrılmasın
+export function markTokenAsValidated(token: string) {
+  lastValidatedToken = token
+}
+
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
