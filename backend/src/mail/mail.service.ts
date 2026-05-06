@@ -322,11 +322,13 @@ export class MailService {
     }
     const transport = this.transporter || this.ensureTransporter();
     if (!transport) {
-      this.logger.warn('Mail transporter not configured. Skipping signup OTP email.');
-      return;
+      this.logger.error('Mail transporter yapılandırılmamış. SMTP_USER ve SMTP_PASS Vercel ortam değişkenlerinde tanımlı olmalı.');
+      throw new Error('E-posta servisi yapılandırılmamış. Lütfen daha sonra tekrar deneyin.');
     }
+    const mailUser = process.env.MAIL_USER || process.env.SMTP_USER || process.env.SNTP_USER;
     const mailFromName = process.env.MAIL_FROM_NAME || 'Feellink';
-    const mailFrom = process.env.MAIL_FROM || 'noreply@feellink.io';
+    // Gmail: From adresi mutlaka SMTP_USER ile aynı olmalı, farklıysa mail reddedilir
+    const mailFrom = process.env.MAIL_FROM || mailUser || 'noreply@feellink.io';
     const from = `"${mailFromName}" <${mailFrom}>`;
     const subject = 'Feellink – E-posta doğrulama kodunuz';
     const text =
@@ -377,8 +379,9 @@ export class MailService {
       this.logger.error('Mail transporter not configured. SMTP_USER ve SMTP_PASS Vercel ortam değişkenlerinde tanımlı olmalı.');
       throw new Error('E-posta servisi yapılandırılmamış. Lütfen daha sonra tekrar deneyin.');
     }
+    const mailUser = process.env.MAIL_USER || process.env.SMTP_USER || process.env.SNTP_USER;
     const mailFromName = process.env.MAIL_FROM_NAME || 'Feellink';
-    const mailFrom = process.env.MAIL_FROM || 'noreply@feellink.io';
+    const mailFrom = process.env.MAIL_FROM || mailUser || 'noreply@feellink.io';
     const from = `"${mailFromName}" <${mailFrom}>`;
     const subject = 'Feellink – Şifre sıfırlama doğrulama kodunuz';
     const text =

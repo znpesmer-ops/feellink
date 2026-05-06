@@ -247,8 +247,12 @@ export class AuthService {
       try {
         const { code } = await this.otpService.createOtp(user.email, OtpPurpose.signup_verification);
         await this.mailService.sendSignupOtpMail(user.email, code);
+        this.logger.log(`[REGISTER] Signup OTP sent to ${user.email}`);
       } catch (otpErr: any) {
-        this.logger.warn(`[REGISTER] Signup OTP send failed (non-blocking): ${otpErr?.message || otpErr}`);
+        this.logger.error(`[REGISTER] Signup OTP send failed for ${user.email}: ${otpErr?.message || otpErr}`);
+        throw new InternalServerErrorException(
+          'Hesabınız oluşturuldu ancak doğrulama kodu e-posta ile gönderilemedi. Lütfen giriş sayfasından "Kodu tekrar gönder" seçeneğini kullanın.',
+        );
       }
 
       this.logger.log(`[REGISTER DEBUG] Registration successful for: ${email}, needsEmailVerification`);
