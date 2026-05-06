@@ -749,108 +749,38 @@ export class AuthService {
 
     this.logger.log(`[LOGIN DEBUG] 🔍 Searching for user with term: ${searchTerm.substring(0, 3)}***`);
 
-    // ✅ Case-insensitive arama: Hem orijinal hem lowercase ile dene
-    // MongoDB'de mode: 'insensitive' çalışmıyor, bu yüzden manuel olarak deniyoruz
-    let userByEmail, userByUsername;
+    const userSelect = {
+      id: true,
+      username: true,
+      email: true,
+      password: true,
+      roles: true,
+      plan: true,
+      badges: true,
+      isAdmin: true,
+      superAdmin: true,
+      accountStatus: true,
+      suspendedUntil: true,
+      suspensionReason: true,
+      scheduledDeletionAt: true,
+      isVerified: true,
+      isDeleted: true,
+      deletedAt: true,
+    };
+
+    let user = null;
     try {
-      // Önce orijinal case ile email dene
-      userByEmail = await this.prisma.user.findUnique({
-        where: { email: searchTerm },
-        select: {
-          id: true,
-          username: true,
-          email: true,
-          password: true,
-          roles: true,
-          plan: true,
-          badges: true,
-          isAdmin: true,
-          superAdmin: true,
-          accountStatus: true,
-          suspendedUntil: true,
-          suspensionReason: true,
-          scheduledDeletionAt: true,
-          isVerified: true,
-          isDeleted: true,
-          deletedAt: true,
+      // PostgreSQL: mode: 'insensitive' natively çalışır — tek sorguda hem email hem username
+      user = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: { equals: searchTerm, mode: 'insensitive' } },
+            { username: { equals: searchTerm, mode: 'insensitive' } },
+          ],
         },
+        select: userSelect,
       });
-      
-      // Orijinal case ile bulunamazsa lowercase ile dene
-      if (!userByEmail) {
-        userByEmail = await this.prisma.user.findUnique({
-          where: { email: searchTerm.toLowerCase().trim() },
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            password: true,
-            roles: true,
-            plan: true,
-            badges: true,
-            isAdmin: true,
-            superAdmin: true,
-            accountStatus: true,
-            suspendedUntil: true,
-            suspensionReason: true,
-            scheduledDeletionAt: true,
-            isVerified: true,
-            isDeleted: true,
-            deletedAt: true,
-          },
-        });
-      }
-      
-      // Email ile bulunamazsa username ile dene (önce orijinal, sonra lowercase)
-      if (!userByEmail) {
-        userByUsername = await this.prisma.user.findUnique({
-          where: { username: searchTerm },
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            password: true,
-            roles: true,
-            plan: true,
-            badges: true,
-            isAdmin: true,
-            superAdmin: true,
-            accountStatus: true,
-            suspendedUntil: true,
-            suspensionReason: true,
-            scheduledDeletionAt: true,
-            isVerified: true,
-            isDeleted: true,
-            deletedAt: true,
-          },
-        });
-        
-        if (!userByUsername) {
-          userByUsername = await this.prisma.user.findUnique({
-            where: { username: searchTerm.toLowerCase().trim() },
-            select: {
-              id: true,
-              username: true,
-              email: true,
-              password: true,
-              roles: true,
-              plan: true,
-              badges: true,
-              isAdmin: true,
-              superAdmin: true,
-              accountStatus: true,
-              suspendedUntil: true,
-              suspensionReason: true,
-              scheduledDeletionAt: true,
-              isVerified: true,
-              isDeleted: true,
-              deletedAt: true,
-            },
-          });
-        }
-      }
     } catch (error: any) {
-      // Tüm hataları log'la ama kullanıcı bulunamadı olarak işle
       const errorMessage = error?.message || '';
       this.logger.error(`validateUser query error: ${errorMessage}`);
       this.logger.error(`Full error: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`);
@@ -861,15 +791,9 @@ export class AuthService {
     let user = userByEmail || userByUsername;
 
     if (user) {
-      this.logger.log(`[LOGIN DEBUG] ✅ User found by ${userByEmail ? 'email' : 'username'}: ${user.email || user.username}`);
+      this.logger.log(`[LOGIN DEBUG] ✅ User found: ${user.email || user.username}`);
     } else {
       this.logger.warn(`[LOGIN DEBUG] ❌ User not found: ${searchTerm}`);
-    }
-
-    // ✅ Case-insensitive arama zaten yukarıda yapıldı, burada fallback gerekmez
-
-    if (!user) {
-      this.logger.warn(`validateUser: User not found after all search attempts: ${searchTerm}`);
       return null;
     }
 

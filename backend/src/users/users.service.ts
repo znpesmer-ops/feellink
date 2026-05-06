@@ -101,62 +101,44 @@ export class UsersService {
 
       let user = null;
 
-      // Username ile case-insensitive arama yap
-      if (!user) {
-        // Önce sadece username ile basit arama yap (hızlı)
-        const allUsers = await this.prisma.user.findMany({
+      {
+        // PostgreSQL: mode: 'insensitive' natively çalışır — tüm kullanıcıları çekmeye gerek yok
+        user = await this.prisma.user.findFirst({
+          where: {
+            username: { equals: username, mode: 'insensitive' },
+            isDeleted: false,
+          },
           select: {
             id: true,
             username: true,
+            fullName: true,
+            bio: true,
+            avatar: true,
+            roles: true,
+            plan: true,
+            badges: true,
+            isPrivate: true,
+            isVerified: true,
+            isAdmin: true,
+            createdAt: true,
+            profileCompleted: true,
+            dateOfBirth: true,
+            country: true,
+            city: true,
+            gender: true,
+            showProfileColorSignature: true,
             isDeleted: true,
-          },
-        });
-
-        // Case-insensitive username arama
-        const normalizedSearch = username.toLowerCase().trim();
-        console.log('[getProfile] Searching for normalized username:', normalizedSearch);
-        const foundUser = allUsers.find(
-          (u) => u.username?.toLowerCase().trim() === normalizedSearch && u.isDeleted !== true
-        );
-        console.log('[getProfile] Found user:', foundUser ? foundUser.username : 'NOT FOUND');
-
-        // Eğer kullanıcı bulunduysa, tam profil bilgilerini çek
-        if (foundUser) {
-          console.log('[getProfile] Fetching full profile for ID:', foundUser.id);
-          user = await this.prisma.user.findFirst({
-            where: { id: foundUser.id },
-            select: {
-              id: true,
-              username: true,
-              fullName: true,
-              bio: true,
-              avatar: true,
-              roles: true,
-              plan: true,
-              badges: true,
-              isPrivate: true,
-              isVerified: true,
-              isAdmin: true, // ✅ Aktif rol hesaplaması için gerekli
-              createdAt: true,
-              profileCompleted: true,
-              dateOfBirth: true,
-              country: true,
-              city: true,
-              gender: true,
-              showProfileColorSignature: true, // 🎨 Profil renk imzası göster/gizle
-              isDeleted: true,
-              profilePostOrder: true,
-              profileArtworkOrder: true,
-              _count: {
-                select: {
-                  posts: true,
-                  followers: true,
-                  following: true,
-                },
+            profilePostOrder: true,
+            profileArtworkOrder: true,
+            _count: {
+              select: {
+                posts: true,
+                followers: true,
+                following: true,
               },
             },
-          });
-        }
+          },
+        });
       }
 
       if (!user) {
