@@ -788,8 +788,6 @@ export class AuthService {
       return null;
     }
 
-    let user = userByEmail || userByUsername;
-
     if (user) {
       this.logger.log(`[LOGIN DEBUG] ✅ User found: ${user.email || user.username}`);
     } else {
