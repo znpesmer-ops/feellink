@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "mongodb"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum SubscriptionPlan {
@@ -35,7 +36,7 @@ enum OtpPurpose {
 }
 
 model User {
-  id                        String           @id @default(auto()) @map("_id") @db.ObjectId
+  id                        String           @id @default(cuid())
   username                  String           @unique
   email                     String           @unique
   password                  String
@@ -78,12 +79,12 @@ model User {
   suspendedUntil            DateTime? // 🔒 Askıya alma bitiş tarihi
   suspensionReason          String? // 🔒 Askıya alma nedeni
   suspensionNote            String? // 🔒 Admin iç notu
-  suspendedByAdminId        String?          @db.ObjectId // 🔒 Askıya alan admin ID
+  suspendedByAdminId        String?          // 🔒 Askıya alan admin ID
   deletionRequestedAt       DateTime? // 🔒 Kullanıcı hesap silme talebi tarihi
   scheduledDeletionAt       DateTime? // 🔒 Kalıcı silme tarihi (deletionRequestedAt + 15 gün)
   isDeleted                 Boolean          @default(false) // 🗑️ Soft delete flag
   deletedAt                 DateTime? // 🗑️ Soft delete timestamp
-  deletedBy                 String?          @db.ObjectId // 🗑️ Admin who deleted
+  deletedBy                 String?          // 🗑️ Admin who deleted
   createdAt                 DateTime         @default(now())
   updatedAt                 DateTime         @updatedAt
   /// Profil gönderiler sekmesi serbest sıra (post id listesi, artwork hariç)
@@ -139,7 +140,7 @@ model User {
 }
 
 model Post {
-  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  id           String    @id @default(cuid())
   userId       String
   caption      String?
   title        String? // 🎨 Eser adı (artwork için)
@@ -173,7 +174,7 @@ model Post {
 }
 
 model PostMedia {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  id           String   @id @default(cuid())
   postId       String
   type         String // 'image' | 'video'
   url          String
@@ -188,7 +189,7 @@ model PostMedia {
 }
 
 model Hashtag {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   name      String   @unique
   postCount Int      @default(0)
   createdAt DateTime @default(now())
@@ -199,7 +200,7 @@ model Hashtag {
 }
 
 model PostHashtag {
-  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  id        String @id @default(cuid())
   postId    String
   hashtagId String
 
@@ -212,7 +213,7 @@ model PostHashtag {
 }
 
 model Comment {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   postId    String
   userId    String
   content   String
@@ -236,7 +237,7 @@ model Comment {
 }
 
 model CommentReaction {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   commentId String
   userId    String
   emoji     String
@@ -252,7 +253,7 @@ model CommentReaction {
 }
 
 model Like {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   postId    String
   userId    String
   createdAt DateTime @default(now())
@@ -267,7 +268,7 @@ model Like {
 }
 
 model Follow {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String   @id @default(cuid())
   followerId  String
   followingId String
   createdAt   DateTime @default(now())
@@ -282,7 +283,7 @@ model Follow {
 }
 
 model FollowRequest {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String   @id @default(cuid())
   requesterId String
   requestedId String
   createdAt   DateTime @default(now())
@@ -297,7 +298,7 @@ model FollowRequest {
 }
 
 model Block {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   blockerId String
   blockedId String
   createdAt DateTime @default(now())
@@ -312,7 +313,7 @@ model Block {
 }
 
 model Notification {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  id         String   @id @default(cuid())
   userId     String
   type       String // 'like', 'comment', 'follow', 'follow_request', 'follow_accept', 'message', 'mention', 'reply', 'comment_like', 'job_application_received', 'job_application_status_changed', 'collection_added'
   message    String? // Bildirim metni (örn: "Ahmet gönderini beğendi")
@@ -334,7 +335,7 @@ model Notification {
 }
 
 model NotificationPreference {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  id        String    @id @default(cuid())
   userId    String    @unique
   mention   Boolean   @default(true)
   follow    Boolean   @default(true)
@@ -349,7 +350,7 @@ model NotificationPreference {
 }
 
 model Story {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   userId    String
   mediaUrl  String
   mediaType String // 'image' | 'video'
@@ -365,7 +366,7 @@ model Story {
 }
 
 model StoryView {
-  id       String   @id @default(auto()) @map("_id") @db.ObjectId
+  id       String   @id @default(cuid())
   storyId  String
   userId   String
   viewedAt DateTime @default(now())
@@ -379,7 +380,7 @@ model StoryView {
 }
 
 model FeedCache {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   userId    String
   postIds   String[] // Array of post IDs
   updatedAt DateTime @default(now())
@@ -389,9 +390,9 @@ model FeedCache {
 }
 
 model RefreshToken {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   token     String   @unique
-  userId    String   @db.ObjectId
+  userId    String  
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -403,9 +404,9 @@ model RefreshToken {
 }
 
 model SavedPost {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
-  postId    String   @db.ObjectId
+  id        String   @id @default(cuid())
+  userId    String  
+  postId    String  
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
@@ -418,9 +419,9 @@ model SavedPost {
 }
 
 model SavedArtwork {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
-  postId    String   @db.ObjectId
+  id        String   @id @default(cuid())
+  userId    String  
+  postId    String  
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
@@ -438,11 +439,11 @@ enum ConversationContext {
 }
 
 model Conversation {
-  id            String              @id @default(auto()) @map("_id") @db.ObjectId
+  id            String              @id @default(cuid())
   lastMessage   String? // 🔥 Son mesaj içeriği (sol panel için)
   context       ConversationContext @default(DIRECT) // "DIRECT" | "JOB_APPLICATION" - mesaj bağlamı
-  jobId         String?             @db.ObjectId // İlan üzerinden mesaj ise ilan ID'si
-  applicationId String?             @db.ObjectId // ✅ Başvuruya bağlı sohbet ise başvuru ID'si (LinkedIn/Upwork mantığı)
+  jobId         String?             // İlan üzerinden mesaj ise ilan ID'si
+  applicationId String?             // ✅ Başvuruya bağlı sohbet ise başvuru ID'si (LinkedIn/Upwork mantığı)
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
   participants  UserConversation[]
@@ -456,7 +457,7 @@ model Conversation {
 }
 
 model UserConversation {
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  id             String       @id @default(cuid())
   userId         String
   conversationId String
   isDeleted      Boolean      @default(false) // Kullanıcıya özel sohbet silme (soft delete)
@@ -472,7 +473,7 @@ model UserConversation {
 }
 
 model Message {
-  id             String               @id @default(auto()) @map("_id") @db.ObjectId
+  id             String               @id @default(cuid())
   content        String?
   imageUrl       String?
   fileUrl        String?
@@ -481,14 +482,14 @@ model Message {
   senderId       String
   conversationId String
   context        ConversationContext? @default(DIRECT) // "DIRECT" | "JOB_APPLICATION" - mesaj bağlamı (conversation'dan inherit edilir)
-  jobId          String?              @db.ObjectId // İlan üzerinden mesaj ise ilan ID'si (conversation'dan inherit edilir)
-  applicationId  String?              @db.ObjectId // ✅ Başvuruya bağlı sohbet ise başvuru ID'si (conversation'dan inherit edilir)
+  jobId          String?              // İlan üzerinden mesaj ise ilan ID'si (conversation'dan inherit edilir)
+  applicationId  String?              // ✅ Başvuruya bağlı sohbet ise başvuru ID'si (conversation'dan inherit edilir)
   read           Boolean              @default(false)
   isEdited       Boolean              @default(false)
   isDeleted      Boolean              @default(false)
   isRequest      Boolean              @default(false) // 🔥 Instagram tarzı mesaj isteği
   messageType    String               @default("TEXT") // TEXT | POST_SHARE
-  sharedPostId   String?              @db.ObjectId // POST_SHARE: paylaşılan gönderi
+  sharedPostId   String?              // POST_SHARE: paylaşılan gönderi
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
   sender         User                 @relation(fields: [senderId], references: [id])
@@ -505,7 +506,7 @@ model Message {
 }
 
 model Article {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  id          String    @id @default(cuid())
   title       String
   content     String
   coverImage  String?
@@ -528,7 +529,7 @@ model Article {
 }
 
 model ArticleComment {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   articleId String
   userId    String
   content   String
@@ -549,7 +550,7 @@ model ArticleComment {
 }
 
 model ArticleCommentLike {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   commentId String
   userId    String
   createdAt DateTime @default(now())
@@ -564,7 +565,7 @@ model ArticleCommentLike {
 }
 
 model JobListing {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String   @id @default(cuid())
   title       String
   description String
   company     String?
@@ -591,7 +592,7 @@ enum ApplicationStatus {
 }
 
 model JobApplication {
-  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  id           String     @id @default(cuid())
   jobListingId String
   jobListing   JobListing @relation(fields: [jobListingId], references: [id])
 
@@ -605,7 +606,7 @@ model JobApplication {
 
   status ApplicationStatus @default(PENDING)
 
-  conversationId String? @db.ObjectId // ✅ Başvuru onaylandığında oluşturulan sohbet ID'si (LinkedIn/Upwork mantığı)
+  conversationId String? // ✅ Başvuru onaylandığında oluşturulan sohbet ID'si (LinkedIn/Upwork mantığı)
 
   expiresAt      DateTime? // 30 günlük yanıt süresi (başvuru tarihinden itibaren)
   reminderSentAt DateTime? // Son hatırlatma bildirimi gönderilme tarihi
@@ -629,7 +630,7 @@ model JobApplication {
 }
 
 model ApplicationActivity {
-  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  id            String         @id @default(cuid())
   applicationId String
   application   JobApplication @relation(fields: [applicationId], references: [id])
 
@@ -644,7 +645,7 @@ model ApplicationActivity {
 }
 
 model CommentLike {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   commentId String
   userId    String
   createdAt DateTime @default(now())
@@ -659,7 +660,7 @@ model CommentLike {
 }
 
 model Collection {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String   @id @default(cuid())
   title       String
   description String?
   coverImage  String?
@@ -678,7 +679,7 @@ model Collection {
 }
 
 model CollectionItem {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  id           String   @id @default(cuid())
   collectionId String
   postId       String // Post modeli artwork'leri de içeriyor (type="artwork")
   addedById    String
@@ -696,7 +697,7 @@ model CollectionItem {
 }
 
 model Event {
-  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  id               String    @id @default(cuid())
   title            String
   description      String?
   coverImage       String?
@@ -727,7 +728,7 @@ model Event {
 }
 
 model EventComment {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   text      String
   createdAt DateTime @default(now())
   eventId   String
@@ -749,7 +750,7 @@ enum EventParticipantStatus {
 }
 
 model EventParticipant {
-  id                String                 @id @default(auto()) @map("_id") @db.ObjectId
+  id                String                 @id @default(cuid())
   eventId           String
   userId            String
   status            EventParticipantStatus @default(PENDING)
@@ -773,7 +774,7 @@ model EventParticipant {
 }
 
 model Ticket {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   eventId   String
   type      String
   price     Float
@@ -792,7 +793,7 @@ model Ticket {
 }
 
 model TicketPurchase {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  id        String    @id @default(cuid())
   ticketId  String
   userId    String
   code      String    @unique
@@ -812,7 +813,7 @@ model TicketPurchase {
 }
 
 model AuditLog {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   actorId   String
   action    String // 'user.ban', 'post.delete', 'role.update', etc.
   target    String? // 'user:abc123', 'post:xyz789', etc.
@@ -831,7 +832,7 @@ model AuditLog {
 }
 
 model FeatureFlag {
-  key       String   @id @map("_id")
+  key       String   @id
   enabled   Boolean  @default(false)
   note      String?
   updatedAt DateTime @updatedAt
@@ -841,7 +842,7 @@ model FeatureFlag {
 }
 
 model Highlight {
-  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  id          String          @id @default(cuid())
   title       String
   coverPostId String?
   coverPost   Post?           @relation("HighlightCoverPost", fields: [coverPostId], references: [id])
@@ -857,7 +858,7 @@ model Highlight {
 }
 
 model HighlightItem {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  id          String    @id @default(cuid())
   highlightId String
   highlight   Highlight @relation(fields: [highlightId], references: [id])
   postId      String
@@ -879,7 +880,7 @@ enum ReportReason {
 }
 
 model UserReport {
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  id             String       @id @default(cuid())
   reporterId     String
   reportedUserId String
   conversationId String?
@@ -899,12 +900,12 @@ model UserReport {
 }
 
 model RoleChangeRequest {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String    @db.ObjectId
+  id            String    @id @default(cuid())
+  userId        String   
   requestedRole UserRole
   message       String?
   status        String    @default("PENDING") // PENDING, APPROVED, REJECTED
-  reviewedBy    String?   @db.ObjectId // Admin ID
+  reviewedBy    String?   // Admin ID
   reviewedAt    DateTime?
   reviewNote    String? // Admin notu
   createdAt     DateTime  @default(now())
@@ -919,7 +920,7 @@ model RoleChangeRequest {
 }
 
 model EmailChangeRequest {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   userId    String
   newEmail  String
   token     String   @unique
@@ -934,8 +935,8 @@ model EmailChangeRequest {
 }
 
 model PhoneVerification {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String   @db.ObjectId
+  id          String   @id @default(cuid())
+  userId      String  
   phoneNumber String
   code        String
   verified    Boolean  @default(false)
@@ -952,7 +953,7 @@ model PhoneVerification {
 
 // Tek kullanımlık e-posta doğrulama kodu (kayıt + şifre sıfırlama)
 model EmailOtp {
-  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  id           String     @id @default(cuid())
   email        String
   purpose      OtpPurpose
   codeHash     String
@@ -970,11 +971,11 @@ model EmailOtp {
 }
 
 model RoleChangeLog {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
+  id        String   @id @default(cuid())
+  userId    String  
   oldRoles  String[]
   newRoles  String[]
-  changedBy String   @db.ObjectId
+  changedBy String  
   createdAt DateTime @default(now())
 
   user User @relation("RoleChanges", fields: [userId], references: [id])
@@ -986,13 +987,13 @@ model RoleChangeLog {
 
 // ✅ Ayın Öne Çıkanları - Admin kontrollü veya otomatik seçim
 model MonthlyHighlight {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  id           String   @id @default(cuid())
   year         Int // Yıl (2024, 2025, vb.)
   month        Int // Ay (1-12)
-  museumId     String?  @db.ObjectId // Ayın Müzesi (User ID - museum role)
-  artworkId    String?  @db.ObjectId // Ayın Eseri (Post ID - type="artwork")
-  commentId    String?  @db.ObjectId // Ayın Yorumu (Comment ID)
-  collectionId String?  @db.ObjectId // Ayın Koleksiyonu (Collection ID)
+  museumId     String?  // Ayın Müzesi (User ID - museum role)
+  artworkId    String?  // Ayın Eseri (Post ID - type="artwork")
+  commentId    String?  // Ayın Yorumu (Comment ID)
+  collectionId String?  // Ayın Koleksiyonu (Collection ID)
   isAuto       Boolean  @default(false) // Otomatik seçim mi, admin override mi?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

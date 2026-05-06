@@ -1709,28 +1709,27 @@ export class PostsService {
       return [];
     }
 
-    // 🔥 KRİTİK: Eğer userId MongoDB ObjectId formatında değilse (username olabilir), önce userId'yi bul
-    const isObjectId = /^[0-9a-fA-F]{24}$/.test(userId);
+    // userId bir cuid ID veya username olabilir; önce ID ile, bulunamazsa username ile ara
     let actualUserId = userId;
-    
-    if (!isObjectId) {
-      // Username ile kullanıcıyı bul
+
+    const userById = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (!userById) {
       console.log(`🔍 [PostsService] userId looks like username, searching for user: ${userId}`);
-      const allUsers = await this.prisma.user.findMany({
-        select: { id: true, username: true },
+      const userByUsername = await this.prisma.user.findFirst({
+        where: { username: { equals: userId, mode: 'insensitive' } },
+        select: { id: true },
       });
-      
-      const normalizedSearch = userId.toLowerCase().trim();
-      const foundUser = allUsers.find(
-        (u) => u.username?.toLowerCase().trim() === normalizedSearch
-      );
-      
-      if (!foundUser) {
-        console.warn(`⚠️ [PostsService] User not found by username: ${userId}`);
+
+      if (!userByUsername) {
+        console.warn(`⚠️ [PostsService] User not found: ${userId}`);
         return [];
       }
-      
-      actualUserId = foundUser.id;
+
+      actualUserId = userByUsername.id;
       console.log(`✅ [PostsService] Found user by username: ${userId} -> ${actualUserId}`);
     }
 

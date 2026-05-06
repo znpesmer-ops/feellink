@@ -99,55 +99,9 @@ export class UsersService {
       
       console.log('[getProfile] Starting profile lookup for:', username);
 
-      // Hem username hem id ile arama yap (Instagram mantığı)
-      // MongoDB için case-insensitive arama: Tüm kullanıcıları çekip JavaScript'te filtrele
-      // Önce ID ile dene (sadece ObjectId formatındaysa)
       let user = null;
-      // MongoDB ObjectId formatı kontrolü (24 karakter hex string)
-      const isObjectId = /^[0-9a-fA-F]{24}$/.test(username);
-      console.log('[getProfile] Is ObjectId:', isObjectId, 'for username:', username);
-      if (isObjectId) {
-        try {
-          user = await this.prisma.user.findFirst({
-            where: { id: username },
-        select: {
-          id: true,
-          username: true,
-          fullName: true,
-          bio: true,
-          avatar: true,
-          roles: true,
-          plan: true,
-          badges: true,
-          isPrivate: true,
-          isVerified: true,
-          isAdmin: true, // ✅ Aktif rol hesaplaması için gerekli
-          createdAt: true,
-          profileCompleted: true,
-          dateOfBirth: true,
-          country: true,
-          city: true,
-          gender: true,
-          showProfileColorSignature: true, // 🎨 Profil renk imzası göster/gizle
-          isDeleted: true,
-          profilePostOrder: true,
-          profileArtworkOrder: true,
-          _count: {
-            select: {
-              posts: true,
-              followers: true,
-              following: true,
-            },
-          },
-        },
-      });
-        } catch (idError) {
-          // ID araması başarısız oldu, username ile devam et
-          user = null;
-        }
-      }
 
-      // ID ile bulunamadıysa, username ile case-insensitive arama yap
+      // Username ile case-insensitive arama yap
       if (!user) {
         // Önce sadece username ile basit arama yap (hızlı)
         const allUsers = await this.prisma.user.findMany({
@@ -1878,18 +1832,14 @@ export class UsersService {
    * Eser kartları veya eser grid'i ile ilgili değildir.
    */
   async getColorSignature(username: string): Promise<{ topColors: string[] }> {
-    // Önce kullanıcıyı bul
-    const isObjectId = /^[0-9a-fA-F]{24}$/.test(username);
-    let user = null;
-
-    if (isObjectId) {
+    // Önce kullanıcıyı bul (username veya cuid ID ile)
+    let user = await this.prisma.user.findFirst({
+      where: { username: { equals: username, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    if (!user) {
       user = await this.prisma.user.findFirst({
         where: { id: username },
-        select: { id: true },
-      });
-    } else {
-      user = await this.prisma.user.findFirst({
-        where: { username: { equals: username, mode: 'insensitive' } },
         select: { id: true },
       });
     }
@@ -1986,20 +1936,17 @@ export class UsersService {
     };
     summary: string;
   }> {
-    const isObjectId = /^[0-9a-fA-F]{24}$/.test(username);
     let user: { id: string; username: string; isPrivate: boolean } | null = null;
 
-    if (isObjectId) {
+    user = await this.prisma.user.findFirst({
+      where: { username: { equals: username, mode: 'insensitive' } },
+      select: { id: true, username: true, isPrivate: true },
+    });
+    if (!user) {
       user = await this.prisma.user.findFirst({
         where: { id: username },
         select: { id: true, username: true, isPrivate: true },
       });
-    } else {
-      const found = await this.prisma.user.findFirst({
-        where: { username: { equals: username, mode: 'insensitive' } },
-        select: { id: true, username: true, isPrivate: true },
-      });
-      user = found;
     }
 
     if (!user) {

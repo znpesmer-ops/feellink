@@ -9,25 +9,7 @@ export class PrismaService
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
-    let url =
-      process.env.DATABASE_URL ||
-      process.env.MONGODB_URI ||
-      process.env.DATABASE_URI;
-
-    // Serverless için MongoDB bağlantı parametrelerini optimize et
-    if (url && process.env.VERCEL) {
-      try {
-        const parsed = new URL(url);
-        // Bağlantı havuzunu küçük tut, timeout'ları kısa ayarla
-        parsed.searchParams.set('connectTimeoutMS', '10000');
-        parsed.searchParams.set('socketTimeoutMS', '30000');
-        parsed.searchParams.set('serverSelectionTimeoutMS', '10000');
-        parsed.searchParams.set('maxPoolSize', '5');
-        url = parsed.toString();
-      } catch {
-        // URL parse edilemezse orijinali kullan
-      }
-    }
+    const url = process.env.DATABASE_URL || process.env.DATABASE_URI;
 
     super({
       datasources: {
@@ -37,12 +19,9 @@ export class PrismaService
   }
 
   async onModuleInit() {
-    const url =
-      process.env.DATABASE_URL ||
-      process.env.MONGODB_URI ||
-      process.env.DATABASE_URI;
+    const url = process.env.DATABASE_URL || process.env.DATABASE_URI;
     if (!url || url.trim() === '') {
-      this.logger.warn('⚠️ DATABASE_URL (veya MONGODB_URI / DATABASE_URI) eksik');
+      this.logger.warn('⚠️ DATABASE_URL eksik');
       if (process.env.VERCEL) return;
       throw new Error('DATABASE_URL is not set');
     }
