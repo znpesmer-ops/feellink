@@ -162,6 +162,7 @@ function MessagesContent() {
     staleTime: STALE_SHORT,
     gcTime: GC_STANDARD,
     refetchOnWindowFocus: false,
+    refetchInterval: 8000,
   })
 
   const conversations = conversationsData ?? []
