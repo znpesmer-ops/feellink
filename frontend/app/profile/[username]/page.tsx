@@ -12,7 +12,7 @@ import { CreatePostModal } from '@/components/create-post-modal'
 import { PostModal } from '@/components/post-modal'
 import UserArticles from '@/components/user-articles'
 import DraftArticles from '@/components/draft-articles'
-import { Plus, Grid, FileText, Calendar, Image as ImageIcon, Heart, MessageCircle, MoreVertical, Trash2, Clock, BarChart3, Lock } from 'lucide-react'
+import { Plus, Grid, FileText, Calendar, Image as ImageIcon, Heart, MessageCircle, MoreVertical, Trash2, Clock, BarChart3, Lock, Sparkles } from 'lucide-react'
 import { FiGrid, FiFileText, FiMessageCircle, FiImage, FiCalendar, FiClock, FiBookmark } from 'react-icons/fi'
 import { initPostsSocket, initCommentsSocket } from '@/lib/socket'
 import { UserBadges } from '@/components/profile/UserBadges'
@@ -25,6 +25,7 @@ import toast from 'react-hot-toast'
 import { ProfileCommentsList } from '@/components/profile/ProfileCommentsList'
 import { ArtistHighlights } from '@/components/profile/ArtistHighlights'
 import { ProfileAnalysisPanel } from '@/components/profile/ProfileAnalysisPanel'
+import { ArtGallery3D } from '@/components/gallery/ArtGallery3D'
 import ZoomModal from '@/components/common/ZoomModal'
 import {
   type ProfileGridSortMode,
@@ -346,7 +347,8 @@ function ProfileContent() {
   const [postType, setPostType] = useState<'post' | 'artwork'>('post')
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
   const [creatingConversation, setCreatingConversation] = useState(false)
-  const [activeTab, setActiveTab] = useState<'posts' | 'articles' | 'comments' | 'artworks' | 'events' | 'drafts' | 'saved' | 'analysis'>('posts')
+  const [activeTab, setActiveTab] = useState<'posts' | 'articles' | 'comments' | 'artworks' | 'events' | 'drafts' | 'saved' | 'analysis' | 'gallery'>('posts')
+  const [galleryOpen, setGalleryOpen] = useState(false)
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
   const [postsSortMode, setPostsSortModeState] = useState<ProfileGridSortMode>(() =>
     readProfileGridSortMode(LS_PROFILE_SORT_POSTS),
@@ -482,6 +484,7 @@ function ProfileContent() {
     { key: 'events', label: 'Etkinlikler', icon: FiCalendar, visible: true },
     { key: 'saved', label: 'Kaydedilenler', icon: FiBookmark, visible: isOwnProfile },
     { key: 'analysis', label: 'Analiz', icon: BarChart3, visible: true },
+    { key: 'gallery', label: 'Sergi', icon: Sparkles, visible: true },
   ].filter((tab) => tab.visible)
 
   const tabs = profileTabs
@@ -496,6 +499,7 @@ function ProfileContent() {
       'comments',
       'events',
       'analysis',
+      'gallery',
       ...(isOwnProfile ? ['saved'] : []),
     ]
     if (!allowedKeys.includes(activeTab)) {
@@ -1253,7 +1257,13 @@ function ProfileContent() {
                   >
                     <button
                       type="button"
-                      onClick={() => setActiveTab(tab.key as any)}
+                      onClick={() => {
+                        if (tab.key === 'gallery') {
+                          setGalleryOpen(true)
+                        } else {
+                          setActiveTab(tab.key as any)
+                        }
+                      }}
                       title={tab.label}
                       aria-label={tab.label}
                       className={`flex items-center justify-center min-w-[44px] min-h-[44px] pb-2 px-3 transition-all relative group ${
@@ -1807,6 +1817,13 @@ function ProfileContent() {
       {zoomImage && (
         <ZoomModal src={zoomImage} onClose={() => setZoomImage(null)} />
       )}
+
+      {/* 3D Sergi Turu */}
+      <ArtGallery3D
+        artworks={profileArtworksBase}
+        isOpen={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+      />
     </>
   )
 }
