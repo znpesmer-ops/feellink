@@ -18,41 +18,39 @@ interface ArtGallery3DProps {
 }
 
 // ── Room dimensions ────────────────────────────────────────────────────────────
-const P   = 700   // perspective (px)
-const RW  = 2800  // room width  (px) — back wall fills ~97% of 1440 viewport
-const RH  = 1600  // room height (px)
-const RD  = 860   // room depth  (px)
-const STEP = 80   // walk step
+const P    = 820
+const RW   = 2800
+const RH   = 1600
+const RD   = 860
+const STEP = 80
 const MAX_Z = Math.round(P * 0.65)
 
-// ── Frame positions on back wall (2800 × 1600) ────────────────────────────────
-// apparent_x = (el_x − RW/2) × P/(P+RD)  + vp_center_x
-// at P=700, RD=860: scale = 700/1560 = 0.449
-// → frame positions chosen so apparent centers ≈ 25 / 50 / 75 % of viewport
 const BACK_FRAMES = [
-  { left: 310,  top: 360, w: 460, h: 590 },   // left   — apparent ≈ 205 × 265 px
-  { left: 1150, top: 270, w: 500, h: 720 },   // centre — apparent ≈ 225 × 323 px
-  { left: 2030, top: 360, w: 460, h: 590 },   // right
+  { left: 310,  top: 330, w: 460, h: 620 },
+  { left: 1130, top: 230, w: 540, h: 760 },
+  { left: 2030, top: 330, w: 460, h: 620 },
 ]
 
-// Side walls are RD × RH = 860 × 1600
-// Frames are positioned in the same relative way on a shorter wall
 const SIDE_FRAMES = [
-  { left:  45, top: 360, w: 220, h: 460 },
-  { left: 320, top: 270, w: 220, h: 560 },
-  { left: 595, top: 360, w: 220, h: 460 },
+  { left:  40, top: 340, w: 230, h: 480 },
+  { left: 315, top: 250, w: 230, h: 580 },
+  { left: 590, top: 340, w: 230, h: 480 },
 ]
+
+// Gold gradient for frames
+const GOLD_H = 'linear-gradient(90deg,#7a5512 0%,#c8952c 18%,#f0c860 38%,#d4a030 55%,#8b6218 72%,#c8952c 88%,#7a5512 100%)'
+const GOLD_V = 'linear-gradient(180deg,#7a5512 0%,#c8952c 18%,#f0c860 38%,#d4a030 55%,#8b6218 72%,#c8952c 88%,#7a5512 100%)'
 
 const CSS = `
-  @keyframes spotBreath { 0%,100%{opacity:.75}  50%{opacity:1} }
-  @keyframes gIn        { from{opacity:0} to{opacity:1} }
+  @keyframes spotBreath  { 0%,100%{opacity:.65} 50%{opacity:1} }
+  @keyframes gIn         { from{opacity:0} to{opacity:1} }
+  @keyframes trackGlow   { 0%,100%{opacity:.55;transform:translateX(-50%) scale(1)} 50%{opacity:.9;transform:translateX(-50%) scale(1.15)} }
+  @keyframes haloGlow    { 0%,100%{opacity:.55} 50%{opacity:.85} }
 `
 
-// ── Frame component ────────────────────────────────────────────────────────────
+// ── Frame ──────────────────────────────────────────────────────────────────────
 function Frame({
-  artwork,
-  pos,
-  onZoom,
+  artwork, pos, onZoom,
 }: {
   artwork: Artwork | null
   pos: { left: number; top: number; w: number; h: number }
@@ -63,120 +61,151 @@ function Frame({
 
   return (
     <div
-      style={{ position: 'absolute', left: pos.left, top: pos.top, width: pos.w, height: pos.h }}
+      style={{ position:'absolute', left:pos.left, top:pos.top, width:pos.w, height:pos.h }}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
     >
-      {/* Spotlight cone from ceiling */}
+      {/* Spotlight cone */}
       <div style={{
-        position: 'absolute',
-        left: '50%', bottom: '100%',
-        transform: 'translateX(-50%)',
-        width: pos.w * 3.2, height: 600,
-        background: `radial-gradient(ellipse 42% 100% at 50% 0%,
-          rgba(255,238,180,${hov ? 0.22 : 0.14}), transparent 70%)`,
-        pointerEvents: 'none',
-        animation: 'spotBreath 5s ease-in-out infinite',
-        transition: 'opacity .4s',
+        position:'absolute', left:'50%', bottom:'100%',
+        transform:'translateX(-50%)',
+        width: pos.w * 3.8, height: 720,
+        background:`radial-gradient(ellipse 36% 100% at 50% 0%,
+          rgba(255,218,120,${hov ? 0.30 : 0.19}), transparent 62%)`,
+        pointerEvents:'none',
+        animation:'spotBreath 5s ease-in-out infinite',
       }} />
 
-      {/* Ambient wall glow around frame */}
+      {/* Wall halo glow */}
       <div style={{
-        position: 'absolute', inset: -70,
-        background: `radial-gradient(ellipse 60% 55% at 50% 50%,
-          rgba(255,238,180,${hov ? 0.13 : 0.07}), transparent 65%)`,
-        pointerEvents: 'none', transition: 'opacity .4s',
+        position:'absolute', inset:-100,
+        background:`radial-gradient(ellipse 58% 52% at 50% 50%,
+          rgba(255,200,90,${hov ? 0.13 : 0.055}), transparent 65%)`,
+        pointerEvents:'none',
+        animation:'haloGlow 6s ease-in-out infinite',
       }} />
 
-      {/* Dark metallic frame */}
+      {/* Floor light pool */}
       <div style={{
-        position: 'absolute', inset: 0,
-        background: 'linear-gradient(145deg,#2e2820,#1b1710,#2a2418)',
-        boxShadow: hov
-          ? `0 0 70px rgba(0,0,0,.95), 0 24px 60px rgba(0,0,0,.8),
-             inset 0 0 0 2px rgba(255,238,180,.13), inset 0 0 0 6px rgba(0,0,0,.5)`
-          : `0 0 40px rgba(0,0,0,.9), 0 12px 40px rgba(0,0,0,.7),
-             inset 0 0 0 2px rgba(255,238,180,.07), inset 0 0 0 6px rgba(0,0,0,.4)`,
-        transition: 'box-shadow .4s',
+        position:'absolute', top:'100%', left:'50%',
+        transform:'translateX(-50%)',
+        width: pos.w * 2, height: 200,
+        background:`radial-gradient(ellipse 65% 55% at 50% 0%,
+          rgba(255,200,90,${hov ? 0.11 : 0.065}), transparent 70%)`,
+        pointerEvents:'none',
+      }} />
+
+      {/* ── Gold frame outer border ── */}
+      {/* Top bar */}
+      <div style={{ position:'absolute', top:0, left:0, right:0, height:14, background:GOLD_H,
+        boxShadow:'0 2px 6px rgba(0,0,0,.7)' }} />
+      {/* Bottom bar */}
+      <div style={{ position:'absolute', bottom:0, left:0, right:0, height:14, background:GOLD_H,
+        boxShadow:'0 -2px 6px rgba(0,0,0,.7)' }} />
+      {/* Left bar */}
+      <div style={{ position:'absolute', top:0, left:0, bottom:0, width:14, background:GOLD_V,
+        boxShadow:'2px 0 6px rgba(0,0,0,.7)' }} />
+      {/* Right bar */}
+      <div style={{ position:'absolute', top:0, right:0, bottom:0, width:14, background:GOLD_V,
+        boxShadow:'-2px 0 6px rgba(0,0,0,.7)' }} />
+
+      {/* ── Inner shadow rim ── */}
+      <div style={{ position:'absolute', inset:14,
+        boxShadow:'inset 0 0 12px rgba(0,0,0,.85)',
+        background:'#0c0906',
       }}>
-        {/* Inner thin accent line */}
-        <div style={{
-          position: 'absolute', inset: 6,
-          border: '1px solid rgba(255,238,180,.1)',
-          pointerEvents: 'none',
-        }} />
-
-        {/* Artwork / empty canvas area */}
-        <div style={{
-          position: 'absolute', inset: 14,
-          background: url ? '#0c0a08' : 'transparent',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          overflow: 'hidden',
+        {/* ── Cream mat board ── */}
+        <div style={{ position:'absolute', inset:0, background:'#e8e0d0',
+          boxShadow:'inset 0 0 30px rgba(0,0,0,.5)',
         }}>
-          {url ? (
-            <>
-              <img
-                src={url}
-                alt={artwork?.title ?? 'Eser'}
-                style={{
-                  maxWidth: '100%', maxHeight: '100%',
-                  width: 'auto', height: 'auto',
-                  objectFit: 'contain', display: 'block',
-                  transform: hov ? 'scale(1.03)' : 'scale(1)',
-                  transition: 'transform .6s ease',
-                }}
-                draggable={false}
-              />
-              {hov && (
-                <button
-                  onClick={() => onZoom(url)}
+          {/* ── Artwork canvas ── */}
+          <div style={{
+            position:'absolute', inset:18,
+            background: url ? '#09080a' : '#0d0b07',
+            boxShadow:'inset 0 0 20px rgba(0,0,0,.8)',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            overflow:'hidden',
+          }}>
+            {url ? (
+              <>
+                <img
+                  src={url}
+                  alt={artwork?.title ?? 'Eser'}
                   style={{
-                    position: 'absolute', top: 9, right: 9,
-                    width: 33, height: 33, borderRadius: '50%',
-                    background: 'rgba(0,0,0,.75)',
-                    border: '1px solid rgba(255,238,180,.25)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', color: 'rgba(255,238,180,.9)',
+                    maxWidth:'100%', maxHeight:'100%',
+                    width:'auto', height:'auto',
+                    objectFit:'contain', display:'block',
+                    transform: hov ? 'scale(1.025)' : 'scale(1)',
+                    transition:'transform .7s ease',
                   }}
-                >
-                  <ZoomIn size={14} />
-                </button>
-              )}
-            </>
-          ) : (
-            <div style={{
-              width: '100%', height: '100%',
-              background: `
-                repeating-linear-gradient(0deg,  transparent,transparent 4px,rgba(255,238,180,.016) 4px,rgba(255,238,180,.016) 5px),
-                repeating-linear-gradient(90deg, transparent,transparent 4px,rgba(255,238,180,.010) 4px,rgba(255,238,180,.010) 5px),
-                #0e0b08
-              `,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <div style={{
-                width: 24, height: 24, opacity: .14, position: 'relative',
+                  draggable={false}
+                />
+                {hov && (
+                  <button
+                    onClick={() => onZoom(url)}
+                    style={{
+                      position:'absolute', top:8, right:8,
+                      width:30, height:30, borderRadius:'50%',
+                      background:'rgba(0,0,0,.72)',
+                      border:'1px solid rgba(255,218,120,.35)',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      cursor:'pointer', color:'rgba(255,218,120,.9)',
+                    }}
+                  >
+                    <ZoomIn size={13} />
+                  </button>
+                )}
+              </>
+            ) : (
+              <div style={{ width:'100%', height:'100%', background:'#0e0b06',
+                display:'flex', alignItems:'center', justifyContent:'center',
               }}>
-                <div style={{ position:'absolute',left:11,top:0,width:2,height:24,background:'rgba(255,238,180,1)' }} />
-                <div style={{ position:'absolute',top:11,left:0,width:24,height:2,background:'rgba(255,238,180,1)' }} />
+                <div style={{ fontSize:22, color:'rgba(201,165,80,.18)', fontWeight:100 }}>+</div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
+      {/* Corner ornaments */}
+      {[
+        { top:2, left:2 },
+        { top:2, right:2 },
+        { bottom:2, left:2 },
+        { bottom:2, right:2 },
+      ].map((s, i) => (
+        <div key={i} style={{
+          position:'absolute', ...s, width:14, height:14,
+          background:'radial-gradient(circle at 50% 50%,#f0c860,#8b6218)',
+          boxShadow:'0 0 4px rgba(240,200,96,.4)',
+          zIndex:1,
+        }} />
+      ))}
+
+      {/* Drop shadow for 3-D depth */}
+      <div style={{
+        position:'absolute', inset:0, pointerEvents:'none',
+        boxShadow: hov
+          ? '0 30px 90px rgba(0,0,0,.95), 0 8px 30px rgba(0,0,0,.8)'
+          : '0 18px 60px rgba(0,0,0,.9),  0 4px 16px rgba(0,0,0,.7)',
+        transition:'box-shadow .4s',
+      }} />
+
       {/* Placard */}
       <div style={{
-        position: 'absolute', top: 'calc(100% + 12px)', left: '50%',
-        transform: 'translateX(-50%)', minWidth: 90, maxWidth: pos.w * .7,
-        padding: '5px 11px', textAlign: 'center',
-        background: 'rgba(8,6,4,.93)',
-        borderTop: '1px solid rgba(255,238,180,.08)',
+        position:'absolute', top:'calc(100% + 14px)', left:'50%',
+        transform:'translateX(-50%)', minWidth:80, maxWidth:pos.w * .65,
+        padding:'5px 14px', textAlign:'center',
+        background:'rgba(6,5,3,.92)',
+        borderTop:'2px solid rgba(201,165,80,.35)',
+        border:'1px solid rgba(201,165,80,.15)',
+        boxShadow:'0 4px 20px rgba(0,0,0,.7)',
       }}>
         <div style={{
-          fontFamily: 'Georgia,serif', fontSize: 9, letterSpacing: '.18em',
-          textTransform: 'uppercase', whiteSpace: 'nowrap',
-          overflow: 'hidden', textOverflow: 'ellipsis',
-          color: artwork?.title ? 'rgba(255,238,180,.5)' : 'rgba(255,238,180,.13)',
+          fontFamily:'Georgia,serif', fontSize:9.5, letterSpacing:'.2em',
+          textTransform:'uppercase', whiteSpace:'nowrap',
+          overflow:'hidden', textOverflow:'ellipsis',
+          color: artwork?.title ? 'rgba(201,165,80,.65)' : 'rgba(201,165,80,.14)',
         }}>
           {artwork?.title ?? '· · ·'}
         </div>
@@ -185,71 +214,93 @@ function Frame({
   )
 }
 
-// ── Wall panel ─────────────────────────────────────────────────────────────────
+// ── Wall ───────────────────────────────────────────────────────────────────────
 function Wall({
-  ws, frames, artworks, onZoom, ebruId,
+  ws, frames, artworks, onZoom,
 }: {
   ws: React.CSSProperties
   frames: typeof BACK_FRAMES
   artworks: (Artwork | null)[]
   onZoom: (url: string) => void
-  ebruId: string
 }) {
   return (
     <div style={ws}>
-      {/* ── Ebru marbling texture ── */}
-      <div style={{ position:'absolute', inset:0, overflow:'hidden', pointerEvents:'none', zIndex:0 }}>
-        <div style={{
-          position:'absolute', inset:-80,
-          backgroundImage:`repeating-linear-gradient(
-            14deg,
-            #04110e 0px,   #04110e 28px,
-            #023830 28px,  #023830 46px,
-            #005858 46px,  #005858 60px,
-            #007A8A 60px,  #007A8A 68px,
-            #00AAC8 68px,  #00AAC8 72px,
-            #007A8A 72px,  #007A8A 80px,
-            #023830 80px,  #023830 96px,
-            #04110e 96px,  #04110e 136px,
-            #4a1600 136px, #4a1600 154px,
-            #7a2c12 154px, #7a2c12 168px,
-            #b84820 168px, #b84820 178px,
-            #d96530 178px, #d96530 183px,
-            #b84820 183px, #b84820 194px,
-            #4a1600 194px, #4a1600 210px,
-            #04110e 210px, #04110e 250px
-          )`,
-          filter:`url(#${ebruId})`,
-          opacity:0.20,
-        }} />
-      </div>
+      {/* Deep stone base */}
+      <div style={{ position:'absolute', inset:0, pointerEvents:'none',
+        background:`
+          radial-gradient(ellipse 130% 60% at 50% 0%,  #1c2438 0%,  transparent 55%),
+          radial-gradient(ellipse 100% 40% at 50% 100%,#0a0d14 0%,  transparent 50%),
+          linear-gradient(175deg,#121926 0%,#0d1320 40%,#111825 70%,#0a0e18 100%)
+        `,
+      }} />
 
-      {/* Ambient upper light */}
-      <div style={{ position:'absolute',inset:0,pointerEvents:'none',zIndex:1,
-        background:'linear-gradient(180deg,rgba(255,238,180,.04) 0%,transparent 60%)' }} />
+      {/* Subtle horizontal stone lines */}
+      <div style={{ position:'absolute', inset:0, pointerEvents:'none', opacity:0.04,
+        backgroundImage:`repeating-linear-gradient(
+          0deg, transparent 0px, transparent 7px,
+          rgba(180,190,210,.5) 7px, rgba(180,190,210,.5) 8px
+        )`,
+      }} />
+
+      {/* Crown molding top */}
+      <div style={{ position:'absolute', top:0, left:0, right:0, height:38, pointerEvents:'none',
+        background:'linear-gradient(180deg,rgba(201,165,80,.16),rgba(201,165,80,.05) 55%,transparent)',
+        borderBottom:'1px solid rgba(201,165,80,.28)',
+      }} />
+      <div style={{ position:'absolute', top:38, left:0, right:0, height:6, pointerEvents:'none',
+        background:'linear-gradient(180deg,rgba(201,165,80,.08),transparent)',
+      }} />
+
+      {/* Dado rail at 42% */}
+      <div style={{ position:'absolute', top:'42%', left:0, right:0, height:4, pointerEvents:'none',
+        background:'linear-gradient(180deg,rgba(201,165,80,.22),rgba(201,165,80,.12))',
+        boxShadow:'0 3px 0 rgba(0,0,0,.65), 0 -1px 0 rgba(0,0,0,.4)',
+      }} />
+      <div style={{ position:'absolute', top:'calc(42% + 12px)', left:0, right:0, height:1, pointerEvents:'none',
+        background:'rgba(201,165,80,.07)',
+      }} />
+
+      {/* Wainscoting lower section — slightly darker */}
+      <div style={{ position:'absolute', top:'42%', left:0, right:0, bottom:52, pointerEvents:'none',
+        background:'linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,.28))',
+      }} />
+
+      {/* Baseboard */}
+      <div style={{ position:'absolute', bottom:0, left:0, right:0, height:52, pointerEvents:'none',
+        background:'linear-gradient(180deg,transparent,rgba(0,0,0,.82))',
+        borderTop:'1px solid rgba(201,165,80,.18)',
+      }} />
+      <div style={{ position:'absolute', bottom:48, left:0, right:0, height:1, pointerEvents:'none',
+        background:'rgba(201,165,80,.06)',
+      }} />
+
+      {/* Ambient ceiling light */}
+      <div style={{ position:'absolute', inset:0, pointerEvents:'none',
+        background:'linear-gradient(180deg,rgba(220,195,140,.07) 0%,transparent 22%)',
+      }} />
+
       {/* Floor shadow */}
-      <div style={{ position:'absolute',bottom:0,left:0,right:0,height:'28%',pointerEvents:'none',zIndex:1,
-        background:'linear-gradient(0deg,rgba(0,0,0,.6),transparent)' }} />
-      <div style={{ position:'relative', zIndex:2 }}>
-        {frames.map((f, i) => (
-          <Frame key={i} artwork={artworks[i]} pos={f} onZoom={onZoom} />
-        ))}
-      </div>
+      <div style={{ position:'absolute', bottom:0, left:0, right:0, height:'26%', pointerEvents:'none',
+        background:'linear-gradient(0deg,rgba(0,0,0,.72),transparent)',
+      }} />
+
+      {frames.map((f, i) => (
+        <Frame key={i} artwork={artworks[i]} pos={f} onZoom={onZoom} />
+      ))}
     </div>
   )
 }
 
-// ── Main component ─────────────────────────────────────────────────────────────
+// ── Main ───────────────────────────────────────────────────────────────────────
 export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
-  const [rotY,    setRotY]    = useState(0)   // room Y rotation (degrees)
-  const [camZ,    setCamZ]    = useState(0)   // camera Z translation
-  const [room,    setRoom]    = useState(0)   // room index
+  const [rotY,    setRotY]    = useState(0)
+  const [camZ,    setCamZ]    = useState(0)
+  const [room,    setRoom]    = useState(0)
   const [zoomed,  setZoomed]  = useState<string | null>(null)
   const [visible, setVisible] = useState(false)
 
-  // Drag state
   const dragRef    = useRef<{ x: number; baseRot: number } | null>(null)
-  const [liveRot,  setLiveRot]  = useState(0)   // extra rotation while dragging
+  const [liveRot,  setLiveRot]  = useState(0)
   const [dragging, setDragging] = useState(false)
 
   const imgs       = artworks.filter(a => a.media?.[0]?.url)
@@ -260,13 +311,11 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
     [imgs, room]
   )
 
-  // Snap rotation to nearest 0 / ±90 / ±180
   const snap = useCallback((r: number) => {
     const positions = [-180, -90, 0, 90, 180]
     return positions.reduce((a, b) => (Math.abs(b - r) < Math.abs(a - r) ? b : a))
   }, [])
 
-  // ── Drag / swipe handlers ──────────────────────────────────────────────────
   const onDragStart = useCallback((clientX: number) => {
     dragRef.current = { x: clientX, baseRot: rotY }
     setDragging(true)
@@ -274,22 +323,16 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
 
   const onDragMove = useCallback((clientX: number) => {
     if (!dragRef.current) return
-    const delta = dragRef.current.x - clientX
-    // ~300 px drag = 90°
-    setLiveRot(delta * 0.3)
+    setLiveRot((dragRef.current.x - clientX) * 0.3)
   }, [])
 
   const onDragEnd = useCallback(() => {
     if (!dragRef.current) return
     const finalRot = dragRef.current.baseRot + liveRot
     const snapped  = Math.max(-90, Math.min(90, snap(finalRot)))
-    setRotY(snapped)
-    setLiveRot(0)
-    setDragging(false)
-    dragRef.current = null
+    setRotY(snapped); setLiveRot(0); setDragging(false); dragRef.current = null
   }, [liveRot, snap])
 
-  // Mouse events on the scene
   const onMouseDown  = useCallback((e: React.MouseEvent)  => onDragStart(e.clientX), [onDragStart])
   const onMouseMove  = useCallback((e: React.MouseEvent)  => onDragMove(e.clientX),  [onDragMove])
   const onMouseUp    = useCallback(                         onDragEnd,                [onDragEnd])
@@ -302,7 +345,6 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
   const walkIn  = useCallback(() => setCamZ(z => Math.min(z + STEP, MAX_Z)), [])
   const walkOut = useCallback(() => setCamZ(z => Math.max(z - STEP, 0)),    [])
 
-  // ── Keyboard ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return
     const kd = (e: KeyboardEvent) => {
@@ -334,13 +376,9 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
   const viewDir      = effectiveRot > 45 ? 'left' : effectiveRot < -45 ? 'right' : 'center'
   const walkPct      = Math.round((camZ / MAX_Z) * 100)
 
-  // ── Wall base style ────────────────────────────────────────────────────────
-  // Room container is RW×RH, absolutely centered in viewport.
-  // Walls are children using transformOrigin for correct 3D placement.
   const wallBase: React.CSSProperties = {
     position: 'absolute',
     overflow: 'visible',
-    background: 'linear-gradient(165deg,#1a2220 0%,#111916 50%,#0c1210 100%)',
   }
 
   const VIEWS: Record<string, string> = { left:'Sol Duvar', center:'Ön Duvar', right:'Sağ Duvar' }
@@ -348,13 +386,14 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
   return (
     <>
       <style>{CSS}</style>
+
       <div
         style={{
-          position: 'fixed', inset: 0, zIndex: 100,
-          background: '#0d0b08', overflow: 'hidden', userSelect: 'none',
-          opacity: visible ? 1 : 0, transition: 'opacity .5s ease',
+          position:'fixed', inset:0, zIndex:100,
+          background:'radial-gradient(ellipse 110% 90% at 50% 60%, #0d1220 0%, #060810 100%)',
+          overflow:'hidden', userSelect:'none',
+          opacity: visible ? 1 : 0, transition:'opacity .6s ease',
           cursor: dragging ? 'grabbing' : 'grab',
-          animation: visible ? 'gIn .5s ease both' : 'none',
         }}
         onMouseDown={onMouseDown}
         onMouseMove={dragging ? onMouseMove : undefined}
@@ -366,210 +405,212 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
       >
         {/* Vignette */}
         <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 6,
-          background: 'radial-gradient(ellipse 90% 90% at 50% 50%, transparent 40%, rgba(0,0,0,.7) 100%)',
+          position:'absolute', inset:0, pointerEvents:'none', zIndex:6,
+          background:'radial-gradient(ellipse 88% 88% at 50% 50%, transparent 38%, rgba(0,0,0,.75) 100%)',
         }} />
 
-        {/* ── Header ── */}
+        {/* ── Header HUD ── */}
         <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '18px 26px 14px',
-          background: 'linear-gradient(180deg,rgba(8,6,4,.9),transparent)',
-          pointerEvents: 'none',
+          position:'absolute', top:0, left:0, right:0, zIndex:20,
+          display:'flex', alignItems:'center', justifyContent:'space-between',
+          padding:'16px 28px 12px',
+          background:'linear-gradient(180deg,rgba(6,8,16,.88),transparent)',
+          pointerEvents:'none',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ color:'rgba(255,238,180,.3)', fontSize:10, letterSpacing:'.3em', textTransform:'uppercase', fontWeight:300 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+            <span style={{
+              color:'rgba(201,165,80,.4)', fontSize:10, letterSpacing:'.35em',
+              textTransform:'uppercase', fontFamily:'Georgia,serif',
+            }}>
               Sergi Turu
             </span>
-            <span style={{ width:1, height:10, background:'rgba(255,238,180,.15)' }} />
-            <span style={{ color:'rgba(255,238,180,.22)', fontSize:9.5, letterSpacing:'.18em' }}>
+            <span style={{ width:1, height:10, background:'rgba(201,165,80,.18)' }} />
+            <span style={{ color:'rgba(201,165,80,.28)', fontSize:9.5, letterSpacing:'.2em' }}>
               {VIEWS[viewDir]}
             </span>
             {totalRooms > 1 && (
-              <span style={{ color:'rgba(255,238,180,.14)', fontSize:9.5, marginLeft:4 }}>
+              <span style={{ color:'rgba(201,165,80,.16)', fontSize:9.5 }}>
                 {room + 1} / {totalRooms}
               </span>
             )}
           </div>
-          {/* drag hint */}
-          <span style={{ color:'rgba(255,238,180,.18)', fontSize:9, letterSpacing:'.12em' }}>
+          <span style={{ color:'rgba(201,165,80,.2)', fontSize:9, letterSpacing:'.14em' }}>
             ← sürükle →
           </span>
         </div>
 
-        {/* Close button (pointer-events re-enabled) */}
+        {/* Close */}
         <button
           onClick={onClose}
           onMouseDown={e => e.stopPropagation()}
           style={{
-            position: 'absolute', top: 16, right: 22, zIndex: 25,
-            background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,238,180,.12)',
-            borderRadius: '50%', width: 34, height: 34,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', color: 'rgba(255,238,180,.45)', transition: 'all .2s',
+            position:'absolute', top:14, right:22, zIndex:25,
+            background:'rgba(255,255,255,.04)', border:'1px solid rgba(201,165,80,.15)',
+            borderRadius:'50%', width:34, height:34,
+            display:'flex', alignItems:'center', justifyContent:'center',
+            cursor:'pointer', color:'rgba(201,165,80,.45)', transition:'all .2s',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,.1)'; e.currentTarget.style.color='rgba(255,238,180,.9)' }}
-          onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,.05)'; e.currentTarget.style.color='rgba(255,238,180,.45)' }}
+          onMouseEnter={e => { e.currentTarget.style.background='rgba(201,165,80,.1)'; e.currentTarget.style.color='rgba(201,165,80,.95)' }}
+          onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,.04)'; e.currentTarget.style.color='rgba(201,165,80,.45)' }}
         >
-          <X size={15} />
+          <X size={14} />
         </button>
-
-        {/* ── SVG ebru filter defs (hidden) ── */}
-        <svg style={{ position:'absolute', width:0, height:0, overflow:'hidden' }} aria-hidden>
-          <defs>
-            {(['ebru-back','ebru-left','ebru-right'] as const).map((id, i) => (
-              <filter key={id} id={id} x="-50%" y="-50%" width="200%" height="200%" colorInterpolationFilters="linearRGB">
-                <feTurbulence type="turbulence" baseFrequency="0.0028 0.0012" numOctaves="4" seed={i * 13 + 7} result="noise"/>
-                <feDisplacementMap in="SourceGraphic" in2="noise" scale="90" xChannelSelector="R" yChannelSelector="G"/>
-              </filter>
-            ))}
-          </defs>
-        </svg>
 
         {/* ── 3-D Scene ── */}
         <div style={{
-          position: 'absolute', inset: 0,
-          perspective: `${P}px`, perspectiveOrigin: '50% 42%',
+          position:'absolute', inset:0,
+          perspective:`${P}px`, perspectiveOrigin:'50% 44%',
         }}>
-          {/* Room container — centred, rotates & walks */}
           <div style={{
-            position: 'absolute',
-            left: `calc(50% - ${RW / 2}px)`,
-            top:  `calc(50% - ${RH / 2}px)`,
-            width: RW, height: RH,
-            transformStyle: 'preserve-3d',
-            transform: `translateZ(${camZ}px) rotateY(${-effectiveRot}deg)`,
-            transition: dragging ? 'none' : 'transform .75s cubic-bezier(.4,0,.15,1)',
+            position:'absolute',
+            left:`calc(50% - ${RW / 2}px)`,
+            top: `calc(50% - ${RH / 2}px)`,
+            width:RW, height:RH,
+            transformStyle:'preserve-3d',
+            transform:`translateZ(${camZ}px) rotateY(${-effectiveRot}deg)`,
+            transition: dragging ? 'none' : 'transform .78s cubic-bezier(.4,0,.15,1)',
           }}>
 
             {/* ── BACK WALL ── */}
             <Wall
-              ws={{ ...wallBase, left: 0, top: 0, width: RW, height: RH,
-                    transform: `translateZ(-${RD}px)` }}
+              ws={{ ...wallBase, left:0, top:0, width:RW, height:RH,
+                    transform:`translateZ(-${RD}px)` }}
               frames={BACK_FRAMES}
               artworks={wallArts(0)}
               onZoom={setZoomed}
-              ebruId="ebru-back"
             />
 
-            {/* ── LEFT WALL ── (transformOrigin left centre → extends into room at Z<0) */}
+            {/* ── LEFT WALL ── */}
             <Wall
-              ws={{ ...wallBase, left: 0, top: 0, width: RD, height: RH,
-                    transformOrigin: 'left center',
-                    transform: 'rotateY(90deg)' }}
+              ws={{ ...wallBase, left:0, top:0, width:RD, height:RH,
+                    transformOrigin:'left center', transform:'rotateY(90deg)' }}
               frames={SIDE_FRAMES}
               artworks={wallArts(1)}
               onZoom={setZoomed}
-              ebruId="ebru-left"
             />
 
             {/* ── RIGHT WALL ── */}
             <Wall
-              ws={{ ...wallBase, right: 0, left: 'auto', top: 0, width: RD, height: RH,
-                    transformOrigin: 'right center',
-                    transform: 'rotateY(-90deg)' }}
+              ws={{ ...wallBase, right:0, left:'auto', top:0, width:RD, height:RH,
+                    transformOrigin:'right center', transform:'rotateY(-90deg)' }}
               frames={SIDE_FRAMES}
               artworks={wallArts(2)}
               onZoom={setZoomed}
-              ebruId="ebru-right"
             />
 
-            {/* ── FLOOR ── */}
+            {/* ── FLOOR ── dark polished marble */}
             <div style={{
-              position: 'absolute', bottom: 0, left: 0, width: RW, height: RD,
-              transformOrigin: 'bottom center', transform: 'rotateX(-90deg)',
-              background: `
-                repeating-linear-gradient(90deg,transparent,transparent 89px,rgba(255,255,255,.02) 89px,rgba(255,255,255,.02) 90px),
-                linear-gradient(to bottom,#291e0f,#100b05)
+              position:'absolute', bottom:0, left:0, width:RW, height:RD,
+              transformOrigin:'bottom center', transform:'rotateX(-90deg)',
+              background:`
+                repeating-linear-gradient(86deg,transparent 0px,transparent 59px,rgba(255,255,255,.012) 59px,rgba(255,255,255,.012) 61px),
+                repeating-linear-gradient( 4deg,transparent 0px,transparent 59px,rgba(255,255,255,.007) 59px,rgba(255,255,255,.007) 61px),
+                linear-gradient(to bottom,#0d1218,#080b10)
               `,
             }}>
-              {/* Floor glow puddles */}
+              <div style={{ position:'absolute', inset:0,
+                background:'radial-gradient(ellipse 90% 50% at 50% 0%, rgba(201,165,80,.04), transparent 70%)',
+              }} />
               {BACK_FRAMES.map((f, i) => (
                 <div key={i} style={{
-                  position:'absolute',top:0,
-                  left:f.left + f.w/2, transform:'translateX(-50%)',
-                  width:f.w*2.2, height:200,
-                  background:'radial-gradient(ellipse at 50% 0%, rgba(255,238,180,.08), transparent 70%)',
+                  position:'absolute', top:0,
+                  left: f.left + f.w / 2, transform:'translateX(-50%)',
+                  width: f.w * 2.4, height: 240,
+                  background:'radial-gradient(ellipse at 50% 0%, rgba(255,200,90,.08), transparent 70%)',
                   pointerEvents:'none',
                 }} />
               ))}
             </div>
 
-            {/* ── CEILING ── */}
+            {/* ── CEILING ── track lighting */}
             <div style={{
-              position: 'absolute', top: 0, left: 0, width: RW, height: RD,
-              transformOrigin: 'top center', transform: 'rotateX(90deg)',
-              background: 'linear-gradient(to bottom,#060504,#0e0a07)',
+              position:'absolute', top:0, left:0, width:RW, height:RD,
+              transformOrigin:'top center', transform:'rotateX(90deg)',
+              background:'linear-gradient(to bottom,#05070d,#080b12)',
             }}>
-              {/* Ceiling spot sources */}
+              {/* Track rail */}
+              <div style={{ position:'absolute', bottom:10, left:0, right:0, height:2,
+                background:'linear-gradient(90deg,transparent 2%,rgba(201,165,80,.14) 10%,rgba(201,165,80,.14) 90%,transparent 98%)',
+              }} />
               {BACK_FRAMES.map((f, i) => (
-                <div key={i} style={{
-                  position:'absolute', bottom:0,
-                  left:f.left + f.w/2, transform:'translateX(-50%)',
-                  width:f.w*2, height:110,
-                  background:'radial-gradient(ellipse at 50% 100%, rgba(255,238,180,.2), transparent 70%)',
-                  animation:`spotBreath ${4+i*.7}s ease-in-out infinite`,
-                  animationDelay:`${i*1.1}s`,
-                  pointerEvents:'none',
-                }} />
+                <div key={i}>
+                  {/* Track light bulb */}
+                  <div style={{
+                    position:'absolute', bottom:6,
+                    left: f.left + f.w / 2, transform:'translateX(-50%)',
+                    width:12, height:12, borderRadius:'50%',
+                    background:'rgba(255,235,180,.95)',
+                    boxShadow:'0 0 16px 6px rgba(255,215,120,.7), 0 0 50px 18px rgba(255,190,80,.35)',
+                    animation:`trackGlow ${3+i*.6}s ease-in-out infinite`,
+                    animationDelay:`${i*.9}s`,
+                  }} />
+                  {/* Light cone to back wall */}
+                  <div style={{
+                    position:'absolute', bottom:0,
+                    left: f.left + f.w / 2, transform:'translateX(-50%)',
+                    width: f.w * 2.4, height: RD,
+                    background:'radial-gradient(ellipse 34% 100% at 50% 0%, rgba(255,218,120,.20), transparent 68%)',
+                    animation:`spotBreath ${4+i*.7}s ease-in-out infinite`,
+                    animationDelay:`${i*1.1}s`,
+                    pointerEvents:'none',
+                  }} />
+                </div>
               ))}
             </div>
 
-          </div>{/* /room */}
+          </div>
         </div>
 
         {/* ── Rotation arrows ── */}
         {[
-          { side:'left',  label:'‹', fn: goLeft,  Icon: ChevronLeft  },
-          { side:'right', label:'›', fn: goRight, Icon: ChevronRight },
+          { side:'left',  fn:goLeft,  Icon:ChevronLeft  },
+          { side:'right', fn:goRight, Icon:ChevronRight },
         ].map(({ side, fn, Icon }) => (
           <button
             key={side}
             onClick={fn}
             onMouseDown={e => e.stopPropagation()}
             style={{
-              position:'absolute', [side]:20, top:'50%', transform:'translateY(-50%)',
-              zIndex:20, width:48, height:48, borderRadius:'50%',
-              background:'rgba(0,0,0,.5)', border:'1px solid rgba(255,238,180,.12)',
+              position:'absolute', [side]:18, top:'50%', transform:'translateY(-50%)',
+              zIndex:20, width:46, height:46, borderRadius:'50%',
+              background:'rgba(0,0,0,.52)', border:'1px solid rgba(201,165,80,.14)',
               display:'flex', alignItems:'center', justifyContent:'center',
-              cursor:'pointer', color:'rgba(255,238,180,.5)',
-              backdropFilter:'blur(10px)', transition:'all .2s',
+              cursor:'pointer', color:'rgba(201,165,80,.5)',
+              backdropFilter:'blur(10px)', transition:'all .25s',
             }}
-            onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,.09)';e.currentTarget.style.borderColor='rgba(255,238,180,.35)';e.currentTarget.style.color='rgba(255,238,180,.95)'}}
-            onMouseLeave={e=>{e.currentTarget.style.background='rgba(0,0,0,.5)';e.currentTarget.style.borderColor='rgba(255,238,180,.12)';e.currentTarget.style.color='rgba(255,238,180,.5)'}}
+            onMouseEnter={e => { e.currentTarget.style.background='rgba(201,165,80,.1)'; e.currentTarget.style.borderColor='rgba(201,165,80,.4)'; e.currentTarget.style.color='rgba(201,165,80,.95)' }}
+            onMouseLeave={e => { e.currentTarget.style.background='rgba(0,0,0,.52)'; e.currentTarget.style.borderColor='rgba(201,165,80,.14)'; e.currentTarget.style.color='rgba(201,165,80,.5)' }}
           >
-            <Icon size={22} />
+            <Icon size={20} />
           </button>
         ))}
 
         {/* ── Walk buttons ── */}
         <div style={{
-          position:'absolute', right:78, top:'50%', transform:'translateY(-50%)',
+          position:'absolute', right:72, top:'50%', transform:'translateY(-50%)',
           zIndex:20, display:'flex', flexDirection:'column', alignItems:'center', gap:5,
         }}>
-          {[{ Icon:ArrowUp, fn:walkIn }, { Icon:ArrowDown, fn:walkOut }].map(({Icon,fn},i)=>(
-            <button key={i} onClick={fn} onMouseDown={e=>e.stopPropagation()} style={{
-              width:36, height:36, borderRadius:'50%',
-              background:'rgba(0,0,0,.5)', border:'1px solid rgba(255,238,180,.1)',
+          {[{ Icon:ArrowUp, fn:walkIn }, { Icon:ArrowDown, fn:walkOut }].map(({ Icon, fn }, i) => (
+            <button key={i} onClick={fn} onMouseDown={e => e.stopPropagation()} style={{
+              width:34, height:34, borderRadius:'50%',
+              background:'rgba(0,0,0,.52)', border:'1px solid rgba(201,165,80,.12)',
               display:'flex', alignItems:'center', justifyContent:'center',
-              cursor:'pointer', color:'rgba(255,238,180,.45)', transition:'all .2s',
+              cursor:'pointer', color:'rgba(201,165,80,.45)', transition:'all .2s',
             }}
-            onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,.09)';e.currentTarget.style.color='rgba(255,238,180,.9)'}}
-            onMouseLeave={e=>{e.currentTarget.style.background='rgba(0,0,0,.5)';e.currentTarget.style.color='rgba(255,238,180,.45)'}}
+            onMouseEnter={e => { e.currentTarget.style.background='rgba(201,165,80,.1)'; e.currentTarget.style.color='rgba(201,165,80,.9)' }}
+            onMouseLeave={e => { e.currentTarget.style.background='rgba(0,0,0,.52)'; e.currentTarget.style.color='rgba(201,165,80,.45)' }}
             >
-              <Icon size={14}/>
+              <Icon size={13} />
             </button>
           ))}
-          {/* Walk progress */}
-          <div style={{ width:2, height:36, background:'rgba(255,238,180,.1)', borderRadius:1, overflow:'hidden', margin:'2px 0' }}>
-            <div style={{ width:'100%', height:`${walkPct}%`, background:'rgba(255,238,180,.5)', transition:'height .3s', marginTop:`${100-walkPct}%` }} />
+          <div style={{ width:2, height:34, background:'rgba(201,165,80,.1)', borderRadius:1, overflow:'hidden', margin:'2px 0' }}>
+            <div style={{ width:'100%', height:`${walkPct}%`, background:'rgba(201,165,80,.55)', transition:'height .3s', marginTop:`${100-walkPct}%` }} />
           </div>
         </div>
 
         {/* ── Bottom UI ── */}
         <div style={{
-          position:'absolute', bottom:24, left:0, right:0, zIndex:20,
+          position:'absolute', bottom:22, left:0, right:0, zIndex:20,
           display:'flex', flexDirection:'column', alignItems:'center', gap:10,
           pointerEvents:'none',
         }}>
@@ -580,10 +621,10 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
                 onClick={() => { setRotY(deg); setCamZ(0) }}
                 onMouseDown={e => e.stopPropagation()}
                 style={{
-                  width: Math.abs(effectiveRot - deg) < 46 ? 26 : 6,
-                  height: 6, borderRadius: 3, border: 'none', padding: 0,
-                  background: Math.abs(effectiveRot - deg) < 46 ? 'rgba(255,238,180,.65)' : 'rgba(255,255,255,.2)',
-                  cursor: 'pointer', transition: 'all .35s',
+                  width: Math.abs(effectiveRot - deg) < 46 ? 24 : 6,
+                  height:6, borderRadius:3, border:'none', padding:0,
+                  background: Math.abs(effectiveRot - deg) < 46 ? 'rgba(201,165,80,.7)' : 'rgba(255,255,255,.18)',
+                  cursor:'pointer', transition:'all .35s',
                 }}
               />
             ))}
@@ -592,13 +633,13 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
           {totalRooms > 1 && (
             <div style={{ display:'flex', gap:8, pointerEvents:'auto' }}>
               {[
-                { label:'← Önceki', dis:room===0,              fn:()=>{setRoom(r=>r-1);setRotY(0);setCamZ(0)} },
-                { label:'Sonraki →', dis:room===totalRooms-1,  fn:()=>{setRoom(r=>r+1);setRotY(0);setCamZ(0)} },
-              ].map(({label,dis,fn})=>(
+                { label:'← Önceki', dis:room===0,             fn:()=>{setRoom(r=>r-1);setRotY(0);setCamZ(0)} },
+                { label:'Sonraki →', dis:room===totalRooms-1, fn:()=>{setRoom(r=>r+1);setRotY(0);setCamZ(0)} },
+              ].map(({ label, dis, fn }) => (
                 <button key={label} disabled={dis} onClick={fn} onMouseDown={e=>e.stopPropagation()} style={{
                   padding:'5px 14px', fontSize:9.5, letterSpacing:'.14em', textTransform:'uppercase',
-                  background:'rgba(0,0,0,.5)', border:'1px solid rgba(255,238,180,.12)',
-                  color: dis ? 'rgba(255,238,180,.14)' : 'rgba(255,238,180,.5)',
+                  background:'rgba(0,0,0,.5)', border:'1px solid rgba(201,165,80,.14)',
+                  color: dis ? 'rgba(201,165,80,.14)' : 'rgba(201,165,80,.5)',
                   cursor: dis ? 'default' : 'pointer', borderRadius:2, fontFamily:'Georgia,serif',
                 }}>
                   {label}
@@ -607,7 +648,7 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
             </div>
           )}
 
-          <p style={{ color:'rgba(255,238,180,.13)', fontSize:9, letterSpacing:'.16em', margin:0 }}>
+          <p style={{ color:'rgba(201,165,80,.14)', fontSize:9, letterSpacing:'.16em', margin:0 }}>
             ← sürükle → &nbsp;·&nbsp; W / S ileri-geri &nbsp;·&nbsp; ESC çıkış
           </p>
         </div>
@@ -625,13 +666,13 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
             }}
           >
             <button onClick={() => setZoomed(null)} style={{
-              position:'absolute', top:22, right:22,
-              background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,238,180,.14)',
-              borderRadius:'50%', width:38, height:38,
+              position:'absolute', top:20, right:20,
+              background:'rgba(255,255,255,.05)', border:'1px solid rgba(201,165,80,.15)',
+              borderRadius:'50%', width:36, height:36,
               display:'flex', alignItems:'center', justifyContent:'center',
-              cursor:'pointer', color:'rgba(255,238,180,.7)',
+              cursor:'pointer', color:'rgba(201,165,80,.7)',
             }}>
-              <X size={17}/>
+              <X size={15} />
             </button>
             <img
               src={zoomed} alt="Eser"
@@ -639,8 +680,8 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
               style={{
                 maxWidth:'90vw', maxHeight:'90vh',
                 objectFit:'contain', borderRadius:3,
-                boxShadow:'0 0 120px rgba(0,0,0,.95)',
-                border:'1px solid rgba(255,238,180,.09)',
+                boxShadow:'0 0 140px rgba(0,0,0,.95)',
+                border:'1px solid rgba(201,165,80,.1)',
               }}
               draggable={false}
             />
