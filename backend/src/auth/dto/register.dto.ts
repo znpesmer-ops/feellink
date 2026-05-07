@@ -5,6 +5,7 @@ import { Transform } from 'class-transformer';
 export class RegisterDto {
   @IsEmail({}, { message: 'Lütfen geçerli bir e-posta adresi girin.' })
   @IsNotEmpty({ message: 'E-posta adresi gereklidir' })
+  @Transform(({ value }) => value?.trim().toLowerCase())
   email: string;
 
   @IsString()

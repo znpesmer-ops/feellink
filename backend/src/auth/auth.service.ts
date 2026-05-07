@@ -1049,21 +1049,24 @@ export class AuthService {
     const { email } = dto;
     const normalized = email.trim().toLowerCase();
 
-    const user = await this.prisma.user.findUnique({
-      where: { email: normalized },
+    const user = await this.prisma.user.findFirst({
+      where: { email: { equals: normalized, mode: 'insensitive' } },
+      select: { id: true, email: true },
     });
     if (!user) {
       // Güvenlik: kullanıcı var mı yok mu belli olmasın
       return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.' };
     }
 
-    const { code, expiresAt } = await this.otpService.createOtp(normalized, OtpPurpose.password_reset);
+    // Veritabanındaki gerçek e-posta adresini kullan (kayıt sırasındaki format)
+    const actualEmail = user.email;
+    const { code, expiresAt } = await this.otpService.createOtp(actualEmail, OtpPurpose.password_reset);
 
     try {
-      await this.mailService.sendPasswordResetOtpMail(normalized, code);
-      this.logger.log(`✅ Password reset OTP sent to ${normalized}`);
+      await this.mailService.sendPasswordResetOtpMail(actualEmail, code);
+      this.logger.log(`✅ Password reset OTP sent to ${actualEmail}`);
     } catch (mailError: any) {
-      this.logger.error(`forgotPassword: mail gönderilemedi → ${normalized}: ${mailError?.message || mailError}`);
+      this.logger.error(`forgotPassword: mail gönderilemedi → ${actualEmail}: ${mailError?.message || mailError}`);
       throw new InternalServerErrorException(
         'Doğrulama kodu e-posta ile gönderilemedi. Lütfen birkaç dakika sonra tekrar deneyin.',
       );
@@ -1077,16 +1080,17 @@ export class AuthService {
 
   async verifyResetOtp(email: string, code: string) {
     const normalized = email.trim().toLowerCase();
+    // OTP tablosunda email normalized şekilde tutuluyor
     await this.otpService.verifyOtp(normalized, OtpPurpose.password_reset, code);
-    const user = await this.prisma.user.findUnique({
-      where: { email: normalized },
-      select: { id: true },
+    const user = await this.prisma.user.findFirst({
+      where: { email: { equals: normalized, mode: 'insensitive' } },
+      select: { id: true, email: true },
     });
     if (!user) {
       throw new UnauthorizedException('Kullanıcı bulunamadı.');
     }
     const resetToken = this.jwtService.sign(
-      { sub: user.id, email: normalized, purpose: 'password_reset' },
+      { sub: user.id, email: user.email, purpose: 'password_reset' },
       { expiresIn: '15m' },
     );
     return { resetToken };
