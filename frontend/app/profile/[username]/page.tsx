@@ -370,8 +370,8 @@ function ProfileContent() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const menuRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
 
-  // Profil isteği zaman aşımı (sonsuz loading önlenir)
-  const PROFILE_FETCH_TIMEOUT_MS = 12000
+  // Profil isteği zaman aşımı (sonsuz loading önlenir) — Vercel cold-start için 25s
+  const PROFILE_FETCH_TIMEOUT_MS = 25000
 
   // Get profile data
   const { data: profile, isLoading, error: profileError } = useQuery({
@@ -423,11 +423,12 @@ function ProfileContent() {
     },
     enabled: !!accessToken && (!!username || paramUsername === 'me'),
     retry: (failureCount, error: any) => {
-      if (error?.message?.includes('Zaman aşımı') || error?.message?.includes('Geçersiz') || error?.message?.includes('bulunamadı')) {
-        return false
-      }
+      if (error?.message?.includes('Geçersiz') || error?.message?.includes('bulunamadı')) return false
+      // Timeout: 1 otomatik retry (cold-start için)
+      if (error?.message?.includes('Zaman aşımı')) return failureCount < 1
       return failureCount < 2
     },
+    retryDelay: 1500,
     staleTime: STALE_SHORT,
     gcTime: GC_STANDARD,
   })
@@ -1007,16 +1008,17 @@ function ProfileContent() {
   // 🔥 KRİTİK: Hata durumunu göster
   if (profileError) {
     const errorMessage = profileError instanceof Error ? profileError.message : 'Bilinmeyen bir hata oluştu'
+    const isTimeout = errorMessage.includes('Zaman aşımı')
     return (
       <div className="text-center py-12">
         <div className="rounded-3xl border border-red-200 bg-red-50 px-6 py-8 text-center text-sm text-red-600 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
           <p className="font-semibold mb-2">Profil yüklenemedi</p>
-          <p className="text-xs mb-4">{errorMessage}</p>
+          <p className="text-xs mb-4">{isTimeout ? 'Sunucu yanıt vermedi. Lütfen sayfayı yenileyin.' : errorMessage}</p>
           <button
-            onClick={() => router.push('/profile/me')}
+            onClick={() => window.location.reload()}
             className="px-4 py-2 text-xs font-medium bg-brand-orange text-white rounded-xl hover:bg-brand-orange/90 transition"
           >
-            Profilime Git
+            Sayfayı Yenile
           </button>
         </div>
       </div>
