@@ -187,24 +187,50 @@ function Frame({
 
 // ── Wall panel ─────────────────────────────────────────────────────────────────
 function Wall({
-  ws, frames, artworks, onZoom,
+  ws, frames, artworks, onZoom, ebruId,
 }: {
   ws: React.CSSProperties
   frames: typeof BACK_FRAMES
   artworks: (Artwork | null)[]
   onZoom: (url: string) => void
+  ebruId: string
 }) {
   return (
     <div style={ws}>
+      {/* ── Ebru marbling texture ── */}
+      <div style={{ position:'absolute', inset:0, overflow:'hidden', pointerEvents:'none', zIndex:0 }}>
+        <div style={{
+          position:'absolute', inset:-80,
+          backgroundImage:`repeating-linear-gradient(
+            8deg,
+            #030c0a 0px,   #030c0a 20px,
+            #004D40 20px,  #004D40 21.5px,
+            #007A7A 21.5px,#007A7A 22.5px,
+            #00ACC1 22.5px,#00ACC1 23.5px,
+            #030c0a 23.5px,#030c0a 42px,
+            #8B2500 42px,  #8B2500 43px,
+            #D4400B 43px,  #D4400B 44px,
+            #E8642A 44px,  #E8642A 45px,
+            #FF8F00 45px,  #FF8F00 46px,
+            #8B2500 46px,  #8B2500 47px,
+            #030c0a 47px,  #030c0a 68px
+          )`,
+          filter:`url(#${ebruId})`,
+          opacity:0.28,
+        }} />
+      </div>
+
       {/* Ambient upper light */}
-      <div style={{ position:'absolute',inset:0,pointerEvents:'none',
+      <div style={{ position:'absolute',inset:0,pointerEvents:'none',zIndex:1,
         background:'linear-gradient(180deg,rgba(255,238,180,.04) 0%,transparent 60%)' }} />
       {/* Floor shadow */}
-      <div style={{ position:'absolute',bottom:0,left:0,right:0,height:'28%',pointerEvents:'none',
+      <div style={{ position:'absolute',bottom:0,left:0,right:0,height:'28%',pointerEvents:'none',zIndex:1,
         background:'linear-gradient(0deg,rgba(0,0,0,.6),transparent)' }} />
-      {frames.map((f, i) => (
-        <Frame key={i} artwork={artworks[i]} pos={f} onZoom={onZoom} />
-      ))}
+      <div style={{ position:'relative', zIndex:2 }}>
+        {frames.map((f, i) => (
+          <Frame key={i} artwork={artworks[i]} pos={f} onZoom={onZoom} />
+        ))}
+      </div>
     </div>
   )
 }
@@ -385,6 +411,18 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
           <X size={15} />
         </button>
 
+        {/* ── SVG ebru filter defs (hidden) ── */}
+        <svg style={{ position:'absolute', width:0, height:0, overflow:'hidden' }} aria-hidden>
+          <defs>
+            {(['ebru-back','ebru-left','ebru-right'] as const).map((id, i) => (
+              <filter key={id} id={id} x="-40%" y="-40%" width="180%" height="180%" colorInterpolationFilters="sRGB">
+                <feTurbulence type="turbulence" baseFrequency="0.0055 0.0025" numOctaves="7" seed={i * 19 + 5} result="noise"/>
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="300" xChannelSelector="R" yChannelSelector="G"/>
+              </filter>
+            ))}
+          </defs>
+        </svg>
+
         {/* ── 3-D Scene ── */}
         <div style={{
           position: 'absolute', inset: 0,
@@ -408,6 +446,7 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
               frames={BACK_FRAMES}
               artworks={wallArts(0)}
               onZoom={setZoomed}
+              ebruId="ebru-back"
             />
 
             {/* ── LEFT WALL ── (transformOrigin left centre → extends into room at Z<0) */}
@@ -418,6 +457,7 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
               frames={SIDE_FRAMES}
               artworks={wallArts(1)}
               onZoom={setZoomed}
+              ebruId="ebru-left"
             />
 
             {/* ── RIGHT WALL ── */}
@@ -428,6 +468,7 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
               frames={SIDE_FRAMES}
               artworks={wallArts(2)}
               onZoom={setZoomed}
+              ebruId="ebru-right"
             />
 
             {/* ── FLOOR ── */}
