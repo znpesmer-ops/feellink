@@ -718,20 +718,24 @@ function MessagesContent() {
       
       console.log(`✅ [loadMessages] Loaded ${loadedMessages.length} messages`)
       
-      // 🔍 Yeni mesaj var mı kontrol et (duplicate eklemeyi önle)
       setMessages((prevMessages) => {
-        // Eğer mesaj sayısı değişmediyse ve içerik aynıysa güncelleme yapma
-        if (prevMessages.length === loadedMessages.length) {
+        // Pending (optimistic) mesajları koru — sunucuya henüz ulaşmamış olabilir
+        const pendingMessages = prevMessages.filter((m) => m.pending)
+        const serverIds = new Set(loadedMessages.map((m: Message) => m.id))
+        const stillPending = pendingMessages.filter((m) => !serverIds.has(m.id))
+
+        const merged = [...loadedMessages, ...stillPending]
+
+        // İçerik değişmemişse güncelleme yapma
+        if (merged.length === prevMessages.length) {
+          const lastMergedId = merged[merged.length - 1]?.id
           const lastPrevId = prevMessages[prevMessages.length - 1]?.id
-          const lastLoadedId = loadedMessages[loadedMessages.length - 1]?.id
-          if (lastPrevId === lastLoadedId) {
-            console.log(`⏭️ [loadMessages] No new messages, skipping update`)
+          if (lastMergedId === lastPrevId) {
             return prevMessages
           }
         }
-        
-        console.log(`🔄 [loadMessages] Updating messages (${prevMessages.length} -> ${loadedMessages.length})`)
-        return loadedMessages
+
+        return merged
       })
       
       scrollToBottom()
