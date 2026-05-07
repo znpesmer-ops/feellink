@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, NotFoundException, Logger, BadRequestException, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, NotFoundException, Logger, BadRequestException, ForbiddenException, InternalServerErrorException, HttpException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
@@ -262,6 +262,9 @@ export class AuthService {
         email: user.email,
       };
     } catch (err: any) {
+      // HttpException alt sınıflarını (InternalServerErrorException vb.) olduğu gibi ilet
+      if (err instanceof HttpException) throw err;
+
       // Prisma unique constraint (email/username zaten var)
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
         const target = (err.meta?.target as string[]) || [];
@@ -275,29 +278,9 @@ export class AuthService {
         throw new ConflictException('Bu bilgilerle kayıtlı bir kullanıcı zaten var');
       }
 
-      const errMessage =
-        typeof err?.message === 'string'
-          ? err.message
-          : err?.error?.message ?? err?.response?.data?.message ?? String(err);
-      const isDbError =
-        !errMessage ||
-        errMessage.includes('DATABASE_URL') ||
-        errMessage.includes("Can't reach") ||
-        errMessage.includes('connection') ||
-        errMessage.includes('ECONNREFUSED') ||
-        errMessage.includes('connect');
-      const isAuthFailed =
-        errMessage.includes('AuthenticationFailed') ||
-        errMessage.includes('bad auth') ||
-        errMessage.includes('SCRAM failure') ||
-        errMessage.includes('authentication failed');
-
-      this.logger.error(`[REGISTER] Error for ${email}:`, errMessage);
-
-      // Kullanıcıya yalnızca genel mesaj; teknik detay sadece log’ta
-      const userMessage =
-        'Kayıt işlemi şu anda tamamlanamıyor. Lütfen daha sonra tekrar deneyin.';
-      throw new BadRequestException(userMessage);
+      const errMessage = typeof err?.message === 'string' ? err.message : String(err);
+      this.logger.error(`[REGISTER] Beklenmeyen hata (${email}):`, errMessage);
+      throw new BadRequestException('Kayıt işlemi şu anda tamamlanamıyor. Lütfen daha sonra tekrar deneyin.');
     }
   }
 
@@ -315,8 +298,9 @@ export class AuthService {
   async verifySignupOtp(email: string, code: string) {
     const normalized = email.trim().toLowerCase();
     await this.otpService.verifyOtp(normalized, OtpPurpose.signup_verification, code);
-    const user = await this.prisma.user.findUnique({
-      where: { email: normalized },
+    // findFirst + mode:insensitive: OTP e-postası büyük/küçük harf farkından etkilenmesin
+    const user = await this.prisma.user.findFirst({
+      where: { email: { equals: normalized, mode: 'insensitive' } },
       select: { ...this.authSelect },
     });
     if (!user) {

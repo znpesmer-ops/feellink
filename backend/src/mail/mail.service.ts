@@ -176,7 +176,7 @@ export class MailService {
     const transport = this.transporter || this.ensureTransporter();
     if (!transport) {
       this.logger.error(
-        'Mail transporter yok. SMTP_USER ve SMTP_PASS (veya MAIL_USER/MAIL_PASS) Vercel env’de tanımlı mı? Production ortamı seçili mi? Redeploy yaptın mı?',
+        'Mail transporter yok. SMTP_USER ve SMTP_PASS (veya MAIL_USER/MAIL_PASS) Vercel env degiskenlerinde tanimli mi? Production ortami secili mi? Redeploy yaptin mi?',
       );
       throw new Error('Mail transporter not configured. Set SMTP_USER and SMTP_PASS in environment.');
     }
@@ -362,7 +362,7 @@ export class MailService {
 
     // Resend öncelikli
     if (this.resend) {
-      const mailFrom = process.env.MAIL_FROM || `"${mailFromName}" <onboarding@resend.dev>`;
+      const mailFrom = process.env.MAIL_FROM || `${mailFromName} <onboarding@resend.dev>`;
       const { error } = await this.resend.emails.send({ from: mailFrom, to, subject, text, html });
       if (error) {
         this.logger.error(`Resend signup OTP hatası: ${JSON.stringify(error)}`);
@@ -429,7 +429,7 @@ export class MailService {
 
     // Resend öncelikli
     if (this.resend) {
-      const mailFrom = process.env.MAIL_FROM || `"${mailFromName}" <onboarding@resend.dev>`;
+      const mailFrom = process.env.MAIL_FROM || `${mailFromName} <onboarding@resend.dev>`;
       const { error } = await this.resend.emails.send({ from: mailFrom, to, subject, text, html });
       if (error) {
         this.logger.error(`Resend password reset OTP hatası: ${JSON.stringify(error)}`);
