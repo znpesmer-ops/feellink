@@ -202,21 +202,25 @@ function Wall({
         <div style={{
           position:'absolute', inset:-80,
           backgroundImage:`repeating-linear-gradient(
-            8deg,
-            #030c0a 0px,   #030c0a 20px,
-            #004D40 20px,  #004D40 21.5px,
-            #007A7A 21.5px,#007A7A 22.5px,
-            #00ACC1 22.5px,#00ACC1 23.5px,
-            #030c0a 23.5px,#030c0a 42px,
-            #8B2500 42px,  #8B2500 43px,
-            #D4400B 43px,  #D4400B 44px,
-            #E8642A 44px,  #E8642A 45px,
-            #FF8F00 45px,  #FF8F00 46px,
-            #8B2500 46px,  #8B2500 47px,
-            #030c0a 47px,  #030c0a 68px
+            14deg,
+            #04110e 0px,   #04110e 28px,
+            #023830 28px,  #023830 46px,
+            #005858 46px,  #005858 60px,
+            #007A8A 60px,  #007A8A 68px,
+            #00AAC8 68px,  #00AAC8 72px,
+            #007A8A 72px,  #007A8A 80px,
+            #023830 80px,  #023830 96px,
+            #04110e 96px,  #04110e 136px,
+            #4a1600 136px, #4a1600 154px,
+            #7a2c12 154px, #7a2c12 168px,
+            #b84820 168px, #b84820 178px,
+            #d96530 178px, #d96530 183px,
+            #b84820 183px, #b84820 194px,
+            #4a1600 194px, #4a1600 210px,
+            #04110e 210px, #04110e 250px
           )`,
           filter:`url(#${ebruId})`,
-          opacity:0.28,
+          opacity:0.20,
         }} />
       </div>
 
@@ -336,7 +340,7 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
   const wallBase: React.CSSProperties = {
     position: 'absolute',
     overflow: 'visible',
-    background: 'linear-gradient(165deg,#2a2318 0%,#1e1a14 50%,#161210 100%)',
+    background: 'linear-gradient(165deg,#1a2220 0%,#111916 50%,#0c1210 100%)',
   }
 
   const VIEWS: Record<string, string> = { left:'Sol Duvar', center:'Ön Duvar', right:'Sağ Duvar' }
@@ -415,9 +419,9 @@ export function ArtGallery3D({ artworks, isOpen, onClose }: ArtGallery3DProps) {
         <svg style={{ position:'absolute', width:0, height:0, overflow:'hidden' }} aria-hidden>
           <defs>
             {(['ebru-back','ebru-left','ebru-right'] as const).map((id, i) => (
-              <filter key={id} id={id} x="-40%" y="-40%" width="180%" height="180%" colorInterpolationFilters="sRGB">
-                <feTurbulence type="turbulence" baseFrequency="0.0055 0.0025" numOctaves="7" seed={i * 19 + 5} result="noise"/>
-                <feDisplacementMap in="SourceGraphic" in2="noise" scale="300" xChannelSelector="R" yChannelSelector="G"/>
+              <filter key={id} id={id} x="-50%" y="-50%" width="200%" height="200%" colorInterpolationFilters="linearRGB">
+                <feTurbulence type="turbulence" baseFrequency="0.0028 0.0012" numOctaves="4" seed={i * 13 + 7} result="noise"/>
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="90" xChannelSelector="R" yChannelSelector="G"/>
               </filter>
             ))}
           </defs>
