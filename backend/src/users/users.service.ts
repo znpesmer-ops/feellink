@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, InternalServerErrorException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, InternalServerErrorException, Inject, forwardRef, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { ensureRoleAssignment, computeCapabilities, getRoleOverview, getSidebarVisibility } from '../roles/roles.utils';
@@ -82,13 +82,22 @@ export function getBadgesFromSelection(
 const SMS_VERIFICATION_ENABLED = false; // SMS doğrulama özelliği kapalı
 
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
     @Inject(forwardRef(() => NotificationsService))
     private notificationsService: NotificationsService,
   ) {}
+
+  async onModuleInit() {
+    try {
+      await this.prisma.$executeRaw`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "coverImage" TEXT`;
+      console.log('[UsersService] ✅ coverImage column ensured');
+    } catch (error: any) {
+      console.warn('[UsersService] coverImage column check skipped:', error?.message);
+    }
+  }
 
   async getProfile(username: string, currentUserId?: string) {
     try {
