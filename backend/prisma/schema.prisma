@@ -72,7 +72,7 @@ model User {
   gdprConsent               Boolean          @default(false)
   gdprConsentAt             DateTime?
   analyticsConsent          Boolean          @default(false)
-  showProfileColorSignature Boolean?         @default(true) // 🎨 Profil renk imzasını göster/gizle
+  showProfileColorSignature Boolean          @default(true) // 🎨 Profil renk imzasını göster/gizle
   termsAccepted             Boolean          @default(false) // ✅ Kullanıcı sözleşmesi onay durumu
   termsAcceptedAt           DateTime? // ✅ Kullanıcı sözleşmesi onay tarihi
   accountStatus             AccountStatus    @default(ACTIVE) // 🔒 Hesap durumu
