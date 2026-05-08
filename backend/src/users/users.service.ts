@@ -114,6 +114,7 @@ export class UsersService {
             fullName: true,
             bio: true,
             avatar: true,
+            coverImage: true,
             roles: true,
             plan: true,
             badges: true,
@@ -364,6 +365,7 @@ export class UsersService {
       ...userSafe,
       isAdmin: userIsAdmin, // ✅ isAdmin'i garantile (undefined ise false)
       avatar: transformAvatarUrl(user.avatar),
+      coverImage: transformAvatarUrl((user as any).coverImage),
       isFollowing,
       hasRequested,
       isOwnProfile,
@@ -488,6 +490,7 @@ export class UsersService {
         email: true,
         fullName: true,
         avatar: true,
+        coverImage: true,
         bio: true,
         website: true,
         roles: true,
@@ -604,6 +607,7 @@ export class UsersService {
       email: user.email,
       fullName: user.fullName,
       avatar: transformAvatarUrl(user.avatar),
+      coverImage: transformAvatarUrl((user as any).coverImage),
       bio: user.bio,
       website: user.website,
       roles: normalizedRoles,
@@ -765,7 +769,6 @@ export class UsersService {
     // 🔒 KRİTİK: Username ASLA güncellenmez - profil URL'ini korumak için
     // Username değişikliği ayrı bir endpoint'te yapılmalı (gelecekte)
     delete updateData.username; // Username'i updateData'dan tamamen kaldır
-    delete updateData.coverImage; // coverImage kolonu henüz production DB'de yok
 
     // Convert empty website string to null
     if (updateData.website === '' || updateData.website === undefined) {
@@ -846,6 +849,7 @@ export class UsersService {
         fullName: true,
         bio: true,
         avatar: true,
+        coverImage: true,
         isPrivate: true,
         isVerified: true,
         website: true,

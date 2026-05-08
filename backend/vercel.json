@@ -1,7 +1,7 @@
 {
   "version": 2,
   "name": "feellink-backend",
-  "buildCommand": "export DATABASE_URL=\"${DATABASE_URL:-mongodb://localhost:27017/feellink-build}\" && npm run build",
+  "buildCommand": "export DATABASE_URL=\"${DATABASE_URL:-postgresql://localhost:5432/feellink-build}\" && export DIRECT_URL=\"${DIRECT_URL:-$DATABASE_URL}\" && (npx prisma db push --skip-generate 2>&1 && echo 'DB schema synced' || echo 'DB push skipped') && npm run build",
   "installCommand": "export DATABASE_URL=\"${DATABASE_URL:-mongodb://localhost:27017/feellink-build}\" && export NODE_ENV=development && (npm ci --legacy-peer-deps 2>/dev/null || npm install --legacy-peer-deps)",
   "functions": {
     "api/index.ts": {
