@@ -765,6 +765,7 @@ export class UsersService {
     // 🔒 KRİTİK: Username ASLA güncellenmez - profil URL'ini korumak için
     // Username değişikliği ayrı bir endpoint'te yapılmalı (gelecekte)
     delete updateData.username; // Username'i updateData'dan tamamen kaldır
+    delete updateData.coverImage; // coverImage DB'de henüz yok, migration gerekiyor
 
     // Convert empty website string to null
     if (updateData.website === '' || updateData.website === undefined) {
