@@ -25,6 +25,10 @@ export class UpdateUserDto {
   avatar?: string;
 
   @IsOptional()
+  @IsString()
+  coverImage?: string;
+
+  @IsOptional()
   @IsBoolean()
   isPrivate?: boolean;
 

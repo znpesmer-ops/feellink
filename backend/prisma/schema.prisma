@@ -43,6 +43,7 @@ model User {
   fullName                  String?
   bio                       String?
   avatar                    String?
+  coverImage                String?
   roles                     UserRole[]       @default([])
   extras                    String[]         @default([])
   plan                      SubscriptionPlan @default(FREE)
