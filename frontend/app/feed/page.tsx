@@ -10,6 +10,7 @@ import api from '@/lib/api'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import { GC_STANDARD, STALE_SHORT } from '@/lib/query-config'
 import { PostCardSkeleton } from '@/components/ui/Skeleton'
+import { Sparkles } from 'lucide-react'
 
 type FeedPost = {
   id: string
@@ -86,7 +87,12 @@ function FeedContent() {
       <div className="space-y-6 md:space-y-10">
         {/* 🔸 Keşfet */}
         <div className="w-full">
-          <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-gray-100 mb-4 md:mb-6">Keşfet</h2>
+          <h2 className="flex items-center gap-2 text-lg md:text-xl font-semibold mb-4 md:mb-6">
+            <Sparkles size={17} className="text-orange-400 flex-shrink-0" />
+            <span className="bg-gradient-to-r from-[#fb923c] via-[#ea580c] to-[#7c3aed] bg-clip-text text-transparent tracking-wide">
+              Keşfet
+            </span>
+          </h2>
 
           {isLoading ? (
             // ✅ Skeleton loader - UI hemen görünsün
@@ -112,8 +118,10 @@ function FeedContent() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              {transformedPosts.map((post) => (
-                <PostCard key={post.id} post={post} returnTo="/feed" />
+              {transformedPosts.map((post, index) => (
+                <div key={post.id} className="premium-card-enter" style={{ animationDelay: `${index * 0.055}s` }}>
+                  <PostCard post={post} returnTo="/feed" />
+                </div>
               ))}
             </div>
           )}
