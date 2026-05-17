@@ -217,12 +217,8 @@ export function Sidebar({ forceVisible = false, onLinkClick }: SidebarProps = {}
     <aside className="w-full h-full bg-white dark:bg-gray-950 border-r border-gray-200/70 dark:border-white/10 shadow-sm flex flex-col">
 
       {/* LOGO */}
-      <div className="w-full flex items-center justify-start px-4 pt-0 pb-0 -mt-2">
-        <AppLogo
-          className="h-14 w-auto max-w-[min(100%,240px)] object-contain pl-3"
-          width={360}
-          height={202}
-        />
+      <div className="w-full flex items-center justify-start px-4 pt-0 pb-0 -mt-2 text-gray-900 dark:text-white pl-3">
+        <AppLogo width={168} height={44} />
       </div>
 
       {/* MENU */}

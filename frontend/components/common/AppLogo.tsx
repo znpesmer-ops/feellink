@@ -1,52 +1,129 @@
 'use client'
 
-import Image from 'next/image'
-
-const SRC_LIGHT = '/logo/logo-light.png'
-const SRC_DARK = '/logo/logo-dark.png'
-
 export type AppLogoProps = {
   className?: string
-  /** Intrinsic width for next/image (layout stability) */
   width?: number
-  /** Intrinsic height for next/image */
   height?: number
   priority?: boolean
   alt?: string
+  /** 'full' = icon + wordmark, 'icon' = sadece işaret */
+  variant?: 'full' | 'icon'
 }
 
 /**
- * Light / dark logo: Tailwind `darkMode: 'class'` ile `html.dark` senkronu.
- * Tek `Image` + useTheme yerine iki görsel — tema değişince anında CSS ile değişir.
+ * Feellink logo — saf SVG bileşen.
+ * İkon: Bağlantı düğümlü F harfi (fırça vuruşu + ağ noktaları konsepti).
+ * Wordmark: "feellink" currentColor → Tailwind ile açık/koyu tema desteği.
  */
 export function AppLogo({
   className = '',
-  width = 160,
-  height = 48,
-  priority = false,
-  alt = 'Feellink Logo',
+  width = 180,
+  height = 44,
+  variant = 'full',
 }: AppLogoProps) {
-  const base = className.trim()
-  const logoClass = [base, 'feellink-logo'].filter(Boolean).join(' ')
+  if (variant === 'icon') {
+    return (
+      <svg
+        width={44}
+        height={44}
+        viewBox="0 0 44 44"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+        aria-label="Feellink"
+        role="img"
+      >
+        <FIconPaths />
+      </svg>
+    )
+  }
+
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox="0 0 196 44"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-label="Feellink"
+      role="img"
+    >
+      {/* — İKON İŞARETİ — */}
+      <FIconPaths />
+
+      {/* — WORDMARK — */}
+      {/* "feel" */}
+      <text
+        x="56"
+        y="30"
+        fontFamily="'Inter', 'Geist', 'Helvetica Neue', Arial, sans-serif"
+        fontSize="21"
+        fontWeight="300"
+        letterSpacing="0.5"
+        fill="currentColor"
+      >
+        feel
+      </text>
+      {/* "link" — turuncu vurgu */}
+      <text
+        x="101"
+        y="30"
+        fontFamily="'Inter', 'Geist', 'Helvetica Neue', Arial, sans-serif"
+        fontSize="21"
+        fontWeight="600"
+        letterSpacing="0.5"
+        fill="#FF8A00"
+      >
+        link
+      </text>
+    </svg>
+  )
+}
+
+/** F harfi ikon yolları — 44×44 viewBox içinde */
+function FIconPaths() {
+  const orange = '#FF8A00'
+  const strokeW = 5.5
 
   return (
     <>
-      <Image
-        src={SRC_LIGHT}
-        alt={alt}
-        width={width}
-        height={height}
-        className={[logoClass, 'bg-transparent dark:hidden'].filter(Boolean).join(' ')}
-        priority={priority}
+      {/* Dikey bar — fırça tutacağı gibi hafif konik */}
+      <line
+        x1="10"
+        y1="7"
+        x2="10"
+        y2="37"
+        stroke={orange}
+        strokeWidth={strokeW + 1}
+        strokeLinecap="round"
       />
-      <Image
-        src={SRC_DARK}
-        alt={alt}
-        width={width}
-        height={height}
-        className={[logoClass, 'hidden bg-transparent dark:block'].filter(Boolean).join(' ')}
-        priority={priority}
+
+      {/* Üst yatay çubuk */}
+      <line
+        x1="10"
+        y1="11"
+        x2="33"
+        y2="11"
+        stroke={orange}
+        strokeWidth={strokeW}
+        strokeLinecap="round"
       />
+      {/* Üst bağlantı düğümü — "link" noktası */}
+      <circle cx="37.5" cy="11" r="4.5" fill={orange} />
+
+      {/* Orta yatay çubuk */}
+      <line
+        x1="10"
+        y1="24"
+        x2="26"
+        y2="24"
+        stroke={orange}
+        strokeWidth={strokeW - 0.5}
+        strokeLinecap="round"
+      />
+      {/* Orta bağlantı düğümü — ikinci "link" noktası */}
+      <circle cx="30" cy="24" r="3.5" fill={orange} />
     </>
   )
 }
