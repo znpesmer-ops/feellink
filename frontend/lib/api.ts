@@ -188,7 +188,7 @@ api.interceptors.request.use((config: ApiRequestConfig) => {
   config.baseURL = bypassProxyForBody ? getAbsoluteBackendBaseUrl() : getAxiosBaseURL()
 
   if (isFormData) {
-    const minMs = 120000
+    const minMs = 65000 // 65s: 5s buffer over Vercel backend's 60s maxDuration
     config.timeout =
       config.timeout != null && config.timeout > minMs ? config.timeout : minMs
   }

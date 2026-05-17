@@ -29,6 +29,7 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
   const [artworkCreatedDate, setArtworkCreatedDate] = useState('') // 🎨 Eserin oluşturulduğu tarih (opsiyonel)
   const [location, setLocation] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState('')
   const [colorPalette, setColorPalette] = useState<string[]>([])
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -81,9 +82,16 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
         formData.append('colorPalette', JSON.stringify(colorPalette))
       }
 
+      setUploadProgress(0)
       const response = await api.post('/posts/create', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const pct = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+            setUploadProgress(pct)
+          }
         },
       })
       return response.data
@@ -180,6 +188,7 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
     },
     onSettled: () => {
       setUploading(false)
+      setUploadProgress(0)
     },
   })
 
@@ -740,9 +749,13 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
             <button
               type="submit"
               disabled={uploading || files.length === 0 || hasBadWord}
-              className="px-8 py-2 rounded-xl bg-brand-orange text-white font-semibold hover:bg-[#e67a00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-8 py-2 rounded-xl bg-brand-orange text-white font-semibold hover:bg-[#e67a00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[100px]"
             >
-              {uploading ? 'Yükleniyor...' : 'Paylaş'}
+              {uploading
+                ? uploadProgress > 0 && uploadProgress < 100
+                  ? `%${uploadProgress} Yüklendi`
+                  : 'İşleniyor...'
+                : 'Paylaş'}
             </button>
           </div>
         </form>

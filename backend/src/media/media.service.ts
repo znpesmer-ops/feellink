@@ -30,11 +30,17 @@ export class MediaService {
     try {
       console.log(`☁️ [MediaService] Uploading to Vercel Blob...`);
       
-      const blob = await put(fileName, file.buffer, {
-        access: 'public',
-        contentType: file.mimetype,
-        token: blobToken,
-      });
+      const uploadTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Vercel Blob upload timed out after 50s')), 50000)
+      );
+      const blob = await Promise.race([
+        put(fileName, file.buffer, {
+          access: 'public',
+          contentType: file.mimetype,
+          token: blobToken,
+        }),
+        uploadTimeout,
+      ]);
 
       // ✅ 3. URL KONTROLÜ
       if (!blob || !blob.url) {
