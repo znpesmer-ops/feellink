@@ -16,6 +16,7 @@ import { FollowService } from '../follow/follow.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
 import { getWebSocketCorsConfig } from '../common/utils/websocket-cors.util';
+import { isVercelServerlessRuntime } from '../common/runtime';
 
 @WebSocketGateway({
   namespace: '/chat',
@@ -30,6 +31,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   private socketToUser: Map<string, string> = new Map(); // socketId -> userId
   private userLastActiveAt: Map<string, Date> = new Map(); // heartbeat timeout için
   private presenceTimeoutInterval: ReturnType<typeof setInterval> | null = null;
+  private readonly backgroundJobsDisabled = isVercelServerlessRuntime();
+  private readonly presenceOnlineTtlMs = 90_000;
 
   constructor(
     private jwtService: JwtService,
@@ -39,8 +42,37 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     private notificationsService: NotificationsService,
   ) {}
 
+  private getPresenceActivityAt(user: { lastActiveAt?: Date | null; lastSeen?: Date | null }) {
+    return user.lastActiveAt ?? user.lastSeen ?? null;
+  }
+
+  private isPresenceFresh(activityAt: Date | null | undefined) {
+    if (!activityAt) return false;
+    return Date.now() - new Date(activityAt).getTime() <= this.presenceOnlineTtlMs;
+  }
+
+  private buildPresencePayload(user: {
+    id: string;
+    isOnline: boolean;
+    lastSeen?: Date | null;
+    lastActiveAt?: Date | null;
+  }) {
+    const activityAt = this.getPresenceActivityAt(user);
+
+    return {
+      userId: user.id,
+      isOnline: Boolean(user.isOnline && this.isPresenceFresh(activityAt)),
+      lastSeen: activityAt,
+      lastActiveAt: activityAt,
+    };
+  }
+
   afterInit(server: Server) {
     console.log('Chat WebSocket Gateway initialized');
+    if (this.backgroundJobsDisabled) {
+      console.log('Chat presence interval disabled in serverless runtime');
+      return;
+    }
     const PRESENCE_TIMEOUT_MS = 60_000; // 60 sn ping yoksa offline
     const CHECK_INTERVAL_MS = 45_000;   // 45 sn'de bir kontrol
     this.presenceTimeoutInterval = setInterval(async () => {
@@ -54,7 +86,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         try {
           await this.prisma.user.update({
             where: { id: userId },
-            data: { isOnline: false, lastSeen: now },
+            data: { isOnline: false, lastSeen: now, lastActiveAt: now },
           });
           this.broadcastUserStatus(userId, false);
         } catch (e) {
@@ -94,7 +126,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         this.userLastActiveAt.set(userId, now);
         await this.prisma.user.update({
           where: { id: userId },
-          data: { isOnline: true, lastActiveAt: now },
+          data: { isOnline: true, lastSeen: now, lastActiveAt: now },
         });
         console.log(`✅ ${userId} çevrim içi`);
         this.broadcastUserStatus(userId, true);
@@ -115,9 +147,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         if (socketIds.size === 0) {
           this.userSockets.delete(userId);
           this.userLastActiveAt.delete(userId);
+          const now = new Date();
           await this.prisma.user.update({
             where: { id: userId },
-            data: { isOnline: false, lastSeen: new Date() },
+            data: { isOnline: false, lastSeen: now, lastActiveAt: now },
           });
           console.log(`❌ ${userId} çevrim dışı`);
           this.broadcastUserStatus(userId, false);
@@ -135,13 +168,15 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     this.userLastActiveAt.set(userId, now);
     const before = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { isOnline: true },
+      select: { isOnline: true, lastSeen: true, lastActiveAt: true },
     });
     await this.prisma.user.update({
       where: { id: userId },
-      data: { lastActiveAt: now, isOnline: true },
+      data: { lastSeen: now, lastActiveAt: now, isOnline: true },
     });
-    if (before && !before.isOnline) this.broadcastUserStatus(userId, true);
+    if (before && (!before.isOnline || !this.isPresenceFresh(this.getPresenceActivityAt(before)))) {
+      this.broadcastUserStatus(userId, true);
+    }
   }
 
   @SubscribeMessage('presence:offline')
@@ -154,9 +189,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       if (socketIds.size === 0) {
         this.userSockets.delete(userId);
         this.userLastActiveAt.delete(userId);
+        const now = new Date();
         await this.prisma.user.update({
           where: { id: userId },
-          data: { isOnline: false, lastSeen: new Date() },
+          data: { isOnline: false, lastSeen: now, lastActiveAt: now },
         });
         this.broadcastUserStatus(userId, false);
       }
@@ -515,6 +551,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
                   fullName: true,
                   isOnline: true,
                   lastSeen: true,
+                  lastActiveAt: true,
                 },
               },
             },
@@ -716,6 +753,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         conversationId,
         senderId: { not: userId },
         read: false,
+        isDeleted: false,
       },
       data: {
         read: true,
@@ -783,15 +821,11 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     // Veritabanından güncel kullanıcı bilgisini al
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, isOnline: true, lastSeen: true },
+      select: { id: true, isOnline: true, lastSeen: true, lastActiveAt: true },
     });
 
     if (user) {
-      this.server.emit('user_status_update', {
-        userId,
-        isOnline: user.isOnline,
-        lastSeen: user.lastSeen,
-      });
+      this.server.emit('user_status_update', this.buildPresencePayload(user));
     }
   }
 
@@ -805,25 +839,22 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       activeUserIds.map(async (userId) => {
         const user = await this.prisma.user.findUnique({
           where: { id: userId },
-          select: { id: true, isOnline: true, lastSeen: true },
+          select: { id: true, isOnline: true, lastSeen: true, lastActiveAt: true },
         });
-        return user ? { userId: user.id, isOnline: user.isOnline, lastSeen: user.lastSeen } : null;
+        return user ? this.buildPresencePayload(user) : null;
       })
     );
     
-    const validUsers = userStatuses.filter((u) => u !== null);
+    const validUsers = userStatuses.filter(
+      (u): u is NonNullable<(typeof userStatuses)[number]> => u !== null,
+    );
     
     // Aktif kullanıcı ID listesini gönder
-    client.emit('active_users_list', validUsers.map((u) => u.userId));
+    client.emit('active_users_list', validUsers.filter((u) => u.isOnline).map((u) => u.userId));
     
     // Her kullanıcı için ayrı status update gönder (detaylı bilgi ile)
     validUsers.forEach((u) => {
-      client.emit('user_status_update', {
-        userId: u.userId,
-        isOnline: u.isOnline,
-        lastSeen: u.lastSeen,
-      });
+      client.emit('user_status_update', u);
     });
   }
 }
-

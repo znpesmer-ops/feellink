@@ -44,6 +44,7 @@ model User {
   bio                       String?
   avatar                    String?
   coverImage                String?
+  exhibitionName            String?
   roles                     UserRole[]       @default([])
   extras                    String[]         @default([])
   plan                      SubscriptionPlan @default(FREE)
@@ -54,6 +55,7 @@ model User {
   superAdmin                Boolean          @default(false) // 🔥 GOD-MODE
   followerCount             Int              @default(0)
   followingCount            Int              @default(0)
+  profileShareCount         Int              @default(0)
   isOnline                  Boolean          @default(false)
   lastSeen                  DateTime?
   lastActiveAt              DateTime?        // presence heartbeat; timeout ile offline kararı
@@ -393,7 +395,7 @@ model FeedCache {
 model RefreshToken {
   id        String   @id @default(cuid())
   token     String   @unique
-  userId    String  
+  userId    String
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -406,8 +408,8 @@ model RefreshToken {
 
 model SavedPost {
   id        String   @id @default(cuid())
-  userId    String  
-  postId    String  
+  userId    String
+  postId    String
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
@@ -421,8 +423,8 @@ model SavedPost {
 
 model SavedArtwork {
   id        String   @id @default(cuid())
-  userId    String  
-  postId    String  
+  userId    String
+  postId    String
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
@@ -902,7 +904,7 @@ model UserReport {
 
 model RoleChangeRequest {
   id            String    @id @default(cuid())
-  userId        String   
+  userId        String
   requestedRole UserRole
   message       String?
   status        String    @default("PENDING") // PENDING, APPROVED, REJECTED
@@ -937,7 +939,7 @@ model EmailChangeRequest {
 
 model PhoneVerification {
   id          String   @id @default(cuid())
-  userId      String  
+  userId      String
   phoneNumber String
   code        String
   verified    Boolean  @default(false)
@@ -973,10 +975,10 @@ model EmailOtp {
 
 model RoleChangeLog {
   id        String   @id @default(cuid())
-  userId    String  
+  userId    String
   oldRoles  String[]
   newRoles  String[]
-  changedBy String  
+  changedBy String
   createdAt DateTime @default(now())
 
   user User @relation("RoleChanges", fields: [userId], references: [id])

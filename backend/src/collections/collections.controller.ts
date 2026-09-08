@@ -20,6 +20,12 @@ export class CollectionsController {
     return this.collectionsService.getMyCollections(user.id);
   }
 
+  @Get('profile/:username')
+  @UseGuards(JwtAuthGuard)
+  async getProfileCollections(@CurrentUser() user: any, @Param('username') username: string) {
+    return this.collectionsService.getProfileCollections(username, user.id);
+  }
+
   // ⚠️ ÖNEMLİ: Bu route en son olmalı, çünkü :id her şeyi yakalar
   @Get(':id')
   @UseGuards(JwtAuthGuard)
@@ -95,4 +101,3 @@ export class CollectionsController {
     return this.collectionsService.reorderItems(user.id, collectionId, data.itemIds);
   }
 }
-

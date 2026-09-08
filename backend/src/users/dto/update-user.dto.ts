@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsUrl, IsBoolean, ValidateIf, IsDateString, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsUrl, IsBoolean, ValidateIf, IsDateString, IsIn, MaxLength } from 'class-validator';
 
 export class UpdateUserDto {
   // 🔒 KRİTİK: Username kaldırıldı - profil URL'ini korumak için
@@ -26,7 +26,12 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
-  coverImage?: string;
+  coverImage?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64, { message: 'Sergi adı en fazla 64 karakter olabilir.' })
+  exhibitionName?: string | null;
 
   @IsOptional()
   @IsBoolean()
@@ -58,4 +63,3 @@ export class UpdateUserDto {
   @IsBoolean()
   showProfileColorSignature?: boolean; // 🎨 Profil renk imzasını göster/gizle
 }
-

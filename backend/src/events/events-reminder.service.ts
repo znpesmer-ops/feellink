@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { isVercelServerlessRuntime } from '../common/runtime';
 
 type ParticipantWithUserEvent = Prisma.EventParticipantGetPayload<{
   include: {
@@ -14,6 +15,7 @@ type ParticipantWithUserEvent = Prisma.EventParticipantGetPayload<{
 @Injectable()
 export class EventsReminderService {
   private readonly logger = new Logger(EventsReminderService.name);
+  private readonly backgroundJobsDisabled = isVercelServerlessRuntime();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -23,6 +25,7 @@ export class EventsReminderService {
   // ✅ 24 saat öncesi hatırlatma - Her saat çalışır
   @Cron('0 * * * *') // Her saat başı (00:00, 01:00, 02:00, ...)
   async send24HourReminders() {
+    if (this.backgroundJobsDisabled) return;
     try {
       const now = new Date();
       
@@ -136,6 +139,7 @@ export class EventsReminderService {
   // 2 saat önce hatırlatma - Her 5 dakikada bir çalışır
   @Cron('*/5 * * * *')
   async send2HourReminders() {
+    if (this.backgroundJobsDisabled) return;
     try {
       const now = new Date();
       const windowStart = new Date(now.getTime() + 110 * 60 * 1000); // 1s 50dk sonra
@@ -190,6 +194,7 @@ export class EventsReminderService {
   // Her dakika çalışır (30 dakika hatırlatma - mevcut)
   @Cron('*/1 * * * *')
   async send30MinReminders() {
+    if (this.backgroundJobsDisabled) return;
     try {
       const now = new Date();
 
@@ -267,4 +272,3 @@ export class EventsReminderService {
     }
   }
 }
-

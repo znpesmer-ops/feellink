@@ -80,6 +80,25 @@ const ensureAbsoluteUrl = (url?: string | null, fallback?: string) => {
   return DEFAULT_ARTICLE_IMAGE
 }
 
+const htmlToPlainText = (value?: string | null) => {
+  if (!value) return ''
+
+  return value
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/p\s*>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)))
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 const transformMuseums = (items: any[]) =>
   items.map((museum) => ({
     ...museum,
@@ -114,9 +133,11 @@ const transformArticles = (items: any[]) =>
 
 interface RightSidebarProps {
   mode?: 'feed' | 'explore'
+  variant?: 'rail' | 'drawer'
+  hideMuseums?: boolean
 }
 
-export default function RightSidebar({ mode }: RightSidebarProps = {}) {
+export default function RightSidebar({ mode, variant = 'rail', hideMuseums = false }: RightSidebarProps = {}) {
   const pathname = usePathname()
   const queryClient = useQueryClient()
 
@@ -130,6 +151,7 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
 
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({})
   const [selectedWriter, setSelectedWriter] = useState<Author | null>(null)
+  const isDrawer = variant === 'drawer'
 
   const feedSidebarEnabled = Boolean(showSidebar && sidebarMode === 'feed')
   const exploreSidebarEnabled = Boolean(showSidebar && sidebarMode === 'explore')
@@ -210,28 +232,40 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
 
   if (!showSidebar) return null
 
+  const rootClassName = isDrawer
+    ? 'flex h-full w-full flex-col text-slate-900 dark:text-gray-200'
+    : 'flex w-full flex-col border-t border-slate-200/70 bg-transparent pb-4 text-slate-900 dark:border-white/8 dark:text-gray-200 xl:h-full xl:overflow-y-auto xl:border-t-0 xl:border-l xl:bg-slate-950/[0.025] xl:pl-[18px] xl:pr-[18px] xl:backdrop-blur-xl dark:xl:bg-[#07111f]/72'
+
+  const contentClassName = `w-full flex flex-col gap-6 h-full min-h-0 ${
+    isDrawer ? 'pt-0' : (isFeed || isExplore) ? 'mt-0 pt-4' : 'pt-4'
+  }`
+  const listGridClassName = isDrawer
+    ? 'grid grid-cols-1 gap-3'
+    : 'grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-1 xl:gap-4'
+  const cardShellClassName = isDrawer
+    ? 'rounded-[24px] border border-slate-200/75 bg-white/70 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-white/8 dark:bg-white/[0.045] dark:shadow-[0_18px_46px_rgba(0,0,0,0.24)]'
+    : 'border-0 bg-transparent p-0 shadow-none xl:rounded-[24px] xl:border xl:border-slate-200/75 xl:bg-white/58 xl:p-4 xl:shadow-[0_18px_50px_rgba(15,23,42,0.08)] xl:backdrop-blur-xl dark:xl:border-white/8 dark:xl:bg-white/[0.045] dark:xl:shadow-[0_18px_46px_rgba(0,0,0,0.24)]'
+  const tileGridClassName = isDrawer
+    ? 'grid grid-cols-2 gap-3'
+    : 'grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-2 xl:gap-4'
+  const showMuseumsSection = sidebarMode === 'feed' && !hideMuseums
+
   return (
     <>
-    <aside
-      className={`hidden lg:flex flex-col h-full
-                 w-full overflow-y-auto
-                 pb-4
-                 border-l border-black/6 dark:border-white/8
-                 pl-[18px] pr-[18px]
-                 bg-white dark:bg-[#0b1220]
-                 text-[#111] dark:text-gray-200`}
+    <section
+      className={rootClassName}
     >
       {/* İçerik wrapper - tek dikey kolon; CTA mt-auto ile en altta, sol sidebar Admin ile hizalı */}
-      <div className={`w-full flex flex-col gap-6 h-full min-h-0 ${(isFeed || isExplore) ? 'mt-0 pt-4' : 'pt-4'}`}>
+      <div className={contentClassName}>
         {/* 🔥 Explore modunda sadece yazarlar gösterilir */}
         {sidebarMode === 'explore' ? (
           <>
             {/* ✍️ Keşfet Yazıları */}
             <div className="w-full">
-              <h3 className="text-xl font-semibold mb-4 text-[#ff7b00] tracking-[0.06em] uppercase" style={{ fontWeight: 600, letterSpacing: '0.3px' }}>
+              <h3 className="mb-4 text-base font-semibold uppercase tracking-[0.06em] text-[#ff7b00] md:text-lg xl:text-xl" style={{ fontWeight: 600, letterSpacing: '0.3px' }}>
                 Keşfet Yazıları
               </h3>
-              <div className="space-y-4">
+              <div className={listGridClassName}>
                 {explorePosts.length > 0 ? (
                   explorePosts.map((post) => (
                     <Link
@@ -241,11 +275,10 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
                           ? `/explore?post=${post.id}`
                           : post.lastPost?.link || `/articles/${post.id}`
                       }
-                      className="flex items-start gap-3 p-3 rounded-xl
-                                 border border-black/4 dark:border-white/6
-                                 shadow-[0_6px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)] hover:shadow-md hover:-translate-y-[2px]
-                                 transition-all cursor-pointer group bg-white"
-                      data-dark-bg="rgba(255,255,255,0.04)"
+                      className="flex items-start gap-3 p-3 rounded-2xl
+                                 border border-slate-200/75 dark:border-white/8
+                                 shadow-[0_14px_34px_rgba(15,23,42,0.06)] dark:shadow-[0_18px_46px_rgba(0,0,0,0.24)] hover:shadow-md hover:-translate-y-[2px]
+                                 transition-all cursor-pointer group bg-white/58 dark:bg-white/[0.045] backdrop-blur-xl"
                     >
                       {/* Profil resmi */}
                       <div className="relative w-[42px] h-[42px] rounded-full overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-700">
@@ -269,15 +302,15 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
 
                       {/* Yazı başlığı ve yazar adı */}
                       <div className="flex flex-col min-w-0">
-                        <p className="text-sm font-medium text-[#222] dark:text-gray-100 mb-1" style={{ fontWeight: 500 }}>
-                          {post.lastPost?.title || 'Yazı'}
+                        <p className="text-sm font-medium text-slate-900 dark:text-gray-100 mb-1" style={{ fontWeight: 500 }}>
+                          {htmlToPlainText(post.lastPost?.title) || 'Yazı'}
                         </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 leading-snug" style={{ opacity: 0.6 }}>
+                        <p className="text-xs text-slate-600 dark:text-gray-400 leading-snug">
                           {post.name}
                         </p>
-                        {post.preview && (
-                          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 line-clamp-1" style={{ opacity: 0.6 }}>
-                            "{post.preview}"
+                        {htmlToPlainText(post.preview) && (
+                          <p className="text-xs text-slate-500 dark:text-gray-500 mt-1 line-clamp-1">
+                            “{htmlToPlainText(post.preview)}”
                           </p>
                         )}
                       </div>
@@ -294,27 +327,23 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
         ) : (
           <>
             {/* 🏛️ Haftanın Müzeleri - Her zaman 2x2 grid (4 slot) - Kurumsal hesaplar otomatik hesaplanan */}
+            {showMuseumsSection && (
             <div className="w-full">
-              <h3 className="flex items-center gap-1.5 text-xl font-semibold mb-5 mt-0" style={{ fontWeight: 600 }}>
-                <Sparkles size={15} className="text-orange-400 flex-shrink-0" />
-                <span className="bg-gradient-to-r from-[#fb923c] via-[#ea580c] to-[#7c3aed] bg-clip-text text-transparent tracking-[0.04em] uppercase" style={{ letterSpacing: '0.3px' }}>
-                  Haftanın Müzeleri
-                </span>
+              {/* 🔥 KRİTİK: Başlık font boyutu artırıldı - daha profesyonel görünüm */}
+              <h3 className="mb-5 mt-0 text-base font-semibold uppercase tracking-[0.06em] text-brand-orange dark:text-orange-300 md:text-lg xl:text-xl" style={{ fontWeight: 600, letterSpacing: '0.3px' }}>
+                Haftanın Müzeleri
               </h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className={tileGridClassName}>
                 {Array.from({ length: 4 }, (_, i) => {
                   const museum = museums[i] || null;
                   return museum ? (
                     <Link
                       key={museum.id}
                       href={`/profile/${museum.username || museum.id}`}
-                      className="relative rounded-2xl overflow-hidden border border-black/4 dark:border-white/6 shadow-[0_6px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)] hover:shadow-[0_0_22px_rgba(251,146,60,0.28),0_8px_20px_rgba(0,0,0,0.2)] hover:scale-[1.02] cursor-pointer group transition-all duration-300 bg-white"
-                      data-dark-bg="rgba(255,255,255,0.04)"
+                  className="relative rounded-2xl overflow-hidden border border-slate-200/75 dark:border-white/8 shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_46px_rgba(0,0,0,0.24)] hover:-translate-y-0.5 hover:shadow-[0_22px_56px_rgba(15,23,42,0.12)] cursor-pointer group transition-all duration-300 bg-slate-950/5 dark:bg-white/[0.045]"
                     >
                       {/* Background gradient fallback */}
                       <div className={`absolute inset-0 bg-gradient-to-br ${museum.color} opacity-90 z-0`} />
-                      {/* Shimmer on hover */}
-                      <span className="shimmer-bar" />
                       <div className="relative w-full h-[110px] overflow-hidden z-10">
                         {!imageErrors[`museum-${museum.id}`] ? (
                           <img
@@ -338,39 +367,38 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
                   ) : (
                     <div
                       key={`empty-${i}`}
-                      className="relative rounded-2xl border border-[rgba(40,120,255,0.35)] dark:border-[rgba(40,120,255,0.15)] bg-gray-50 dark:bg-white/5 h-[110px]"
+                      className="relative rounded-2xl border border-slate-200/70 dark:border-white/8 bg-slate-200/45 dark:bg-white/[0.045] h-[110px] overflow-hidden"
                     />
                   );
                 })}
               </div>
             </div>
+            )}
 
         {/* 🔥 En Çok Beğenilenler */}
         {topLikedArticles.length > 0 && (
-          <div className="bg-white rounded-2xl p-4 shadow-[0_6px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)] border dark:border-white/6" data-dark-bg="rgba(255,255,255,0.04)">
-            <h3 className="flex items-center gap-1.5 text-xl font-semibold mb-4" style={{ fontWeight: 600 }}>
-              <Sparkles size={15} className="text-orange-400 flex-shrink-0" />
-              <span className="bg-gradient-to-r from-[#fb923c] via-[#ea580c] to-[#7c3aed] bg-clip-text text-transparent tracking-[0.04em] uppercase" style={{ letterSpacing: '0.3px' }}>
-                En Çok Beğenilenler
-              </span>
+          <div className={cardShellClassName}>
+          {/* 🔥 KRİTİK: Başlık font boyutu artırıldı - daha profesyonel görünüm */}
+            <h3 className="mb-4 text-base font-semibold uppercase tracking-[0.06em] text-brand-orange dark:text-orange-300 md:text-lg xl:text-xl" style={{ fontWeight: 600, letterSpacing: '0.3px' }}>
+              En Çok Beğenilenler
             </h3>
-          <div className="space-y-3">
+          <div className={isDrawer ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-1'}>
             {topLikedArticles.map((article, index) => (
               <Link
                 key={article.id}
                 href={`/articles/${article.id}`}
                 className="block p-3 rounded-xl
-                         border border-black/4 dark:border-white/6
-                         hover:bg-gray-50/70 dark:hover:bg-white/5
+                         border border-slate-200/70 dark:border-white/8
+                         hover:bg-white/70 dark:hover:bg-white/[0.07]
                          hover:border-white/12 dark:hover:border-white/12
                          transition-all cursor-pointer group bg-transparent dark:bg-[rgba(255,255,255,0.02)]"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[#222] dark:text-gray-100 line-clamp-2 mb-1 transition-colors" style={{ fontWeight: 500 }}>
+                    <p className="text-sm font-medium text-slate-900 dark:text-gray-100 line-clamp-2 mb-1 transition-colors" style={{ fontWeight: 500 }}>
                       {article.title}
                     </p>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400" style={{ opacity: 0.6 }}>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-gray-400">
                       <span>{article.author?.fullName || article.author?.username}</span>
                       <span>•</span>
                       <div className="flex items-center gap-1">
@@ -381,7 +409,7 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
                   </div>
                   {index === 0 && topLikedArticles.length > 0 && (
                     <div className="flex-shrink-0">
-                      <span className="text-xs font-bold text-[#ff7b00] bg-gray-100 dark:bg-white/10 px-2 py-0.5 rounded-full">
+                      <span className="text-xs font-bold text-[#ff7b00] bg-orange-50 dark:bg-white/10 px-2 py-0.5 rounded-full">
                         #1
                       </span>
                     </div>
@@ -394,25 +422,20 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
         )}
 
         {/* ✍️ Aktif Yazarlar - 2x2 Grid (Haftanın Müzeleri ile aynı yapı) */}
-        <div className="bg-white rounded-2xl p-4 shadow-[0_6px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)] border dark:border-white/6" data-dark-bg="rgba(255,255,255,0.04)">
-          <h3 className="flex items-center gap-1.5 text-xl font-semibold mb-5 mt-0" style={{ fontWeight: 600 }}>
-            <Sparkles size={15} className="text-orange-400 flex-shrink-0" />
-            <span className="bg-gradient-to-r from-[#fb923c] via-[#ea580c] to-[#7c3aed] bg-clip-text text-transparent tracking-[0.04em] uppercase" style={{ letterSpacing: '0.3px' }}>
-              Aktif Yazarlar
-            </span>
+        <div className={cardShellClassName}>
+        {/* 🔥 KRİTİK: Başlık font boyutu artırıldı - daha profesyonel görünüm */}
+          <h3 className="mb-5 mt-0 text-base font-semibold uppercase tracking-[0.06em] text-brand-orange dark:text-orange-300 md:text-lg xl:text-xl" style={{ fontWeight: 600, letterSpacing: '0.3px' }}>
+            Aktif Yazarlar
           </h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className={tileGridClassName}>
           {Array.from({ length: 4 }, (_, i) => {
             const author = authors[i] || null;
             return author ? (
               <Link
                 key={author.id}
                 href={`/profile/${author.slug || author.id}`}
-                className="relative rounded-2xl overflow-hidden border border-black/4 dark:border-white/6 shadow-[0_6px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)] hover:shadow-[0_0_22px_rgba(251,146,60,0.28),0_8px_20px_rgba(0,0,0,0.2)] hover:scale-[1.02] cursor-pointer group transition-all duration-300 bg-white"
-                data-dark-bg="rgba(255,255,255,0.04)"
+                className="relative rounded-2xl overflow-hidden border border-slate-200/75 dark:border-white/8 shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_46px_rgba(0,0,0,0.24)] hover:-translate-y-0.5 hover:shadow-[0_22px_56px_rgba(15,23,42,0.12)] cursor-pointer group transition-all duration-300 bg-slate-950/5 dark:bg-white/[0.045]"
               >
-                {/* Shimmer on hover */}
-                <span className="shimmer-bar" />
                 {/* Profil görseli - Kartın tamamını doldurur */}
                 <div className="relative w-full h-[110px] overflow-hidden">
                   {!imageErrors[`author-${author.id}`] ? (
@@ -442,7 +465,7 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
             ) : (
               <div
                 key={`empty-author-${i}`}
-                className="relative rounded-2xl border border-[rgba(40,120,255,0.35)] dark:border-[rgba(40,120,255,0.15)] bg-gray-50 dark:bg-white/5 h-[110px] opacity-50"
+                className="relative rounded-2xl border border-slate-200/70 dark:border-white/8 bg-slate-200/45 dark:bg-white/[0.045] h-[110px] opacity-70 overflow-hidden"
               />
             );
           })}
@@ -470,7 +493,7 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
           </>
         )}
       </div>
-    </aside>
+    </section>
 
     {/* 🟠 Yazar Detay Modal */}
     {selectedWriter && (
@@ -564,4 +587,3 @@ export default function RightSidebar({ mode }: RightSidebarProps = {}) {
   </>
   )
 }
-

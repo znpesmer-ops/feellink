@@ -1,17 +1,38 @@
-<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Minimal, profesyonel kullanıcı ikonu - beyaz, şeffaf arka plan -->
-  <circle cx="50" cy="35" r="15" fill="white" stroke="none"/>
-  <path d="M25 75 C25 60, 35 50, 50 50 C65 50, 75 60, 75 75" fill="white" stroke="none"/>
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="flAvatarBase" x1="18" y1="105" x2="110" y2="19" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2157FF"/>
+      <stop offset="0.38" stop-color="#A74CFF"/>
+      <stop offset="0.68" stop-color="#FF4D83"/>
+      <stop offset="1" stop-color="#FF8A1F"/>
+    </linearGradient>
+    <radialGradient id="flAvatarGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(89 33) rotate(127) scale(74 82)">
+      <stop stop-color="#FFE077" stop-opacity="0.88"/>
+      <stop offset="0.42" stop-color="#FF8A1F" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#1E2C8F" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="flAvatarBlue" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(31 82) rotate(-34) scale(59 48)">
+      <stop stop-color="#7CC8FF" stop-opacity="0.46"/>
+      <stop offset="1" stop-color="#7CC8FF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="flAvatarShadow" x="18" y="18" width="92" height="98" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#111827" flood-opacity="0.20"/>
+    </filter>
+  </defs>
+
+  <rect width="128" height="128" rx="64" fill="url(#flAvatarBase)"/>
+  <rect width="128" height="128" rx="64" fill="url(#flAvatarGlow)"/>
+  <rect width="128" height="128" rx="64" fill="url(#flAvatarBlue)"/>
+
+  <path d="M21 76C43 73 58 62 68 41C76 25 90 16 111 16C119 29 124 45 124 64C124 97 97 124 64 124C43 124 25 114 13 99C11 90 14 81 21 76Z" fill="white" opacity="0.11"/>
+  <path d="M8 62C28 65 48 57 66 38C78 25 91 21 113 25" stroke="white" stroke-opacity="0.18" stroke-width="2"/>
+
+  <g filter="url(#flAvatarShadow)">
+    <circle cx="64" cy="47" r="20" fill="white" fill-opacity="0.92"/>
+    <path d="M28 103C30.8 81.8 44.7 69 64 69C83.3 69 97.2 81.8 100 103C90.2 110.9 77.7 115.6 64 115.6C50.3 115.6 37.8 110.9 28 103Z" fill="white" fill-opacity="0.9"/>
+  </g>
+
+  <path d="M53 37L61 43V72L53 66V37Z" fill="#FF7B2D" fill-opacity="0.26"/>
+  <path d="M75 37L67 43V72L75 66V37Z" fill="#225BFF" fill-opacity="0.22"/>
+  <circle cx="64" cy="64" r="62.5" stroke="white" stroke-opacity="0.28" stroke-width="3"/>
 </svg>
-
-
-
-
-
-
-
-
-
-
-
-

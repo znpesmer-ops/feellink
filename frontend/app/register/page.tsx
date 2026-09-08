@@ -6,7 +6,10 @@ import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { ArrowRight, Building2, LockKeyhole, Mail, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
 import api, { getErrorMessage } from '@/lib/api'
+import { AppLogo } from '@/components/common/AppLogo'
+import { legalQuickSummary, legalUpdatedAt, termsSections } from '@/lib/legal-content'
 import { useAuthStore } from '@/lib/store'
 import { getDashboardRouteFromUser } from '@/lib/role-utils'
 
@@ -21,7 +24,7 @@ const registerSchema = z.object({
     .regex(/^(?=.*[A-Za-z])(?=.*\d).+$/, 'Şifre en az bir harf ve bir rakam içermelidir'),
   fullName: z.string().optional(),
   termsAccepted: z.boolean().refine((val) => val === true, {
-    message: 'Devam etmek için kullanıcı sözleşmesi ve KVKK metnini kabul etmelisiniz.',
+    message: "Kullanıcı Sözleşmesi'ni kabul edip KVKK Aydınlatma Metni'ni okuduğunuzu onaylamalısınız.",
   }),
 })
 
@@ -84,6 +87,11 @@ export default function RegisterPage() {
 
   // ✅ termsAccepted değerini watch ile izle
   const termsAccepted = watch('termsAccepted')
+  const fieldClass =
+    'mt-2 block w-full rounded-2xl border border-slate-200 bg-white/85 px-4 py-3 text-sm text-slate-950 placeholder-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition-all focus:border-[#ff8a1f] focus:ring-4 focus:ring-[#ff8a1f]/15 dark:border-white/10 dark:bg-white/[0.065] dark:text-white dark:placeholder-gray-500'
+  const labelClass =
+    'flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-gray-300'
+  const errorTextClass = 'mt-1.5 text-sm text-red-600 dark:text-red-400'
 
   const onSubmit = async (data: RegisterForm) => {
     try {
@@ -92,7 +100,7 @@ export default function RegisterPage() {
       
       // ✅ Kullanıcı sözleşmesi kontrolü (zod validation zaten yapıyor ama ekstra güvenlik)
       if (!data.termsAccepted) {
-        setError('Devam etmek için kullanıcı sözleşmesi ve KVKK metnini kabul etmelisiniz.')
+        setError("Kullanıcı Sözleşmesi'ni kabul edip KVKK Aydınlatma Metni'ni okuduğunuzu onaylamalısınız.")
         return
       }
 
@@ -156,137 +164,165 @@ export default function RegisterPage() {
   // Auth kontrolü yapılırken loading göster
   if (isChecking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
+      <div className="flex min-h-screen items-center justify-center bg-[#f4f7fb] dark:bg-[#070910]">
+        <div className="h-9 w-9 animate-spin rounded-full border-b-2 border-[#ff8a1f]"></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 transition-colors">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white dark:bg-gray-800 rounded-lg shadow transition-colors">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-gray-100">
-            Create your account
+    <div className="relative flex min-h-screen items-center justify-center overflow-y-auto overflow-x-hidden bg-[#f4f7fb] px-4 py-10 text-slate-900 transition-colors dark:bg-[#070910] dark:text-gray-100">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,rgba(255,138,31,0.20),transparent_32%),radial-gradient(circle_at_30%_18%,rgba(31,106,225,0.14),transparent_28%),linear-gradient(135deg,#f8fbff_0%,#eef3fb_48%,#fff4ea_100%)] dark:bg-[radial-gradient(circle_at_50%_42%,rgba(255,122,0,0.13),transparent_34%),radial-gradient(circle_at_34%_18%,rgba(43,120,255,0.11),transparent_26%),linear-gradient(135deg,#070910_0%,#0b0f19_48%,#120d09_100%)]" />
+      <div className="relative z-10 w-full max-w-[460px] overflow-hidden rounded-[32px] border border-white/85 bg-white/82 p-8 shadow-[0_34px_100px_rgba(15,23,42,0.16),0_0_80px_rgba(255,138,31,0.13)] backdrop-blur-2xl transition-colors dark:border-white/10 dark:bg-[#0d1119]/82 dark:shadow-[0_34px_120px_rgba(0,0,0,0.46),0_0_80px_rgba(255,122,0,0.08)] sm:p-10">
+        <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#ff8a1f]/70 to-transparent" />
+        <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-[#ff8a1f]/16 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 -left-24 h-56 w-56 rounded-full bg-[#1f6ae1]/12 blur-3xl" />
+        <div className="relative">
+          <div className="mb-5 flex justify-center">
+            <AppLogo width={130} height={50} className="object-contain" priority />
+          </div>
+          <h2 className="text-center text-2xl font-black tracking-tight text-slate-950 dark:text-white">
+            Hesabını oluştur
           </h2>
+          <p className="mt-2 text-center text-sm text-slate-500 dark:text-gray-400">
+            Feellink deneyimine premium bir başlangıç yap.
+          </p>
           {/* Mode Tabs */}
-          <div className="flex justify-center mt-4 mb-2 border-b border-gray-200 dark:border-gray-700">
+          <div className="mt-6 flex rounded-2xl border border-slate-200/80 bg-slate-950/[0.035] p-1 dark:border-white/10 dark:bg-white/[0.045]">
             <button
               type="button"
               onClick={() => setMode('user')}
-              className={`px-6 py-2 text-sm font-medium ${
+              className={`flex w-1/2 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
                 mode === 'user'
-                  ? 'text-[#ff7b00] border-b-2 border-[#ff7b00]'
-                  : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                  ? 'bg-[#ff8a1f] text-white shadow-[0_14px_34px_rgba(255,138,31,0.28)]'
+                  : 'text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white'
               }`}
             >
+              <UserRound className="h-4 w-4" />
               Kullanıcı Kaydı
             </button>
             <button
               type="button"
               onClick={() => setMode('corporate')}
-              className={`px-6 py-2 text-sm font-medium ${
+              className={`flex w-1/2 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
                 mode === 'corporate'
-                  ? 'text-[#ff7b00] border-b-2 border-[#ff7b00]'
-                  : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                  ? 'bg-[#ff8a1f] text-white shadow-[0_14px_34px_rgba(255,138,31,0.28)]'
+                  : 'text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white'
               }`}
             >
+              <Building2 className="h-4 w-4" />
               Kurumsal Kayıt
             </button>
           </div>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)} noValidate>
+        <form className="relative mt-7 space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
           {error && (
-            <div className="mb-4 rounded-xl bg-red-900/60 dark:bg-red-900/40 border border-red-500/60 dark:border-red-500/40 px-4 py-3 text-sm text-red-100 dark:text-red-200">
+            <div className="rounded-2xl border border-red-200 bg-red-50/90 px-4 py-3 text-sm text-red-700 dark:border-red-400/25 dark:bg-red-500/10 dark:text-red-200">
               {error}
             </div>
           )}
           <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Email
+              <label htmlFor="email" className={labelClass}>
+                <Mail className="h-4 w-4 text-[#ff8a1f]" />
+                E-posta
               </label>
               <input
                 {...registerField('email')}
                 type="email"
                 inputMode="email"
                 autoComplete="email"
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                placeholder="Email"
+                className={fieldClass}
+                placeholder="ornek@feellink.com"
               />
               {errors.email && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>
+                <p className={errorTextClass}>{errors.email.message}</p>
               )}
             </div>
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Username
+              <label htmlFor="username" className={labelClass}>
+                <UserRound className="h-4 w-4 text-[#ff8a1f]" />
+                Kullanıcı adı
               </label>
               <input
                 {...registerField('username')}
                 type="text"
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                placeholder="Username"
+                className={fieldClass}
+                placeholder="kullaniciadi"
               />
               {errors.username && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.username.message}</p>
+                <p className={errorTextClass}>{errors.username.message}</p>
               )}
             </div>
             <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Full Name (optional)
+              <label htmlFor="fullName" className={labelClass}>
+                <Sparkles className="h-4 w-4 text-[#ff8a1f]" />
+                Ad soyad (isteğe bağlı)
               </label>
               <input
                 {...registerField('fullName')}
                 type="text"
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                placeholder="Full Name"
+                className={fieldClass}
+                placeholder="Ad Soyad"
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Password
+              <label htmlFor="password" className={labelClass}>
+                <LockKeyhole className="h-4 w-4 text-[#ff8a1f]" />
+                Şifre
               </label>
               <input
                 {...registerField('password')}
                 type="password"
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                placeholder="Password"
+                className={fieldClass}
+                placeholder="********"
               />
               {errors.password && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password.message}</p>
+                <p className={errorTextClass}>{errors.password.message}</p>
               )}
             </div>
           </div>
 
-          {/* ✅ Kullanıcı Sözleşmesi Checkbox ve Inline Sözleşme */}
-          <div className="space-y-3">
-            <div className="flex items-start">
+          {/* Kullanıcı Sözleşmesi ve KVKK onayı */}
+          <div className="space-y-3 rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-white/10 dark:bg-white/[0.045]">
+            <div className="flex items-start gap-3">
               <input
                 type="checkbox"
                 id="termsAccepted"
                 {...registerField('termsAccepted')}
-                className="mt-1 h-4 w-4 text-[#ff7b00] focus:ring-[#ff7b00] border-gray-300 dark:border-gray-600 rounded"
+                className="mt-1 h-4 w-4 shrink-0 rounded border-2 border-gray-300 bg-white text-[#ff7b00] focus:ring-[#ff7b00] dark:border-gray-500 dark:bg-[#1a1a1a]"
               />
-              <label htmlFor="termsAccepted" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                <button
-                  type="button"
-                  onClick={() => setShowTerms(!showTerms)}
-                  className="text-[#ff7b00] hover:text-[#e36f00] underline"
-                >
-                  Kullanıcı Sözleşmesi
-                </button>
-                {' '}ve{' '}
-                <a
-                  href="/privacy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#ff7b00] hover:text-[#e36f00] underline"
-                >
-                  KVKK Aydınlatma Metni
-                </a>
-                {' '}ni okudum, kabul ediyorum.
-              </label>
+              <div className="text-sm leading-6 text-slate-600 dark:text-gray-300">
+                <label htmlFor="termsAccepted" className="cursor-pointer">
+                  Kullanıcı Sözleşmesi&apos;ni kabul ediyor ve KVKK Aydınlatma Metni&apos;ni
+                  okuduğumu onaylıyorum.
+                </label>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowTerms(!showTerms)}
+                    className="rounded-full border border-[#ff8a1f]/30 px-3 py-1 text-xs font-bold text-[#ff7a00] transition hover:bg-[#ff8a1f]/10"
+                  >
+                    Sözleşme özeti
+                  </button>
+                  <a
+                    href="/privacy#kullanici-sozlesmesi"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-full border border-slate-200 px-3 py-1 text-xs font-bold text-[#ff7a00] transition hover:bg-[#ff8a1f]/10 dark:border-white/10"
+                  >
+                    Kullanıcı Sözleşmesi
+                  </a>
+                  <a
+                    href="/privacy#kvkk"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-full border border-slate-200 px-3 py-1 text-xs font-bold text-[#ff7a00] transition hover:bg-[#ff8a1f]/10 dark:border-white/10"
+                  >
+                    KVKK metni
+                  </a>
+                </div>
+              </div>
             </div>
             {errors.termsAccepted && (
               <p className="mt-1 text-sm text-red-600 dark:text-red-400">
@@ -294,92 +330,47 @@ export default function RegisterPage() {
               </p>
             )}
 
-            {/* ✅ Inline Sözleşme Alanı */}
             {showTerms && (
               <div
-                className="rounded-lg border p-4 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700"
+                className="rounded-2xl border border-slate-200 bg-slate-50/90 p-4 text-slate-700 dark:border-white/10 dark:bg-black/20 dark:text-gray-300"
                 style={{ maxHeight: '280px', overflowY: 'auto' }}
               >
                 <div className="space-y-4 text-sm">
                   <div>
-                    <h3 className="font-semibold mb-2 text-gray-900 dark:text-gray-200">
-                      FEELLINK KULLANICI SÖZLEŞMESİ
+                    <h3 className="mb-2 flex items-center gap-2 font-semibold text-slate-950 dark:text-gray-100">
+                      <ShieldCheck className="h-4 w-4 text-[#ff8a1f]" />
+                      Sözleşme özeti
                     </h3>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Son güncelleme tarihi: 28 Aralık 2025
+                      Son güncelleme tarihi: {legalUpdatedAt}
                     </p>
                   </div>
 
-                  <div>
-                    <h4 className="font-medium mb-1 text-gray-800 dark:text-gray-300">
-                      Taraflar ve Kapsam
-                    </h4>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      Bu Kullanıcı Sözleşmesi ("Sözleşme"), Feellink platformunu kullanan gerçek kişiler ("Kullanıcı") ile Feellink arasında, platformun kullanım şartlarını belirlemek amacıyla düzenlenmiştir. Feellink'e kayıt olan her kullanıcı, bu sözleşmeyi okuduğunu, anladığını ve kabul ettiğini beyan eder.
+                  <div className="space-y-2 text-gray-600 dark:text-gray-400">
+                    {legalQuickSummary.map((item) => (
+                      <p key={item}>{item}</p>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 p-3 dark:border-orange-400/20 dark:bg-orange-400/10">
+                    <p className="text-xs leading-5 text-orange-900 dark:text-orange-200">
+                      Tam metinler yeni sekmede açılır. Hesap oluşturduğunuzda Kullanıcı
+                      Sözleşmesi&apos;ni kabul etmiş ve KVKK Aydınlatma Metni&apos;ni okuduğunuzu
+                      onaylamış olursunuz.
                     </p>
                   </div>
 
-                  <div>
-                    <h4 className="font-medium mb-1 text-gray-800 dark:text-gray-300">
-                      Hizmet Tanımı
-                    </h4>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      Feellink; sanat eserlerinin paylaşılabildiği, koleksiyonların oluşturulabildiği, ilan ve etkinliklerin yayınlanabildiği, kullanıcılar arasında etkileşim kurulmasını sağlayan dijital bir sanat ve kültür platformudur.
-                    </p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-medium mb-1 text-gray-800 dark:text-gray-300">
-                      Kullanıcı Yükümlülükleri
-                    </h4>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      Kullanıcılar: Platformu hukuka ve dürüstlük kurallarına uygun şekilde kullanmayı, kendilerine ait olmayan içerikleri izinsiz paylaşmamayı, diğer kullanıcıların haklarını ihlal etmemeyi, platformun işleyişini bozacak davranışlardan kaçınmayı kabul eder.
-                    </p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-medium mb-1 text-gray-800 dark:text-gray-300">
-                      Hesap Güvenliği
-                    </h4>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      Feellink, kullanıcı hesaplarının güvenliği için gerekli teknik ve idari önlemleri alır. Kullanıcılar ise hesap bilgilerini gizli tutmakla yükümlüdür. Kullanıcının kendi ihmali sonucu üçüncü kişilerin hesaba erişim sağlamasından doğabilecek zararlardan Feellink sorumlu tutulamaz.
-                    </p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-medium mb-1 text-gray-800 dark:text-gray-300">
-                      İçerikler ve Paylaşımlar
-                    </h4>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      Kullanıcılar tarafından paylaşılan içeriklerin hukuki sorumluluğu ilgili kullanıcıya aittir. Feellink, hukuka aykırı veya platform kurallarına uygun olmayan içerikleri kaldırma veya erişimini sınırlandırma hakkını saklı tutar.
-                    </p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-medium mb-1 text-gray-800 dark:text-gray-300">
-                      Hizmette Değişiklikler
-                    </h4>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      Feellink, platformun işleyişini geliştirmek amacıyla teknik ve içeriksel değişiklikler yapabilir. Bu değişiklikler kullanıcı deneyimini iyileştirmeye yöneliktir.
-                    </p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-medium mb-1 text-gray-800 dark:text-gray-300">
-                      Yürürlük
-                    </h4>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      Bu sözleşme, kullanıcının kayıt sırasında onay vermesiyle yürürlüğe girer.
-                    </p>
-                  </div>
-
-                  <div className="mt-4 p-3 rounded bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
-                    <p className="text-xs font-medium text-orange-900 dark:text-orange-200">
-                      Onay Metni:
-                    </p>
-                    <p className="text-xs mt-1 text-orange-800 dark:text-orange-300">
-                      "Feellink Kullanıcı Sözleşmesini okudum, anladım ve kabul ediyorum."
-                    </p>
+                  <div className="space-y-3">
+                    {termsSections.slice(0, 4).map((section) => (
+                      <div key={section.title}>
+                        <h4 className="font-semibold text-gray-800 dark:text-gray-200">
+                          {section.title}
+                        </h4>
+                        <p className="mt-1 text-xs leading-5 text-gray-600 dark:text-gray-400">
+                          {section.paragraphs?.[0] ?? section.items?.[0]}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -390,23 +381,23 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={isSubmitting || !termsAccepted}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#ff7b00] hover:bg-[#e36f00] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#ff7b00] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative flex w-full items-center justify-center gap-2 rounded-2xl border border-transparent bg-gradient-to-r from-[#ff7a00] via-[#ff8a1f] to-[#ff9f43] px-4 py-3 text-sm font-bold text-white shadow-[0_18px_45px_rgba(255,122,0,0.28)] transition-all hover:translate-y-[-1px] hover:shadow-[0_22px_55px_rgba(255,122,0,0.34)] focus:outline-none focus:ring-4 focus:ring-[#ff8a1f]/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isSubmitting ? 'Creating account...' : mode === 'corporate' ? 'Kurumsal Kayıt Oluştur' : 'Kayıt Ol'}
+              {isSubmitting ? 'Kayıt oluşturuluyor...' : mode === 'corporate' ? 'Kurumsal Kayıt Oluştur' : 'Kayıt Ol'}
+              {!isSubmitting && <ArrowRight className="h-4 w-4" />}
             </button>
           </div>
 
           <div className="text-center">
-            <a
+            <Link
               href="/login"
-              className="text-[#ff7b00] dark:text-[#ff7b00] hover:text-[#e36f00] dark:hover:text-[#e36f00] text-sm"
+              className="text-sm font-semibold text-[#ff7b00] hover:text-[#e36f00]"
             >
-              Already have an account? Sign in
-            </a>
+              Zaten hesabınız var mı? Giriş yap
+            </Link>
           </div>
         </form>
       </div>
     </div>
   )
 }
-

@@ -22,11 +22,6 @@ const publicRoutes = [
 // Route değişiminde AuthGuard yeniden mount olsa bile aynı token zaten doğrulandıysa tekrar /me çağrılmasın
 let lastValidatedToken: string | null = null
 
-// Login sayfasından çağrılır: başarılı login sonrası /auth/me tekrar çağrılmasın
-export function markTokenAsValidated(token: string) {
-  lastValidatedToken = token
-}
-
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -34,7 +29,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => setMounted(true), [])
   const {
     accessToken,
-    user,
     isAuthenticated,
     loading,
     hasInitialized,
@@ -47,9 +41,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   const currentPathname = pathname || ''
   const isPublicRoute = publicRoutes.some((r) => currentPathname.startsWith(r))
-
-  // Optimistic: kullanıcı store'da varsa hemen "authenticated" say — backend doğrulaması arka planda devam eder
-  const hasStoredAuth = !!accessToken && !!user
 
   // Login/register'da token yoksa hemen resolved yap - loader takılmadan form gösterilsin
   useEffect(() => {
@@ -104,17 +95,28 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     const initAuth = async () => {
       let timeoutId: ReturnType<typeof setTimeout> | null = null
-      // Optimistik modda arka planda çalışıyor — timeout uzun olabilir
-      timeoutId = setTimeout(() => {
+      const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+      const tokenToUse = tokenFromStorage || accessToken || currentToken
+      const usePersistedSessionFallback = () => {
+        const state = useAuthStore.getState()
+        if (state.user && tokenToUse) {
+          setAuth(
+            state.user,
+            tokenToUse,
+            state.refreshToken || '',
+            state.capabilities ?? null,
+            state.sidebar ?? null,
+          )
+          lastValidatedToken = currentToken
+        }
         setLoading(false)
         setHasInitialized(true)
         hasRunRef.current = false
-      }, 20000)
+      }
+      timeoutId = setTimeout(usePersistedSessionFallback, 8000)
 
       try {
         setLoading(true)
-        const tokenFromStorage = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
-        const tokenToUse = tokenFromStorage || accessToken || currentToken
         const response = await api.get('/auth/me', {
           headers: tokenToUse ? { Authorization: `Bearer ${tokenToUse}` } : undefined,
         })
@@ -137,7 +139,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           return
         }
         const state = useAuthStore.getState()
-        if (state.isAuthenticated && state.user) {
+        if (state.user && tokenToUse) {
+          setAuth(
+            state.user,
+            tokenToUse,
+            state.refreshToken || '',
+            state.capabilities ?? null,
+            state.sidebar ?? null,
+          )
           lastValidatedToken = currentToken
         } else {
           lastValidatedToken = null
@@ -200,35 +209,26 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (!mounted) return null
 
+  // Login/register'da localStorage'da token yoksa loader gösterme - rehydration sonrası da form kalsın
   const isLoginOrRegister = currentPathname === '/login' || currentPathname === '/register'
   const noTokenInStorage = typeof window !== 'undefined' && !localStorage.getItem('access_token')
-
-  // Login/register + token yok → form direkt göster (spinner yok)
   if (isLoginOrRegister && noTokenInStorage) {
     return <>{children}</>
   }
 
-  // Oturumlu kullanıcı: store'da user+token varsa içeriği hemen göster, doğrulama arka planda
-  // (Token geçersizse initAuth → performForcedLogout → login'e yönlendirir)
-  if (hasStoredAuth) {
-    // Login/register'a gitmeye çalışıyorsa feed'e yönlendir
-    if (isLoginOrRegister) return null
-    return <>{children}</>
-  }
-
-  // Stored auth yok ama henüz kontrol bitmediyse küçük spinner
+  // Loading veya henüz init bitmediyse tek ekran: loader
   if (loading || !hasInitialized) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-white dark:bg-gray-950">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-orange" />
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100" />
       </div>
     )
   }
 
-  // Korunan sayfadayız ama auth yok → redirect yukarıda tetiklenir
+  // Korunan sayfadayız ama auth yok → redirect yukarıda tetiklenir, boş render
   if (!isPublicRoute && !isAuthenticated) return null
-  // Login/register'dayız ama giriş var → redirect
-  if (isLoginOrRegister && isAuthenticated) return null
+  // Login/register'dayız ama giriş var → redirect yukarıda tetiklenir
+  if ((currentPathname === '/login' || currentPathname === '/register') && isAuthenticated) return null
 
   return <>{children}</>
 }

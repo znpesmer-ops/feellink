@@ -11,21 +11,33 @@ export type AuthUser = {
   superAdmin?: boolean;
 };
 
+type AdminLikeUser = Pick<AuthUser, 'roles' | 'isAdmin' | 'superAdmin'> & {
+  email?: string | null;
+};
+
+const ADMIN_ALLOWED_EMAILS = new Set(['znp.esmer@gmail.com']);
+
+function normalizeEmail(email?: string | null): string {
+  return (email ?? '').trim().toLowerCase();
+}
+
+export function isAllowedAdminEmail(user?: { email?: string | null } | null): boolean {
+  return ADMIN_ALLOWED_EMAILS.has(normalizeEmail(user?.email));
+}
+
 /**
  * Check if user is superAdmin (GOD-MODE)
  * SuperAdmin bypasses all role checks
  */
-export function isSuperAdmin(user?: AuthUser | null): boolean {
-  if (!user) return false;
-  return Boolean(user.superAdmin === true);
+export function isSuperAdmin(user?: AdminLikeUser | null): boolean {
+  return isAllowedAdminEmail(user);
 }
 
 /**
  * Check if user is admin (regular admin or superAdmin)
  */
-export function isAdmin(user?: AuthUser | null): boolean {
-  if (!user) return false;
-  return Boolean(user.isAdmin === true || user.superAdmin === true);
+export function isAdmin(user?: AdminLikeUser | null): boolean {
+  return isAllowedAdminEmail(user);
 }
 
 /**
@@ -48,11 +60,5 @@ export function hasAnyRole(user: AuthUser | null | undefined, requiredRoles: str
   if (!user.roles || !requiredRoles.length) return false;
   return requiredRoles.some((role) => user.roles?.includes(role));
 }
-
-
-
-
-
-
 
 

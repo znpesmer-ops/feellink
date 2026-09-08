@@ -87,7 +87,7 @@ function BillingSettingsContent() {
   }
 
   return (
-    <main className="flex justify-center pt-24 pb-16 px-6 min-h-screen bg-white dark:bg-[#0a0a0a]">
+    <main className="flex min-h-screen justify-center bg-[#f7f8fb] px-6 pb-16 pt-24 text-slate-900 dark:bg-[#050912] dark:text-white">
       <div className="w-full max-w-[720px]">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
@@ -101,13 +101,13 @@ function BillingSettingsContent() {
         </div>
 
         {/* Content Card */}
-        <div className="bg-white/80 dark:bg-[#1a1a1a]/70 backdrop-blur-md border border-gray-200 dark:border-gray-700/40 rounded-2xl p-6 shadow-sm space-y-6">
+        <div className="space-y-6 rounded-2xl border border-gray-200 bg-white/90 p-6 shadow-[0_24px_70px_rgba(15,23,42,0.08)] backdrop-blur-md dark:border-gray-700/40 dark:bg-[#111824]/82 dark:shadow-black/20">
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Mevcut rolünüz ve ücretli plan seçeneklerini bu alandan görüntüleyebilirsiniz.
           </p>
 
           {/* Current Role & Plan */}
-          <div className="rounded-2xl border border-white/10 dark:border-gray-700/40 bg-white/5 dark:bg-gray-800/50 p-4">
+          <div className="rounded-2xl border border-gray-200 bg-white/80 p-4 shadow-sm shadow-gray-200/50 dark:border-gray-700/40 dark:bg-gray-800/50 dark:shadow-none">
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Mevcut Rolünüz</p>
             <div className="flex flex-wrap gap-2 mb-3">
               {currentRoles.length > 0 ? (
@@ -123,7 +123,7 @@ function BillingSettingsContent() {
                 <span className="text-sm text-gray-400">Rol atanmamış</span>
               )}
             </div>
-            <div className="pt-3 border-t border-white/10 dark:border-gray-700/40">
+            <div className="border-t border-gray-200 pt-3 dark:border-gray-700/40">
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Mevcut Planınız</p>
               <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 {planLabels[currentPlan] || currentPlan}
@@ -145,7 +145,7 @@ function BillingSettingsContent() {
                 return (
                   <div
                     key={plan.id}
-                    className="rounded-2xl border border-white/10 dark:border-gray-700/40 bg-white/5 dark:bg-gray-800/50 p-4"
+                    className="rounded-2xl border border-gray-200 bg-white/80 p-4 shadow-sm shadow-gray-200/50 dark:border-gray-700/40 dark:bg-gray-800/50 dark:shadow-none"
                   >
                     <p className="text-sm font-semibold mb-1 text-gray-900 dark:text-gray-100">
                       {plan.name}
@@ -161,7 +161,7 @@ function BillingSettingsContent() {
                     ) : (
                       <button
                         onClick={() => handlePlanRequest(plan.id)}
-                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white dark:bg-gray-700 text-black dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors font-medium"
+                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-900 transition-colors hover:bg-gray-100 dark:border-gray-600/70 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                       >
                         Planı Talep Et
                       </button>
@@ -173,7 +173,7 @@ function BillingSettingsContent() {
           </div>
 
           {/* Info Note */}
-          <div className="pt-4 border-t border-white/10 dark:border-gray-700/40">
+          <div className="border-t border-gray-200 pt-4 dark:border-gray-700/40">
             <p className="text-[11px] text-gray-500 dark:text-gray-400">
               Not: Rol değişiklikleri ödeme sonrasında sistem tarafından otomatik tanımlanır. Şu an
               panel üzerinden manuel rol değiştirme seçeneği bulunmamaktadır.
@@ -192,4 +192,3 @@ export default function BillingSettingsPage() {
     </AuthGuard>
   )
 }
-

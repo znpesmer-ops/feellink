@@ -101,6 +101,7 @@ function SavedContent() {
                   {post.media[0].type === 'video' ? (
                     <video
                       src={post.media[0].url}
+                      poster={post.media[0].thumbnailUrl || undefined}
                       className="w-full h-full object-cover"
                       muted
                     />
@@ -149,6 +150,7 @@ function SavedContent() {
                   selectedPost.media[0].type === 'video' ? (
                     <video
                       src={selectedPost.media[0].url}
+                      poster={selectedPost.media[0].thumbnailUrl || undefined}
                       controls
                       className="w-full h-full object-contain max-h-[90vh]"
                     />
@@ -270,7 +272,6 @@ export default function SavedPage() {
     </AuthGuard>
   )
 }
-
 
 
 

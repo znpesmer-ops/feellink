@@ -88,6 +88,10 @@ export class AccountStatusGuard implements CanActivate {
           }
         }
       } catch (dbError) {
+        if (dbError instanceof ForbiddenException) {
+          throw dbError;
+        }
+
         // Database hatası durumunda sessizce geç (guard çalışmaya devam etsin)
         console.warn('AccountStatusGuard: Database error, allowing request:', dbError);
         return true;
@@ -95,6 +99,10 @@ export class AccountStatusGuard implements CanActivate {
 
       return true;
     } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
+
       // Herhangi bir hata durumunda sessizce geç
       console.warn('AccountStatusGuard: Error, allowing request:', error);
       return true;

@@ -1,7 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from './store'
 
-/** Büyük multipart + /events mutasyonları: proxy'de POST JSON bazen kopuyor; doğrudan backend */
+/** Çok nadir zorunlu durumlar için doğrudan backend seçeneği */
 export type ApiRequestConfig = InternalAxiosRequestConfig & { directBackend?: boolean }
 
 const FEELLINK_SYNTHETIC_NETWORK = '__feellinkSyntheticNetwork' as const
@@ -19,6 +19,33 @@ function isEventsApiMutation(config: Pick<ApiRequestConfig, 'url' | 'method'>): 
   if (!/^\/events(\/|$)/.test(path)) return false
   const m = (config.method || 'get').toLowerCase()
   return ['post', 'put', 'patch', 'delete'].includes(m)
+}
+
+/** Giriş / kayıt / refresh gibi kritik oturum mutasyonları */
+function isAuthSessionMutation(config: Pick<ApiRequestConfig, 'url' | 'method'>): boolean {
+  const { path, method } = getRequestPathAndMethod(config)
+  if (method !== 'post') return false
+  return /^\/auth\/(login|login-corporate|login-unified|register|register-corporate|refresh|restore-account|send-signup-otp|verify-signup-otp|forgot-password|verify-reset-otp|reset-password-with-otp|reset-password)(\/?|$)/.test(
+    path,
+  )
+}
+
+function getRequestPathAndMethod(config: Pick<ApiRequestConfig, 'url' | 'method'>): { path: string; method: string } {
+  const raw = (config.url || '').split('?')[0] || ''
+  const path = raw.startsWith('http')
+    ? new URL(raw, 'http://_').pathname
+    : raw.startsWith('/')
+      ? raw
+      : `/${raw}`
+  return { path, method: (config.method || 'get').toLowerCase() }
+}
+
+function isPublicAuthMutation(config: Pick<ApiRequestConfig, 'url' | 'method'>): boolean {
+  const { path, method } = getRequestPathAndMethod(config)
+  if (method !== 'post') return false
+  return /^\/auth\/(login|login-corporate|login-unified|register|register-corporate|restore-account|send-signup-otp|verify-signup-otp|forgot-password|verify-reset-otp|reset-password-with-otp|reset-password)(\/?|$)/.test(
+    path,
+  )
 }
 
 import { CapabilitySummary, SidebarVisibility } from '@/types/capabilities'
@@ -138,11 +165,13 @@ export function getAbsoluteBackendBaseUrl(): string {
 
 /** feellink.io / Vercel ön yüzünde tarayıcı istekleri same-origin proxy üzerinden gider */
 function shouldUseBrowserApiProxy(): boolean {
-  return false // Proxy devre dışı — doğrudan backend'e git (feellink-backend.vercel.app)
+  if (typeof window === 'undefined') return false
+  const h = window.location.hostname
+  return h === 'feellink.io' || h.endsWith('.feellink.io') || h.includes('vercel.app')
 }
 
 /** Axios istekleri için base URL (production web'de /api-proxy) */
-function getAxiosBaseURL(): string {
+export function getAxiosBaseURL(): string {
   if (typeof window === 'undefined') {
     return getAbsoluteBackendBaseUrl()
   }
@@ -163,34 +192,40 @@ if (typeof window === 'undefined') {
   console.info('[api] axios base URL (client):', baseURL, '| absolute backend:', getAbsoluteBackendBaseUrl())
 }
 
+const defaultTimeoutMs =
+  typeof window !== 'undefined' && shouldUseBrowserApiProxy() ? 60000 : 30000
+
 const api = axios.create({
   baseURL,
   withCredentials: true,
-  timeout: 60000, // 60 saniye (Vercel serverless cold start için)
+  timeout: defaultTimeoutMs, // Prod same-origin proxy: soğuk zincir için 60s; aksi 30s
   maxContentLength: 100 * 1024 * 1024, // 100MB
   maxBodyLength: 100 * 1024 * 1024, // 100MB
 })
 
-// Her istekte güncel axios base URL (SSR + client; prod web'de /api-proxy)
-// FormData (medya upload) same-origin /api-proxy üzerinden gider — cross-origin backend upload bazı ağlarda ERR_NETWORK veriyordu.
+// Her istekte güncel axios base URL (SSR + client; prod web'de /api-proxy).
+// Production tarayıcı istekleri aynı origin üzerinden geçer; şirket ağlarında
+// *.vercel.app engellense bile core uygulama www.feellink.io üzerinden çalışır.
 // Büyük dosya için CreateEventModal istemci tarafı sıkıştırma yapar (413 önleme).
-// /events mutasyonları doğrudan backend (JSON POST proxy'de sorun çıkabiliyordu).
+// Sadece açıkça `directBackend: true` verilirse backend'e doğrudan gidilir.
 // Store rehydrate olmadan (navigasyon sonrası) token için localStorage, yoksa persist yedeği kullan; istek token'sız giderse 401 → forced logout
 api.interceptors.request.use((config: ApiRequestConfig) => {
   const isFormData =
     typeof FormData !== 'undefined' && config.data != null && config.data instanceof FormData
-  const bypassProxyForBody =
-    config.directBackend === true ||
-    (typeof window !== 'undefined' &&
-      shouldUseBrowserApiProxy() &&
-      isEventsApiMutation(config))
+  const bypassProxyForBody = config.directBackend === true
 
   config.baseURL = bypassProxyForBody ? getAbsoluteBackendBaseUrl() : getAxiosBaseURL()
 
+  if (typeof window !== 'undefined' && shouldUseBrowserApiProxy() && isAuthSessionMutation(config)) {
+    const minAuthMs = 60000
+    const cur = config.timeout
+    config.timeout = cur != null && cur > minAuthMs ? cur : minAuthMs
+  }
+
   if (isFormData) {
-    const minMs = 65000 // 65s: 5s buffer over Vercel backend's 60s maxDuration
+    const maxUploadMs = 65000
     config.timeout =
-      config.timeout != null && config.timeout > minMs ? config.timeout : minMs
+      config.timeout != null ? Math.min(config.timeout, maxUploadMs) : maxUploadMs
   }
 
   const state = useAuthStore.getState()
@@ -198,7 +233,7 @@ api.interceptors.request.use((config: ApiRequestConfig) => {
     state.accessToken ??
     (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null) ??
     (typeof window !== 'undefined' ? getAccessTokenFromPersistedStorage() : null)
-  if (token) {
+  if (token && !isPublicAuthMutation(config)) {
     config.headers.Authorization = `Bearer ${token}`
   }
 
@@ -288,6 +323,10 @@ api.interceptors.response.use(
 
     // If error is 401 and we haven't tried to refresh yet
     if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isPublicAuthMutation(originalRequest)) {
+        return Promise.reject(error)
+      }
+
       if (isRefreshing) {
         // If already refreshing, queue this request
         return new Promise((resolve, reject) => {
@@ -500,6 +539,18 @@ export const getErrorMessage = (error: any): string => {
     return 'Gönderilen bilgiler geçersiz. Lütfen alanları kontrol edip tekrar deneyin.'
   }
 
+  if (status === 504) {
+    const fromBody = extractNestMessage(responseData)
+    if (fromBody && fromBody.length >= 3) return fromBody
+    return 'Sunucu yanıt vermedi (zaman aşımı). Lütfen tekrar deneyin.'
+  }
+
+  if (status === 503) {
+    const fromBody = extractNestMessage(responseData)
+    if (fromBody && fromBody.length >= 3) return fromBody
+    return 'Hizmet geçici olarak kullanılamıyor. Lütfen kısa süre sonra tekrar deneyin.'
+  }
+
   if (status != null && status >= 500) {
     return 'Sunucuda geçici bir sorun oluştu. Lütfen kısa süre sonra tekrar deneyin.'
   }
@@ -575,4 +626,3 @@ export const getErrorMessage = (error: any): string => {
 
 export { api }
 export default api
-

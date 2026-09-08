@@ -38,6 +38,88 @@ export class CollectionsService {
     });
   }
 
+  async getProfileCollections(username: string, currentUserId?: string) {
+    const normalized = (username || '').trim();
+    if (!normalized || normalized === 'undefined' || normalized === 'null') {
+      throw new BadRequestException('Geçersiz kullanıcı adı');
+    }
+
+    const owner = await this.prisma.user.findFirst({
+      where: {
+        isDeleted: false,
+        OR: [
+          { id: normalized },
+          { username: { equals: normalized, mode: 'insensitive' } },
+        ],
+      },
+      select: {
+        id: true,
+        username: true,
+      },
+    });
+
+    if (!owner) {
+      throw new NotFoundException('User not found');
+    }
+
+    const collections = await this.prisma.collection.findMany({
+      where: {
+        ownerId: owner.id,
+        ...(currentUserId === owner.id ? {} : { isPublic: true }),
+      },
+      include: {
+        items: {
+          where: {
+            post: {
+              userId: owner.id,
+              type: 'artwork',
+              isDeleted: false,
+            },
+          },
+          include: {
+            post: {
+              include: {
+                media: {
+                  take: 1,
+                  orderBy: { order: 'asc' },
+                },
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    fullName: true,
+                    avatar: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { order: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return collections.map((collection) => ({
+      id: collection.id,
+      title: collection.title,
+      description: collection.description,
+      coverImage: collection.coverImage,
+      ownerId: collection.ownerId,
+      isPublic: collection.isPublic,
+      createdAt: collection.createdAt,
+      updatedAt: collection.updatedAt,
+      itemCount: collection.items.length,
+      items: collection.items.map((item) => ({
+        id: item.id,
+        postId: item.postId,
+        order: item.order,
+        createdAt: item.createdAt,
+        post: item.post,
+      })),
+    }));
+  }
+
   // 🔥 Tüm koleksiyonları getir (public)
   async getAllCollections() {
     return this.prisma.collection.findMany({
@@ -468,4 +550,3 @@ export class CollectionsService {
     };
   }
 }
-

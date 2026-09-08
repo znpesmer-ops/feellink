@@ -200,13 +200,6 @@ export class FollowService {
     });
 
     if (!request) {
-      // Zaten kabul edilmiş (duplicate bildirim tıklaması) — follow varsa success dön
-      const alreadyFollowing = await this.prisma.follow.findUnique({
-        where: { followerId_followingId: { followerId: requesterId, followingId: requestedId } },
-      });
-      if (alreadyFollowing) {
-        return { status: 'accepted' };
-      }
       throw new NotFoundException('Follow request not found');
     }
 
@@ -295,8 +288,7 @@ export class FollowService {
     });
 
     if (!request) {
-      // Zaten reddedilmiş (duplicate bildirim tıklaması) — sessizce success dön
-      return { status: 'rejected' };
+      throw new NotFoundException('Follow request not found');
     }
 
     await this.prisma.$transaction(async (tx) => {

@@ -9,7 +9,11 @@ export class LoginDto {
   @IsEmail()
   email?: string;
 
-  @ValidateIf((o) => !o.email && !o.username)
+  @IsOptional()
+  @IsString()
+  identifier?: string;
+
+  @ValidateIf((o) => !o.email && !o.username && !o.identifier)
   @IsString()
   emailOrUsername?: string;
 

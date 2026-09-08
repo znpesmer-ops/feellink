@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import api from '@/lib/api'
+import { isAdminUser } from '@/lib/admin-utils'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { clearAuth, user, accessToken, refreshToken, refreshUser } = useAuthStore()
@@ -45,7 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }
 
       // Admin kontrolü - isAdmin veya superAdmin olmalı (profesyonel SaaS mantığı)
-      const isAdmin = user.isAdmin === true || user.superAdmin === true
+      const isAdmin = isAdminUser(user)
 
       // If user is not admin, try refreshing user data once
       if (!isAdmin && !hasRefreshed) {
@@ -61,7 +62,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       // Final admin check (after potential refresh)
       const currentUser = useAuthStore.getState().user
-      const finalIsAdmin = currentUser?.isAdmin === true || currentUser?.superAdmin === true
+      const finalIsAdmin = isAdminUser(currentUser)
 
       if (!finalIsAdmin) {
         alert('Bu sayfaya erişim yetkiniz yok! Lütfen çıkış yapıp tekrar giriş yapın.')

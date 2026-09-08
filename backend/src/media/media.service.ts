@@ -3,6 +3,21 @@ import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { put } from '@vercel/blob';
 
+const BLOB_UPLOAD_TIMEOUT_MS = 50000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeout: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  });
+}
+
 @Injectable()
 export class MediaService {
   constructor(private configService: ConfigService) {
@@ -30,17 +45,15 @@ export class MediaService {
     try {
       console.log(`☁️ [MediaService] Uploading to Vercel Blob...`);
       
-      const uploadTimeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Vercel Blob upload timed out after 50s')), 50000)
-      );
-      const blob = await Promise.race([
+      const blob = await withTimeout(
         put(fileName, file.buffer, {
           access: 'public',
           contentType: file.mimetype,
           token: blobToken,
         }),
-        uploadTimeout,
-      ]);
+        BLOB_UPLOAD_TIMEOUT_MS,
+        'Vercel Blob yükleme zaman aşımına uğradı. Lütfen daha küçük bir dosya ile tekrar deneyin.',
+      );
 
       // ✅ 3. URL KONTROLÜ
       if (!blob || !blob.url) {

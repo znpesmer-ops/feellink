@@ -3,25 +3,22 @@ import { NestFactory } from '@nestjs/core';
 // VERCEL: feellink-backend projesi için Root Directory: backend OLMALI!
 import { ValidationPipe, Logger, HttpException } from '@nestjs/common';
 import { json, raw, urlencoded } from 'express';
-import cookieParser from 'cookie-parser';
+import cookieParser = require('cookie-parser');
 import * as express from 'express';
 import { join } from 'path';
 import { AppModule } from './app.module';
-import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 // Deploy trigger: isDeleted filter fix - 2026-01-18
 
 let cachedServer: any;
 
-async function bootstrapServer() {
-  if (cachedServer) {
-    return cachedServer;
-  }
-
+async function createApp() {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],
   });
-  const logger = new Logger('Bootstrap');
+
+  // Vercel'in güvenilir proxy bilgisini kullan; hız sınırı gerçek istemci IP'sine uygulanır.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
   app.use(cookieParser());
 
@@ -66,21 +63,30 @@ async function bootstrapServer() {
 
   app.enableCors({
     origin: (origin, callback) => {
-      // Origin yoksa (sunucu-sunucu, proxy, curl) — izin ver
-      if (!origin) { callback(null, true); return; }
-
-      // Allowed origins listesinde varsa izin ver
-      if (allowedOrigins.some(allowed => origin.startsWith(allowed))) {
+      // ✅ Origin header yoksa (Postman, curl, etc.) izin ver
+      if (!origin) {
         callback(null, true);
         return;
       }
-
-      // Vercel preview deployments için wildcard
-      if (origin.includes('vercel.app')) {
+      
+      // ✅ Allowed origins listesinde varsa izin ver
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
         return;
       }
-
+      
+      // ✅ Vercel preview deployments için wildcard
+      try {
+        const hostname = new URL(origin).hostname.toLowerCase();
+        if (/^feellink(?:-[a-z0-9-]+)*\.vercel\.app$/.test(hostname)) {
+          callback(null, true);
+          return;
+        }
+      } catch {
+        // Geçersiz origin aşağıdaki güvenli red akışına düşer.
+      }
+      
+      // ❌ Diğer origin'lere izin verme
       console.warn(`❌ CORS blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     },
@@ -100,8 +106,6 @@ async function bootstrapServer() {
     preflightContinue: false,
     optionsSuccessStatus: 204,
   });
-
-  app.useGlobalFilters(new AllExceptionsFilter());
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -131,6 +135,16 @@ async function bootstrapServer() {
     }),
   );
 
+  return app;
+}
+
+async function bootstrapServer() {
+  if (cachedServer) {
+    return cachedServer;
+  }
+
+  const app = await createApp();
+  const logger = new Logger('Bootstrap');
   await app.init();
 
   const server = app.getHttpAdapter().getInstance();
@@ -138,6 +152,14 @@ async function bootstrapServer() {
 
   logger.log('✅ NestJS initialized for Vercel');
   return server;
+}
+
+async function bootstrapLocal() {
+  const app = await createApp();
+  const logger = new Logger('Bootstrap');
+  const port = Number(process.env.PORT) || 3002;
+  await app.listen(port, '0.0.0.0');
+  logger.log(`🚀 Backend running locally on http://localhost:${port}`);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -161,4 +183,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
   }
+}
+
+if (require.main === module) {
+  bootstrapLocal().catch((err) => {
+    const logger = new Logger('Bootstrap');
+    logger.error('❌ Local bootstrap failed', err?.stack || err);
+    process.exit(1);
+  });
 }

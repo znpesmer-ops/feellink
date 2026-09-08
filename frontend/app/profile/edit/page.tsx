@@ -11,9 +11,10 @@ import getCroppedImg from '@/utils/cropImage'
 import type { Area } from 'react-easy-crop'
 import toast from 'react-hot-toast'
 import { TR_CITIES } from '@/constants/cities.tr'
-import { Lock, BarChart3, Loader2 } from 'lucide-react'
+import { Lock, BarChart3, Loader2, ImagePlus, Upload, X } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { invalidateAfterUsernameUpdate } from '@/lib/profile-update'
+import { resolveImageUrl } from '@/lib/resolveImageUrl'
 
 type Gender = 'FEMALE' | 'MALE' | 'UNSPECIFIED'
 
@@ -32,6 +33,8 @@ function EditProfileContent() {
   const [username, setUsername] = useState('')
   const [bio, setBio] = useState('')
   const [avatar, setAvatar] = useState('')
+  const [coverImage, setCoverImage] = useState('')
+  const [exhibitionName, setExhibitionName] = useState('')
   const [fullName, setFullName] = useState('')
   const [website, setWebsite] = useState('')
   const [isPrivate, setIsPrivate] = useState(false)
@@ -43,26 +46,18 @@ function EditProfileContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isCoverUploading, setIsCoverUploading] = useState(false)
-  const [coverImage, setCoverImage] = useState('')
-  const [coverImagePreview, setCoverImagePreview] = useState('')
   const [message, setMessage] = useState('')
   const [avatarPreview, setAvatarPreview] = useState<string>('')
+  const [coverPreview, setCoverPreview] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
 
-  // Crop modal states (avatar — 1:1)
+  // Crop modal states
   const [cropModalOpen, setCropModalOpen] = useState(false)
   const [imageSrc, setImageSrc] = useState<string | null>(null)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
-
-  // Cover crop modal states (3:1)
-  const [coverCropModalOpen, setCoverCropModalOpen] = useState(false)
-  const [coverImageSrc, setCoverImageSrc] = useState<string | null>(null)
-  const [coverCrop, setCoverCrop] = useState({ x: 0, y: 0 })
-  const [coverZoom, setCoverZoom] = useState(1)
-  const [coverCroppedAreaPixels, setCoverCroppedAreaPixels] = useState<Area | null>(null)
   const hasInitialized = useRef(false) // ✅ İlk mount kontrolü için
 
   // Load countries data
@@ -84,8 +79,9 @@ function EditProfileContent() {
       setBio(user.bio || '')
       setAvatar(user.avatar || '')
       setAvatarPreview(user.avatar || '')
-      setCoverImage((user as any).coverImage || '')
-      setCoverImagePreview((user as any).coverImage || '')
+      setCoverImage(user.coverImage || '')
+      setCoverPreview(user.coverImage || '')
+      setExhibitionName(user.exhibitionName || '')
       setFullName(user.fullName || '')
       setWebsite(user.website || '')
       setIsPrivate(user.isPrivate || false)
@@ -106,6 +102,9 @@ function EditProfileContent() {
             setAvatar(profileData.avatar)
             setAvatarPreview(profileData.avatar)
           }
+          setCoverImage(profileData.coverImage || '')
+          setCoverPreview(profileData.coverImage || '')
+          setExhibitionName(profileData.exhibitionName || '')
           
           if (profileData.dateOfBirth) {
             const date = new Date(profileData.dateOfBirth)
@@ -218,72 +217,56 @@ function EditProfileContent() {
     }
   }
 
-  // Cover image handlers
-  const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
     if (!file.type.startsWith('image/')) {
-      setMessage('Lütfen bir resim dosyası seçin.')
+      setMessage('Kapak için JPG, PNG veya GIF formatında bir görsel seçin.')
       return
     }
+
     if (file.size > 8 * 1024 * 1024) {
-      setMessage('Kapak fotoğrafı 8MB\'dan büyük olamaz.')
+      setMessage('Kapak fotoğrafı 8MB’dan büyük olamaz.')
       return
     }
-    setMessage('')
-    const reader = new FileReader()
-    reader.addEventListener('load', () => {
-      setCoverImageSrc(reader.result as string)
-      setCoverCropModalOpen(true)
-    })
-    reader.readAsDataURL(file)
-  }
 
-  const onCoverCropComplete = useCallback((_: Area, croppedPixels: Area) => {
-    setCoverCroppedAreaPixels(croppedPixels)
-  }, [])
-
-  const handleCoverCropFinish = async () => {
-    if (!coverImageSrc || !coverCroppedAreaPixels) return
+    const localPreview = URL.createObjectURL(file)
+    setCoverPreview(localPreview)
     setIsCoverUploading(true)
     setMessage('')
+
     try {
-      const croppedBlob = await getCroppedImg(coverImageSrc, coverCroppedAreaPixels)
-      const previewUrl = URL.createObjectURL(croppedBlob)
-      setCoverImagePreview(previewUrl)
       const formData = new FormData()
-      formData.append('file', croppedBlob, 'cover.jpg')
+      formData.append('file', file, file.name)
+
       const response = await api.post('/media/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       })
+
       setCoverImage(response.data.url)
+      setCoverPreview(response.data.url)
       setMessage('')
-      setCoverCropModalOpen(false)
-      setCoverImageSrc(null)
-      setCoverCrop({ x: 0, y: 0 })
-      setCoverZoom(1)
-      setCoverCroppedAreaPixels(null)
-      URL.revokeObjectURL(previewUrl)
     } catch (error: any) {
-      setMessage(error.response?.data?.message || 'Kapak fotoğrafı yüklenirken hata oluştu')
+      setMessage(error.response?.data?.message || 'Kapak fotoğrafı yüklenirken bir hata oluştu')
+      setCoverPreview(coverImage || '')
     } finally {
+      URL.revokeObjectURL(localPreview)
       setIsCoverUploading(false)
+      if (coverInputRef.current) {
+        coverInputRef.current.value = ''
+      }
     }
   }
 
-  const handleCoverCropCancel = () => {
-    setCoverCropModalOpen(false)
-    setCoverImageSrc(null)
-    setCoverCrop({ x: 0, y: 0 })
-    setCoverZoom(1)
-    setCoverCroppedAreaPixels(null)
-    if (coverInputRef.current) coverInputRef.current.value = ''
-  }
-
-  const handleRemoveCover = () => {
+  const handleRemoveCoverImage = () => {
     setCoverImage('')
-    setCoverImagePreview('')
-    if (coverInputRef.current) coverInputRef.current.value = ''
+    setCoverPreview('')
+    if (coverInputRef.current) {
+      coverInputRef.current.value = ''
+    }
   }
 
   const handleSave = async () => {
@@ -379,6 +362,7 @@ function EditProfileContent() {
           bio,
           avatar,
           coverImage: coverImage || null,
+          exhibitionName: exhibitionName.trim() || null,
           fullName,
           website: websiteValue,
           isPrivate,
@@ -408,6 +392,9 @@ function EditProfileContent() {
           setFullName(freshUser.fullName || '')
           setWebsite(freshUser.website || '')
           setIsPrivate(freshUser.isPrivate || false)
+          setCoverImage(freshUser.coverImage || '')
+          setCoverPreview(freshUser.coverImage || '')
+          setExhibitionName(freshUser.exhibitionName || '')
           
           console.log('✅ [Profile Edit] User state ve local state güncellendi:', freshUser)
         }
@@ -424,6 +411,11 @@ function EditProfileContent() {
           if (response.data.fullName !== undefined) setFullName(response.data.fullName || '')
           if (response.data.website !== undefined) setWebsite(response.data.website || '')
           if (response.data.isPrivate !== undefined) setIsPrivate(response.data.isPrivate || false)
+          if (response.data.coverImage !== undefined) {
+            setCoverImage(response.data.coverImage || '')
+            setCoverPreview(response.data.coverImage || '')
+          }
+          if (response.data.exhibitionName !== undefined) setExhibitionName(response.data.exhibitionName || '')
         }
       }
       
@@ -540,62 +532,75 @@ function EditProfileContent() {
           </div>
         )}
 
-        {/* Cover Image Upload */}
-        <div className="mb-8">
+        {/* Cover Upload */}
+        <div className="mb-7">
           <label className="block text-sm text-gray-700 dark:text-white/70 mb-3">
-            Kapak Fotoğrafı
+            Profil Kapak Fotoğrafı
           </label>
-          <div className="relative w-full h-32 md:h-40 rounded-xl overflow-hidden bg-gradient-to-br from-[#fb923c]/30 via-[#ea580c]/20 to-[#7c3aed]/30 dark:from-[#1a0800] dark:to-[#0c0518] mb-3">
-            {(coverImagePreview || coverImage) ? (
-              <img
-                src={coverImagePreview || coverImage}
-                alt="Kapak fotoğrafı"
-                className="w-full h-full object-cover"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+
+          <div className="relative overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 bg-[#0f121a] shadow-[0_18px_55px_rgba(0,0,0,0.22)]">
+            <div className="relative h-44 md:h-52">
+              {coverPreview ? (
+                <img
+                  src={coverPreview.startsWith('blob:') ? coverPreview : resolveImageUrl(coverPreview)}
+                  alt="Kapak fotoğrafı önizleme"
+                  className="absolute inset-0 h-full w-full object-cover"
+                  onError={(e) => {
+                    ;(e.target as HTMLImageElement).style.display = 'none'
+                  }}
+                />
+              ) : (
+                <div className="absolute inset-0 bg-[linear-gradient(135deg,#111827_0%,#191a23_44%,#2a1609_100%)]" />
+              )}
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,10,18,0.12),rgba(7,10,18,0.78))]" />
+              <div className="absolute left-5 bottom-5 flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/20 bg-black/30 text-white shadow-lg backdrop-blur">
+                  <ImagePlus size={20} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">Profil atmosferi</p>
+                  <p className="text-xs text-white/[0.65]">Kapak görseli profil fotoğrafının arkasında görünür.</p>
+                </div>
+              </div>
+
+              {isCoverUploading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/55 backdrop-blur-sm">
+                  <Loader2 className="h-7 w-7 animate-spin text-brand-orange" />
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-white/10 bg-black/25 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleCoverFileChange}
+                disabled={isCoverUploading}
+                className="hidden"
+                id="cover-upload"
               />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xs text-gray-400 dark:text-gray-500">Kapak fotoğrafı yok</span>
-              </div>
-            )}
-            {isCoverUploading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <input
-              ref={coverInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleCoverFileChange}
-              disabled={isCoverUploading}
-              className="hidden"
-              id="cover-upload"
-            />
-            <label
-              htmlFor="cover-upload"
-              className={`inline-flex items-center justify-center px-4 py-1.5 bg-brand-orange hover:bg-[#ff8a1d] text-white text-sm font-medium rounded-md transition cursor-pointer ${isCoverUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {isCoverUploading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  Yükleniyor...
-                </>
-              ) : (coverImage || coverImagePreview) ? 'Kapağı Değiştir' : 'Kapak Fotoğrafı Yükle'}
-            </label>
-            {(coverImage || coverImagePreview) && (
-              <button
-                type="button"
-                onClick={handleRemoveCover}
-                className="text-xs text-red-500 dark:text-red-400 hover:text-red-600 hover:underline transition"
+              <label
+                htmlFor="cover-upload"
+                className={`inline-flex items-center justify-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/[0.15] cursor-pointer ${isCoverUploading ? 'pointer-events-none opacity-50' : ''}`}
               >
-                Kaldır
-              </button>
-            )}
+                {isCoverUploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                {coverPreview || coverImage ? 'Kapak Değiştir' : 'Kapak Yükle'}
+              </label>
+
+              {(coverPreview || coverImage) && (
+                <button
+                  type="button"
+                  onClick={handleRemoveCoverImage}
+                  disabled={isCoverUploading}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/80 transition hover:border-red-400/50 hover:text-red-200 disabled:opacity-50"
+                >
+                  <X size={15} />
+                  Kaldır
+                </button>
+              )}
+            </div>
           </div>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">Önerilen boyut: 1200×400px (3:1 oran). Maks 8MB.</p>
         </div>
 
         {/* Avatar Upload */}
@@ -736,6 +741,25 @@ function EditProfileContent() {
             maxLength={150}
           />
           <p className="text-xs text-gray-500 dark:text-white/50 mt-1 text-right">{bio.length}/150</p>
+        </div>
+
+        {/* Exhibition Name */}
+        <div className="mb-6">
+          <label className="block text-sm text-gray-700 dark:text-white/70 mb-2">
+            Sergi Adı
+          </label>
+          <input
+            type="text"
+            value={exhibitionName}
+            onChange={(e) => setExhibitionName(e.target.value.slice(0, 64))}
+            className="w-full bg-white text-[#111] border border-black/10 rounded-lg px-3 py-2 placeholder-gray-400 focus:border-orange-500 transition dark:bg-[#1E1F24] dark:text-white dark:border-white/10 dark:placeholder-white/40 dark:focus:border-orange-400"
+            placeholder={`${username || 'profil'} sergisi`}
+            maxLength={64}
+          />
+          <div className="mt-1 flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-white/50">
+            <span>Boş bırakırsan sergi adı kullanıcı adından otomatik oluşur.</span>
+            <span>{exhibitionName.length}/64</span>
+          </div>
         </div>
 
         {/* Website */}
@@ -976,58 +1000,6 @@ function EditProfileContent() {
           </div>
         </div>
       )}
-
-      {/* Cover Crop Modal (3:1) */}
-      {coverCropModalOpen && coverImageSrc && (
-        <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4">
-          <div className="bg-white dark:bg-[#111111] rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
-            <div className="relative w-full h-[280px] bg-gray-900">
-              <Cropper
-                image={coverImageSrc}
-                crop={coverCrop}
-                zoom={coverZoom}
-                aspect={3 / 1}
-                onCropChange={setCoverCrop}
-                onZoomChange={setCoverZoom}
-                onCropComplete={onCoverCropComplete}
-              />
-            </div>
-            <div className="p-4 bg-white dark:bg-[#111111] border-t border-gray-200 dark:border-gray-800">
-              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-2">Yakınlaştır</label>
-              <input
-                type="range"
-                value={coverZoom}
-                min={1}
-                max={3}
-                step={0.1}
-                onChange={(e) => setCoverZoom(Number(e.target.value))}
-                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
-              />
-            </div>
-            <div className="flex gap-3 p-4 bg-white dark:bg-[#111111] border-t border-gray-200 dark:border-gray-800">
-              <button
-                onClick={handleCoverCropCancel}
-                disabled={isCoverUploading}
-                className="flex-1 px-4 py-2.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg transition font-medium disabled:opacity-50"
-              >
-                İptal
-              </button>
-              <button
-                onClick={handleCoverCropFinish}
-                disabled={isCoverUploading}
-                className="flex-1 px-4 py-2.5 bg-brand-orange hover:bg-[#ff8a1d] text-white rounded-lg transition font-medium disabled:opacity-50 flex items-center justify-center"
-              >
-                {isCoverUploading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                    Yükleniyor...
-                  </>
-                ) : 'Kaydet'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -1045,4 +1017,3 @@ export default function EditProfilePage() {
     </AuthGuard>
   )
 }
-

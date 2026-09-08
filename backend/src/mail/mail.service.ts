@@ -1,11 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
-import { Resend } from 'resend';
 
 @Injectable()
 export class MailService {
   private transporter: nodemailer.Transporter | null = null;
-  private resend: Resend | null = null;
   private readonly logger = new Logger(MailService.name);
   // Logo URL: HARDCODED HTTPS URL (Gmail için zorunlu)
   // ❌ ÇALIŞMAZ: /logo.png, localhost, relative path, ${BASE_URL}, process.env birleştirme
@@ -16,14 +14,6 @@ export class MailService {
   private readonly logoUrl = 'https://feellink.io/logo.png';
 
   constructor() {
-    // Resend öncelikli: RESEND_API_KEY varsa Resend kullan (Gmail SMTP Vercel IP'lerini bloklayabilir)
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (resendApiKey) {
-      this.resend = new Resend(resendApiKey);
-      this.logger.log('✅ MailService: Resend ile başlatıldı');
-      return;
-    }
-
     try {
       // SMTP ayarları: MAIL_* veya SMTP_* (SNTP_* yazım hatası da kabul edilir)
       const mailHost =
@@ -119,6 +109,50 @@ export class MailService {
     );
   }
 
+  private getDefaultFrom() {
+    const mailFromName = process.env.MAIL_FROM_NAME || 'Feellink';
+    const mailFrom =
+      process.env.RESEND_FROM ||
+      process.env.MAIL_FROM ||
+      process.env.MAIL_USER ||
+      process.env.SMTP_USER ||
+      'noreply@feellink.io';
+    return `"${mailFromName}" <${mailFrom}>`;
+  }
+
+  private async sendViaResend(params: {
+    to: string;
+    subject: string;
+    text: string;
+    html: string;
+  }) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) return null;
+
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: process.env.RESEND_FROM || process.env.MAIL_FROM || 'Feellink <noreply@feellink.io>',
+        to: [params.to],
+        subject: params.subject,
+        text: params.text,
+        html: params.html,
+      }),
+    });
+
+    const body = await response.text();
+    if (!response.ok) {
+      throw new Error(`Resend email failed: ${response.status} ${body.slice(0, 300)}`);
+    }
+
+    this.logger.log(`✅ Resend email accepted for ${params.to}; response=${body.slice(0, 300)}`);
+    return body;
+  }
+
   /** İlk gönderimde transporter yoksa env'den tekrar dene (Vercel serverless bazen constructor'da env vermiyor) */
   private ensureTransporter(): nodemailer.Transporter | null {
     if (this.transporter) return this.transporter;
@@ -176,7 +210,7 @@ export class MailService {
     const transport = this.transporter || this.ensureTransporter();
     if (!transport) {
       this.logger.error(
-        'Mail transporter yok. SMTP_USER ve SMTP_PASS (veya MAIL_USER/MAIL_PASS) Vercel env degiskenlerinde tanimli mi? Production ortami secili mi? Redeploy yaptin mi?',
+        'Mail transporter yok. SMTP_USER ve SMTP_PASS (veya MAIL_USER/MAIL_PASS) Vercel env’de tanımlı mı? Production ortamı seçili mi? Redeploy yaptın mı?',
       );
       throw new Error('Mail transporter not configured. Set SMTP_USER and SMTP_PASS in environment.');
     }
@@ -330,10 +364,10 @@ export class MailService {
       this.logger.log(`[DEV] Signup OTP mail atlandı (MAIL_MODE=dev). to=${to}, code=${code}`);
       return;
     }
-
-    const mailFromName = process.env.MAIL_FROM_NAME || 'Feellink';
+    const from = this.getDefaultFrom();
     const subject = 'Feellink – E-posta doğrulama kodunuz';
-    const text = `Doğrulama Kodunuz: ${code}\n\nBu kod 10 dakika boyunca geçerlidir.\nBu isteği siz yapmadıysanız bu e-postayı dikkate almayın.\n\n© Feellink`;
+    const text =
+      `Doğrulama Kodunuz: ${code}\n\nBu kod 5 dakika boyunca geçerlidir.\nBu isteği siz yapmadıysanız bu e-postayı dikkate almayın.\n\n© Feellink`;
     const html = `
       <!DOCTYPE html>
       <html lang="tr">
@@ -351,7 +385,7 @@ export class MailService {
               <p style="margin:0;font-size:32px;font-weight:700;letter-spacing:8px;color:#ff7b00;font-family:monospace;">${code}</p>
             </td></tr>
             <tr><td style="padding:0 32px 24px;">
-              <p style="margin:0;font-size:14px;line-height:1.5;color:#a0a0a0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Bu kod 10 dakika boyunca geçerlidir.</p>
+              <p style="margin:0;font-size:14px;line-height:1.5;color:#a0a0a0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Bu kod 5 dakika boyunca geçerlidir.</p>
               <p style="margin:12px 0 0;font-size:13px;color:#666;">Bu isteği siz yapmadıysanız bu e-postayı dikkate almayın.</p>
             </td></tr>
           </table>
@@ -359,33 +393,22 @@ export class MailService {
       </table>
       </body>
       </html>`;
-
-    // Resend öncelikli
-    if (this.resend) {
-      const mailFrom = process.env.MAIL_FROM || `${mailFromName} <onboarding@resend.dev>`;
-      const { error } = await this.resend.emails.send({ from: mailFrom, to, subject, text, html });
-      if (error) {
-        this.logger.error(`Resend signup OTP hatası: ${JSON.stringify(error)}`);
-        throw new Error(`E-posta gönderilemedi: ${error.message}`);
-      }
-      this.logger.log(`✅ Signup OTP (Resend) gönderildi: ${to}`);
-      return;
-    }
-
-    // SMTP fallback
-    const transport = this.transporter || this.ensureTransporter();
-    if (!transport) {
-      this.logger.error('Mail transporter yapılandırılmamış. RESEND_API_KEY veya SMTP_USER/SMTP_PASS Vercel ortam değişkenlerinde tanımlı olmalı.');
-      throw new Error('E-posta servisi yapılandırılmamış. Lütfen daha sonra tekrar deneyin.');
-    }
-    const mailUser = process.env.MAIL_USER || process.env.SMTP_USER || process.env.SNTP_USER;
-    const mailFrom = process.env.MAIL_FROM || mailUser || 'noreply@feellink.io';
-    const from = `"${mailFromName}" <${mailFrom}>`;
     try {
-      await transport.sendMail({ from, to, subject, text, html });
-      this.logger.log(`✅ Signup OTP (SMTP) gönderildi: ${to}`);
+      const resendResult = await this.sendViaResend({ to, subject, text, html });
+      if (resendResult) return;
+
+      const transport = this.transporter || this.ensureTransporter();
+      if (!transport) {
+        this.logger.error('Mail transporter not configured. Cannot send signup OTP email.');
+        throw new Error('Mail transporter not configured. Set SMTP_USER and SMTP_PASS in environment.');
+      }
+
+      const result = await transport.sendMail({ from, to, subject, text, html });
+      this.logger.log(
+        `✅ Signup OTP email accepted for ${to}; messageId=${result.messageId || 'n/a'} accepted=${JSON.stringify(result.accepted || [])} rejected=${JSON.stringify(result.rejected || [])}`,
+      );
     } catch (error: any) {
-      this.logger.error(`SMTP signup OTP hatası (${to}):`, error?.message || error);
+      this.logger.error(`Failed to send signup OTP to ${to}:`, error?.message || error);
       throw error;
     }
   }
@@ -397,10 +420,10 @@ export class MailService {
       this.logger.log(`[DEV] Password reset OTP mail atlandı (MAIL_MODE=dev). to=${to}, code=${code}`);
       return;
     }
-
-    const mailFromName = process.env.MAIL_FROM_NAME || 'Feellink';
+    const from = this.getDefaultFrom();
     const subject = 'Feellink – Şifre sıfırlama doğrulama kodunuz';
-    const text = `Şifre sıfırlama doğrulama kodunuz: ${code}\n\nBu kod 10 dakika boyunca geçerlidir.\nBu isteği siz yapmadıysanız bu e-postayı dikkate almayın.\n\n© Feellink`;
+    const text =
+      `Şifre sıfırlama doğrulama kodunuz: ${code}\n\nBu kod 5 dakika boyunca geçerlidir.\nBu isteği siz yapmadıysanız bu e-postayı dikkate almayın.\n\n© Feellink`;
     const html = `
       <!DOCTYPE html>
       <html lang="tr">
@@ -418,7 +441,7 @@ export class MailService {
               <p style="margin:0;font-size:32px;font-weight:700;letter-spacing:8px;color:#ff7b00;font-family:monospace;">${code}</p>
             </td></tr>
             <tr><td style="padding:0 32px 24px;">
-              <p style="margin:0;font-size:14px;line-height:1.5;color:#a0a0a0;">Bu kod 10 dakika boyunca geçerlidir.</p>
+              <p style="margin:0;font-size:14px;line-height:1.5;color:#a0a0a0;">Bu kod 5 dakika boyunca geçerlidir.</p>
               <p style="margin:12px 0 0;font-size:13px;color:#666;">Bu isteği siz yapmadıysanız bu e-postayı dikkate almayın.</p>
             </td></tr>
           </table>
@@ -426,33 +449,22 @@ export class MailService {
       </table>
       </body>
       </html>`;
-
-    // Resend öncelikli
-    if (this.resend) {
-      const mailFrom = process.env.MAIL_FROM || `${mailFromName} <onboarding@resend.dev>`;
-      const { error } = await this.resend.emails.send({ from: mailFrom, to, subject, text, html });
-      if (error) {
-        this.logger.error(`Resend password reset OTP hatası: ${JSON.stringify(error)}`);
-        throw new Error(`E-posta gönderilemedi: ${error.message}`);
-      }
-      this.logger.log(`✅ Password reset OTP (Resend) gönderildi: ${to}`);
-      return;
-    }
-
-    // SMTP fallback
-    const transport = this.transporter || this.ensureTransporter();
-    if (!transport) {
-      this.logger.error('Mail transporter yapılandırılmamış. RESEND_API_KEY veya SMTP_USER/SMTP_PASS Vercel ortam değişkenlerinde tanımlı olmalı.');
-      throw new Error('E-posta servisi yapılandırılmamış. Lütfen daha sonra tekrar deneyin.');
-    }
-    const mailUser = process.env.MAIL_USER || process.env.SMTP_USER || process.env.SNTP_USER;
-    const mailFrom = process.env.MAIL_FROM || mailUser || 'noreply@feellink.io';
-    const from = `"${mailFromName}" <${mailFrom}>`;
     try {
-      await transport.sendMail({ from, to, subject, text, html });
-      this.logger.log(`✅ Password reset OTP (SMTP) gönderildi: ${to}`);
+      const resendResult = await this.sendViaResend({ to, subject, text, html });
+      if (resendResult) return;
+
+      const transport = this.transporter || this.ensureTransporter();
+      if (!transport) {
+        this.logger.error('Mail transporter not configured. Cannot send password reset OTP email.');
+        throw new Error('Mail transporter not configured. Set SMTP_USER and SMTP_PASS in environment.');
+      }
+
+      const result = await transport.sendMail({ from, to, subject, text, html });
+      this.logger.log(
+        `✅ Password reset OTP email accepted for ${to}; messageId=${result.messageId || 'n/a'} accepted=${JSON.stringify(result.accepted || [])} rejected=${JSON.stringify(result.rejected || [])}`,
+      );
     } catch (error: any) {
-      this.logger.error(`SMTP password reset OTP hatası (${to}):`, error?.message || error);
+      this.logger.error(`Failed to send password reset OTP to ${to}:`, error?.message || error);
       throw error;
     }
   }
@@ -2018,4 +2030,3 @@ Feellink Ekibi`;
     }
   }
 }
-

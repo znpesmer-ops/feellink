@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, InternalServerErrorException, Inject, forwardRef, OnModuleInit } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, InternalServerErrorException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { ensureRoleAssignment, computeCapabilities, getRoleOverview, getSidebarVisibility } from '../roles/roles.utils';
@@ -9,6 +9,7 @@ import { UpdateProfileGridOrderDto } from './dto/update-profile-grid-order.dto';
 import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 import { isValidTürkiyeCity } from '../constants/cities.tr';
 import { NotificationsService } from '../notifications/notifications.service';
+import { isAdmin as hasAdminAccess } from '../auth/permissions.util';
 
 type BadgeRoleCode = 'sanatsever' | 'kurumsal' | 'koleksiyoner' | 'sanatci';
 type BadgeExtraCode = 'koleksiyoner-extra' | 'sanatci-extra';
@@ -81,23 +82,44 @@ export function getBadgesFromSelection(
 // Feature Flags
 const SMS_VERIFICATION_ENABLED = false; // SMS doğrulama özelliği kapalı
 
+type ProfileLookupCandidate = {
+  id: string;
+  username: string | null;
+  createdAt: Date;
+  _count?: { posts?: number | null };
+};
+
+function normalizeUserIdentifier(value?: string | null): string {
+  return (value || '').trim().toLowerCase();
+}
+
+function pickCanonicalProfileUser<T extends ProfileLookupCandidate>(
+  users: T[],
+  currentUserId?: string,
+): T | null {
+  if (users.length === 0) return null;
+
+  return [...users].sort((a, b) => {
+    const postDiff = (b._count?.posts ?? 0) - (a._count?.posts ?? 0);
+    if (postDiff !== 0) return postDiff;
+
+    if (currentUserId) {
+      if (a.id === currentUserId) return -1;
+      if (b.id === currentUserId) return 1;
+    }
+
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  })[0];
+}
+
 @Injectable()
-export class UsersService implements OnModuleInit {
+export class UsersService {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
     @Inject(forwardRef(() => NotificationsService))
     private notificationsService: NotificationsService,
   ) {}
-
-  async onModuleInit() {
-    try {
-      await this.prisma.$executeRaw`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "coverImage" TEXT`;
-      console.log('[UsersService] ✅ coverImage column ensured');
-    } catch (error: any) {
-      console.warn('[UsersService] coverImage column check skipped:', error?.message);
-    }
-  }
 
   async getProfile(username: string, currentUserId?: string) {
     try {
@@ -108,47 +130,68 @@ export class UsersService implements OnModuleInit {
       
       console.log('[getProfile] Starting profile lookup for:', username);
 
-      let user = null;
-
-      {
-        // PostgreSQL: mode: 'insensitive' natively çalışır — tüm kullanıcıları çekmeye gerek yok
-        user = await this.prisma.user.findFirst({
-          where: {
-            username: { equals: username, mode: 'insensitive' },
-            isDeleted: false,
-          },
+      // PostgreSQL migration sonrası aynı username ile boş/yeniden oluşturulmuş kayıtlar
+      // oluşabiliyor. Profilde her zaman postu olan kanonik kaydı tercih ediyoruz.
+      const normalizedSearch = username.trim();
+      const profileSelect = {
+        id: true,
+        username: true,
+        fullName: true,
+        bio: true,
+        avatar: true,
+        coverImage: true,
+        exhibitionName: true,
+        roles: true,
+        plan: true,
+        badges: true,
+        isPrivate: true,
+        isVerified: true,
+        isAdmin: true,
+        createdAt: true,
+        profileCompleted: true,
+        dateOfBirth: true,
+        country: true,
+        city: true,
+        gender: true,
+        showProfileColorSignature: true,
+        isDeleted: true,
+        profileShareCount: true,
+        profilePostOrder: true,
+        profileArtworkOrder: true,
+        _count: {
           select: {
-            id: true,
-            username: true,
-            fullName: true,
-            bio: true,
-            avatar: true,
-            coverImage: true,
-            roles: true,
-            plan: true,
-            badges: true,
-            isPrivate: true,
-            isVerified: true,
-            isAdmin: true,
-            createdAt: true,
-            profileCompleted: true,
-            dateOfBirth: true,
-            country: true,
-            city: true,
-            gender: true,
-            showProfileColorSignature: true,
-            isDeleted: true,
-            profilePostOrder: true,
-            profileArtworkOrder: true,
-            _count: {
-              select: {
-                posts: true,
-                followers: true,
-                following: true,
-              },
-            },
+            posts: true,
+            followers: true,
+            following: true,
           },
+        },
+      } as const;
+
+      const userById = await this.prisma.user.findFirst({
+        where: { id: normalizedSearch, isDeleted: false },
+        select: profileSelect,
+      });
+
+      let user = userById;
+
+      if (userById?.username) {
+        const usernameMatches = await this.prisma.user.findMany({
+          where: {
+            isDeleted: false,
+            username: { equals: userById.username, mode: 'insensitive' },
+          },
+          select: profileSelect,
         });
+        user = pickCanonicalProfileUser(usernameMatches, currentUserId) ?? userById;
+      } else {
+        const usernameMatches = await this.prisma.user.findMany({
+          where: {
+          isDeleted: false,
+            username: { equals: normalizedSearch, mode: 'insensitive' },
+          },
+          select: profileSelect,
+        });
+        user = pickCanonicalProfileUser(usernameMatches, currentUserId);
       }
 
       if (!user) {
@@ -168,8 +211,20 @@ export class UsersService implements OnModuleInit {
     let isFollowing = false;
     let hasRequested = false;
     let isOwnProfile = false;
+    let currentUserSharesUsername = false;
 
-    if (currentUserId && currentUserId === user.id) {
+    if (currentUserId && currentUserId !== user.id) {
+      const currentUser = await this.prisma.user.findUnique({
+        where: { id: currentUserId },
+        select: { username: true },
+      });
+
+      currentUserSharesUsername =
+        Boolean(user.username) &&
+        normalizeUserIdentifier(currentUser?.username) === normalizeUserIdentifier(user.username);
+    }
+
+    if (currentUserId && (currentUserId === user.id || currentUserSharesUsername)) {
       isOwnProfile = true;
     } else if (currentUserId) {
       // Check if blocked
@@ -291,9 +346,9 @@ export class UsersService implements OnModuleInit {
       return result;
     };
 
-    // ✅ KRİTİK: isAdmin'i garantile (undefined ise false)
-    const userIsAdmin = user.isAdmin === true;
-    const activeRole = getActiveRole(user.roles as string[], userIsAdmin);
+    const userRoles = Array.isArray(user.roles) ? (user.roles as string[]) : [];
+    const userIsAdmin = hasAdminAccess({ ...user, roles: userRoles });
+    const activeRole = getActiveRole(userRoles, userIsAdmin);
     console.log('[getProfile] Final activeRole:', activeRole, 'for user:', {
       roles: user.roles,
       isAdmin: user.isAdmin,
@@ -374,7 +429,7 @@ export class UsersService implements OnModuleInit {
       ...userSafe,
       isAdmin: userIsAdmin, // ✅ isAdmin'i garantile (undefined ise false)
       avatar: transformAvatarUrl(user.avatar),
-      coverImage: transformAvatarUrl((user as any).coverImage),
+      coverImage: transformAvatarUrl(user.coverImage),
       isFollowing,
       hasRequested,
       isOwnProfile,
@@ -382,6 +437,7 @@ export class UsersService implements OnModuleInit {
       canViewPosts,
       followerCount,
       followingCount,
+      profileShareCount: user.profileShareCount ?? 0,
       // Keep _count for posts count - use manually calculated count
       _count: {
         posts: postsCount, // 🗑️ Manuel hesaplanan active post sayısı
@@ -421,6 +477,93 @@ export class UsersService implements OnModuleInit {
       console.error('❌ [getProfile] Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
       throw new NotFoundException(`Profil yüklenirken bir hata oluştu: ${errorMessage}. Lütfen tekrar deneyin.`);
     }
+  }
+
+  async shareProfile(username: string, currentUserId: string) {
+    if (!username || username === 'undefined' || username === 'null' || username === '[object Object]') {
+      throw new NotFoundException('Geçersiz kullanıcı adı.');
+    }
+
+    const normalizedSearch = username.trim();
+    const profileSelect = {
+      id: true,
+      username: true,
+      isDeleted: true,
+      createdAt: true,
+      profileShareCount: true,
+      _count: {
+        select: {
+          posts: true,
+        },
+      },
+    } as const;
+
+    const userById = await this.prisma.user.findFirst({
+      where: { id: normalizedSearch, isDeleted: false },
+      select: profileSelect,
+    });
+
+    let profileUser = userById;
+
+    if (userById?.username) {
+      const usernameMatches = await this.prisma.user.findMany({
+        where: {
+          isDeleted: false,
+          username: { equals: userById.username, mode: 'insensitive' },
+        },
+        select: profileSelect,
+      });
+      profileUser = pickCanonicalProfileUser(usernameMatches, currentUserId) ?? userById;
+    } else {
+      const usernameMatches = await this.prisma.user.findMany({
+        where: {
+          isDeleted: false,
+          username: { equals: normalizedSearch, mode: 'insensitive' },
+        },
+        select: profileSelect,
+      });
+      profileUser = pickCanonicalProfileUser(usernameMatches, currentUserId);
+    }
+
+    if (!profileUser || profileUser.isDeleted === true) {
+      throw new NotFoundException('Kullanıcı bulunamadı. Lütfen kullanıcı adını kontrol edin.');
+    }
+
+    if (currentUserId && currentUserId !== profileUser.id) {
+      const isBlocked = await this.prisma.block.findFirst({
+        where: {
+          OR: [
+            { blockerId: currentUserId, blockedId: profileUser.id },
+            { blockerId: profileUser.id, blockedId: currentUserId },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (isBlocked) {
+        throw new ForbiddenException('Cannot access this profile');
+      }
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: profileUser.id },
+      data: {
+        profileShareCount: {
+          increment: 1,
+        },
+      },
+      select: {
+        id: true,
+        username: true,
+        profileShareCount: true,
+      },
+    });
+
+    return {
+      id: updated.id,
+      username: updated.username,
+      profileShareCount: updated.profileShareCount ?? 0,
+    };
   }
 
   private async sanitizeProfileGridOrder(
@@ -500,6 +643,7 @@ export class UsersService implements OnModuleInit {
         fullName: true,
         avatar: true,
         coverImage: true,
+        exhibitionName: true,
         bio: true,
         website: true,
         roles: true,
@@ -616,7 +760,8 @@ export class UsersService implements OnModuleInit {
       email: user.email,
       fullName: user.fullName,
       avatar: transformAvatarUrl(user.avatar),
-      coverImage: transformAvatarUrl((user as any).coverImage),
+      coverImage: transformAvatarUrl(user.coverImage),
+      exhibitionName: user.exhibitionName,
       bio: user.bio,
       website: user.website,
       roles: normalizedRoles,
@@ -726,6 +871,8 @@ export class UsersService implements OnModuleInit {
         email: true,
         fullName: true,
         avatar: true,
+        coverImage: true,
+        exhibitionName: true,
         bio: true,
         roles: true,
         plan: true,
@@ -782,6 +929,14 @@ export class UsersService implements OnModuleInit {
     // Convert empty website string to null
     if (updateData.website === '' || updateData.website === undefined) {
       updateData.website = null;
+    }
+
+    if (updateData.exhibitionName !== undefined) {
+      const nextExhibitionName =
+        typeof updateData.exhibitionName === 'string'
+          ? updateData.exhibitionName.trim()
+          : updateData.exhibitionName;
+      updateData.exhibitionName = nextExhibitionName || null;
     }
 
     // Convert dateOfBirth string to Date if provided
@@ -859,6 +1014,7 @@ export class UsersService implements OnModuleInit {
         bio: true,
         avatar: true,
         coverImage: true,
+        exhibitionName: true,
         isPrivate: true,
         isVerified: true,
         website: true,
@@ -894,6 +1050,19 @@ export class UsersService implements OnModuleInit {
       }
     }
 
+    // Dev mode'da kodu response'a ekle
+    const isDev = this.configService.get('NODE_ENV') !== 'production';
+    if (isDev && devModeCode) {
+      return {
+        ...updatedUser,
+        _devMode: {
+          smsCode: devModeCode,
+          message: 'Geliştirme modu: SMS kodu console\'da ve response\'da gösteriliyor',
+        },
+      };
+    }
+
+    // 🔒 KRİTİK: Response formatı - frontend'in beklediği formatta döndür
     return updatedUser;
   }
 
@@ -957,6 +1126,8 @@ export class UsersService implements OnModuleInit {
         email: true,
         fullName: true,
         avatar: true,
+        coverImage: true,
+        exhibitionName: true,
         bio: true,
         profileCompleted: true,
         dateOfBirth: true,
@@ -1251,7 +1422,7 @@ export class UsersService implements OnModuleInit {
       return roleLabels[activeRoleCode] || null;
     };
 
-    const userIsAdmin = current.isAdmin === true;
+    const userIsAdmin = hasAdminAccess({ ...current, roles: normalizedRoles });
     const activeRole = getActiveRole(normalizedRoles, userIsAdmin);
 
     return {
@@ -1748,9 +1919,20 @@ export class UsersService implements OnModuleInit {
       },
     });
 
-    // TODO: Gerçek SMS servisi entegrasyonu (Twilio, Netgsm, vb.)
-    // await this.smsService.send(phoneNumber, `Feellink doğrulama kodunuz: ${code}`);
-    return null;
+    // 🔧 DEV MODE: Console'a yaz (gerçek SMS servisi yok)
+    const isDev = this.configService.get('NODE_ENV') !== 'production';
+    if (isDev) {
+      console.log('\n📱 [DEV SMS] ============================================');
+      console.log(`📞 Telefon: ${phoneNumber}`);
+      console.log(`🔐 Doğrulama Kodu: ${code}`);
+      console.log(`⏰ Geçerlilik: 5 dakika`);
+      console.log('================================================\n');
+      return code; // Dev mode'da kodu döndür
+    } else {
+      // TODO: PROD'da gerçek SMS servisi entegrasyonu (Twilio, Netgsm, vb.)
+      // await this.smsService.send(phoneNumber, `Feellink doğrulama kodunuz: ${code}`);
+      return null; // Production'da null döndür
+    }
   }
 
   /**
@@ -1811,12 +1993,22 @@ export class UsersService implements OnModuleInit {
       throw new BadRequestException('Telefon numarası bulunamadı. Lütfen önce telefon numaranızı ekleyin.');
     }
 
-    await this.sendPhoneVerificationCode(userId, user.phoneNumber);
+    const devModeCode = await this.sendPhoneVerificationCode(userId, user.phoneNumber);
 
-    return {
+    const response: { success: boolean; message: string; _devMode?: { smsCode: string } } = {
       success: true,
       message: 'Doğrulama kodu yeniden gönderildi.',
     };
+
+    // Dev mode'da kodu response'a ekle
+    const isDev = this.configService.get('NODE_ENV') !== 'production';
+    if (isDev && devModeCode) {
+      response._devMode = {
+        smsCode: devModeCode,
+      };
+    }
+
+    return response;
   }
 
   /**
@@ -1828,14 +2020,18 @@ export class UsersService implements OnModuleInit {
    * Eser kartları veya eser grid'i ile ilgili değildir.
    */
   async getColorSignature(username: string): Promise<{ topColors: string[] }> {
-    // Önce kullanıcıyı bul (username veya cuid ID ile)
-    let user = await this.prisma.user.findFirst({
-      where: { username: { equals: username, mode: 'insensitive' } },
-      select: { id: true },
-    });
-    if (!user) {
+    // Önce kullanıcıyı bul
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(username);
+    let user = null;
+
+    if (isObjectId) {
       user = await this.prisma.user.findFirst({
         where: { id: username },
+        select: { id: true },
+      });
+    } else {
+      user = await this.prisma.user.findFirst({
+        where: { username: { equals: username, mode: 'insensitive' } },
         select: { id: true },
       });
     }
@@ -1932,17 +2128,20 @@ export class UsersService implements OnModuleInit {
     };
     summary: string;
   }> {
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(username);
     let user: { id: string; username: string; isPrivate: boolean } | null = null;
 
-    user = await this.prisma.user.findFirst({
-      where: { username: { equals: username, mode: 'insensitive' } },
-      select: { id: true, username: true, isPrivate: true },
-    });
-    if (!user) {
+    if (isObjectId) {
       user = await this.prisma.user.findFirst({
         where: { id: username },
         select: { id: true, username: true, isPrivate: true },
       });
+    } else {
+      const found = await this.prisma.user.findFirst({
+        where: { username: { equals: username, mode: 'insensitive' } },
+        select: { id: true, username: true, isPrivate: true },
+      });
+      user = found;
     }
 
     if (!user) {
@@ -2217,4 +2416,3 @@ export class UsersService implements OnModuleInit {
     };
   }
 }
-

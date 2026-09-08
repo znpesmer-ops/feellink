@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AuthGuard } from '@/lib/auth-guard'
@@ -10,13 +10,34 @@ import toast from 'react-hot-toast'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { DeleteAccountModal } from '@/components/settings/DeleteAccountModal'
 import { invalidateAfterUsernameUpdate } from '@/lib/profile-update'
+import {
+  ArrowRight,
+  Bell,
+  Check,
+  Clock3,
+  EyeOff,
+  Loader2,
+  Lock,
+  Mail,
+  Pencil,
+  Shield,
+  ShieldAlert,
+  Sparkles,
+  Trash2,
+  User,
+  X,
+} from 'lucide-react'
+
+const panelClass = 'relative overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/90 p-5 text-slate-950 shadow-2xl shadow-slate-200/60 backdrop-blur-2xl dark:border-white/[0.12] dark:bg-[linear-gradient(145deg,rgba(12,18,30,0.94),rgba(8,12,21,0.96)_58%,rgba(37,22,18,0.9))] dark:text-white dark:shadow-[0_24px_80px_rgba(0,0,0,0.34)] sm:p-6'
+const inputClass = 'h-12 w-full rounded-2xl border border-slate-200/80 bg-white/80 px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-orange-300/55 focus:bg-white focus:ring-4 focus:ring-orange-400/10 disabled:cursor-not-allowed disabled:text-slate-500 disabled:opacity-80 dark:border-white/[0.12] dark:bg-[rgba(2,6,14,0.48)] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-orange-300/45 dark:focus:bg-[rgba(8,12,20,0.72)] dark:disabled:text-slate-300 dark:disabled:opacity-90'
+const secondaryButtonClass = 'inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200/80 bg-white/75 px-4 text-sm font-black text-slate-700 shadow-sm shadow-slate-200/50 transition hover:-translate-y-0.5 hover:border-orange-300/50 hover:bg-orange-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 dark:border-white/[0.12] dark:bg-[rgba(255,255,255,0.07)] dark:text-slate-200 dark:shadow-none dark:hover:border-orange-300/35 dark:hover:bg-[rgba(255,255,255,0.11)] dark:hover:text-white'
+const primaryButtonClass = 'inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-brand-orange px-4 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:-translate-y-0.5 hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0'
 
 function SettingsContent() {
   const { user, setUser } = useAuthStore()
   const queryClient = useQueryClient()
   const router = useRouter()
 
-  // Kullanıcı bilgilerini çek (usernameLastChangedAt için)
   const { data: userData } = useQuery({
     queryKey: ['user-me'],
     queryFn: async () => {
@@ -26,17 +47,56 @@ function SettingsContent() {
     enabled: !!user,
   })
 
+  const displayUser = userData || user
+  const profileInitial = displayUser?.username?.charAt(0)?.toUpperCase() || 'F'
 
   return (
-    <div className="max-w-4xl mx-auto py-8">
-      <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-8 text-gray-900 dark:text-gray-100">Ayarlar</h1>
-      
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 space-y-6 transition-colors">
-        <div>
-          <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-900 dark:text-gray-100">Profil Bilgileri</h2>
-          <div className="space-y-4">
-            <UsernameField 
-              user={user} 
+    <div className="mx-auto w-full max-w-[980px] px-4 py-8 sm:px-6">
+      <section className="relative overflow-hidden rounded-[32px] border border-slate-200/80 bg-white/92 p-6 text-slate-950 shadow-2xl shadow-slate-200/60 backdrop-blur-2xl dark:border-white/[0.12] dark:bg-[linear-gradient(135deg,rgba(8,12,21,0.98)_0%,rgba(14,22,37,0.94)_52%,rgba(51,27,18,0.88)_100%)] dark:text-white dark:shadow-[0_28px_90px_rgba(0,0,0,0.4)] sm:p-8">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_0%,rgba(249,115,22,0.28),transparent_34%),radial-gradient(circle_at_86%_18%,rgba(59,130,246,0.16),transparent_36%),linear-gradient(135deg,rgba(255,255,255,0.08),transparent_44%)] dark:bg-[radial-gradient(circle_at_14%_0%,rgba(249,115,22,0.22),transparent_34%),radial-gradient(circle_at_86%_18%,rgba(79,70,229,0.16),transparent_36%),linear-gradient(135deg,rgba(255,255,255,0.085),transparent_44%)]" />
+        <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-orange-200/60 to-transparent" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-orange-300/30 bg-orange-400/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-orange-700 dark:border-orange-300/20 dark:text-orange-100">
+              <Sparkles className="h-3.5 w-3.5" />
+              Feellink ayar merkezi
+            </div>
+            <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl">Ayarlar</h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+              Profil bilgilerini, güvenlik tercihlerini ve hesap kontrolünü tek panelden yönet.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-4 rounded-[24px] border border-slate-200/80 bg-white/75 p-3 shadow-inner shadow-slate-200/70 dark:border-white/[0.12] dark:bg-[rgba(2,6,14,0.45)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-100 dark:border-white/10 dark:bg-slate-950/70">
+              {displayUser?.avatar ? (
+                <img
+                  src={displayUser.avatar.startsWith('http') ? displayUser.avatar : `${process.env.NEXT_PUBLIC_CDN}/${displayUser.avatar}`}
+                  alt={displayUser.username || 'Profil'}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="text-lg font-black text-orange-700 dark:text-orange-100">{profileInitial}</span>
+              )}
+            </div>
+            <div className="min-w-0 pr-2">
+              <p className="truncate text-sm font-black text-slate-950 dark:text-white">@{displayUser?.username || 'kullanici'}</p>
+              <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{displayUser?.email || 'E-posta bulunamadı'}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="mt-6 grid gap-5">
+        <SettingsPanel
+          icon={User}
+          eyebrow="Kimlik"
+          title="Profil Bilgileri"
+          description="Kullanıcı adın ve e-posta adresin Feellink üzerindeki ana kimliğini oluşturur."
+        >
+          <div className="space-y-5">
+            <UsernameField
+              user={user}
               userData={userData}
               onUpdate={(updatedUser) => {
                 setUser(updatedUser)
@@ -44,56 +104,116 @@ function SettingsContent() {
                 router.replace('/profile/' + (updatedUser?.username ?? 'me'))
               }}
             />
-            <EmailField 
+            <EmailField
               user={user}
               onUpdate={() => {
                 queryClient.invalidateQueries({ queryKey: ['user-me'] })
               }}
             />
           </div>
-        </div>
+        </SettingsPanel>
 
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-          <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-900 dark:text-gray-100">Hesap Güvenliği</h2>
+        <SettingsPanel
+          icon={Shield}
+          eyebrow="Koruma"
+          title="Hesap Güvenliği"
+          description="Doğrulanmış e-posta hesabını geri kazanma ve güvenlik bildirimleri için kullanılır."
+        >
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              E-posta
-            </label>
-            <input
-              type="email"
-              value={user?.email || ''}
-              disabled
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <label className="text-sm font-black text-slate-700 dark:text-slate-200">E-posta</label>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/35 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-black text-emerald-700 dark:border-emerald-300/20 dark:text-emerald-200">
+                <Check className="h-3.5 w-3.5" />
+                Doğrulandı
+              </span>
+            </div>
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input
+                type="email"
+                value={user?.email || ''}
+                disabled
+                className={`${inputClass} pl-11`}
+              />
+            </div>
+            <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
               E-posta adresiniz doğrulanmış durumda.
             </p>
           </div>
-        </div>
+        </SettingsPanel>
 
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-          <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-900 dark:text-gray-100">Bildirimler</h2>
-          <Link
-            href="/settings/notifications"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-brand-orange text-white rounded-lg hover:bg-brand-orange/90 transition-colors text-sm font-medium"
+        <div className="grid gap-5 lg:grid-cols-2">
+          <SettingsPanel
+            icon={Bell}
+            eyebrow="Tercihler"
+            title="Bildirimler"
+            description="Etiket, takip, beğeni ve yorum bildirimlerini detaylı şekilde yönet."
           >
-            Bildirim Ayarları
-          </Link>
+            <Link href="/settings/notifications" className={`${primaryButtonClass} w-full sm:w-auto`}>
+              Bildirim Ayarları
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </SettingsPanel>
+
+          <SettingsPanel
+            icon={EyeOff}
+            eyebrow="Gizlilik"
+            title="Engellenenler"
+            description="Etkileşim kurmasını istemediğin hesapları buradan kontrol edebilirsin."
+          >
+            <BlockedUsersButton />
+          </SettingsPanel>
         </div>
 
-        {/* Engellenenler Bölümü */}
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-          <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-900 dark:text-gray-100">Engellenenler</h2>
-          <BlockedUsersButton />
-        </div>
-
-        {/* Hesap Yönetimi Bölümü */}
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-          <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4 text-gray-900 dark:text-gray-100">Hesap Yönetimi</h2>
+        <SettingsPanel
+          icon={ShieldAlert}
+          eyebrow="Dikkat"
+          title="Hesap Yönetimi"
+          description="Kalıcı hesap işlemleri başlamadan önce ayrıca onay ister."
+          danger
+        >
           <DeleteAccountSection />
-        </div>
+        </SettingsPanel>
       </div>
     </div>
+  )
+}
+
+function SettingsPanel({
+  icon: Icon,
+  eyebrow,
+  title,
+  description,
+  children,
+  danger = false,
+}: {
+  icon: typeof User
+  eyebrow: string
+  title: string
+  description: string
+  children: React.ReactNode
+  danger?: boolean
+}) {
+  return (
+    <section className={panelClass}>
+      <div className={`absolute inset-0 ${danger ? 'bg-[radial-gradient(circle_at_14%_0%,rgba(239,68,68,0.16),transparent_34%)] dark:bg-[radial-gradient(circle_at_14%_0%,rgba(239,68,68,0.2),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.045),transparent_42%)]' : 'bg-[radial-gradient(circle_at_12%_0%,rgba(249,115,22,0.12),transparent_32%),radial-gradient(circle_at_90%_0%,rgba(59,130,246,0.08),transparent_28%)] dark:bg-[radial-gradient(circle_at_12%_0%,rgba(249,115,22,0.16),transparent_32%),radial-gradient(circle_at_90%_0%,rgba(79,70,229,0.1),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.055),transparent_42%)]'}`} />
+      <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-orange-200/45 to-transparent dark:via-brand-orange/45" />
+      <div className="relative">
+        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex gap-4">
+            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${danger ? 'border-red-300/35 bg-red-500/10 text-red-600 dark:border-red-300/20 dark:text-red-200' : 'border-orange-300/35 bg-orange-400/10 text-orange-700 dark:border-orange-300/20 dark:text-orange-100'} shadow-lg shadow-slate-200/70 dark:shadow-black/20`}>
+              <Icon className="h-5 w-5" />
+            </div>
+            <div>
+              <p className={`text-[11px] font-black uppercase tracking-[0.18em] ${danger ? 'text-red-600/80 dark:text-red-200/80' : 'text-orange-700/85 dark:text-orange-200/85'}`}>{eyebrow}</p>
+              <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">{title}</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">{description}</p>
+            </div>
+          </div>
+        </div>
+        {children}
+      </div>
+    </section>
   )
 }
 
@@ -104,8 +224,9 @@ function BlockedUsersButton() {
     <>
       <button
         onClick={() => setIsModalOpen(true)}
-        className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
+        className={`${secondaryButtonClass} w-full sm:w-auto`}
       >
+        <EyeOff className="h-4 w-4" />
         Engellenenleri Görüntüle
       </button>
 
@@ -140,92 +261,86 @@ function BlockedUsersModal({ onClose }: { onClose: () => void }) {
     },
   })
 
+  const getAvatarUrl = (avatar?: string | null) => {
+    if (!avatar) return null
+    if (avatar.startsWith('http')) return avatar
+    return `${process.env.NEXT_PUBLIC_CDN}/${avatar}`
+  }
+
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-xl dark:bg-black/70">
       <div
-        className="w-full max-w-[420px] max-h-[70vh] bg-white dark:bg-[#111827] rounded-xl shadow-xl flex flex-col overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
+        className="relative flex max-h-[74vh] w-full max-w-[480px] flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/96 text-slate-950 shadow-2xl shadow-slate-300/60 dark:border-white/10 dark:bg-[#101723]/95 dark:text-white dark:shadow-black/40"
+        onClick={(event) => event.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Engellenenler</h2>
+        <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-orange-200/60 to-transparent" />
+        <div className="flex items-center justify-between border-b border-slate-200/70 p-5 dark:border-white/10">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700/80 dark:text-orange-200/80">Gizlilik</p>
+            <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">Engellenenler</h2>
+          </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200/80 bg-white/75 text-slate-500 transition hover:border-orange-300/50 hover:text-slate-950 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-400 dark:hover:border-white/20 dark:hover:text-white"
             aria-label="Kapat"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Liste */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-5">
           {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="w-6 h-6 border-2 border-brand-orange border-t-transparent rounded-full animate-spin" />
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-7 w-7 animate-spin text-brand-orange" />
             </div>
           ) : blockedUsers.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
-              Henüz engellediğiniz kullanıcı yok.
-            </p>
+            <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-5 py-12 text-center dark:border-white/10 dark:bg-white/[0.04]">
+              <EyeOff className="mx-auto h-8 w-8 text-slate-400 dark:text-slate-500" />
+              <p className="mt-4 text-sm font-bold text-slate-700 dark:text-slate-300">Henüz engellediğiniz kullanıcı yok.</p>
+            </div>
           ) : (
             <div className="space-y-3">
-              {blockedUsers.map((blockedUser: any) => (
-                <div
-                  key={blockedUser.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    {blockedUser.avatar ? (
-                      <img
-                        src={blockedUser.avatar}
-                        alt={blockedUser.username}
-                        className="w-10 h-10 rounded-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
-                        }}
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-                        <span className="text-gray-600 dark:text-gray-300 text-sm font-medium">
-                          {blockedUser.username?.[0]?.toUpperCase() || '?'}
-                        </span>
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        @{blockedUser.username}
-                      </p>
-                      {blockedUser.fullName && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {blockedUser.fullName}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => unblockMutation.mutate(blockedUser.id)}
-                    disabled={unblockMutation.isPending}
-                    className="px-4 py-2 text-sm font-medium text-brand-orange hover:text-brand-orange/80 bg-brand-orange/10 dark:bg-brand-orange/20 rounded-lg hover:bg-brand-orange/20 dark:hover:bg-brand-orange/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              {blockedUsers.map((blockedUser: any) => {
+                const avatarUrl = getAvatarUrl(blockedUser.avatar)
+                return (
+                  <div
+                    key={blockedUser.id}
+                    className="flex items-center justify-between gap-3 rounded-[22px] border border-slate-200/80 bg-white/80 p-3 shadow-sm shadow-slate-200/60 dark:border-white/10 dark:bg-white/[0.045] dark:shadow-none"
                   >
-                    {unblockMutation.isPending ? '...' : 'Engeli Kaldır'}
-                  </button>
-                </div>
-              ))}
+                    <div className="flex min-w-0 items-center gap-3">
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt={blockedUser.username}
+                          className="h-11 w-11 rounded-2xl object-cover"
+                          onError={(event) => {
+                            (event.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
+                          }}
+                        />
+                      ) : (
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200/80 bg-slate-100 dark:border-white/10 dark:bg-white/[0.06]">
+                          <span className="text-sm font-black text-slate-700 dark:text-slate-300">
+                            {blockedUser.username?.[0]?.toUpperCase() || '?'}
+                          </span>
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-slate-950 dark:text-white">@{blockedUser.username}</p>
+                        {blockedUser.fullName && (
+                          <p className="truncate text-xs text-slate-500 dark:text-slate-500">{blockedUser.fullName}</p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => unblockMutation.mutate(blockedUser.id)}
+                      disabled={unblockMutation.isPending}
+                      className="inline-flex h-10 shrink-0 items-center justify-center rounded-2xl border border-orange-300/35 bg-orange-400/10 px-3 text-xs font-black text-orange-700 transition hover:bg-orange-400/15 disabled:cursor-not-allowed disabled:opacity-50 dark:border-orange-300/20 dark:text-orange-200"
+                    >
+                      {unblockMutation.isPending ? '...' : 'Engeli Kaldır'}
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
@@ -239,7 +354,6 @@ function UsernameField({ user, userData, onUpdate }: { user: any; userData: any;
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
-  // 14 gün kontrolü
   const canChangeUsername = useMemo(() => {
     if (!userData?.usernameLastChangedAt) return true
     const diffDays = (Date.now() - new Date(userData.usernameLastChangedAt).getTime()) / (1000 * 60 * 60 * 24)
@@ -249,7 +363,7 @@ function UsernameField({ user, userData, onUpdate }: { user: any; userData: any;
   const remainingDays = useMemo(() => {
     if (!userData?.usernameLastChangedAt) return 0
     const diffDays = (Date.now() - new Date(userData.usernameLastChangedAt).getTime()) / (1000 * 60 * 60 * 24)
-    return Math.ceil(14 - diffDays)
+    return Math.max(0, Math.ceil(14 - diffDays))
   }, [userData])
 
   const handleSave = async () => {
@@ -258,7 +372,6 @@ function UsernameField({ user, userData, onUpdate }: { user: any; userData: any;
       return
     }
 
-    // 14 gün kontrolü - sadece gerçekten değiştirmeye çalıştığında kontrol et
     if (!canChangeUsername) {
       toast.error(`Kullanıcı adını 14 günde bir değiştirebilirsin.${remainingDays > 0 ? ` Bir sonraki değişiklik: ${remainingDays} gün sonra` : ''}`)
       return
@@ -279,49 +392,63 @@ function UsernameField({ user, userData, onUpdate }: { user: any; userData: any;
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Kullanıcı Adı
-      </label>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <label className="text-sm font-black text-slate-700 dark:text-slate-200">Kullanıcı Adı</label>
+        {!canChangeUsername && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/35 bg-amber-400/10 px-2.5 py-1 text-[11px] font-black text-amber-700 dark:border-amber-300/20 dark:text-amber-200">
+            <Clock3 className="h-3.5 w-3.5" />
+            {remainingDays} gün
+          </span>
+        )}
+      </div>
       {isEditing ? (
-        <div className="space-y-2">
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            disabled={isSaving}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange disabled:opacity-50"
-          />
-          <div className="flex gap-2">
+        <div className="space-y-3">
+          <div className="relative">
+            <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              disabled={isSaving}
+              className={`${inputClass} pl-11`}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={handleSave}
               disabled={isSaving || !username.trim() || username === user?.username}
-              className="px-4 py-2 bg-brand-orange text-white rounded-lg hover:bg-brand-orange/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className={primaryButtonClass}
             >
-              {isSaving ? 'Kaydediliyor...' : 'Kaydet'}
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              {isSaving ? 'Kaydediliyor' : 'Kaydet'}
             </button>
             <button
               onClick={() => {
                 setIsEditing(false)
                 setUsername(user?.username || '')
               }}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
+              className={secondaryButtonClass}
             >
               İptal
             </button>
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={user?.username || ''}
-            disabled
-            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
-          />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              value={user?.username || ''}
+              disabled
+              className={`${inputClass} pl-11`}
+            />
+          </div>
           <button
             onClick={() => setIsEditing(true)}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg transition-colors"
+            className={secondaryButtonClass}
           >
+            <Pencil className="h-4 w-4" />
             Düzenle
           </button>
         </div>
@@ -357,50 +484,56 @@ function EmailField({ user, onUpdate }: { user: any; onUpdate: () => void }) {
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        E-posta
-      </label>
+      <label className="mb-2 block text-sm font-black text-slate-700 dark:text-slate-200">E-posta</label>
       {isEditing ? (
-        <div className="space-y-2">
-          <input
-            type="email"
-            value={newEmail}
-            onChange={(e) => setNewEmail(e.target.value)}
-            placeholder="Yeni e-posta adresi"
-            disabled={isSaving}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-orange disabled:opacity-50"
-          />
-          <div className="flex gap-2">
+        <div className="space-y-3">
+          <div className="relative">
+            <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <input
+              type="email"
+              value={newEmail}
+              onChange={(event) => setNewEmail(event.target.value)}
+              placeholder="Yeni e-posta adresi"
+              disabled={isSaving}
+              className={`${inputClass} pl-11`}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={handleRequestEmailChange}
               disabled={isSaving || !newEmail.trim() || newEmail === user?.email}
-              className="px-4 py-2 bg-brand-orange text-white rounded-lg hover:bg-brand-orange/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className={primaryButtonClass}
             >
-              {isSaving ? 'Gönderiliyor...' : 'Kaydet'}
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              {isSaving ? 'Gönderiliyor' : 'Kaydet'}
             </button>
             <button
               onClick={() => {
                 setIsEditing(false)
                 setNewEmail('')
               }}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
+              className={secondaryButtonClass}
             >
               İptal
             </button>
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-2">
-          <input
-            type="email"
-            value={user?.email || ''}
-            disabled
-            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
-          />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <input
+              type="email"
+              value={user?.email || ''}
+              disabled
+              className={`${inputClass} pl-11`}
+            />
+          </div>
           <button
             onClick={() => setIsEditing(true)}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg transition-colors"
+            className={secondaryButtonClass}
           >
+            <Pencil className="h-4 w-4" />
             Düzenle
           </button>
         </div>
@@ -414,14 +547,18 @@ function DeleteAccountSection() {
 
   return (
     <>
-      <div className="space-y-3">
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Hesabınızı kalıcı olarak silme işlemlerini buradan yönetebilirsiniz.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3 text-sm leading-6 text-slate-600 dark:text-slate-400">
+          <Lock className="mt-1 h-4 w-4 shrink-0 text-red-600/80 dark:text-red-200/80" />
+          <p>
+            Hesabınızı silme süreci güvenli onay ekranıyla başlar. İşlem sonrası oturum kapatılır.
+          </p>
+        </div>
         <button
           onClick={() => setShowModal(true)}
-          className="text-sm font-medium text-red-500 dark:text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:underline transition-colors"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-red-300/35 bg-red-500/10 px-4 text-sm font-black text-red-600 transition hover:-translate-y-0.5 hover:bg-red-500/15 dark:border-red-300/20 dark:text-red-200"
         >
+          <Trash2 className="h-4 w-4" />
           Hesabı Sil
         </button>
       </div>
@@ -443,4 +580,3 @@ export default function SettingsPage() {
     </AuthGuard>
   )
 }
-

@@ -3,7 +3,7 @@ import { Module } from '@nestjs/common';
 // VERCEL: feellink-backend projesi için Root Directory: backend OLMALI!
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AccountStatusGuard } from './auth/guards/account-status.guard';
 import { AppController } from './app.controller';
@@ -79,9 +79,12 @@ import { EmailChangeModule } from './email-change/email-change.module';
   providers: [
     {
       provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
       useClass: AccountStatusGuard,
     },
   ],
 })
 export class AppModule {}
-

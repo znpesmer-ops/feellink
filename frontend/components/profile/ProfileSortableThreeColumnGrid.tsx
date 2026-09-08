@@ -39,6 +39,8 @@ type ProfileSortableThreeColumnGridProps<T extends { id: string }> = {
   onReorder: (items: T[]) => void
   renderItem: (item: T, index: number, state: ProfileSortableRenderState) => ReactNode
   gridClassName?: string
+  /** Telefon ekranında eser kartları daha büyük görünsün diye 2 kolon seçilebilir. */
+  mobileColumns?: 2 | 3
 }
 
 function SortableCell<T extends { id: string }>({
@@ -82,6 +84,7 @@ export function ProfileSortableThreeColumnGrid<T extends { id: string }>({
   onReorder,
   renderItem,
   gridClassName = '',
+  mobileColumns = 3,
 }: ProfileSortableThreeColumnGridProps<T>) {
   const itemIds = useMemo(() => items.map((i) => i.id), [items])
 
@@ -106,7 +109,9 @@ export function ProfileSortableThreeColumnGrid<T extends { id: string }>({
     onReorder(arrayMove(items, oldIndex, newIndex))
   }
 
-  const gridClasses = `grid grid-cols-3 gap-2 min-w-0 ${gridClassName}`.trim()
+  const mobileColumnClasses = mobileColumns === 2 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-3'
+  const gapClass = /\bgap(?:-[xy])?-/.test(gridClassName) ? '' : 'gap-2'
+  const gridClasses = `grid ${mobileColumnClasses} ${gapClass} min-w-0 ${gridClassName}`.trim()
 
   if (disabled) {
     return (

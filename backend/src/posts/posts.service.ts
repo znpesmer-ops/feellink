@@ -102,6 +102,36 @@ function wrapCanvasText(
   return lines.slice(0, maxLines);
 }
 
+type UserPostOwnerCandidate = {
+  id: string;
+  username?: string | null;
+  createdAt: Date;
+  _count?: { posts?: number | null };
+};
+
+function normalizePostOwnerIdentifier(value?: string | null): string {
+  return (value || '').trim().toLowerCase();
+}
+
+function pickCanonicalPostOwner<T extends UserPostOwnerCandidate>(
+  users: T[],
+  currentUserId?: string,
+): T | null {
+  if (users.length === 0) return null;
+
+  return [...users].sort((a, b) => {
+    const postDiff = (b._count?.posts ?? 0) - (a._count?.posts ?? 0);
+    if (postDiff !== 0) return postDiff;
+
+    if (currentUserId) {
+      if (a.id === currentUserId) return -1;
+      if (b.id === currentUserId) return 1;
+    }
+
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  })[0];
+}
+
 @Injectable()
 export class PostsService {
   constructor(
@@ -1307,6 +1337,12 @@ export class PostsService {
     const comments = await this.prisma.comment.findMany({
       where: {
         userId: String(userId),
+        post: {
+          is: {
+            isDeleted: false,
+            deletedAt: null,
+          },
+        },
       },
       include: {
         user: {
@@ -1322,6 +1358,8 @@ export class PostsService {
           select: {
             id: true,
             caption: true,
+            isDeleted: true,
+            deletedAt: true,
             media: {
               orderBy: { order: 'asc' },
               take: 1,
@@ -1709,34 +1747,63 @@ export class PostsService {
       return [];
     }
 
-    // userId bir cuid ID veya username olabilir; önce ID ile, bulunamazsa username ile ara
+    // PostgreSQL migration sonrası aynı username ile boş/yeniden oluşturulmuş kullanıcılar
+    // oluşabiliyor. Profil gönderilerinde postu olan kanonik kullanıcıyı tercih ediyoruz.
     let actualUserId = userId;
+    const ownerSelect = {
+      id: true,
+      username: true,
+      createdAt: true,
+      _count: { select: { posts: true } },
+    } as const;
 
-    const userById = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true },
+    const userById = await this.prisma.user.findFirst({
+      where: { id: userId, isDeleted: false },
+      select: ownerSelect,
     });
 
-    if (!userById) {
-      console.log(`🔍 [PostsService] userId looks like username, searching for user: ${userId}`);
-      const userByUsername = await this.prisma.user.findFirst({
-        where: { username: { equals: userId, mode: 'insensitive' } },
-        select: { id: true },
+    let foundOwner = userById;
+
+    if (userById?.username) {
+      const usernameMatches = await this.prisma.user.findMany({
+        where: {
+          isDeleted: false,
+          username: { equals: userById.username, mode: 'insensitive' },
+        },
+        select: ownerSelect,
       });
 
-      if (!userByUsername) {
-        console.warn(`⚠️ [PostsService] User not found: ${userId}`);
+      foundOwner = pickCanonicalPostOwner(usernameMatches, currentUserId) ?? userById;
+    }
+
+    if (!foundOwner) {
+      console.log(`🔍 [PostsService] user identifier is not an id, searching by username: ${userId}`);
+      const usernameMatches = await this.prisma.user.findMany({
+        where: {
+          isDeleted: false,
+          username: { equals: userId.trim(), mode: 'insensitive' },
+        },
+        select: ownerSelect,
+      });
+
+      foundOwner = pickCanonicalPostOwner(usernameMatches, currentUserId);
+
+      if (!foundOwner) {
+        console.warn(`⚠️ [PostsService] User not found by id or username: ${userId}`);
         return [];
       }
 
-      actualUserId = userByUsername.id;
+      actualUserId = foundOwner.id;
       console.log(`✅ [PostsService] Found user by username: ${userId} -> ${actualUserId}`);
     }
+
+    actualUserId = foundOwner.id;
 
     // Check if current user can see posts (privacy check)
     if (currentUserId && currentUserId !== actualUserId) {
       const targetUser = await this.prisma.user.findUnique({
         where: { id: actualUserId },
+        select: { id: true, username: true, isPrivate: true },
       });
 
       // 🔥 KRİTİK: targetUser null kontrolü
@@ -1746,16 +1813,27 @@ export class PostsService {
       }
 
       if (targetUser.isPrivate) {
-        // 🔥 MongoDB: Compound unique için findFirst kullan
-        const isFollowing = await this.prisma.follow.findFirst({
-          where: {
-            followerId: currentUserId,
-            followingId: actualUserId,
-          },
+        const currentUser = await this.prisma.user.findUnique({
+          where: { id: currentUserId },
+          select: { username: true },
         });
 
-        if (!isFollowing) {
+        const currentUserSharesUsername =
+          Boolean(targetUser.username) &&
+          normalizePostOwnerIdentifier(currentUser?.username) ===
+            normalizePostOwnerIdentifier(targetUser.username);
+
+        if (!currentUserSharesUsername) {
+          const isFollowing = await this.prisma.follow.findFirst({
+            where: {
+              followerId: currentUserId,
+              followingId: actualUserId,
+            },
+          });
+
+          if (!isFollowing) {
           throw new ForbiddenException('Cannot view posts from private account');
+          }
         }
       }
     }
@@ -3550,4 +3628,3 @@ export class PostsService {
     });
   }
 }
-

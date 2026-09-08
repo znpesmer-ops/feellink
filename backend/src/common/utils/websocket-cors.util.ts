@@ -66,22 +66,21 @@ export function getWebSocketCorsConfig() {
             return callback(null, true);
           }
         } else {
-          // Production: allow configured origins and Vercel domains
+          let hostname = '';
+          try {
+            hostname = new URL(origin).hostname.toLowerCase();
+          } catch {
+            return callback(new Error('Origin not allowed'), false);
+          }
           if (allowedOrigins.includes(origin)) {
             return callback(null, true);
           }
-          // Vercel domains (all .vercel.app domains)
-          if (origin.includes('.vercel.app')) {
-            return callback(null, true);
-          }
-          // Feellink domains
-          if (origin.includes('feellink.io')) {
+          if (/^feellink(?:-[a-z0-9-]+)*\.vercel\.app$/.test(hostname)) {
             return callback(null, true);
           }
         }
-        
-        // Default: allow for Vercel compatibility
-        return callback(null, true);
+
+        return callback(new Error('Origin not allowed'), false);
       },
       credentials: true,
       methods: ['GET', 'POST'],
@@ -91,7 +90,6 @@ export function getWebSocketCorsConfig() {
     allowEIO3: true,
   };
 }
-
 
 
 

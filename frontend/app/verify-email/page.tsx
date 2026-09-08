@@ -7,7 +7,7 @@ import api, { getErrorMessage } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { getDashboardRouteFromUser } from '@/lib/role-utils'
 
-const RESEND_COOLDOWN_SEC = 60
+const RESEND_COOLDOWN_SEC = 15
 
 function VerifyEmailContent() {
   const router = useRouter()
@@ -141,7 +141,10 @@ function VerifyEmailContent() {
         </form>
 
         <p className="mt-4 text-center text-xs text-gray-500 dark:text-gray-400">
-          Kodu almadıysanız spam klasörünü kontrol edin. Kod 10 dakika geçerlidir.
+          Kod genelde birkaç saniye içinde gelir. Kod 5 dakika geçerlidir.
+        </p>
+        <p className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
+          E-posta yanlışsa kayıt ekranına dönüp adresi düzeltin.
         </p>
         <p className="mt-2 text-center">
           <Link href="/login" className="text-sm text-[#ff7b00] hover:text-[#e36f00]">

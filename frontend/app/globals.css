@@ -2,104 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Tiptap Rich Text Editor Styles */
-.ProseMirror {
-  outline: none;
-  min-height: 300px;
-  padding: 12px 16px;
-  color: rgb(17 24 39);
-}
 
-.dark .ProseMirror {
-  color: rgb(243 244 246);
-}
-
-.ProseMirror p {
-  margin: 0.5rem 0;
-  line-height: 1.6;
-}
-
-.ProseMirror p.is-editor-empty:first-child::before {
-  content: attr(data-placeholder);
-  float: left;
-  color: rgb(156 163 175);
-  pointer-events: none;
-  height: 0;
-}
-
-.dark .ProseMirror p.is-editor-empty:first-child::before {
-  color: rgb(107 114 128);
-}
-
-.ProseMirror h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
-  line-height: 1.3;
-}
-
-.ProseMirror h3 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-top: 0.75rem;
-  margin-bottom: 0.5rem;
-  line-height: 1.3;
-}
-
-.ProseMirror ul,
-.ProseMirror ol {
-  padding-left: 1.5rem;
-  margin: 0.5rem 0;
-}
-
-.ProseMirror ul {
-  list-style-type: disc;
-}
-
-.ProseMirror ol {
-  list-style-type: decimal;
-}
-
-.ProseMirror li {
-  margin: 0.25rem 0;
-}
-
-.ProseMirror a {
-  color: #ff7b00;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.ProseMirror a:hover {
-  text-decoration: none;
-}
-
-.ProseMirror strong {
-  font-weight: 600;
-}
-
-.ProseMirror em {
-  font-style: italic;
-}
-
-.ProseMirror s {
-  text-decoration: line-through;
-}
-
-.ProseMirror[data-placeholder]::before {
-  content: attr(data-placeholder);
-  float: left;
-  color: rgb(156 163 175);
-  pointer-events: none;
-  height: 0;
-}
-
-.dark .ProseMirror[data-placeholder]::before {
-  color: rgb(107 114 128);
-}
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
   --background: #ffffff;
@@ -122,6 +25,8 @@
   --feellink-orange: #FF8A1F;
   --feellink-orange-soft: rgba(255, 138, 43, 0.85);
   --feellink-orange-light: rgba(255, 138, 31, 0.15);
+  --logo-brand: #7c3aed;
+  --logo-filter: brightness(0) saturate(100%) invert(32%) sepia(88%) saturate(1453%) hue-rotate(238deg) brightness(90%) contrast(96%);
   
   /* Feellink Keşfet Kartları - Soft Gradient Renkler */
   --feelink-blue-bg: linear-gradient(180deg, rgba(24, 64, 140, 0.75), rgba(24, 64, 140, 0.95));
@@ -141,6 +46,8 @@
   --border: #1f2430;
   --accent: #ff7a00;
   --primary: #3b82f6;
+  --logo-brand: #ff6a00;
+  --logo-filter: brightness(0) saturate(100%) invert(48%) sepia(90%) saturate(2102%) hue-rotate(359deg) brightness(101%) contrast(104%);
 }
 
 html,
@@ -441,6 +348,805 @@ button.secondary:hover {
   color: #ffffff;
 }
 
+.feellink-logo {
+  filter: none;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.feellink-logo:hover {
+  transform: scale(1.03);
+  opacity: 0.95;
+}
+
+.feellink-sidebar-logo-reveal {
+  --feellink-sidebar-logo-width: 116px;
+  --feellink-sidebar-logo-height: 43px;
+  --feellink-sidebar-logo-core: 36px;
+  --feellink-logo-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+  display: block;
+  width: var(--feellink-sidebar-logo-width);
+  height: var(--feellink-sidebar-logo-height);
+  isolation: isolate;
+  overflow: visible;
+  filter:
+    drop-shadow(0 8px 18px rgba(255, 122, 0, 0.16))
+    drop-shadow(0 7px 14px rgba(38, 52, 138, 0.14));
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.feellink-sidebar-logo-core,
+.feellink-sidebar-logo-wing,
+.feellink-sidebar-logo-final,
+.feellink-sidebar-logo-bridge,
+.feellink-sidebar-logo-flare {
+  position: absolute;
+  top: 50%;
+  pointer-events: none;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.feellink-sidebar-logo {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: block;
+  width: var(--feellink-sidebar-logo-width);
+  max-width: none;
+  height: auto;
+  min-width: var(--feellink-sidebar-logo-width);
+  transform: translate3d(0, -50%, 0);
+  object-fit: contain;
+  image-rendering: auto;
+  backface-visibility: hidden;
+}
+
+.feellink-sidebar-logo-core {
+  left: 50%;
+  z-index: 4;
+  width: var(--feellink-sidebar-logo-core);
+  height: var(--feellink-sidebar-logo-core);
+  border-radius: 50%;
+  transform: translate3d(-50%, -50%, 0) scale(0.86);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.32) inset,
+    0 9px 20px rgba(36, 33, 128, 0.24),
+    0 0 22px rgba(255, 127, 37, 0.22);
+  animation: feellinkSidebarLogoCore 20s var(--feellink-logo-ease) infinite;
+}
+
+.feellink-sidebar-logo-core::before,
+.feellink-sidebar-logo-core::after,
+.feellink-sidebar-logo-wing::after,
+.feellink-sidebar-logo-reveal::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.feellink-sidebar-logo-core::before {
+  inset: -5px;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 40% 38%, rgba(255, 255, 255, 0.32), transparent 36%),
+    conic-gradient(from 190deg, rgba(50, 69, 255, 0.28), rgba(255, 69, 158, 0.20), rgba(255, 139, 31, 0.26), rgba(50, 69, 255, 0.28));
+  filter: blur(4px);
+  opacity: 0.56;
+  animation: feellinkSidebarLogoCoreAura 20s var(--feellink-logo-ease) infinite;
+}
+
+.feellink-sidebar-logo-core::after {
+  inset: 2px;
+  border-radius: inherit;
+  background: linear-gradient(132deg, rgba(255, 255, 255, 0.30), transparent 36%, rgba(255, 255, 255, 0.10));
+  mix-blend-mode: screen;
+  opacity: 0.68;
+}
+
+.feellink-sidebar-logo-mark {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: saturate(1.04) drop-shadow(0 4px 8px rgba(37, 30, 118, 0.14));
+}
+
+.feellink-sidebar-logo-wing {
+  z-index: 3;
+  width: 50%;
+  height: var(--feellink-sidebar-logo-height);
+  overflow: hidden;
+  border-radius: 999px;
+  opacity: 0;
+  filter: saturate(1.04) brightness(1.02);
+  box-shadow:
+    0 8px 18px rgba(42, 30, 122, 0.16),
+    0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+}
+
+.feellink-sidebar-logo-wing::after {
+  inset: 0;
+  z-index: 4;
+  border-radius: inherit;
+  background:
+    linear-gradient(105deg, transparent 12%, rgba(255, 255, 255, 0.28) 48%, transparent 72%),
+    radial-gradient(circle at 50% 46%, rgba(255, 255, 255, 0.16), transparent 42%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: feellinkSidebarLogoWingSheen 20s var(--feellink-logo-ease) infinite;
+}
+
+.feellink-sidebar-logo-wing--left {
+  left: 0;
+  transform: translate3d(0, -50%, 0) scaleX(0.04);
+  transform-origin: right center;
+  animation: feellinkSidebarLogoWingLeft 20s var(--feellink-logo-ease) infinite;
+}
+
+.feellink-sidebar-logo-wing--left .feellink-sidebar-logo {
+  left: 0;
+}
+
+.feellink-sidebar-logo-wing--right {
+  right: 0;
+  transform: translate3d(0, -50%, 0) scaleX(0.04);
+  transform-origin: left center;
+  animation: feellinkSidebarLogoWingRight 20s var(--feellink-logo-ease) infinite;
+}
+
+.feellink-sidebar-logo-wing--right .feellink-sidebar-logo {
+  right: 0;
+}
+
+.feellink-sidebar-logo-bridge {
+  left: 50%;
+  z-index: 5;
+  width: 16px;
+  height: 28px;
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, transparent 0 20%, rgba(255, 255, 255, 0.96) 20% 42%, transparent 42% 58%, rgba(255, 255, 255, 0.96) 58% 80%, transparent 80%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.68));
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.22));
+  opacity: 0;
+  transform: translate3d(-50%, -50%, 0) scaleY(0.72);
+  animation: feellinkSidebarLogoBridge 20s var(--feellink-logo-ease) infinite;
+}
+
+.feellink-sidebar-logo-final {
+  left: 0;
+  z-index: 6;
+  width: var(--feellink-sidebar-logo-width);
+  height: var(--feellink-sidebar-logo-height);
+  overflow: hidden;
+  border-radius: 999px;
+  opacity: 0;
+  filter: saturate(1.04) brightness(1.02);
+  transform: translate3d(0, -50%, 0) scaleX(0.86);
+  animation: feellinkSidebarLogoFinal 20s var(--feellink-logo-ease) infinite;
+}
+
+.feellink-sidebar-logo-final::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(106deg, transparent 12%, rgba(255, 255, 255, 0.18) 44%, rgba(255, 255, 255, 0.50) 52%, transparent 70%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  transform: translateX(-62%) skewX(-10deg);
+  animation: feellinkSidebarLogoFinalShine 20s var(--feellink-logo-ease) infinite;
+}
+
+.feellink-sidebar-logo-flare {
+  left: 50%;
+  z-index: 7;
+  width: 96px;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.88), rgba(255, 214, 164, 0.28), transparent);
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.44));
+  opacity: 0;
+  transform: translate3d(-50%, -50%, 0) scaleX(0.12);
+  transform-origin: center;
+  animation: feellinkSidebarLogoFlare 20s var(--feellink-logo-ease) infinite;
+}
+
+.feellink-sidebar-logo-flare::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.28), transparent 54%);
+  opacity: 0;
+  transform: translate3d(-50%, -50%, 0);
+  animation: feellinkSidebarLogoSpark 20s var(--feellink-logo-ease) infinite;
+}
+
+.feellink-sidebar-logo-reveal::before {
+  inset: -7px -12px;
+  z-index: 0;
+  border-radius: 999px;
+  background:
+    radial-gradient(ellipse at 28% 48%, rgba(52, 66, 255, 0.18), transparent 50%),
+    radial-gradient(ellipse at 72% 52%, rgba(255, 130, 38, 0.20), transparent 50%);
+  filter: blur(8px);
+  opacity: 0.34;
+  transform: scaleX(0.42);
+  animation: feellinkSidebarLogoHalo 20s var(--feellink-logo-ease) infinite;
+}
+
+@media (max-width: 767px) {
+  .feellink-sidebar-logo-reveal {
+    filter:
+      drop-shadow(0 6px 13px rgba(255, 122, 0, 0.13))
+      drop-shadow(0 5px 10px rgba(38, 52, 138, 0.11));
+  }
+
+  .feellink-sidebar-logo-reveal::before {
+    inset: -4px -8px;
+    filter: blur(5px);
+    opacity: 0.24;
+  }
+
+  .feellink-sidebar-logo-core::before {
+    filter: blur(3px);
+    opacity: 0.42;
+  }
+
+  .feellink-sidebar-logo-final {
+    filter: saturate(1.04) brightness(1.015);
+  }
+}
+
+@keyframes feellinkSidebarLogoCore {
+  0% {
+    opacity: 0;
+    filter: saturate(1.06) brightness(1.03);
+    transform: translate3d(-50%, -50%, 0) scale(0.70) rotate(-4deg);
+  }
+  2.4% {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) scale(0.98) rotate(0deg);
+  }
+  6.2% {
+    opacity: 1;
+    filter: saturate(1.09) brightness(1.05);
+    transform: translate3d(-50%, -50%, 0) scale(1) rotate(0deg);
+  }
+  9.2% {
+    opacity: 0.74;
+    filter: saturate(1.05) brightness(1.10);
+    transform: translate3d(-50%, -50%, 0) scale(0.93) rotate(0deg);
+  }
+  11.8% {
+    opacity: 0;
+    filter: saturate(1.02) brightness(1.08);
+    transform: translate3d(-50%, -50%, 0) scale(0.72) rotate(0deg);
+  }
+  12.6%,
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.42) rotate(0deg);
+  }
+}
+
+@keyframes feellinkSidebarLogoCoreAura {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.7) rotate(0deg);
+  }
+  8% {
+    opacity: 0.58;
+    transform: scale(0.96) rotate(16deg);
+  }
+  12% {
+    opacity: 0.28;
+    transform: scale(1.02) rotate(74deg);
+  }
+  18% {
+    opacity: 0;
+    transform: scale(0.62) rotate(150deg);
+  }
+}
+
+@keyframes feellinkSidebarLogoWingLeft {
+  0%,
+  5.8% {
+    opacity: 0;
+    filter: saturate(1.04) brightness(1.06);
+    transform: translate3d(0, -50%, 0) scaleX(0.03);
+  }
+  8.8% {
+    opacity: 0.18;
+    filter: saturate(1.06) brightness(1.08);
+    transform: translate3d(0, -50%, 0) scaleX(0.86);
+  }
+  11.4% {
+    opacity: 0.02;
+    filter: saturate(1.03) brightness(1.08);
+    transform: translate3d(0, -50%, 0) scaleX(1);
+  }
+  12.6%,
+  87% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scaleX(1);
+  }
+  91% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scaleX(0.58);
+  }
+  94%,
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scaleX(0.03);
+  }
+}
+
+@keyframes feellinkSidebarLogoWingRight {
+  0%,
+  6% {
+    opacity: 0;
+    filter: saturate(1.04) brightness(1.06);
+    transform: translate3d(0, -50%, 0) scaleX(0.03);
+  }
+  9% {
+    opacity: 0.18;
+    filter: saturate(1.06) brightness(1.08);
+    transform: translate3d(0, -50%, 0) scaleX(0.86);
+  }
+  11.6% {
+    opacity: 0.02;
+    filter: saturate(1.03) brightness(1.08);
+    transform: translate3d(0, -50%, 0) scaleX(1);
+  }
+  12.8%,
+  87% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scaleX(1);
+  }
+  91% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scaleX(0.58);
+  }
+  94%,
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scaleX(0.03);
+  }
+}
+
+@keyframes feellinkSidebarLogoWingSheen {
+  0%,
+  9% {
+    opacity: 0;
+    transform: translateX(-70%) skewX(-12deg);
+  }
+  15% {
+    opacity: 0.12;
+  }
+  22%,
+  100% {
+    opacity: 0;
+    transform: translateX(76%) skewX(-12deg);
+  }
+}
+
+@keyframes feellinkSidebarLogoBridge {
+  0%,
+  7.6% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scaleX(0.34) scaleY(0.72);
+  }
+  10.4% {
+    opacity: 0.18;
+    transform: translate3d(-50%, -50%, 0) scaleX(0.84) scaleY(1);
+  }
+  13% {
+    opacity: 0.03;
+    transform: translate3d(-50%, -50%, 0) scaleX(1) scaleY(1);
+  }
+  15%,
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scaleX(1.08) scaleY(1);
+  }
+}
+
+@keyframes feellinkSidebarLogoFinal {
+  0%,
+  5.8% {
+    opacity: 0;
+    filter: saturate(1.06) brightness(1.05);
+    transform: translate3d(0, -50%, 0) scaleX(0.96);
+  }
+  9% {
+    opacity: 0.78;
+    filter: saturate(1.06) brightness(1.04);
+    transform: translate3d(0, -50%, 0) scaleX(0.992);
+  }
+  11.6% {
+    opacity: 1;
+    filter: saturate(1.04) brightness(1.02);
+    transform: translate3d(0, -50%, 0) scaleX(1);
+  }
+  12.6%,
+  87% {
+    opacity: 1;
+    filter: saturate(1.04) brightness(1.02);
+    transform: translate3d(0, -50%, 0) scaleX(1);
+  }
+  91% {
+    opacity: 0.62;
+    transform: translate3d(0, -50%, 0) scaleX(0.97);
+  }
+  94%,
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scaleX(0.82);
+  }
+}
+
+@keyframes feellinkSidebarLogoFinalShine {
+  0%,
+  12.2% {
+    opacity: 0;
+    transform: translateX(-62%) skewX(-10deg);
+  }
+  18.5% {
+    opacity: 0.24;
+  }
+  29%,
+  100% {
+    opacity: 0;
+    transform: translateX(72%) skewX(-10deg);
+  }
+}
+
+@keyframes feellinkSidebarLogoFlare {
+  0%,
+  11.6% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scaleX(0.12);
+  }
+  17% {
+    opacity: 0.24;
+    transform: translate3d(-50%, -50%, 0) scaleX(0.82);
+  }
+  25% {
+    opacity: 0.10;
+    transform: translate3d(-50%, -50%, 0) scaleX(1.05);
+  }
+  34%,
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scaleX(0.18);
+  }
+}
+
+@keyframes feellinkSidebarLogoSpark {
+  0%,
+  12.4% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.24) rotate(0deg);
+  }
+  19% {
+    opacity: 0.18;
+    transform: translate3d(-50%, -50%, 0) scale(1) rotate(120deg);
+  }
+  30%,
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(1.32) rotate(220deg);
+  }
+}
+
+@keyframes feellinkSidebarLogoHalo {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.34);
+  }
+  5% {
+    opacity: 0.38;
+    transform: scaleX(0.48);
+  }
+  13% {
+    opacity: 0.58;
+    transform: scaleX(1.04);
+  }
+  26% {
+    opacity: 0.5;
+    transform: scaleX(1.1);
+  }
+  84% {
+    opacity: 0.38;
+    transform: scaleX(0.96);
+  }
+  92% {
+    opacity: 0.12;
+    transform: scaleX(0.44);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(0.34);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feellink-sidebar-logo-core,
+  .feellink-sidebar-logo-wing,
+  .feellink-sidebar-logo-bridge,
+  .feellink-sidebar-logo-flare {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+
+  .feellink-sidebar-logo-final {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: translate3d(0, -50%, 0) scaleX(1) !important;
+  }
+
+  .feellink-sidebar-logo-final::after,
+  .feellink-sidebar-logo-reveal::before {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+}
+
+.feellink-section-emblem {
+  position: relative;
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.82), transparent 21%),
+    linear-gradient(135deg, #2638ff 0%, #c43bdf 42%, #ff7a22 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 139, 45, 0.12),
+    0 10px 28px rgba(255, 122, 0, 0.18),
+    0 8px 22px rgba(43, 72, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.36);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.feellink-section-emblem::before,
+.feellink-section-emblem::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.feellink-section-emblem::before {
+  inset: 3px;
+  z-index: 0;
+  border-radius: 9px;
+  background:
+    radial-gradient(circle at 22% 72%, rgba(71, 116, 255, 0.36), transparent 34%),
+    radial-gradient(circle at 82% 28%, rgba(255, 211, 91, 0.32), transparent 30%);
+  opacity: 0.82;
+}
+
+.feellink-section-emblem::after {
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: 15px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.28));
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.46);
+  transform: translate3d(-50%, -50%, 0) rotate(-24deg);
+}
+
+.feellink-section-emblem__node {
+  position: absolute;
+  z-index: 2;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    0 0 8px rgba(255, 255, 255, 0.72),
+    0 0 14px rgba(255, 170, 74, 0.40);
+}
+
+.feellink-section-emblem__node--a {
+  left: 6px;
+  bottom: 7px;
+}
+
+.feellink-section-emblem__node--b {
+  right: 6px;
+  top: 7px;
+}
+
+.feellink-section-emblem__glow {
+  position: absolute;
+  inset: -12px;
+  z-index: 3;
+  border-radius: inherit;
+  background: linear-gradient(110deg, transparent 24%, rgba(255, 255, 255, 0.46) 46%, transparent 66%);
+  opacity: 0.44;
+  transform: translateX(-54%) rotate(9deg);
+  animation: feellinkSectionEmblemSheen 5.8s ease-in-out infinite;
+}
+
+.feellink-section-emblem--discover {
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.78), transparent 21%),
+    linear-gradient(135deg, #1665ff 0%, #9655ff 38%, #ff8a24 100%);
+}
+
+.feellink-section-emblem--discover::after {
+  width: 13px;
+  transform: translate3d(-50%, -50%, 0) rotate(28deg);
+}
+
+.feellink-section-emblem--discover .feellink-section-emblem__node--a {
+  left: 7px;
+  top: 7px;
+  bottom: auto;
+}
+
+.feellink-section-emblem--discover .feellink-section-emblem__node--b {
+  right: 7px;
+  top: auto;
+  bottom: 7px;
+}
+
+@keyframes feellinkSectionEmblemSheen {
+  0%,
+  28% {
+    opacity: 0;
+    transform: translateX(-62%) rotate(9deg);
+  }
+  48% {
+    opacity: 0.42;
+  }
+  68%,
+  100% {
+    opacity: 0;
+    transform: translateX(58%) rotate(9deg);
+  }
+}
+
+.feellink-section-icon {
+  position: relative;
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.94);
+  color: #b45309;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.76)),
+    rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.08),
+    0 0 0 1px rgba(255, 138, 31, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.feellink-section-icon::before,
+.feellink-section-icon::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.feellink-section-icon::before {
+  inset: -1px;
+  z-index: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 22% 22%, rgba(255, 255, 255, 0.74), transparent 22%),
+    linear-gradient(135deg, rgba(43, 65, 255, 0.12), rgba(216, 55, 185, 0.08) 46%, rgba(255, 129, 36, 0.20));
+  opacity: 0.74;
+}
+
+.feellink-section-icon::after {
+  left: 7px;
+  right: 7px;
+  bottom: 5px;
+  z-index: 1;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 138, 31, 0.36), transparent);
+  opacity: 0.58;
+}
+
+.feellink-section-icon svg {
+  position: relative;
+  z-index: 2;
+  filter:
+    drop-shadow(0 0 6px rgba(255, 184, 112, 0.18))
+    drop-shadow(0 3px 7px rgba(15, 23, 42, 0.10));
+}
+
+.feellink-section-icon--featured {
+  color: #b45309;
+}
+
+.feellink-section-icon--discover {
+  color: #1d4ed8;
+}
+
+.feellink-section-icon--discover::before {
+  background:
+    radial-gradient(circle at 24% 22%, rgba(255, 255, 255, 0.72), transparent 22%),
+    linear-gradient(135deg, rgba(34, 104, 255, 0.18), rgba(142, 87, 255, 0.12) 48%, rgba(255, 139, 45, 0.14));
+  opacity: 0.76;
+}
+
+.dark .feellink-section-icon {
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #ffc27a;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.018)),
+    rgba(10, 15, 28, 0.64);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba(255, 138, 31, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.dark .feellink-section-icon::before {
+  background:
+    radial-gradient(circle at 22% 22%, rgba(255, 255, 255, 0.42), transparent 22%),
+    linear-gradient(135deg, rgba(43, 65, 255, 0.36), rgba(216, 55, 185, 0.28) 46%, rgba(255, 129, 36, 0.36));
+  opacity: 0.34;
+}
+
+.dark .feellink-section-icon::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.54), transparent);
+  opacity: 0.72;
+}
+
+.dark .feellink-section-icon svg {
+  filter:
+    drop-shadow(0 0 7px rgba(255, 184, 112, 0.32))
+    drop-shadow(0 4px 9px rgba(0, 0, 0, 0.24));
+}
+
+.dark .feellink-section-icon--featured {
+  color: #ffd29b;
+}
+
+.dark .feellink-section-icon--discover {
+  color: #a9c9ff;
+}
+
+.dark .feellink-section-icon--discover::before {
+  background:
+    radial-gradient(circle at 24% 22%, rgba(255, 255, 255, 0.40), transparent 22%),
+    linear-gradient(135deg, rgba(34, 104, 255, 0.38), rgba(142, 87, 255, 0.30) 48%, rgba(255, 139, 45, 0.32));
+  opacity: 0.36;
+}
+
 h1,
 h2,
 h3 {
@@ -612,6 +1318,36 @@ a:hover {
   transform: scale(1.02) !important;
 }
 
+@keyframes exhibition-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.exhibition-artwork-card {
+  animation: exhibition-card-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.exhibition-artwork-card::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exhibition-artwork-card {
+    animation: none;
+  }
+}
+
 /* ✅ Comment Preview Animations */
 @keyframes fadeSlide {
   from {
@@ -675,16 +1411,16 @@ a:hover {
   border-color: transparent !important;
 }
 
-/* Dark Mode Kartları - Border Yerine Shadow ile Ayrıştır (hover'da doğal shadow'a izin ver) */
-.dark aside [data-dark-bg]:not(:hover),
-.dark aside .rounded-2xl[class*="border"]:not(:hover),
-.dark aside .rounded-xl[class*="border"]:not(:hover) {
+/* Dark Mode Kartları - Border Yerine Shadow ile Ayrıştır */
+.dark aside [data-dark-bg],
+.dark aside .rounded-2xl[class*="border"],
+.dark aside .rounded-xl[class*="border"] {
   border: none !important;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45) !important;
 }
 
 /* Ayın Öne Çıkanları Kartları - Dark Mode (Border Kaldır, Shadow Ekle) */
-.dark .rounded-\[14px\]:not(:hover) {
+.dark .rounded-\[14px\] {
   border: none !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
 }
@@ -840,6 +1576,71 @@ button[class*="bg-brand-orange"]:not([disabled]):active {
   transform: translateY(1px);
 }
 
+.feellink-greeting-shimmer {
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+  animation: feellinkGreetingGlow 5.4s ease-in-out infinite;
+}
+
+.feellink-greeting-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: -4px -8px;
+  z-index: -1;
+  border-radius: 999px;
+  background: linear-gradient(
+    105deg,
+    transparent 8%,
+    rgba(255, 138, 31, 0.08) 34%,
+    rgba(255, 185, 95, 0.22) 50%,
+    rgba(64, 124, 255, 0.10) 62%,
+    transparent 78%
+  );
+  opacity: 0;
+  transform: translateX(-28%) scaleX(0.78);
+  animation: feellinkGreetingSheen 6.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes feellinkGreetingGlow {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+    filter: drop-shadow(0 0 4px rgba(255, 138, 31, 0.16));
+  }
+  45% {
+    transform: translate3d(0.4px, -0.3px, 0);
+    filter: drop-shadow(0 0 12px rgba(255, 138, 31, 0.30));
+  }
+  52% {
+    transform: translate3d(-0.3px, 0.2px, 0);
+  }
+}
+
+@keyframes feellinkGreetingSheen {
+  0%,
+  58%,
+  100% {
+    opacity: 0;
+    transform: translateX(-30%) scaleX(0.72);
+  }
+  68% {
+    opacity: 1;
+  }
+  82% {
+    opacity: 0;
+    transform: translateX(16%) scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feellink-greeting-shimmer,
+  .feellink-greeting-shimmer::after {
+    animation: none;
+  }
+}
+
 /* Beğeni Butonu Animasyonu */
 .like-btn {
   transition: transform 0.2s ease;
@@ -917,99 +1718,1837 @@ button[class*="bg-brand-orange"]:not([disabled]):active {
   );
 }
 
-/* ✨ Premium Feed — Entrance & Hover Animations */
-@keyframes slideUpFade {
-  from { opacity: 0; transform: translateY(18px); }
-  to   { opacity: 1; transform: translateY(0); }
+.feellink-login-shell {
+  isolation: isolate;
 }
 
-@keyframes shimmerSweep {
-  0%   { transform: translateX(-200%) skewX(-15deg); opacity: 1; }
-  100% { transform: translateX(300%) skewX(-15deg); opacity: 0; }
-}
-
-.premium-card-enter {
-  animation: slideUpFade 0.52s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.shimmer-bar {
+.feellink-login-shell::before,
+.feellink-login-shell::after {
+  content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 55%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
-  transform: translateX(-200%) skewX(-15deg);
+  inset: 0;
   pointer-events: none;
-  z-index: 30;
 }
 
-.group:hover .shimmer-bar {
-  animation: shimmerSweep 0.68s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+.feellink-login-shell::before {
+  z-index: 6;
+  background:
+    radial-gradient(ellipse at 50% 49%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.08) 18%, transparent 34%),
+    radial-gradient(ellipse at 50% 50%, transparent 0%, transparent 38%, rgba(12, 10, 24, 0.20) 66%, rgba(4, 4, 10, 0.54) 100%),
+    linear-gradient(180deg, rgba(3, 5, 12, 0.28), transparent 16%, transparent 72%, rgba(3, 4, 12, 0.42)),
+    linear-gradient(90deg, rgba(1, 4, 14, 0.38), transparent 16%, transparent 84%, rgba(28, 10, 4, 0.34));
+  mix-blend-mode: multiply;
+  opacity: 0.78;
 }
 
-/* Dark mode sidebar hover — premium glow */
-.dark aside .rounded-2xl[class*="border"]:hover,
-.dark aside .rounded-xl[class*="border"]:hover {
-  box-shadow: 0 0 22px rgba(251, 146, 60, 0.18), 0 12px 28px rgba(0, 0, 0, 0.4) !important;
+.feellink-login-shell::after {
+  z-index: 7;
+  background:
+    linear-gradient(115deg, transparent 0%, rgba(255, 255, 255, 0.045) 42%, transparent 57%),
+    repeating-linear-gradient(105deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 9px);
+  opacity: 0.24;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 48%, #000 0%, #000 54%, transparent 86%);
+  mask-image: radial-gradient(ellipse at 50% 48%, #000 0%, #000 54%, transparent 86%);
 }
 
-/* Başvurular Scrollbar - Profesyonel ve Minimal */
-.applications-scroll::-webkit-scrollbar {
-  width: 8px;
+.feellink-login-stage {
+  width: min(calc(100vw - 2rem), clamp(468px, 31vw, 520px));
+  max-width: calc(100vw - 2rem);
+  isolation: isolate;
+  perspective: 1100px;
 }
 
-.applications-scroll::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 4px;
+.feellink-login-stage::before {
+  content: "";
+  position: absolute;
+  inset: 12% 8% -12%;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 44px;
+  background:
+    radial-gradient(ellipse at 50% 26%, rgba(255, 255, 255, 0.28), transparent 44%),
+    radial-gradient(ellipse at 50% 68%, rgba(255, 122, 31, 0.22), transparent 58%),
+    radial-gradient(ellipse at 50% 100%, rgba(35, 19, 92, 0.24), transparent 64%);
+  filter: blur(38px);
+  opacity: 0.92;
+  transform: translate3d(0, 22px, -80px);
 }
 
-.applications-scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-  transition: background 0.2s ease;
+.feellink-login-orbit {
+  position: absolute;
+  inset: -78px -88px;
+  z-index: 1;
+  pointer-events: none;
 }
 
-.applications-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
+.feellink-login-orbit__ring,
+.feellink-login-orbit__node {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform, opacity;
 }
 
-.dark .applications-scroll::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
+.feellink-login-orbit__ring {
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-left-color: rgba(87, 149, 255, 0.20);
+  border-right-color: rgba(255, 156, 64, 0.22);
+  box-shadow:
+    0 0 38px rgba(255, 255, 255, 0.055),
+    inset 0 0 42px rgba(255, 255, 255, 0.035);
+  -webkit-mask-image: linear-gradient(110deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+  mask-image: linear-gradient(110deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
 }
 
-.dark .applications-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+.feellink-login-orbit__ring--a {
+  transform: rotate(-10deg) scaleX(0.94);
+  animation: feellinkLoginOrbitA 18s ease-in-out infinite;
 }
 
-.dark .applications-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+.feellink-login-orbit__ring--b {
+  inset: 32px 42px;
+  opacity: 0.72;
+  transform: rotate(17deg) scaleX(1.08);
+  animation: feellinkLoginOrbitB 22s ease-in-out infinite;
 }
 
-/* ✅ Rol Badge - LED çerçeveli, minimal, glow efekti */
-.role-badge-led {
-  display: inline-block;
-  margin-top: 6px;
-  margin-bottom: 8px;
-  padding: 4px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.4px;
-  color: #ff9f43; /* Feelink orange */
-  background: transparent;
-  border: 1px solid rgba(255, 159, 67, 0.6);
+.feellink-login-orbit__node {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 0 12px rgba(255, 255, 255, 0.62),
+    0 0 28px rgba(255, 145, 52, 0.38);
+  opacity: 0.76;
+}
+
+.feellink-login-orbit__node--a {
+  left: 18%;
+  top: 19%;
+  animation: feellinkLoginNodeA 9s ease-in-out infinite;
+}
+
+.feellink-login-orbit__node--b {
+  right: 15%;
+  top: 30%;
+  width: 5px;
+  height: 5px;
+  animation: feellinkLoginNodeB 11s ease-in-out infinite;
+}
+
+.feellink-login-orbit__node--c {
+  left: 24%;
+  bottom: 14%;
+  width: 4px;
+  height: 4px;
+  background: rgba(226, 242, 255, 0.92);
+  box-shadow:
+    0 0 12px rgba(151, 207, 255, 0.56),
+    0 0 26px rgba(255, 255, 255, 0.28);
+  animation: feellinkLoginNodeC 13s ease-in-out infinite;
+}
+
+.feellink-login-card {
+  z-index: 2;
+  width: 100%;
+  max-width: 100%;
+  border-radius: 38px;
+  padding: clamp(30px, 3vw, 44px);
+  backdrop-filter: blur(40px) saturate(1.26);
+  -webkit-backdrop-filter: blur(40px) saturate(1.26);
+  transform: translate3d(0, 0, 0);
+  transition:
+    transform 280ms ease,
+    box-shadow 280ms ease,
+    border-color 280ms ease,
+    background-color 280ms ease;
+  box-shadow:
+    0 54px 160px rgba(13, 8, 45, 0.42),
+    0 26px 70px rgba(255, 119, 43, 0.13),
+    0 0 0 1px rgba(255, 255, 255, 0.46) inset,
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.feellink-login-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 37px;
+  pointer-events: none;
+  background:
+    linear-gradient(150deg, rgba(255, 255, 255, 0.92), transparent 30%),
+    radial-gradient(circle at 50% -8%, rgba(255, 255, 255, 0.82), transparent 40%),
+    linear-gradient(310deg, rgba(255, 131, 49, 0.10), transparent 42%);
+  opacity: 0.86;
+}
+
+.feellink-login-card::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 37px;
+  background:
+    linear-gradient(112deg, transparent 0%, rgba(255, 255, 255, 0.30) 37%, rgba(255, 255, 255, 0.08) 48%, transparent 60%),
+    radial-gradient(circle at 50% 100%, rgba(255, 138, 31, 0.14), transparent 48%);
+  opacity: 0.48;
+  transform: translate3d(-10%, -4%, 0);
+  animation: feellinkLoginCardSheen 8.5s ease-in-out infinite;
+}
+
+.feellink-login-card:hover,
+.feellink-login-card:focus-within {
+  transform: translate3d(0, -3px, 0) rotateX(0.55deg);
+  box-shadow:
+    0 62px 172px rgba(13, 8, 45, 0.46),
+    0 26px 82px rgba(255, 124, 42, 0.17),
+    0 0 0 1px rgba(255, 255, 255, 0.52) inset,
+    0 0 72px rgba(255, 138, 31, 0.14);
+}
+
+.feellink-login-card:hover::after,
+.feellink-login-card:focus-within::after {
+  opacity: 0.7;
+}
+
+.feellink-login-card-glass {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.90), rgba(255, 255, 255, 0.42) 44%, rgba(255, 255, 255, 0.72)),
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.55), transparent 48%),
+    linear-gradient(180deg, rgba(255, 248, 244, 0.66), rgba(255, 235, 247, 0.42));
+}
+
+.feellink-login-card-glass::before,
+.feellink-login-card-glass::after,
+.feellink-login-card-sheen::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.feellink-login-card-glass::before {
+  inset: 12px;
+  border-radius: 29px;
+  border: 1px solid rgba(255, 255, 255, 0.54);
+  opacity: 0.82;
+}
+
+.feellink-login-card-glass::after {
+  inset: auto 34px 20px;
+  height: 26px;
   border-radius: 999px;
-  box-shadow:
-    0 0 6px rgba(255, 159, 67, 0.35),
-    inset 0 0 4px rgba(255, 159, 67, 0.25);
-  text-transform: capitalize;
+  background: radial-gradient(ellipse at center, rgba(255, 132, 44, 0.22), transparent 70%);
+  filter: blur(12px);
+  opacity: 0.78;
 }
 
-.dark .role-badge-led {
-  color: #ff9f43;
-  border-color: rgba(255, 159, 67, 0.6);
-  box-shadow:
-    0 0 8px rgba(255, 159, 67, 0.4),
-    inset 0 0 6px rgba(255, 159, 67, 0.2);
+.feellink-login-card-sheen {
+  overflow: hidden;
 }
 
+.feellink-login-card-sheen::before {
+  left: -35%;
+  top: -26%;
+  width: 58%;
+  height: 152%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.30), transparent);
+  opacity: 0.48;
+  transform: rotate(18deg) translate3d(-16%, 0, 0);
+  animation: feellinkLoginPremiumGlide 9.5s ease-in-out infinite;
+}
+
+.feellink-login-logo-reveal {
+  --feellink-logo-width: 156px;
+  --feellink-logo-height: 58px;
+  --feellink-logo-core: 54px;
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: var(--feellink-logo-width);
+  height: var(--feellink-logo-height);
+  isolation: isolate;
+  filter:
+    drop-shadow(0 20px 36px rgba(45, 26, 118, 0.22))
+    drop-shadow(0 2px 0 rgba(255, 255, 255, 0.20));
+}
+
+.feellink-login-logo-core,
+.feellink-login-logo-wing,
+.feellink-login-logo-final,
+.feellink-login-logo-bridge,
+.feellink-login-logo-flare {
+  position: absolute;
+  top: 50%;
+  pointer-events: none;
+  will-change: transform, opacity, filter;
+}
+
+.feellink-login-logo {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: block;
+  width: var(--feellink-logo-width);
+  max-width: none;
+  height: auto;
+  min-width: var(--feellink-logo-width);
+  transform: translate3d(0, -50%, 0);
+  object-fit: contain;
+}
+
+.feellink-login-logo-core {
+  left: 50%;
+  z-index: 4;
+  width: var(--feellink-logo-core);
+  height: var(--feellink-logo-core);
+  border-radius: 50%;
+  transform: translate3d(-50%, -50%, 0) scale(0.92);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.42) inset,
+    0 18px 34px rgba(47, 39, 146, 0.22),
+    0 0 40px rgba(255, 113, 46, 0.22);
+  animation: feellinkLoginLogoCore 20s cubic-bezier(0.45, 0, 0.18, 1) infinite;
+}
+
+.feellink-login-logo-core::before,
+.feellink-login-logo-core::after,
+.feellink-login-logo-wing::after,
+.feellink-login-logo-reveal::before,
+.feellink-login-logo-reveal::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.feellink-login-logo-core::before {
+  inset: -8px;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 40% 38%, rgba(255, 255, 255, 0.38), transparent 34%),
+    conic-gradient(from 190deg, rgba(50, 69, 255, 0.30), rgba(255, 69, 158, 0.22), rgba(255, 139, 31, 0.28), rgba(50, 69, 255, 0.30));
+  filter: blur(10px);
+  opacity: 0.76;
+  animation: feellinkLoginLogoCoreAura 20s ease-in-out infinite;
+}
+
+.feellink-login-logo-core::after {
+  inset: 4px;
+  border-radius: inherit;
+  background: linear-gradient(132deg, rgba(255, 255, 255, 0.34), transparent 32%, transparent 62%, rgba(255, 255, 255, 0.12));
+  mix-blend-mode: screen;
+  opacity: 0.72;
+}
+
+.feellink-login-logo-mark {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter:
+    drop-shadow(0 10px 18px rgba(42, 31, 118, 0.18))
+    saturate(1.04);
+}
+
+.feellink-login-logo-wing {
+  z-index: 3;
+  height: var(--feellink-logo-height);
+  overflow: hidden;
+  border-radius: 999px;
+  opacity: 0;
+  filter: saturate(1.06) brightness(1.02);
+  box-shadow:
+    0 14px 32px rgba(45, 26, 118, 0.16),
+    0 0 0 1px rgba(255, 255, 255, 0.20) inset;
+}
+
+.feellink-login-logo-wing::after {
+  inset: 0;
+  z-index: 4;
+  border-radius: inherit;
+  background:
+    linear-gradient(105deg, transparent 10%, rgba(255, 255, 255, 0.28) 46%, transparent 72%),
+    radial-gradient(circle at 50% 46%, rgba(255, 255, 255, 0.16), transparent 42%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: feellinkLoginLogoWingSheen 20s ease-in-out infinite;
+}
+
+.feellink-login-logo-wing--left {
+  left: 0;
+  width: 50%;
+  transform: translate3d(50%, -50%, 0) scaleX(0.05);
+  transform-origin: right center;
+  animation: feellinkLoginLogoWingLeft 20s cubic-bezier(0.45, 0, 0.18, 1) infinite;
+}
+
+.feellink-login-logo-wing--left .feellink-login-logo {
+  left: 0;
+}
+
+.feellink-login-logo-wing--right {
+  right: 0;
+  width: 50%;
+  transform: translate3d(-50%, -50%, 0) scaleX(0.05);
+  transform-origin: left center;
+  animation: feellinkLoginLogoWingRight 20s cubic-bezier(0.45, 0, 0.18, 1) infinite;
+}
+
+.feellink-login-logo-wing--right .feellink-login-logo {
+  right: 0;
+}
+
+.feellink-login-logo-bridge {
+  left: 50%;
+  z-index: 5;
+  width: 25px;
+  height: 40px;
+  border-radius: 13px;
+  background:
+    linear-gradient(90deg, transparent 0 20%, rgba(255, 255, 255, 0.98) 20% 42%, transparent 42% 58%, rgba(255, 255, 255, 0.98) 58% 80%, transparent 80%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.78));
+  filter:
+    drop-shadow(0 0 12px rgba(255, 255, 255, 0.34))
+    drop-shadow(0 9px 16px rgba(63, 35, 154, 0.16));
+  opacity: 0;
+  transform: translate3d(-50%, -50%, 0) scaleY(0.72);
+  animation: feellinkLoginLogoBridge 20s cubic-bezier(0.45, 0, 0.18, 1) infinite;
+}
+
+.feellink-login-logo-final {
+  left: 0;
+  z-index: 6;
+  width: var(--feellink-logo-width);
+  height: var(--feellink-logo-height);
+  overflow: hidden;
+  border-radius: 999px;
+  opacity: 0;
+  filter:
+    saturate(1.04)
+    brightness(1.02)
+    drop-shadow(0 14px 30px rgba(45, 26, 118, 0.16));
+  transform: translate3d(0, -50%, 0) scaleX(0.82);
+  animation: feellinkLoginLogoFinal 20s cubic-bezier(0.45, 0, 0.18, 1) infinite;
+}
+
+.feellink-login-logo-final::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(106deg, transparent 12%, rgba(255, 255, 255, 0.18) 44%, rgba(255, 255, 255, 0.46) 51%, transparent 68%),
+    radial-gradient(circle at 50% 48%, rgba(255, 255, 255, 0.18), transparent 42%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  transform: translateX(-62%) skewX(-10deg);
+  animation: feellinkLoginLogoFinalShine 20s ease-in-out infinite;
+}
+
+.feellink-login-logo-flare {
+  left: 50%;
+  z-index: 7;
+  width: 134px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.92), rgba(255, 214, 164, 0.34), transparent);
+  filter: blur(0.2px) drop-shadow(0 0 10px rgba(255, 255, 255, 0.62));
+  opacity: 0;
+  transform: translate3d(-50%, -50%, 0) scaleX(0.16);
+  transform-origin: center;
+  animation: feellinkLoginLogoFlare 20s ease-in-out infinite;
+}
+
+.feellink-login-logo-flare::before,
+.feellink-login-logo-flare::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  filter: blur(1px);
+  transform: translate3d(-50%, -50%, 0);
+}
+
+.feellink-login-logo-flare::after {
+  width: 56px;
+  height: 56px;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.36), transparent 46%),
+    conic-gradient(from 0deg, transparent, rgba(255, 255, 255, 0.66), transparent, rgba(255, 181, 90, 0.44), transparent);
+  opacity: 0;
+  filter: blur(0.4px);
+}
+
+.feellink-login-logo-reveal::before {
+  inset: -9px -18px;
+  z-index: 0;
+  border-radius: 999px;
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.24), transparent 46%),
+    radial-gradient(ellipse at 28% 48%, rgba(52, 66, 255, 0.25), transparent 48%),
+    radial-gradient(ellipse at 72% 52%, rgba(255, 130, 38, 0.25), transparent 48%);
+  filter: blur(15px);
+  opacity: 0.48;
+  transform: scaleX(0.46);
+  animation: feellinkLoginLogoHalo 20s ease-in-out infinite;
+}
+
+.feellink-login-brand-lockup {
+  min-height: 54px;
+  align-items: center;
+}
+
+.feellink-login-brand-aura {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 206px;
+  height: 78px;
+  border-radius: 999px;
+  background:
+    radial-gradient(ellipse at 28% 50%, rgba(51, 72, 255, 0.26), transparent 50%),
+    radial-gradient(ellipse at 76% 50%, rgba(255, 126, 38, 0.28), transparent 48%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.30), rgba(255, 255, 255, 0.02));
+  filter: blur(14px);
+  opacity: 0.82;
+  transform: translate3d(-50%, -50%, 0);
+  animation: feellinkLoginBrandAura 7.5s ease-in-out infinite;
+}
+
+.feellink-login-brand-aura::before {
+  content: "";
+  position: absolute;
+  inset: 13px 24px;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
+}
+
+.feellink-login-switch {
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  min-height: 54px;
+  border-radius: 20px;
+  transition:
+    box-shadow 220ms ease,
+    background-color 220ms ease,
+    border-color 220ms ease;
+}
+
+.feellink-login-switch:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 16px 44px rgba(57, 32, 110, 0.11);
+}
+
+.feellink-login-tab {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.feellink-login-tab::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(105deg, transparent 10%, rgba(255, 255, 255, 0.20) 46%, transparent 72%);
+  opacity: 0;
+  transform: translateX(-32%);
+  transition:
+    opacity 220ms ease,
+    transform 320ms ease;
+}
+
+.feellink-login-tab:hover::after {
+  opacity: 0.5;
+  transform: translateX(16%);
+}
+
+.feellink-login-field {
+  min-height: 52px;
+  border-radius: 18px;
+  transition:
+    transform 180ms ease,
+    box-shadow 220ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+.feellink-login-field:hover {
+  transform: translate3d(0, -1px, 0);
+  box-shadow:
+    0 18px 46px rgba(42, 29, 93, 0.12),
+    0 0 0 1px rgba(255, 255, 255, 0.68),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.feellink-login-field:focus {
+  transform: translate3d(0, -1px, 0);
+  box-shadow:
+    0 22px 56px rgba(255, 138, 31, 0.18),
+    0 0 0 1px rgba(255, 138, 31, 0.30),
+    0 0 34px rgba(255, 138, 31, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.feellink-login-submit {
+  isolation: isolate;
+  min-height: 54px;
+  border-radius: 18px;
+  box-shadow:
+    0 22px 54px rgba(255, 122, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.30);
+}
+
+.feellink-login-submit::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.30) 44%, transparent 60%),
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.22), transparent 48%);
+  opacity: 0;
+  transform: translateX(-38%) scaleX(0.86);
+  transition:
+    opacity 220ms ease,
+    transform 420ms ease;
+}
+
+.feellink-login-submit:hover::before,
+.feellink-login-submit:focus-visible::before {
+  opacity: 0.9;
+  transform: translateX(30%) scaleX(1);
+}
+
+.feellink-login-submit:active {
+  transform: translate3d(0, 0, 0) scale(0.992);
+}
+
+@media (max-width: 640px) {
+  .feellink-login-stage {
+    width: min(calc(100vw - 2rem), 360px);
+  }
+
+  .feellink-login-card {
+    border-radius: 34px;
+    padding: 26px 24px;
+  }
+
+  .feellink-login-card::before,
+  .feellink-login-card::after,
+  .feellink-login-card-glass {
+    border-radius: 33px;
+  }
+
+  .feellink-login-card-glass::before {
+    inset: 9px;
+    border-radius: 25px;
+  }
+
+  .feellink-login-orbit {
+    inset: -50px -48px;
+    opacity: 0.72;
+  }
+
+  .feellink-login-flow {
+    opacity: 0.5;
+  }
+
+  .feellink-login-spectrum {
+    opacity: 0.56;
+  }
+
+  .feellink-login-constellation {
+    opacity: 0.42;
+  }
+
+  .feellink-login-constellation__dot--e,
+  .feellink-login-constellation__dot--f {
+    display: none;
+  }
+
+  .feellink-login-logo-reveal {
+    --feellink-logo-width: 142px;
+    --feellink-logo-height: 52px;
+    --feellink-logo-core: 48px;
+  }
+}
+
+.feellink-login-wallpaper {
+  background-image: url('/images/feellink-login-windows-bg.png');
+  background-position: center;
+  background-size: cover;
+  filter: saturate(0.92) contrast(1.06) brightness(0.88);
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1.035);
+  animation: feellinkLoginWallpaperDrift 34s ease-in-out infinite;
+  will-change: transform;
+}
+
+.feellink-login-shell--dark .feellink-login-wallpaper {
+  filter: saturate(0.86) contrast(1.08) brightness(0.76);
+  opacity: 1;
+}
+
+.feellink-login-spectrum {
+  z-index: 0;
+  mix-blend-mode: soft-light;
+  opacity: 0.58;
+  filter: saturate(1.08);
+  transform: translate3d(0, 0, 0);
+  animation: feellinkLoginSpectrumField 26s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.feellink-login-spectrum::before,
+.feellink-login-spectrum::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-radius: 42%;
+  will-change: transform, opacity;
+}
+
+.feellink-login-spectrum::before {
+  left: -18vw;
+  top: -6vh;
+  width: 72vw;
+  height: 92vh;
+  background:
+    radial-gradient(ellipse at 34% 28%, rgba(255, 255, 255, 0.16), transparent 36%),
+    radial-gradient(ellipse at 48% 62%, rgba(73, 116, 255, 0.24), transparent 48%),
+    radial-gradient(ellipse at 72% 54%, rgba(255, 70, 196, 0.18), transparent 44%);
+  filter: blur(8px);
+  opacity: 0.62;
+  transform: rotate(-17deg) translate3d(-6%, 0, 0) scale(0.96);
+  animation: feellinkLoginSpectrumVeilA 17s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+.feellink-login-spectrum::after {
+  right: -16vw;
+  bottom: -12vh;
+  width: 78vw;
+  height: 84vh;
+  background:
+    radial-gradient(ellipse at 64% 28%, rgba(255, 237, 151, 0.20), transparent 38%),
+    radial-gradient(ellipse at 34% 58%, rgba(255, 100, 65, 0.20), transparent 48%),
+    radial-gradient(ellipse at 62% 72%, rgba(255, 255, 255, 0.12), transparent 44%);
+  filter: blur(10px);
+  opacity: 0.58;
+  transform: rotate(13deg) translate3d(7%, 0, 0) scale(0.98);
+  animation: feellinkLoginSpectrumVeilB 20s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+.feellink-login-flow {
+  z-index: 0;
+  mix-blend-mode: screen;
+  opacity: 0.48;
+  filter: blur(24px) saturate(1.06);
+  transform: translate3d(0, 0, 0);
+  animation: feellinkLoginFlowField 21s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.feellink-login-flow::before,
+.feellink-login-flow::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-radius: 999px;
+  will-change: transform, opacity;
+}
+
+.feellink-login-flow::before {
+  left: -10vw;
+  top: 12vh;
+  width: 72vw;
+  height: 34vh;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(84, 138, 255, 0.28), transparent 54%),
+    radial-gradient(ellipse at 65% 42%, rgba(255, 255, 255, 0.12), transparent 44%),
+    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.11) 45%, rgba(255, 150, 70, 0.12) 62%, transparent 92%);
+  opacity: 0.56;
+  transform: rotate(-13deg) translate3d(-12%, 0, 0) scaleX(0.86);
+  animation: feellinkLoginFlowRibbonA 16s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+.feellink-login-flow::after {
+  right: -18vw;
+  bottom: 2vh;
+  width: 78vw;
+  height: 40vh;
+  background:
+    radial-gradient(ellipse at 74% 48%, rgba(255, 198, 74, 0.22), transparent 46%),
+    radial-gradient(ellipse at 36% 54%, rgba(255, 84, 185, 0.18), transparent 48%),
+    linear-gradient(88deg, transparent 0%, rgba(255, 255, 255, 0.12) 42%, rgba(118, 198, 255, 0.10) 58%, transparent 90%);
+  opacity: 0.52;
+  transform: rotate(11deg) translate3d(16%, 0, 0) scaleX(0.92);
+  animation: feellinkLoginFlowRibbonB 19s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+.feellink-login-constellation {
+  z-index: 5;
+  mix-blend-mode: screen;
+  opacity: 0.52;
+  filter: saturate(1.08);
+}
+
+.feellink-login-constellation::before,
+.feellink-login-constellation::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  left: 50%;
+  top: 50%;
+  width: min(78vw, 1120px);
+  height: min(58vh, 520px);
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-top-color: rgba(255, 255, 255, 0.13);
+  border-left-color: rgba(151, 205, 255, 0.12);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 78%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 78%, transparent 100%);
+  will-change: transform, opacity;
+}
+
+.feellink-login-constellation::before {
+  transform: translate3d(-50%, -50%, 0) rotate(-14deg);
+  animation: feellinkLoginConstellationSweepA 24s ease-in-out infinite;
+}
+
+.feellink-login-constellation::after {
+  width: min(64vw, 920px);
+  height: min(46vh, 430px);
+  transform: translate3d(-50%, -50%, 0) rotate(18deg);
+  animation: feellinkLoginConstellationSweepB 29s ease-in-out infinite;
+}
+
+.feellink-login-constellation__dot {
+  --trail-angle: -16deg;
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 1px, rgba(255, 226, 186, 0.62) 2px, rgba(255, 255, 255, 0.10) 70%);
+  box-shadow:
+    0 0 12px rgba(255, 255, 255, 0.58),
+    0 0 28px rgba(255, 138, 31, 0.22);
+  opacity: 0.7;
+  will-change: transform, opacity;
+}
+
+.feellink-login-constellation__dot::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: clamp(54px, 8vw, 112px);
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.08) 42%, transparent);
+  transform: rotate(var(--trail-angle)) translate3d(4px, -50%, 0);
+  transform-origin: left center;
+  opacity: 0.54;
+}
+
+.feellink-login-constellation__dot--a {
+  --trail-angle: -18deg;
+  left: 10%;
+  top: 24%;
+  animation: feellinkLoginDotFloatA 10s ease-in-out infinite;
+}
+
+.feellink-login-constellation__dot--b {
+  --trail-angle: 24deg;
+  right: 13%;
+  top: 18%;
+  width: 4px;
+  height: 4px;
+  animation: feellinkLoginDotFloatB 13s ease-in-out infinite;
+}
+
+.feellink-login-constellation__dot--c {
+  --trail-angle: -8deg;
+  left: 18%;
+  bottom: 23%;
+  width: 4px;
+  height: 4px;
+  animation: feellinkLoginDotFloatC 12s ease-in-out infinite;
+}
+
+.feellink-login-constellation__dot--d {
+  --trail-angle: 158deg;
+  right: 22%;
+  bottom: 26%;
+  animation: feellinkLoginDotFloatA 15s ease-in-out infinite reverse;
+}
+
+.feellink-login-constellation__dot--e {
+  --trail-angle: 36deg;
+  left: 52%;
+  top: 12%;
+  width: 3px;
+  height: 3px;
+  opacity: 0.55;
+  animation: feellinkLoginDotFloatB 11s ease-in-out infinite reverse;
+}
+
+.feellink-login-constellation__dot--f {
+  --trail-angle: -142deg;
+  right: 42%;
+  bottom: 13%;
+  width: 3px;
+  height: 3px;
+  opacity: 0.5;
+  animation: feellinkLoginDotFloatC 16s ease-in-out infinite;
+}
+
+.feellink-login-depth {
+  z-index: 2;
+  background:
+    radial-gradient(ellipse at 50% 48%, transparent 0%, transparent 34%, rgba(0, 0, 0, 0.10) 60%, rgba(0, 0, 0, 0.34) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.46), rgba(0, 0, 0, 0.18) 12%, transparent 29%, transparent 72%, rgba(0, 0, 0, 0.18) 88%, rgba(0, 0, 0, 0.42)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.30), transparent 18%, transparent 72%, rgba(0, 0, 0, 0.42));
+  box-shadow:
+    inset 0 0 110px rgba(0, 0, 0, 0.40),
+    inset 0 0 220px rgba(0, 0, 0, 0.26);
+  mix-blend-mode: multiply;
+  opacity: 0.90;
+  animation: feellinkLoginDepthPulse 14s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+.feellink-login-depth::before,
+.feellink-login-depth::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.feellink-login-depth::before {
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 47%, rgba(255, 255, 255, 0.16), transparent 25%),
+    radial-gradient(circle at 50% 48%, transparent 0%, transparent 28%, rgba(0, 0, 0, 0.12) 72%, rgba(0, 0, 0, 0.24) 100%);
+  opacity: 0.58;
+}
+
+.feellink-login-depth::after {
+  inset: -2%;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.28), transparent 13%, transparent 87%, rgba(0, 0, 0, 0.24)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.22), transparent 14%, transparent 84%, rgba(0, 0, 0, 0.32));
+  filter: blur(18px);
+  opacity: 0.78;
+}
+
+.feellink-login-lines {
+  z-index: 1;
+  opacity: 0.34;
+  transform-origin: 50% 50%;
+  animation: feellinkLoginWaveField 46s linear infinite;
+  will-change: transform, opacity;
+}
+
+.feellink-login-lines::before,
+.feellink-login-lines::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-left-color: rgba(255, 255, 255, 0.16);
+  border-top-color: rgba(255, 255, 255, 0.11);
+  border-bottom-color: rgba(255, 255, 255, 0.035);
+  box-shadow:
+    0 0 0 58px rgba(255, 255, 255, 0.005),
+    0 0 0 118px rgba(255, 255, 255, 0.003);
+  will-change: transform;
+}
+
+.feellink-login-lines::before {
+  left: -24vw;
+  bottom: -40vh;
+  width: 96vw;
+  height: 58vw;
+  transform: translate3d(-6%, 2%, 0) rotate(-11deg) scale(1);
+  animation: feellinkLoginWaveSweepA 30s linear infinite;
+}
+
+.feellink-login-lines::after {
+  right: -20vw;
+  top: -7vh;
+  width: 82vw;
+  height: 46vw;
+  transform: translate3d(5%, -2%, 0) rotate(13deg) scale(1);
+  animation: feellinkLoginWaveSweepB 36s linear infinite;
+}
+
+.feellink-login-aurora {
+  z-index: 3;
+  mix-blend-mode: screen;
+  opacity: 0.58;
+  overflow: hidden;
+  filter: saturate(1.04);
+  animation: feellinkLoginAuroraFloat 28s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.feellink-login-aurora::before,
+.feellink-login-aurora::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-radius: 999px;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 16%, #000 82%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 16%, #000 82%, transparent 100%);
+  will-change: transform, opacity;
+}
+
+.feellink-login-aurora::before {
+  left: 6vw;
+  top: 18vh;
+  width: min(82vw, 1120px);
+  height: clamp(72px, 16vh, 150px);
+  background:
+    radial-gradient(ellipse at 16% 50%, rgba(118, 199, 255, 0.12), transparent 44%),
+    radial-gradient(ellipse at 58% 52%, rgba(255, 255, 255, 0.14), transparent 36%),
+    linear-gradient(92deg, transparent 3%, rgba(255, 255, 255, 0.035) 22%, rgba(255, 236, 210, 0.17) 47%, rgba(255, 255, 255, 0.04) 64%, transparent 91%);
+  filter: blur(14px);
+  opacity: 0.62;
+  transform: rotate(-10deg) translate3d(-10%, 0, 0) scaleX(0.86);
+  animation: feellinkLoginAuroraRibbonA 19s ease-in-out infinite;
+}
+
+.feellink-login-aurora::after {
+  right: -10vw;
+  bottom: 12vh;
+  width: min(70vw, 980px);
+  height: clamp(86px, 20vh, 190px);
+  background:
+    radial-gradient(ellipse at 72% 45%, rgba(255, 255, 255, 0.14), transparent 40%),
+    radial-gradient(ellipse at 30% 62%, rgba(190, 128, 255, 0.10), transparent 43%),
+    linear-gradient(88deg, transparent 5%, rgba(255, 171, 112, 0.095) 22%, rgba(255, 255, 255, 0.12) 48%, rgba(156, 208, 255, 0.07) 67%, transparent 90%);
+  filter: blur(18px);
+  opacity: 0.52;
+  transform: rotate(14deg) translate3d(12%, 0, 0) scaleX(0.92);
+  animation: feellinkLoginAuroraRibbonB 23s ease-in-out infinite;
+}
+
+.feellink-login-silk {
+  z-index: 4;
+  mix-blend-mode: screen;
+  opacity: 0.46;
+  overflow: hidden;
+  animation: feellinkLoginSilkBreath 18s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.feellink-login-silk::before,
+.feellink-login-silk::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  border-top-color: rgba(255, 255, 255, 0.145);
+  border-right-color: rgba(255, 255, 255, 0.035);
+  filter:
+    blur(0.35px)
+    drop-shadow(0 0 9px rgba(255, 255, 255, 0.13))
+    drop-shadow(0 0 24px rgba(255, 221, 190, 0.07));
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 74%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 74%, transparent 100%);
+  will-change: transform, opacity;
+}
+
+.feellink-login-silk::before {
+  left: -4vw;
+  top: 52vh;
+  width: min(64vw, 880px);
+  height: clamp(120px, 27vh, 250px);
+  transform: rotate(-8deg) translate3d(-12%, 0, 0);
+  animation: feellinkLoginSilkArcA 15.5s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+.feellink-login-silk::after {
+  right: -8vw;
+  top: 18vh;
+  width: min(48vw, 720px);
+  height: clamp(96px, 22vh, 220px);
+  border-top-color: rgba(255, 255, 255, 0.115);
+  border-left-color: rgba(255, 255, 255, 0.028);
+  transform: rotate(16deg) translate3d(14%, 0, 0);
+  animation: feellinkLoginSilkArcB 18.5s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+@keyframes feellinkLoginSpectrumField {
+  0%,
+  100% {
+    opacity: 0.58;
+    transform: translate3d(-0.8%, 0.6%, 0) scale(1.01);
+  }
+  50% {
+    opacity: 0.82;
+    transform: translate3d(0.9%, -0.7%, 0) scale(1.035);
+  }
+}
+
+@keyframes feellinkLoginSpectrumVeilA {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: rotate(-20deg) translate3d(-12%, 1vh, 0) scale(0.92);
+  }
+  42% {
+    opacity: 0.72;
+    transform: rotate(-12deg) translate3d(5%, -2vh, 0) scale(1.03);
+  }
+  72% {
+    opacity: 0.52;
+    transform: rotate(-18deg) translate3d(13%, 2vh, 0) scale(0.98);
+  }
+}
+
+@keyframes feellinkLoginSpectrumVeilB {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: rotate(15deg) translate3d(12%, 1vh, 0) scale(0.94);
+  }
+  46% {
+    opacity: 0.68;
+    transform: rotate(8deg) translate3d(-7%, -2vh, 0) scale(1.04);
+  }
+  76% {
+    opacity: 0.48;
+    transform: rotate(17deg) translate3d(-15%, 2vh, 0) scale(0.99);
+  }
+}
+
+@keyframes feellinkLoginFlowField {
+  0%,
+  100% {
+    opacity: 0.48;
+    transform: translate3d(-1.5%, 0.8%, 0) scale(1);
+  }
+  50% {
+    opacity: 0.72;
+    transform: translate3d(1.2%, -0.9%, 0) scale(1.035);
+  }
+}
+
+@keyframes feellinkLoginFlowRibbonA {
+  0%,
+  100% {
+    opacity: 0.34;
+    transform: rotate(-16deg) translate3d(-19%, 1vh, 0) scaleX(0.76);
+  }
+  42% {
+    opacity: 0.74;
+    transform: rotate(-8deg) translate3d(8%, -2vh, 0) scaleX(1.05);
+  }
+  72% {
+    opacity: 0.44;
+    transform: rotate(-13deg) translate3d(24%, 2vh, 0) scaleX(0.9);
+  }
+}
+
+@keyframes feellinkLoginFlowRibbonB {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: rotate(13deg) translate3d(20%, 2vh, 0) scaleX(0.82);
+  }
+  45% {
+    opacity: 0.68;
+    transform: rotate(6deg) translate3d(-9%, -2vh, 0) scaleX(1.07);
+  }
+  76% {
+    opacity: 0.42;
+    transform: rotate(16deg) translate3d(-24%, 1vh, 0) scaleX(0.92);
+  }
+}
+
+@keyframes feellinkLoginConstellationSweepA {
+  0%,
+  100% {
+    opacity: 0.22;
+    transform: translate3d(-52%, -49%, 0) rotate(-18deg) scaleX(0.94);
+  }
+  50% {
+    opacity: 0.48;
+    transform: translate3d(-48%, -52%, 0) rotate(-8deg) scaleX(1.04);
+  }
+}
+
+@keyframes feellinkLoginConstellationSweepB {
+  0%,
+  100% {
+    opacity: 0.14;
+    transform: translate3d(-48%, -52%, 0) rotate(22deg) scaleX(0.92);
+  }
+  50% {
+    opacity: 0.36;
+    transform: translate3d(-52%, -48%, 0) rotate(12deg) scaleX(1.08);
+  }
+}
+
+@keyframes feellinkLoginDotFloatA {
+  0%,
+  100% {
+    opacity: 0.34;
+    transform: translate3d(-10px, 7px, 0) scale(0.78);
+  }
+  46% {
+    opacity: 0.95;
+    transform: translate3d(18px, -12px, 0) scale(1.16);
+  }
+}
+
+@keyframes feellinkLoginDotFloatB {
+  0%,
+  100% {
+    opacity: 0.26;
+    transform: translate3d(14px, -8px, 0) scale(0.7);
+  }
+  52% {
+    opacity: 0.82;
+    transform: translate3d(-18px, 13px, 0) scale(1.12);
+  }
+}
+
+@keyframes feellinkLoginDotFloatC {
+  0%,
+  100% {
+    opacity: 0.24;
+    transform: translate3d(-8px, -10px, 0) scale(0.72);
+  }
+  50% {
+    opacity: 0.78;
+    transform: translate3d(16px, 14px, 0) scale(1.08);
+  }
+}
+
+@keyframes feellinkLoginOrbitA {
+  0%,
+  100% {
+    opacity: 0.48;
+    transform: rotate(-12deg) translate3d(-1.4%, 0.8%, 0) scaleX(0.92);
+  }
+  50% {
+    opacity: 0.76;
+    transform: rotate(-5deg) translate3d(1.2%, -1%, 0) scaleX(0.98);
+  }
+}
+
+@keyframes feellinkLoginOrbitB {
+  0%,
+  100% {
+    opacity: 0.34;
+    transform: rotate(19deg) translate3d(1%, -0.6%, 0) scaleX(1.02);
+  }
+  50% {
+    opacity: 0.62;
+    transform: rotate(12deg) translate3d(-1.5%, 1.1%, 0) scaleX(1.12);
+  }
+}
+
+@keyframes feellinkLoginNodeA {
+  0%,
+  100% {
+    opacity: 0.32;
+    transform: translate3d(-10px, 4px, 0) scale(0.78);
+  }
+  42% {
+    opacity: 0.95;
+    transform: translate3d(9px, -6px, 0) scale(1.18);
+  }
+}
+
+@keyframes feellinkLoginNodeB {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translate3d(8px, -4px, 0) scale(0.72);
+  }
+  52% {
+    opacity: 0.84;
+    transform: translate3d(-8px, 5px, 0) scale(1.12);
+  }
+}
+
+@keyframes feellinkLoginNodeC {
+  0%,
+  100% {
+    opacity: 0.22;
+    transform: translate3d(-6px, 7px, 0) scale(0.68);
+  }
+  48% {
+    opacity: 0.76;
+    transform: translate3d(7px, -4px, 0) scale(1.08);
+  }
+}
+
+@keyframes feellinkLoginCardSheen {
+  0%,
+  100% {
+    opacity: 0.34;
+    transform: translate3d(-12%, -5%, 0);
+  }
+  46% {
+    opacity: 0.68;
+    transform: translate3d(8%, 2%, 0);
+  }
+}
+
+@keyframes feellinkLoginPremiumGlide {
+  0%,
+  28% {
+    opacity: 0;
+    transform: rotate(18deg) translate3d(-28%, 0, 0);
+  }
+  48% {
+    opacity: 0.5;
+  }
+  66%,
+  100% {
+    opacity: 0;
+    transform: rotate(18deg) translate3d(210%, 0, 0);
+  }
+}
+
+@keyframes feellinkLoginBrandAura {
+  0%,
+  100% {
+    opacity: 0.62;
+    transform: translate3d(-50%, -50%, 0) scaleX(0.92) scaleY(0.94);
+  }
+  50% {
+    opacity: 0.92;
+    transform: translate3d(-50%, -50%, 0) scaleX(1.06) scaleY(1.02);
+  }
+}
+
+@keyframes feellinkLoginLogoCore {
+  0% {
+    opacity: 0;
+    filter: saturate(1.08) brightness(1.03);
+    transform: translate3d(-50%, -50%, 0) scale(0.62) rotate(-8deg);
+  }
+  3.2% {
+    opacity: 1;
+    transform: translate3d(-50%, -50%, 0) scale(0.94) rotate(0deg);
+  }
+  8.4% {
+    opacity: 1;
+    filter: saturate(1.1) brightness(1.05);
+    transform: translate3d(-50%, -50%, 0) scale(1) rotate(0deg);
+  }
+  11.4% {
+    opacity: 0.5;
+    filter: saturate(1.03) brightness(1.14) blur(0.3px);
+    transform: translate3d(-50%, -50%, 0) scale(0.82) rotate(0deg);
+  }
+  15% {
+    opacity: 0;
+    filter: saturate(0.98) brightness(1.14) blur(0.65px);
+    transform: translate3d(-50%, -50%, 0) scale(0.46) rotate(0deg);
+  }
+  16%,
+  84% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.42) rotate(0deg);
+  }
+  92% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.58) rotate(6deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.62) rotate(-8deg);
+  }
+}
+
+@keyframes feellinkLoginLogoCoreAura {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.7) rotate(0deg);
+  }
+  5.8% {
+    opacity: 0.82;
+    transform: scale(1) rotate(20deg);
+  }
+  13% {
+    opacity: 0.54;
+    transform: scale(1.1) rotate(96deg);
+  }
+  21% {
+    opacity: 0;
+    transform: scale(0.62) rotate(168deg);
+  }
+  22%,
+  88% {
+    opacity: 0;
+    transform: scale(0.58) rotate(220deg);
+  }
+}
+
+@keyframes feellinkLoginLogoWingLeft {
+  0%,
+  7.2% {
+    opacity: 0;
+    filter: saturate(1.06) brightness(1.1) blur(1.6px);
+    transform: translate3d(0, -50%, 0) scaleX(0.03);
+  }
+  9.8% {
+    opacity: 0.36;
+    filter: saturate(1.1) brightness(1.14) blur(0.8px);
+    transform: translate3d(0, -50%, 0) scaleX(0.96);
+  }
+  13.4% {
+    opacity: 0.04;
+    filter: saturate(1.04) brightness(1.18) blur(1.7px);
+    transform: translate3d(0, -50%, 0) scaleX(1);
+  }
+  15.6%,
+  82% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scaleX(1);
+  }
+  88% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scaleX(0.36);
+  }
+  94%,
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scaleX(0.03);
+  }
+}
+
+@keyframes feellinkLoginLogoWingRight {
+  0%,
+  7.4% {
+    opacity: 0;
+    filter: saturate(1.06) brightness(1.1) blur(1.6px);
+    transform: translate3d(0, -50%, 0) scaleX(0.03);
+  }
+  10% {
+    opacity: 0.36;
+    filter: saturate(1.1) brightness(1.14) blur(0.8px);
+    transform: translate3d(0, -50%, 0) scaleX(0.96);
+  }
+  13.6% {
+    opacity: 0.04;
+    filter: saturate(1.04) brightness(1.18) blur(1.7px);
+    transform: translate3d(0, -50%, 0) scaleX(1);
+  }
+  15.8%,
+  82% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scaleX(1);
+  }
+  88% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scaleX(0.36);
+  }
+  94%,
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scaleX(0.03);
+  }
+}
+
+@keyframes feellinkLoginLogoWingSheen {
+  0%,
+  9.6% {
+    opacity: 0;
+    transform: translateX(-70%) skewX(-12deg);
+  }
+  16% {
+    opacity: 0.22;
+  }
+  27% {
+    opacity: 0;
+    transform: translateX(76%) skewX(-12deg);
+  }
+  28%,
+  100% {
+    opacity: 0;
+    transform: translateX(76%) skewX(-12deg);
+  }
+}
+
+@keyframes feellinkLoginLogoBridge {
+  0%,
+  8.6% {
+    opacity: 0;
+    filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+    transform: translate3d(-50%, -50%, 0) scaleX(0.36) scaleY(0.72);
+  }
+  11.6% {
+    opacity: 0.34;
+    filter:
+      drop-shadow(0 0 10px rgba(255, 255, 255, 0.24))
+      drop-shadow(0 9px 16px rgba(63, 35, 154, 0.16));
+    transform: translate3d(-50%, -50%, 0) scaleX(0.84) scaleY(1);
+  }
+  14.4% {
+    opacity: 0.04;
+    transform: translate3d(-50%, -50%, 0) scaleX(1) scaleY(1);
+  }
+  17%,
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scaleX(1.08) scaleY(1);
+  }
+}
+
+@keyframes feellinkLoginLogoFinal {
+  0%,
+  7.4% {
+    opacity: 0;
+    filter: saturate(1.1) brightness(1.1) blur(1.1px);
+    transform: translate3d(0, -50%, 0) scaleX(0.94);
+  }
+  10.6% {
+    opacity: 0.5;
+    filter: saturate(1.08) brightness(1.06) blur(0.46px);
+    transform: translate3d(0, -50%, 0) scaleX(0.982);
+  }
+  14.8% {
+    opacity: 1;
+    filter: saturate(1.04) brightness(1.02) blur(0);
+    transform: translate3d(0, -50%, 0) scaleX(1);
+  }
+  16%,
+  82% {
+    opacity: 1;
+    transform: translate3d(0, -50%, 0) scaleX(1);
+  }
+  88% {
+    opacity: 0.56;
+    transform: translate3d(0, -50%, 0) scaleX(0.88);
+  }
+  94%,
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -50%, 0) scaleX(0.82);
+  }
+}
+
+@keyframes feellinkLoginLogoFinalShine {
+  0%,
+  15% {
+    opacity: 0;
+    transform: translateX(-62%) skewX(-10deg);
+  }
+  23% {
+    opacity: 0.44;
+  }
+  36% {
+    opacity: 0;
+    transform: translateX(72%) skewX(-10deg);
+  }
+  37%,
+  100% {
+    opacity: 0;
+    transform: translateX(72%) skewX(-10deg);
+  }
+}
+
+@keyframes feellinkLoginLogoFlare {
+  0%,
+  14.2% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scaleX(0.12);
+  }
+  21% {
+    opacity: 0.38;
+    transform: translate3d(-50%, -50%, 0) scaleX(0.82);
+  }
+  31% {
+    opacity: 0.16;
+    transform: translate3d(-50%, -50%, 0) scaleX(1.08);
+  }
+  44%,
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scaleX(0.18);
+  }
+}
+
+@keyframes feellinkLoginLogoHalo {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.34);
+  }
+  5.8% {
+    opacity: 0.48;
+    transform: scaleX(0.48);
+  }
+  12.5% {
+    opacity: 0.62;
+    transform: scaleX(1.04);
+  }
+  24% {
+    opacity: 0.72;
+    transform: scaleX(1.12);
+  }
+  72% {
+    opacity: 0.52;
+    transform: scaleX(0.96);
+  }
+  88% {
+    opacity: 0.14;
+    transform: scaleX(0.44);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(0.34);
+  }
+}
+
+@keyframes feellinkLoginWallpaperDrift {
+  0% {
+    transform: translate3d(-1.1%, -0.7%, 0) scale(1.035);
+  }
+  25% {
+    transform: translate3d(0.6%, -1.1%, 0) scale(1.046);
+  }
+  50% {
+    transform: translate3d(1%, 0.7%, 0) scale(1.042);
+  }
+  75% {
+    transform: translate3d(-0.6%, 1%, 0) scale(1.048);
+  }
+  100% {
+    transform: translate3d(-1.1%, -0.7%, 0) scale(1.035);
+  }
+}
+
+@keyframes feellinkLoginWaveField {
+  0% {
+    transform: translate3d(-1.2%, 0.8%, 0) rotate(0deg);
+    opacity: 0.22;
+  }
+  50% {
+    transform: translate3d(1%, -0.6%, 0) rotate(0.9deg);
+    opacity: 0.38;
+  }
+  100% {
+    transform: translate3d(-1.2%, 0.8%, 0) rotate(0deg);
+    opacity: 0.22;
+  }
+}
+
+@keyframes feellinkLoginAuroraFloat {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: translate3d(-1.4%, 0.8%, 0) rotate(0deg);
+  }
+  50% {
+    opacity: 0.64;
+    transform: translate3d(1.2%, -0.9%, 0) rotate(0.7deg);
+  }
+}
+
+@keyframes feellinkLoginAuroraRibbonA {
+  0%,
+  100% {
+    opacity: 0.34;
+    transform: rotate(-12deg) translate3d(-17%, 1vh, 0) scaleX(0.72);
+  }
+  35% {
+    opacity: 0.7;
+    transform: rotate(-7deg) translate3d(6%, -1vh, 0) scaleX(1.02);
+  }
+  68% {
+    opacity: 0.46;
+    transform: rotate(-14deg) translate3d(20%, 2vh, 0) scaleX(0.86);
+  }
+}
+
+@keyframes feellinkLoginAuroraRibbonB {
+  0%,
+  100% {
+    opacity: 0.26;
+    transform: rotate(16deg) translate3d(20%, 1vh, 0) scaleX(0.78);
+  }
+  42% {
+    opacity: 0.58;
+    transform: rotate(10deg) translate3d(-7%, -2vh, 0) scaleX(1.08);
+  }
+  72% {
+    opacity: 0.38;
+    transform: rotate(18deg) translate3d(-22%, 1vh, 0) scaleX(0.9);
+  }
+}
+
+@keyframes feellinkLoginSilkBreath {
+  0%,
+  100% {
+    opacity: 0.34;
+    transform: translate3d(-0.6%, 0.4%, 0);
+  }
+  50% {
+    opacity: 0.5;
+    transform: translate3d(0.7%, -0.5%, 0);
+  }
+}
+
+@keyframes feellinkLoginSilkArcA {
+  0%,
+  100% {
+    opacity: 0.1;
+    transform: rotate(-10deg) translate3d(-20%, 5%, 0) scaleX(0.9);
+  }
+  38% {
+    opacity: 0.46;
+    transform: rotate(-6deg) translate3d(7%, -4%, 0) scaleX(1.04);
+  }
+  72% {
+    opacity: 0.2;
+    transform: rotate(-12deg) translate3d(24%, 2%, 0) scaleX(0.96);
+  }
+}
+
+@keyframes feellinkLoginSilkArcB {
+  0%,
+  100% {
+    opacity: 0.08;
+    transform: rotate(18deg) translate3d(24%, -4%, 0) scaleX(0.88);
+  }
+  44% {
+    opacity: 0.38;
+    transform: rotate(12deg) translate3d(-7%, 5%, 0) scaleX(1.08);
+  }
+  76% {
+    opacity: 0.16;
+    transform: rotate(20deg) translate3d(-22%, -1%, 0) scaleX(0.94);
+  }
+}
+
+@keyframes feellinkLoginDepthPulse {
+  0%,
+  100% {
+    opacity: 0.76;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.012);
+  }
+}
+
+@keyframes feellinkLoginWaveSweepA {
+  0% {
+    transform: translate3d(-7%, 3%, 0) rotate(-13deg) scale(0.98);
+  }
+  25% {
+    transform: translate3d(-1%, 0%, 0) rotate(-9deg) scale(1.02);
+  }
+  50% {
+    transform: translate3d(6%, -3%, 0) rotate(-5deg) scale(1.04);
+  }
+  75% {
+    transform: translate3d(1%, -1%, 0) rotate(-8deg) scale(1.01);
+  }
+  100% {
+    transform: translate3d(-7%, 3%, 0) rotate(-13deg) scale(0.98);
+  }
+}
+
+@keyframes feellinkLoginWaveSweepB {
+  0% {
+    transform: translate3d(7%, -3%, 0) rotate(12deg) scale(1.02);
+  }
+  25% {
+    transform: translate3d(1%, 0.5%, 0) rotate(16deg) scale(1);
+  }
+  50% {
+    transform: translate3d(-6%, 3%, 0) rotate(19deg) scale(1.04);
+  }
+  75% {
+    transform: translate3d(-1%, 1%, 0) rotate(15deg) scale(1.01);
+  }
+  100% {
+    transform: translate3d(7%, -3%, 0) rotate(12deg) scale(1.02);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feellink-login-wallpaper,
+  .feellink-login-spectrum,
+  .feellink-login-spectrum::before,
+  .feellink-login-spectrum::after,
+  .feellink-login-flow,
+  .feellink-login-flow::before,
+  .feellink-login-flow::after,
+  .feellink-login-constellation::before,
+  .feellink-login-constellation::after,
+  .feellink-login-constellation__dot,
+  .feellink-login-lines,
+  .feellink-login-lines::before,
+  .feellink-login-lines::after,
+  .feellink-login-aurora,
+  .feellink-login-aurora::before,
+  .feellink-login-aurora::after,
+  .feellink-login-silk,
+  .feellink-login-silk::before,
+  .feellink-login-silk::after,
+  .feellink-login-orbit__ring,
+  .feellink-login-orbit__node,
+  .feellink-login-card::after,
+  .feellink-login-card-sheen::before,
+  .feellink-login-brand-aura,
+  .feellink-login-logo-core,
+  .feellink-login-logo-core::before,
+  .feellink-login-logo-wing,
+  .feellink-login-logo-wing::after,
+  .feellink-login-logo-final,
+  .feellink-login-logo-final::after,
+  .feellink-login-logo-bridge,
+  .feellink-login-logo,
+  .feellink-login-logo-flare,
+  .feellink-login-logo-reveal::before,
+  .feellink-login-depth,
+  .feellink-login-submit::before {
+    animation: none;
+    transition: none;
+  }
+
+  .feellink-login-logo-wing {
+    opacity: 1;
+    transform: translate3d(0, -50%, 0);
+  }
+
+  .feellink-login-logo-final {
+    opacity: 1;
+    transform: translate3d(0, -50%, 0);
+  }
+
+  .feellink-login-logo-core,
+  .feellink-login-logo-bridge,
+  .feellink-login-logo-flare {
+    opacity: 0;
+  }
+}

@@ -4,110 +4,17 @@ import { useState, useEffect } from 'react'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Heart, MessageCircle, Pin } from 'lucide-react'
 import { PostModal } from '@/components/post-modal'
 import api from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { AuthGuard } from '@/lib/auth-guard'
-import { ProRoleBadge } from '@/components/ProRoleBadge'
-import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import PostCard from '@/components/PostCard'
 import { PostCardSkeleton } from '@/components/ui/Skeleton'
-
-// ✅ Pinned Comment Component (Statik - Pin ikonu ile - Overlay için beyaz metin + kullanıcı adı)
-function PinnedComment({ user, text }: { user: string; text: string }) {
-  return (
-    <div className="flex items-start justify-center gap-2">
-      <Pin className="w-4 h-4 text-brand-orange mt-1 shrink-0 drop-shadow" fill="currentColor" />
-      <div className="text-left">
-        <span className="block font-medium text-white/90 mb-0.5 drop-shadow-sm">
-          @{user}
-        </span>
-        <p className="line-clamp-2 text-white/85 leading-relaxed font-medium">
-          {text}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-// ✅ Rotating Comments Component (Slayt - Fade animasyonlu - Overlay için beyaz metin + kullanıcı adı)
-function RotatingComments({ comments }: { comments: Array<{ id: string; content: string; user?: { username: string } }> }) {
-  const [index, setIndex] = useState(0)
-  const [fade, setFade] = useState(true)
-
-  useEffect(() => {
-    if (!comments.length || comments.length === 1) return
-
-    const interval = setInterval(() => {
-      setFade(false)
-      setTimeout(() => {
-        setIndex((prev: any) => (prev + 1) % comments.length)
-        setFade(true)
-      }, 150) // Fade out süresi
-    }, 2500) // 2.5 saniye (ideal)
-
-    return () => clearInterval(interval)
-  }, [comments.length])
-
-  if (!comments.length) return null
-  
-  const currentComment = comments[index] || comments[0]
-  const username = currentComment.user?.username || 'Kullanıcı'
-
-  if (comments.length === 1) {
-    return (
-      <div>
-        <span className="block font-medium text-white/90 mb-0.5 drop-shadow-sm">
-          @{username}
-        </span>
-        <p className="text-white/85 line-clamp-2 transition-opacity duration-300 leading-relaxed font-medium">
-          {currentComment.content}
-        </p>
-      </div>
-    )
-  }
-
-  return (
-    <div className={`transition-opacity duration-300 ${fade ? 'opacity-100' : 'opacity-0'}`}>
-      <span className="block font-medium text-white/90 mb-0.5 drop-shadow-sm">
-        @{username}
-      </span>
-      <p className="text-white/85 line-clamp-2 leading-relaxed font-medium">
-        {currentComment.content}
-      </p>
-    </div>
-  )
-}
-
-// ✅ Comment Preview Component (Ana mantık)
-function CommentPreview({ 
-  pinnedComment, 
-  recentComments 
-}: { 
-  pinnedComment: { user: string; text: string } | null
-  recentComments: Array<{ id: string; content: string; isPinned: boolean; createdAt: string; user?: { username: string } }>
-}) {
-  // 1️⃣ Sabitlenmiş yorum VARSA → Pin ikonu + metin göster
-  if (pinnedComment) {
-    return <PinnedComment user={pinnedComment.user} text={pinnedComment.text} />
-  }
-
-  // 2️⃣ Sabitlenmiş yorum YOKSA → Tüm yorumlar slayt (sabitlenmiş olmayanlar)
-  const normalComments = recentComments.filter(c => !c.isPinned)
-  if (normalComments.length > 0) {
-    return <RotatingComments comments={normalComments} />
-  }
-
-  return null
-}
 
 function ExploreContent() {
   const router = useRouter()
   const { accessToken, user } = useAuthStore()
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
-  const [activeFilter, setActiveFilter] = useState<string>('Tümü')
-  const [hoveredPostId, setHoveredPostId] = useState<string | null>(null)
 
   // URL'den post ID'sini oku (sidebar'dan tıklanınca modal açılması için)
   useEffect(() => {
@@ -248,7 +155,10 @@ function ExploreContent() {
               id: post.id,
               title: displayTitle || 'Gönderi',
               content: displayContent,
-              cover: post.media?.[0]?.url || null,
+              cover:
+                post.media?.[0]?.type === 'video'
+                  ? post.media?.[0]?.thumbnailUrl || null
+                  : post.media?.[0]?.thumbnailUrl || post.media?.[0]?.url || null,
               author: post.user?.fullName || post.user?.username || 'Kullanıcı',
               authorUsername: post.user?.username,
               authorAvatar: post.user?.avatar,
@@ -330,5 +240,3 @@ export default function ExplorePage() {
     </AuthGuard>
   )
 }
-
-

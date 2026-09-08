@@ -35,7 +35,7 @@ export function SharePostTrigger({
         title="Paylaş"
         aria-label="Gönderiyi paylaş"
       >
-        <Send size={18} className="text-gray-600 dark:text-gray-400" />
+        <Send size={18} className="text-current" />
       </button>
       <SharePostModal
         open={open}

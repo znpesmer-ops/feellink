@@ -298,8 +298,32 @@ export default function BuyTicketModal({ event, isOpen, onClose }: BuyTicketModa
               disabled={loading}
             />
             <span>
-              <strong>KVKK ve kullanım şartlarını</strong> okudum, kabul ediyorum.
-              Etkinlik iletişimleri için e-posta adresimle bana ulaşılmasına izin veriyorum.
+              <span className="font-semibold">
+                Etkinlik kaydı için Kullanıcı Sözleşmesi&apos;ni kabul ediyor ve KVKK
+                Aydınlatma Metni&apos;ni okuduğumu onaylıyorum.
+              </span>
+              <span className="mt-1 block">
+                Etkinlik iletişimleri için e-posta adresimle bana ulaşılmasını kabul ediyorum.
+              </span>
+              <span className="mt-2 block">
+                <a
+                  href="/privacy#kullanici-sozlesmesi"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-[#ff7b00] hover:underline"
+                >
+                  Sözleşme
+                </a>
+                <span className="mx-2 text-gray-400">•</span>
+                <a
+                  href="/privacy#kvkk"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-[#ff7b00] hover:underline"
+                >
+                  KVKK metni
+                </a>
+              </span>
             </span>
           </label>
 
@@ -358,7 +382,6 @@ export default function BuyTicketModal({ event, isOpen, onClose }: BuyTicketModa
     </div>
   );
 }
-
 
 
 

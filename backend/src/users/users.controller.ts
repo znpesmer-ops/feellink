@@ -59,6 +59,19 @@ export class UsersController {
     return this.usersService.getProfileAnalysis(username, user.id);
   }
 
+  @Post('profile/:username/share')
+  @UseGuards(JwtAuthGuard)
+  async shareProfile(@Param('username') username: string, @CurrentUser() user: any) {
+    if (!username || username === 'undefined' || username === 'null' || username === '[object Object]') {
+      throw new NotFoundException('Geçersiz kullanıcı adı. Lütfen tekrar deneyin.');
+    }
+    if (!user?.id) {
+      throw new NotFoundException('Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın.');
+    }
+
+    return this.usersService.shareProfile(username, user.id);
+  }
+
   @Get('profile/:username')
   @UseGuards(JwtAuthGuard)
   async getProfile(@Param('username') username: string, @CurrentUser() user: any) {
@@ -259,4 +272,3 @@ export class UsersController {
     return this.usersService.createRoleChangeRequest(user.id, dto);
   }
 }
-

@@ -1,4 +1,14 @@
-import { Injectable, UnauthorizedException, ConflictException, NotFoundException, Logger, BadRequestException, ForbiddenException, InternalServerErrorException, HttpException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  NotFoundException,
+  Logger,
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
@@ -24,6 +34,10 @@ import { getBadgesFromSelection } from '../users/users.service';
 import { MailService } from '../mail/mail.service';
 import { OtpService } from './otp.service';
 import { OtpPurpose } from '@prisma/client';
+import {
+  isAdmin as hasAdminAccess,
+  isSuperAdmin as hasSuperAdminAccess,
+} from './permissions.util';
 
 @Injectable()
 export class AuthService {
@@ -37,6 +51,205 @@ export class AuthService {
   ) {}
 
   private readonly logger = new Logger(AuthService.name);
+  private readonly emailVerificationCutoverAt = new Date('2026-03-14T14:38:04.000Z');
+
+  private async sendSignupVerificationCodeOrFail(email: string) {
+    const normalized = email.trim().toLowerCase();
+    try {
+      const { code, expiresAt } = await this.otpService.createOtp(
+        normalized,
+        OtpPurpose.signup_verification,
+      );
+      await this.mailService.sendSignupOtpMail(normalized, code);
+      return expiresAt;
+    } catch (error: any) {
+      this.logger.error(
+        `[SIGNUP OTP] Failed for ${normalized}: ${error?.message || error}`,
+      );
+      throw new ServiceUnavailableException(
+        'Doğrulama e-postası gönderilemedi. Lütfen e-posta ayarlarını kontrol edip kısa süre sonra tekrar deneyin.',
+      );
+    }
+  }
+
+  private async findUserByEmailInsensitive(email: string) {
+    const normalized = email.trim().toLowerCase();
+    return this.prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalized,
+          mode: 'insensitive',
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        isDeleted: true,
+        accountStatus: true,
+      },
+    });
+  }
+
+  private async sendPasswordResetCodeOrFail(email: string) {
+    const normalized = email.trim().toLowerCase();
+    try {
+      const { code, expiresAt } = await this.otpService.createOtp(
+        normalized,
+        OtpPurpose.password_reset,
+      );
+      await this.mailService.sendPasswordResetOtpMail(normalized, code);
+      return expiresAt;
+    } catch (error: any) {
+      this.logger.error(
+        `[PASSWORD RESET OTP] Failed for ${normalized}: ${error?.message || error}`,
+      );
+      throw new ServiceUnavailableException(
+        'Şifre sıfırlama kodu gönderilemedi. Lütfen e-posta ayarlarını kontrol edip kısa süre sonra tekrar deneyin.',
+      );
+    }
+  }
+
+  private getDeletedAccountLoginResponse(user: any) {
+    const deletedAt = user.deletedAt ? new Date(user.deletedAt) : null;
+    const daysSinceDeleted = deletedAt
+      ? (Date.now() - deletedAt.getTime()) / (24 * 60 * 60 * 1000)
+      : Infinity;
+
+    if (daysSinceDeleted > AuthService.RESTORE_GRACE_DAYS) {
+      this.logger.warn(`[LOGIN] Permanently deleted account: ${user.email || user.username}`);
+      throw new UnauthorizedException('Hesap kalıcı olarak silinmiş.');
+    }
+
+    this.logger.log(`[LOGIN] Deleted account within grace period: ${user.email || user.username}, restore available`);
+    return {
+      status: 'DELETED_ACCOUNT',
+      restoreAvailable: true,
+      deletedAt: user.deletedAt,
+      message: 'Hesabınız silinmiş. 14 gün içinde geri yükleyebilirsiniz.',
+    };
+  }
+
+  private async ensureLoginAccountStatus(user: any) {
+    let reactivated = false;
+
+    if (user.accountStatus === 'SUSPENDED') {
+      if (user.suspendedUntil && new Date(user.suspendedUntil) < new Date()) {
+        this.logger.log(`[LOGIN] Suspension expired, activating account for: ${user.email || user.username}`);
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            accountStatus: 'ACTIVE',
+            suspendedAt: null,
+            suspendedUntil: null,
+            suspensionReason: null,
+            suspensionNote: null,
+            suspendedByAdminId: null,
+          },
+        });
+        return {
+          user: {
+            ...user,
+            accountStatus: 'ACTIVE',
+            suspendedAt: null,
+            suspendedUntil: null,
+            suspensionReason: null,
+            suspensionNote: null,
+            suspendedByAdminId: null,
+          },
+          reactivated,
+        };
+      }
+
+      this.logger.warn(`[LOGIN] Account suspended for: ${user.email || user.username}, reason: ${user.suspensionReason || 'Belirtilmemiş'}`);
+      throw new ForbiddenException({
+        code: 'ACCOUNT_SUSPENDED',
+        message: 'Hesabınız askıya alınmıştır. Giriş yapamazsınız.',
+        reason: user.suspensionReason || 'Belirtilmemiş',
+        until: user.suspendedUntil || null,
+      });
+    }
+
+    if (user.accountStatus === 'PENDING_DELETION') {
+      const scheduledAt = user.scheduledDeletionAt ? new Date(user.scheduledDeletionAt) : null;
+      if (scheduledAt && scheduledAt > new Date()) {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            accountStatus: 'ACTIVE',
+            deletionRequestedAt: null,
+            scheduledDeletionAt: null,
+          },
+        });
+        this.logger.log(`[LOGIN] Account reactivated (was pending deletion): ${user.email || user.username}`);
+        reactivated = true;
+        return {
+          user: {
+            ...user,
+            accountStatus: 'ACTIVE',
+            deletionRequestedAt: null,
+            scheduledDeletionAt: null,
+          },
+          reactivated,
+        };
+      }
+
+      this.logger.warn(`[LOGIN] Account permanently deleted (grace period expired): ${user.email || user.username}`);
+      throw new ForbiddenException({
+        code: 'ACCOUNT_PERMANENTLY_DELETED',
+        message: 'Bu hesap kalıcı olarak silinmiştir.',
+      });
+    }
+
+    return { user, reactivated };
+  }
+
+  /** Mongo/Prisma geçici bağlantı / seçim hataları (jwt veya refresh yazımı sırasında) */
+  private isLikelyTransientDatastoreError(message: string): boolean {
+    const m = (message || '').toLowerCase();
+    return (
+      m.includes('no available servers') ||
+      m.includes('econnrefused') ||
+      m.includes('enotfound') ||
+      m.includes('connection pool') ||
+      m.includes('timeout') ||
+      m.includes('timed out') ||
+      m.includes('server selection') ||
+      m.includes('mongonetworkerror') ||
+      m.includes('topology') ||
+      m.includes('not connected') ||
+      (m.includes('socket') && m.includes('closed')) ||
+      m.includes('prisma') && (m.includes('connection') || m.includes('adapter'))
+    );
+  }
+
+  private isLegacyUnverifiedUser(user: any): boolean {
+    if (user?.isVerified !== false || !user?.createdAt) {
+      return false;
+    }
+    return new Date(user.createdAt).getTime() < this.emailVerificationCutoverAt.getTime();
+  }
+
+  private async ensureEmailVerifiedForLogin(user: any) {
+    if (user?.isVerified !== false) {
+      return user;
+    }
+
+    if (this.isLegacyUnverifiedUser(user)) {
+      this.logger.log(`[LOGIN] Legacy user auto-verified during login: ${user.email || user.username}`);
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { isVerified: true },
+      });
+      return { ...user, isVerified: true };
+    }
+
+    this.logger.warn(`[LOGIN] Email not verified for: ${user.email || user.username}`);
+    throw new UnauthorizedException({
+      message: 'Lütfen e-posta adresinizi doğrulayın. Size gönderilen kodu kullanın veya yeniden kod gönderin.',
+      needsEmailVerification: true,
+      email: user.email,
+    });
+  }
 
   private readonly authSelect = {
     id: true,
@@ -44,6 +257,7 @@ export class AuthService {
     email: true,
     fullName: true,
     avatar: true,
+    coverImage: true,
     bio: true,
     roles: true,
     plan: true,
@@ -68,9 +282,11 @@ export class AuthService {
 
     // Null-safe plan handling: plan null/undefined ise 'FREE' kullan
     const plan: SubscriptionPlanCode = (user.plan as SubscriptionPlanCode) ?? 'FREE';
-    const roles = normalizeRoles(user.roles as string[]);
+    const rawRoles = Array.isArray(user.roles) ? (user.roles as string[]) : [];
+    const roles = normalizeRoles(rawRoles);
     const badgeIds = Array.isArray(user.badges) ? (user.badges as string[]) : [];
-    const isAdmin = user.isAdmin === true || user.superAdmin === true;
+    const effectiveSuperAdmin = hasSuperAdminAccess({ ...user, roles: rawRoles });
+    const isAdmin = hasAdminAccess({ ...user, roles: rawRoles });
     
     // 🔥 Admin kullanıcılar için tüm özellikleri açık yap (SaaS mantığı)
     let capabilities = computeCapabilities(roles, plan, badgeIds);
@@ -158,6 +374,7 @@ export class AuthService {
         email: user.email ?? '',
         fullName: user.fullName ?? null,
         avatar: user.avatar ?? null,
+        coverImage: user.coverImage ?? null,
         bio: user.bio ?? null,
         roles: capabilities.roles,
         extras: (user.extras as string[]) ?? [],
@@ -165,8 +382,8 @@ export class AuthService {
         badges: badgeIds,
         isPrivate: user.isPrivate ?? false,
         isVerified: user.isVerified ?? false,
-        isAdmin: user.isAdmin ?? false,
-        superAdmin: user.superAdmin ?? false, // 🔥 GOD-MODE
+        isAdmin,
+        superAdmin: effectiveSuperAdmin, // 🔥 GOD-MODE
         createdAt: user.createdAt ?? new Date(),
         activeRole: activeRole || null, // 🎯 Aktif rol (profil header'da gösterilecek)
         profileCompleted: user.profileCompleted ?? false,
@@ -183,6 +400,8 @@ export class AuthService {
 
   async register(registerDto: RegisterDto) {
     const { email, username, password, fullName, role, termsAccepted } = registerDto;
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedUsername = username.trim().toLowerCase();
 
     if (!this.configService.get<string>('JWT_SECRET')) {
       throw new BadRequestException(
@@ -202,13 +421,46 @@ export class AuthService {
       );
     }
 
+    const existingUser = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: normalizedEmail },
+          { username: normalizedUsername },
+        ],
+      },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        isVerified: true,
+      },
+    });
+
+    if (existingUser) {
+      if (existingUser.email === normalizedEmail && !existingUser.isVerified) {
+        await this.sendSignupVerificationCodeOrFail(existingUser.email);
+        return {
+          needsEmailVerification: true,
+          email: existingUser.email,
+        };
+      }
+
+      if (existingUser.email === normalizedEmail) {
+        throw new ConflictException('Bu e-posta adresi zaten kullanımda');
+      }
+
+      if (existingUser.username === normalizedUsername) {
+        throw new ConflictException('Bu kullanıcı adı zaten kullanımda');
+      }
+    }
+
     try {
       // 🔥 DEBUG: Register işlemi başladı
-      this.logger.log(`[REGISTER DEBUG] Starting registration for: ${email}`);
-      this.logger.log(`[REGISTER DEBUG] Username: ${username}, FullName: ${fullName || 'N/A'}`);
+      this.logger.log(`[REGISTER DEBUG] Starting registration for: ${normalizedEmail}`);
+      this.logger.log(`[REGISTER DEBUG] Username: ${normalizedUsername}, FullName: ${fullName || 'N/A'}`);
 
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 10);
+      // Hash password once at the backend boundary.
+      const hashedPassword = await this.hashPlainPassword(password);
       this.logger.log(`[REGISTER DEBUG] Password hashed successfully`);
 
       // Create user - roles are empty until user configures dashboard
@@ -217,8 +469,8 @@ export class AuthService {
 
       const user = await this.prisma.user.create({
         data: {
-          email,
-          username, // Already lowercase from Transform decorator
+          email: normalizedEmail,
+          username: normalizedUsername,
           password: hashedPassword,
           fullName,
           roles: initialRoles,
@@ -243,16 +495,15 @@ export class AuthService {
         // Continue even if indexing fails
       }
 
-      // E-posta doğrulama OTP gönder (kayıt sonrası hesap aktifleşene kadar token verilmez)
+      // E-posta doğrulama OTP gönder; mail başarısızsa kullanıcıyı sessizce doğrulama ekranında bırakma.
       try {
-        const { code } = await this.otpService.createOtp(user.email, OtpPurpose.signup_verification);
-        await this.mailService.sendSignupOtpMail(user.email, code);
-        this.logger.log(`[REGISTER] Signup OTP sent to ${user.email}`);
-      } catch (otpErr: any) {
-        this.logger.error(`[REGISTER] Signup OTP send failed for ${user.email}: ${otpErr?.message || otpErr}`);
-        throw new InternalServerErrorException(
-          'Hesabınız oluşturuldu ancak doğrulama kodu e-posta ile gönderilemedi. Lütfen giriş sayfasından "Kodu tekrar gönder" seçeneğini kullanın.',
-        );
+        await this.sendSignupVerificationCodeOrFail(user.email);
+      } catch (mailError) {
+        // Teslim edilemeyen e-posta/test adresleri kullanıcı listesinde kalıcı hesap bırakmasın.
+        await this.prisma.user.deleteMany({
+          where: { id: user.id, isVerified: false },
+        });
+        throw mailError;
       }
 
       this.logger.log(`[REGISTER DEBUG] Registration successful for: ${email}, needsEmailVerification`);
@@ -262,9 +513,6 @@ export class AuthService {
         email: user.email,
       };
     } catch (err: any) {
-      // HttpException alt sınıflarını (InternalServerErrorException vb.) olduğu gibi ilet
-      if (err instanceof HttpException) throw err;
-
       // Prisma unique constraint (email/username zaten var)
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
         const target = (err.meta?.target as string[]) || [];
@@ -278,9 +526,33 @@ export class AuthService {
         throw new ConflictException('Bu bilgilerle kayıtlı bir kullanıcı zaten var');
       }
 
-      const errMessage = typeof err?.message === 'string' ? err.message : String(err);
-      this.logger.error(`[REGISTER] Beklenmeyen hata (${email}):`, errMessage);
-      throw new BadRequestException('Kayıt işlemi şu anda tamamlanamıyor. Lütfen daha sonra tekrar deneyin.');
+      if (err instanceof HttpException) {
+        throw err;
+      }
+
+      const errMessage =
+        typeof err?.message === 'string'
+          ? err.message
+          : err?.error?.message ?? err?.response?.data?.message ?? String(err);
+      const isDbError =
+        !errMessage ||
+        errMessage.includes('DATABASE_URL') ||
+        errMessage.includes("Can't reach") ||
+        errMessage.includes('connection') ||
+        errMessage.includes('ECONNREFUSED') ||
+        errMessage.includes('connect');
+      const isAuthFailed =
+        errMessage.includes('AuthenticationFailed') ||
+        errMessage.includes('bad auth') ||
+        errMessage.includes('SCRAM failure') ||
+        errMessage.includes('authentication failed');
+
+      this.logger.error(`[REGISTER] Error for ${email}:`, errMessage);
+
+      // Kullanıcıya yalnızca genel mesaj; teknik detay sadece log’ta
+      const userMessage =
+        'Kayıt işlemi şu anda tamamlanamıyor. Lütfen daha sonra tekrar deneyin.';
+      throw new BadRequestException(userMessage);
     }
   }
 
@@ -288,19 +560,17 @@ export class AuthService {
     const normalized = email.trim().toLowerCase();
     const canResend = await this.otpService.canResend(normalized, OtpPurpose.signup_verification);
     if (!canResend) {
-      throw new BadRequestException('Yeni kod için lütfen 1 dakika bekleyin.');
+      throw new BadRequestException('Yeni kod için lütfen 15 saniye bekleyin.');
     }
-    const { code } = await this.otpService.createOtp(normalized, OtpPurpose.signup_verification);
-    await this.mailService.sendSignupOtpMail(normalized, code);
+    await this.sendSignupVerificationCodeOrFail(normalized);
     return { message: 'Doğrulama kodu e-posta adresinize gönderildi.' };
   }
 
   async verifySignupOtp(email: string, code: string) {
     const normalized = email.trim().toLowerCase();
     await this.otpService.verifyOtp(normalized, OtpPurpose.signup_verification, code);
-    // findFirst + mode:insensitive: OTP e-postası büyük/küçük harf farkından etkilenmesin
-    const user = await this.prisma.user.findFirst({
-      where: { email: { equals: normalized, mode: 'insensitive' } },
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalized },
       select: { ...this.authSelect },
     });
     if (!user) {
@@ -321,7 +591,8 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const loginIdentifier = loginDto.emailOrUsername || loginDto.email || loginDto.username;
+    const loginIdentifier =
+      loginDto.identifier || loginDto.emailOrUsername || loginDto.email || loginDto.username;
     this.logger.log(`[LOGIN] Login attempt for: ${loginIdentifier}`);
     
     // 🔥 1. DB bağlantısı kontrolü - sadece hızlı ping (timeout önlemek için)
@@ -337,9 +608,23 @@ export class AuthService {
     try {
       user = await this.validateUser(loginDto);
     } catch (dbError: any) {
+      // DB hatası (connection timeout, etc.) - auth hatası değil
       const errorMessage = dbError?.message || '';
-      this.logger.error(`[LOGIN] User lookup DB error: ${errorMessage}`);
-      throw new InternalServerErrorException('Giriş işlemi tamamlanamadı. Lütfen tekrar deneyin.');
+      const isConnectionError = 
+        errorMessage.includes('No available servers') ||
+        errorMessage.includes("Can't reach database server") ||
+        errorMessage.includes('P1001') ||
+        errorMessage.includes('P2024') ||
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('Connection pool') ||
+        errorMessage.includes('timeout');
+      
+      if (isConnectionError) {
+        this.logger.error(`[LOGIN] Database connection error during user lookup: ${errorMessage}`);
+        throw new ServiceUnavailableException('Veritabanı bağlantı sorunu. Lütfen tekrar deneyin.');
+      }
+      this.logger.error(`[LOGIN] User lookup query failed: ${errorMessage}`);
+      throw new ServiceUnavailableException('Giriş doğrulaması sırasında bir sorun oluştu. Lütfen tekrar deneyin.');
     }
 
     if (!user) {
@@ -349,70 +634,36 @@ export class AuthService {
       throw new UnauthorizedException('E-posta veya şifre hatalı');
     }
 
-    // 🗑️ Soft delete: 14 gün grace period – restore mümkün; sonrası kalıcı silinmiş
     if (user.isDeleted === true || user.deletedAt) {
-      const deletedAt = user.deletedAt ? new Date(user.deletedAt) : null;
-      const daysSinceDeleted = deletedAt ? (Date.now() - deletedAt.getTime()) / (24 * 60 * 60 * 1000) : Infinity;
-      const RESTORE_GRACE_DAYS = 14;
-      if (daysSinceDeleted > RESTORE_GRACE_DAYS) {
-        this.logger.warn(`[LOGIN] Permanently deleted account: ${user.email || user.username}`);
-        throw new UnauthorizedException('Hesap kalıcı olarak silinmiş.');
-      }
-      this.logger.log(`[LOGIN] Deleted account within grace period: ${user.email || user.username}, restore available`);
-      return {
-        status: 'DELETED_ACCOUNT',
-        restoreAvailable: true,
-        deletedAt: user.deletedAt,
-        message: 'Hesabınız silinmiş. 14 gün içinde geri yükleyebilirsiniz.',
-      };
+      return this.getDeletedAccountLoginResponse(user);
     }
 
-    // E-posta doğrulanmamışsa giriş engelle (yeni kayıtlar OTP ile doğrulanır).
-    // Mevcut kullanıcıları kilitlememek için: prisma.user.updateMany({ where: { isVerified: false }, data: { isVerified: true } }) bir kez çalıştırılabilir.
-    if (user.isVerified === false) {
-      this.logger.warn(`[LOGIN] Email not verified for: ${user.email || user.username}`);
-      throw new UnauthorizedException({
-        message: 'Lütfen e-posta adresinizi doğrulayın. Size gönderilen kodu kullanın veya yeniden kod gönderin.',
-        needsEmailVerification: true,
-        email: user.email,
-      });
-    }
+    user = await this.ensureEmailVerifiedForLogin(user);
 
     this.logger.log(`[LOGIN] User found: ${user.email || user.username}, accountStatus: ${user.accountStatus || 'ACTIVE (default)'}`);
 
-    // 🔥 3. Askıya alma kontrolü
-    // ⚠️ accountStatus null ise ACTIVE kabul et (eski kullanıcılar için)
-    if (user.accountStatus === 'SUSPENDED') {
-      // Süre dolmuşsa otomatik aktif yap
-      if (user.suspendedUntil && new Date(user.suspendedUntil) < new Date()) {
-        this.logger.log(`[LOGIN] Suspension expired, activating account for: ${user.email || user.username}`);
-        await this.prisma.user.update({
-          where: { id: user.id },
-          data: {
-            accountStatus: 'ACTIVE',
-            suspendedAt: null,
-            suspendedUntil: null,
-            suspensionReason: null,
-            suspensionNote: null,
-            suspendedByAdminId: null,
-          },
-        });
-        // Aktif hale geldi, devam et
-      } else {
-        // Hala askıda, giriş yapılamaz
-        // 🔒 403 Forbidden kullan (401 Unauthorized değil - kullanıcı doğru ama yetkisi yok)
-        this.logger.warn(`[LOGIN] Account suspended for: ${user.email || user.username}, reason: ${user.suspensionReason || 'Belirtilmemiş'}`);
-        throw new ForbiddenException({
-          code: 'ACCOUNT_SUSPENDED',
-          message: 'Hesabınız askıya alınmıştır. Giriş yapamazsınız.',
-          reason: user.suspensionReason || 'Belirtilmemiş',
-          until: user.suspendedUntil || null,
-        });
-      }
-    }
+    const accountStatus = await this.ensureLoginAccountStatus(user);
+    user = accountStatus.user;
 
-    // 🔥 4. Token oluşturma (hata yönetimi generateTokens içinde)
-    const tokens = await this.generateTokens(user.id);
+    // 🔥 4. Token oluşturma
+    let tokens;
+    try {
+      tokens = await this.generateTokens(user.id);
+    } catch (tokenError: any) {
+      if (tokenError instanceof HttpException) {
+        throw tokenError;
+      }
+      const errorMessage = String(tokenError?.message || '');
+      this.logger.error(`[LOGIN] Token generation failed: ${errorMessage}`, tokenError?.stack);
+      if (this.isLikelyTransientDatastoreError(errorMessage)) {
+        throw new ServiceUnavailableException(
+          'Veritabanına şu an ulaşılamıyor. Lütfen kısa süre sonra tekrar deneyin.',
+        );
+      }
+      throw new ServiceUnavailableException(
+        'Oturum oluşturulamadı. Lütfen kısa süre sonra tekrar deneyin.',
+      );
+    }
 
     const { password: _, ...userWithoutPassword } = user;
     const payload = this.hydrateAuthUser(userWithoutPassword);
@@ -422,38 +673,24 @@ export class AuthService {
       ...payload,
       ...tokens,
       needsRoleSelection,
+      ...(accountStatus.reactivated && { reactivated: true }),
     };
   }
 
   async corporateLogin(loginDto: LoginDto) {
-    const user = await this.validateUser(loginDto, { requireCorporate: true });
+    let user = await this.validateUser(loginDto, { requireCorporate: true });
 
     if (!user) {
       throw new UnauthorizedException('Kurumsal hesap bulunamadı veya yetkisiz.');
     }
 
     if (user.isDeleted === true || user.deletedAt) {
-      const deletedAt = user.deletedAt ? new Date(user.deletedAt) : null;
-      const daysSinceDeleted = deletedAt ? (Date.now() - deletedAt.getTime()) / (24 * 60 * 60 * 1000) : Infinity;
-      const RESTORE_GRACE_DAYS = 14;
-      if (daysSinceDeleted > RESTORE_GRACE_DAYS) {
-        throw new UnauthorizedException('Hesap kalıcı olarak silinmiş.');
-      }
-      return {
-        status: 'DELETED_ACCOUNT',
-        restoreAvailable: true,
-        deletedAt: user.deletedAt,
-        message: 'Hesabınız silinmiş. 14 gün içinde geri yükleyebilirsiniz.',
-      };
+      return this.getDeletedAccountLoginResponse(user);
     }
 
-    if (user.isVerified === false) {
-      throw new UnauthorizedException({
-        message: 'Lütfen e-posta adresinizi doğrulayın. Size gönderilen kodu kullanın veya yeniden kod gönderin.',
-        needsEmailVerification: true,
-        email: user.email,
-      });
-    }
+    user = await this.ensureEmailVerifiedForLogin(user);
+    const accountStatus = await this.ensureLoginAccountStatus(user);
+    user = accountStatus.user;
 
     // Generate tokens
     const tokens = await this.generateTokens(user.id);
@@ -466,6 +703,7 @@ export class AuthService {
       ...payload,
       ...tokens,
       needsRoleSelection,
+      ...(accountStatus.reactivated && { reactivated: true }),
     };
   }
 
@@ -523,28 +761,42 @@ export class AuthService {
   }
 
   private async generateTokens(userId: string) {
+    // Generate access token (15 minutes)
+    const accessToken = this.jwtService.sign(
+      { userId },
+      {
+        expiresIn: '15m',
+      },
+    );
+
+    // Generate refresh token (30 days)
+    const refreshToken = randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    // Save refresh token to database
+    // 🔥 Connection string'de readPreference=primary yapıldı, transaction gerekmez
+    // ✅ MongoDB timeout hatalarını yakalamak için try-catch
     try {
-      const accessToken = this.jwtService.sign(
-        { userId },
-        { expiresIn: '15m' },
-      );
-
-      const refreshToken = randomBytes(32).toString('hex');
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30);
-
       await this.prisma.refreshToken.create({
-        data: { token: refreshToken, userId, expiresAt },
+        data: {
+          token: refreshToken,
+          userId,
+          expiresAt,
+        },
       });
-
-      return { accessToken, refreshToken };
     } catch (error: any) {
-      // Re-throw already-HTTP exceptions as-is
-      if (error?.status) throw error;
-      const errorMessage = error?.message || '';
-      this.logger.error(`[generateTokens] Error for user ${userId}: ${errorMessage}`);
-      throw new InternalServerErrorException('Giriş işlemi tamamlanamadı. Lütfen tekrar deneyin.');
+      const msg = String(error?.message || '');
+      this.logger.error(`generateTokens refreshToken.create failed: ${msg}`, error?.stack);
+      throw new ServiceUnavailableException(
+        'Oturum kaydı oluşturulamadı. Bağlantı sorunu olabilir; lütfen kısa süre sonra tekrar deneyin.',
+      );
     }
+
+    return {
+      accessToken,
+      refreshToken,
+    };
   }
 
   async refreshTokens(refreshToken: string) {
@@ -565,6 +817,20 @@ export class AuthService {
         where: { id: tokenData.id },
       });
       throw new UnauthorizedException('Refresh token expired');
+    }
+
+    const refreshUser = tokenData.user;
+    if (
+      !refreshUser ||
+      refreshUser.isDeleted === true ||
+      refreshUser.accountStatus === 'PENDING_DELETION' ||
+      refreshUser.accountStatus === 'SUSPENDED' ||
+      refreshUser.isVerified === false
+    ) {
+      await this.prisma.refreshToken.deleteMany({
+        where: { userId: tokenData.userId },
+      });
+      throw new UnauthorizedException('Oturum artık geçerli değil. Lütfen yeniden giriş yapın.');
     }
 
     // Delete old refresh token
@@ -591,10 +857,29 @@ export class AuthService {
   }
 
   async logout(refreshToken: string) {
+    const tokenData = await this.prisma.refreshToken.findFirst({
+      where: { token: refreshToken },
+      select: { userId: true },
+    });
+
     // Delete refresh token
     await this.prisma.refreshToken.deleteMany({
       where: { token: refreshToken },
     });
+
+    if (tokenData?.userId) {
+      const now = new Date();
+      await this.prisma.user
+        .update({
+          where: { id: tokenData.userId },
+          data: { isOnline: false, lastSeen: now, lastActiveAt: now },
+        })
+        .catch((error) =>
+          this.logger.warn(
+            `logout: presence update failed for ${tokenData.userId}: ${error?.message || error}`,
+          ),
+        );
+    }
 
     return { message: 'Logged out successfully' };
   }
@@ -605,111 +890,23 @@ export class AuthService {
       where: { userId },
     });
 
+    const now = new Date();
+    await this.prisma.user
+      .update({
+        where: { id: userId },
+        data: { isOnline: false, lastSeen: now, lastActiveAt: now },
+      })
+      .catch((error) =>
+        this.logger.warn(
+          `logoutAll: presence update failed for ${userId}: ${error?.message || error}`,
+        ),
+      );
+
     return { message: 'Logged out from all devices' };
   }
 
-  // Unified login - works for all roles
   async loginUnified(loginDto: LoginDto) {
-    const user = await this.validateUser(loginDto);
-
-    if (!user) {
-      // 🔒 GÜVENLİK: Tek bir güvenli mesaj (user enumeration önleme)
-      // Frontend'de bu mesaj "E-posta adresi veya şifre hatalı." olarak gösterilecek
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    if (user.isDeleted === true || user.deletedAt) {
-      const deletedAt = user.deletedAt ? new Date(user.deletedAt) : null;
-      const daysSinceDeleted = deletedAt ? (Date.now() - deletedAt.getTime()) / (24 * 60 * 60 * 1000) : Infinity;
-      const RESTORE_GRACE_DAYS = 14;
-      if (daysSinceDeleted > RESTORE_GRACE_DAYS) {
-        throw new UnauthorizedException('Hesap kalıcı olarak silinmiş.');
-      }
-      return {
-        status: 'DELETED_ACCOUNT',
-        restoreAvailable: true,
-        deletedAt: user.deletedAt,
-        message: 'Hesabınız silinmiş. 14 gün içinde geri yükleyebilirsiniz.',
-      };
-    }
-
-    if (user.isVerified === false) {
-      throw new UnauthorizedException({
-        message: 'Lütfen e-posta adresinizi doğrulayın. Size gönderilen kodu kullanın veya yeniden kod gönderin.',
-        needsEmailVerification: true,
-        email: user.email,
-      });
-    }
-
-    let reactivated = false;
-
-    // 🔒 Hesap askıya alınmışsa giriş yapılamaz
-    // ⚠️ accountStatus null ise ACTIVE kabul et (eski kullanıcılar için)
-    if (user.accountStatus === 'SUSPENDED') {
-      // Süre dolmuşsa otomatik aktif yap
-      if (user.suspendedUntil && new Date(user.suspendedUntil) < new Date()) {
-        await this.prisma.user.update({
-          where: { id: user.id },
-          data: {
-            accountStatus: 'ACTIVE',
-            suspendedAt: null,
-            suspendedUntil: null,
-            suspensionReason: null,
-            suspensionNote: null,
-            suspendedByAdminId: null,
-          },
-        });
-        // Aktif hale geldi, devam et
-      } else {
-        // Hala askıda, giriş yapılamaz
-        // 🔒 403 Forbidden kullan (401 Unauthorized değil - kullanıcı doğru ama yetkisi yok)
-        this.logger.warn(`[LOGIN] Account suspended for: ${user.email || user.username}, reason: ${user.suspensionReason || 'Belirtilmemiş'}`);
-        throw new ForbiddenException({
-          code: 'ACCOUNT_SUSPENDED',
-          message: 'Hesabınız askıya alınmıştır. Giriş yapamazsınız.',
-          reason: user.suspensionReason || 'Belirtilmemiş',
-          until: user.suspendedUntil || null,
-        });
-      }
-    }
-
-    // 🔒 PENDING_DELETION: 15 gün içinde girişle hesap yeniden aktifleşir; süre dolmuşsa kalıcı silinmiş sayılır
-    if (user.accountStatus === 'PENDING_DELETION') {
-      const now = new Date();
-      const scheduledAt = user.scheduledDeletionAt ? new Date(user.scheduledDeletionAt) : null;
-      if (scheduledAt && scheduledAt > now) {
-        await this.prisma.user.update({
-          where: { id: user.id },
-          data: {
-            accountStatus: 'ACTIVE',
-            deletionRequestedAt: null,
-            scheduledDeletionAt: null,
-          },
-        });
-        this.logger.log(`[LOGIN] Account reactivated (was pending deletion): ${user.email || user.username}`);
-        reactivated = true;
-      } else {
-        this.logger.warn(`[LOGIN] Account permanently deleted (grace period expired): ${user.email || user.username}`);
-        throw new ForbiddenException({
-          code: 'ACCOUNT_PERMANENTLY_DELETED',
-          message: 'Bu hesap kalıcı olarak silinmiştir.',
-        });
-      }
-    }
-
-    // Generate tokens
-    const tokens = await this.generateTokens(user.id);
-
-    const { password: _, ...userWithoutPassword } = user;
-    const payload = this.hydrateAuthUser(userWithoutPassword);
-    const needsRoleSelection = (user.roles?.length ?? 0) === 0;
-
-    return {
-      ...payload,
-      ...tokens,
-      needsRoleSelection,
-      ...(reactivated && { reactivated: true }),
-    };
+    return this.login(loginDto);
   }
 
   async validateUser(loginDto: LoginDto, options?: { requireCorporate?: boolean }) {
@@ -720,62 +917,144 @@ export class AuthService {
     }
 
     // ✅ Önce orijinal case ile arama yap (daha hızlı)
+    const identifier = loginDto.identifier?.trim();
     const emailOrUsername = loginDto.emailOrUsername?.trim();
     const email = loginDto.email?.trim();
     const username = loginDto.username?.trim();
 
     // Arama kriteri belirle (önce orijinal case)
-    const searchTerm = emailOrUsername || email || username;
+    const searchTerm = identifier || emailOrUsername || email || username;
     if (!searchTerm) {
-      this.logger.warn('validateUser: No search term provided (emailOrUsername, email, or username)');
+      this.logger.warn('validateUser: No search term provided (identifier, emailOrUsername, email, or username)');
       return null;
     }
 
     this.logger.log(`[LOGIN DEBUG] 🔍 Searching for user with term: ${searchTerm.substring(0, 3)}***`);
 
-    const userSelect = {
-      id: true,
-      username: true,
-      email: true,
-      password: true,
-      roles: true,
-      plan: true,
-      badges: true,
-      isAdmin: true,
-      superAdmin: true,
-      accountStatus: true,
-      suspendedUntil: true,
-      suspensionReason: true,
-      scheduledDeletionAt: true,
-      isVerified: true,
-      isDeleted: true,
-      deletedAt: true,
-    };
-
-    let user = null;
+    // ✅ Case-insensitive arama: Hem orijinal hem lowercase ile dene
+    // MongoDB'de mode: 'insensitive' çalışmıyor, bu yüzden manuel olarak deniyoruz
+    let userByEmail, userByUsername;
     try {
-      // PostgreSQL: mode: 'insensitive' natively çalışır — tek sorguda hem email hem username
-      user = await this.prisma.user.findFirst({
-        where: {
-          OR: [
-            { email: { equals: searchTerm, mode: 'insensitive' } },
-            { username: { equals: searchTerm, mode: 'insensitive' } },
-          ],
+      // Önce orijinal case ile email dene
+      userByEmail = await this.prisma.user.findUnique({
+        where: { email: searchTerm },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          password: true,
+          roles: true,
+          plan: true,
+          badges: true,
+          isAdmin: true,
+          superAdmin: true,
+          accountStatus: true,
+          suspendedUntil: true,
+          suspensionReason: true,
+          scheduledDeletionAt: true,
+          isVerified: true,
+          isDeleted: true,
+          deletedAt: true,
+          createdAt: true,
         },
-        select: userSelect,
       });
+      
+      // Orijinal case ile bulunamazsa lowercase ile dene
+      if (!userByEmail) {
+        userByEmail = await this.prisma.user.findUnique({
+          where: { email: searchTerm.toLowerCase().trim() },
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            password: true,
+            roles: true,
+            plan: true,
+            badges: true,
+            isAdmin: true,
+            superAdmin: true,
+            accountStatus: true,
+            suspendedUntil: true,
+            suspensionReason: true,
+            scheduledDeletionAt: true,
+            isVerified: true,
+            isDeleted: true,
+            deletedAt: true,
+            createdAt: true,
+          },
+        });
+      }
+      
+      // Email ile bulunamazsa username ile dene (önce orijinal, sonra lowercase)
+      if (!userByEmail) {
+        userByUsername = await this.prisma.user.findUnique({
+          where: { username: searchTerm },
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            password: true,
+            roles: true,
+            plan: true,
+            badges: true,
+            isAdmin: true,
+            superAdmin: true,
+            accountStatus: true,
+            suspendedUntil: true,
+            suspensionReason: true,
+            scheduledDeletionAt: true,
+            isVerified: true,
+            isDeleted: true,
+            deletedAt: true,
+            createdAt: true,
+          },
+        });
+        
+        if (!userByUsername) {
+          userByUsername = await this.prisma.user.findUnique({
+            where: { username: searchTerm.toLowerCase().trim() },
+            select: {
+              id: true,
+              username: true,
+              email: true,
+              password: true,
+              roles: true,
+              plan: true,
+              badges: true,
+              isAdmin: true,
+              superAdmin: true,
+              accountStatus: true,
+              suspendedUntil: true,
+              suspensionReason: true,
+              scheduledDeletionAt: true,
+              isVerified: true,
+              isDeleted: true,
+              deletedAt: true,
+              createdAt: true,
+            },
+          });
+        }
+      }
     } catch (error: any) {
+      // Sorgu hatalarını "kullanıcı yok" gibi yutma; üst katman doğru hata mesajı üretsin
       const errorMessage = error?.message || '';
       this.logger.error(`validateUser query error: ${errorMessage}`);
       this.logger.error(`Full error: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`);
-      // Hata olsa bile null dön (kullanıcı bulunamadı olarak işle)
-      return null;
+      throw error;
     }
 
+    let user = userByEmail || userByUsername;
+
     if (user) {
-      this.logger.log(`[LOGIN DEBUG] ✅ User found: ${user.email || user.username}`);
+      this.logger.log(`[LOGIN DEBUG] ✅ User found by ${userByEmail ? 'email' : 'username'}: ${user.email || user.username}`);
     } else {
       this.logger.warn(`[LOGIN DEBUG] ❌ User not found: ${searchTerm}`);
+    }
+
+    // ✅ Case-insensitive arama zaten yukarıda yapıldı, burada fallback gerekmez
+
+    if (!user) {
+      this.logger.warn(`validateUser: User not found after all search attempts: ${searchTerm}`);
       return null;
     }
 
@@ -880,7 +1159,7 @@ export class AuthService {
         if (legacyComputed === storedHash) {
           // Doğruysa bcrypt formatına migrate et
           try {
-            const newHash = await bcrypt.hash(plainPassword, 10);
+            const newHash = await this.hashPlainPassword(plainPassword);
             await this.prisma.user.update({
               where: { id: user.id },
               data: { password: newHash },
@@ -908,7 +1187,7 @@ export class AuthService {
     // 3) Son çare: düz metin legacy parola
     if (storedHash === plainPassword) {
       try {
-        const newHash = await bcrypt.hash(plainPassword, 10);
+        const newHash = await this.hashPlainPassword(plainPassword);
         await this.prisma.user.update({
           where: { id: user.id },
           data: { password: newHash },
@@ -926,6 +1205,10 @@ export class AuthService {
 
     // Tanınmayan başka bir format ise: reddet
     return false;
+  }
+
+  private async hashPlainPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, 12);
   }
 
   private buildLoginWhereClause(loginDto: LoginDto, options?: { requireCorporate?: boolean }) {
@@ -1032,49 +1315,43 @@ export class AuthService {
   async forgotPassword(dto: ForgotPasswordDto) {
     const { email } = dto;
     const normalized = email.trim().toLowerCase();
-
-    const user = await this.prisma.user.findFirst({
-      where: { email: { equals: normalized, mode: 'insensitive' } },
-      select: { id: true, email: true },
-    });
-    if (!user) {
-      // Güvenlik: kullanıcı var mı yok mu belli olmasın
-      return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.' };
-    }
-
-    // Veritabanındaki gerçek e-posta adresini kullan (kayıt sırasındaki format)
-    const actualEmail = user.email;
-    const { code, expiresAt } = await this.otpService.createOtp(actualEmail, OtpPurpose.password_reset);
-
     try {
-      await this.mailService.sendPasswordResetOtpMail(actualEmail, code);
-      this.logger.log(`✅ Password reset OTP sent to ${actualEmail}`);
-    } catch (mailError: any) {
-      this.logger.error(`forgotPassword: mail gönderilemedi → ${actualEmail}: ${mailError?.message || mailError}`);
-      throw new InternalServerErrorException(
-        'Doğrulama kodu e-posta ile gönderilemedi. Lütfen birkaç dakika sonra tekrar deneyin.',
+      const user = await this.findUserByEmailInsensitive(normalized);
+      if (!user || user.isDeleted === true) {
+        return { message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.' };
+      }
+
+      const canResend = await this.otpService.canResend(user.email, OtpPurpose.password_reset);
+      if (!canResend) {
+        throw new BadRequestException('Yeni kod için lütfen 15 saniye bekleyin.');
+      }
+
+      const expiresAt = await this.sendPasswordResetCodeOrFail(user.email);
+      this.logger.log(`✅ Password reset OTP sent to ${normalized}`);
+      return {
+        message: 'Eğer bu e-posta ile kayıtlı bir hesabınız varsa, doğrulama kodu e-posta adresinize gönderildi.',
+        expiresAt: expiresAt.toISOString(),
+      };
+    } catch (error: any) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(`forgotPassword for ${normalized}:`, error?.message || error);
+      throw new ServiceUnavailableException(
+        'Şifre sıfırlama kodu şu anda gönderilemiyor. Lütfen kısa süre sonra tekrar deneyin.',
       );
     }
-
-    return {
-      message: 'Doğrulama kodu e-posta adresinize gönderildi.',
-      expiresAt: expiresAt.toISOString(),
-    };
   }
 
   async verifyResetOtp(email: string, code: string) {
     const normalized = email.trim().toLowerCase();
-    // OTP tablosunda email normalized şekilde tutuluyor
     await this.otpService.verifyOtp(normalized, OtpPurpose.password_reset, code);
-    const user = await this.prisma.user.findFirst({
-      where: { email: { equals: normalized, mode: 'insensitive' } },
-      select: { id: true, email: true },
-    });
+    const user = await this.findUserByEmailInsensitive(normalized);
     if (!user) {
       throw new UnauthorizedException('Kullanıcı bulunamadı.');
     }
     const resetToken = this.jwtService.sign(
-      { sub: user.id, email: user.email, purpose: 'password_reset' },
+      { sub: user.id, email: normalized, purpose: 'password_reset' },
       { expiresIn: '15m' },
     );
     return { resetToken };
@@ -1090,11 +1367,12 @@ export class AuthService {
     if (payload.purpose !== 'password_reset' || !payload.sub) {
       throw new UnauthorizedException('Geçersiz bağlantı.');
     }
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await this.hashPlainPassword(newPassword);
     await this.prisma.user.update({
       where: { id: payload.sub },
       data: { password: hashedPassword },
     });
+    await this.prisma.refreshToken.deleteMany({ where: { userId: payload.sub } });
     return { message: 'Şifreniz başarıyla güncellendi. Şimdi giriş yapabilirsiniz.' };
   }
 
@@ -1117,7 +1395,7 @@ export class AuthService {
       throw new UnauthorizedException('Geçersiz veya süresi dolmuş şifre sıfırlama bağlantısı.');
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await this.hashPlainPassword(password);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -1127,6 +1405,7 @@ export class AuthService {
         passwordResetExpires: null,
       },
     });
+    await this.prisma.refreshToken.deleteMany({ where: { userId: user.id } });
 
     return { message: 'Şifreniz başarıyla güncellendi. Şimdi giriş yapabilirsiniz.' };
   }
@@ -1147,21 +1426,21 @@ export class AuthService {
       throw new NotFoundException('Kullanıcı bulunamadı.');
     }
 
-    // Mevcut şifreyi doğrula
-    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+    // Mevcut şifreyi doğrula. Legacy/plain eski şifreler de sadece başarılı doğrulama
+    // sonrası bcrypt'e taşınır; yeni şifre hiçbir zaman çift hashlenmez.
+    const isValidPassword = await this.verifyAndMigratePassword(currentPassword, user);
 
     if (!isValidPassword) {
       throw new UnauthorizedException('Mevcut şifreniz doğrulanamadı.');
     }
 
     // Yeni şifre eski şifreyle aynı olamaz
-    const isSamePassword = await bcrypt.compare(newPassword, user.password);
-    if (isSamePassword) {
+    if (currentPassword === newPassword) {
       throw new BadRequestException('Yeni şifre eski şifreyle aynı olamaz.');
     }
 
     // Yeni şifreyi hash'le
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    const hashedPassword = await this.hashPlainPassword(newPassword);
 
     // Şifreyi güncelle
     await this.prisma.user.update({
@@ -1255,5 +1534,3 @@ export class AuthService {
     return { message: 'Şifreniz başarıyla güncellendi.' };
   }
 }
-
-

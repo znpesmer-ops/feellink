@@ -254,6 +254,7 @@ export default function CollectionDetailPage() {
                     item.post.media[0].type === 'video' ? (
                       <video
                         src={resolveImageUrl(item.post.media[0].url)}
+                        poster={item.post.media[0].thumbnailUrl ? resolveImageUrl(item.post.media[0].thumbnailUrl) : undefined}
                         className="w-full h-full object-cover"
                         muted
                       />
@@ -345,4 +346,3 @@ export default function CollectionDetailPage() {
     </div>
   )
 }
-

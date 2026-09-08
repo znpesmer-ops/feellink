@@ -10,7 +10,8 @@ interface User {
   email: string
   fullName?: string
   avatar?: string
-  coverImage?: string
+  coverImage?: string | null
+  exhibitionName?: string | null
   bio?: string
   roles?: UserRoleCode[]
   extras?: string[]
@@ -106,6 +107,13 @@ export const useAuthStore = create<AuthState>()(
         }))
       },
       clearAuth: () => {
+        if (typeof window !== 'undefined') {
+          void import('./socket')
+            .then(({ disconnectChatSocket }) => disconnectChatSocket())
+            .catch(() => {
+              /* Presence cleanup is best-effort during logout. */
+            })
+        }
         set({ user: null, capabilities: null, sidebar: null, accessToken: null, refreshToken: null, unreadCount: 0, unreadMessageCount: 0, isAuthenticated: false, loading: false, hasInitialized: true })
         if (typeof window !== 'undefined') {
           localStorage.removeItem('feellink_roles')
@@ -177,4 +185,3 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 )
-

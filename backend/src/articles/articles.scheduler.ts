@@ -2,9 +2,12 @@ import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { PostsGateway } from '../posts/posts.gateway';
+import { isVercelServerlessRuntime } from '../common/runtime';
 
 @Injectable()
 export class ArticleScheduler {
+  private readonly backgroundJobsDisabled = isVercelServerlessRuntime();
+
   constructor(
     private prisma: PrismaService,
     @Inject(forwardRef(() => PostsGateway))
@@ -14,6 +17,7 @@ export class ArticleScheduler {
   // ⏰ Her dakika kontrol et (zamanlanmış yazıları yayınla)
   @Cron(CronExpression.EVERY_MINUTE)
   async publishScheduledArticles() {
+    if (this.backgroundJobsDisabled) return;
     try {
       // PrismaService'in inject edildiğinden emin ol
       if (!this.prisma) {
@@ -80,4 +84,3 @@ export class ArticleScheduler {
     }
   }
 }
-

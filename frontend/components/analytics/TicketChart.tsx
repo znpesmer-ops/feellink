@@ -41,6 +41,7 @@ export default function TicketChart({ eventId, initialTicketCount = 0 }: TicketC
     }),
   ]);
   const [currentCount, setCurrentCount] = useState<number>(initialTicketCount);
+  const [isDark, setIsDark] = useState(false);
 
   // 📡 Gerçek zamanlı socket bağlantısı
   useEffect(() => {
@@ -85,10 +86,25 @@ export default function TicketChart({ eventId, initialTicketCount = 0 }: TicketC
     }
   }, [initialTicketCount]);
 
-  // Dark mode detection
-  const isDark =
-    typeof window !== "undefined" &&
-    document.documentElement.classList.contains("dark");
+  useEffect(() => {
+    const checkDarkMode = () => {
+      if (typeof window !== "undefined") {
+        setIsDark(document.documentElement.classList.contains("dark"));
+      }
+    };
+
+    checkDarkMode();
+
+    if (typeof window === "undefined") return;
+
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   const data = {
     labels,
@@ -178,10 +194,10 @@ export default function TicketChart({ eventId, initialTicketCount = 0 }: TicketC
   };
 
   return (
-    <div className="bg-white dark:bg-[#1a1a1a]/70 border border-gray-200 dark:border-gray-700/40 rounded-2xl shadow-sm p-6 mt-4">
+    <div className="mt-4 rounded-[24px] border border-slate-200/80 bg-white/72 p-5 shadow-[0_16px_45px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-slate-950/28">
       <div className="flex items-center gap-2 mb-4">
         <div className="w-2 h-2 rounded-full bg-[#ff7b00] animate-pulse"></div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <h3 className="text-base font-black text-slate-950 dark:text-white">
           Canlı Bilet Satış Grafiği
         </h3>
       </div>

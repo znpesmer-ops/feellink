@@ -289,7 +289,7 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Step 3: GDPR Consent */}
+        {/* Step 3: KVKK Consent */}
         {step === 3 && (
           <div className="bg-[var(--panel)] rounded-2xl shadow-lg border border-[var(--border)] p-8">
             <h2 className="text-2xl font-bold text-[var(--text)] mb-6">Açık Rıza & Amaç Bildirimi</h2>
@@ -303,7 +303,7 @@ export default function OnboardingPage() {
             </div>
 
             <div className="space-y-4 mb-8">
-              {/* GDPR Consent (Required) */}
+              {/* KVKK Consent (Required) */}
               <label className="flex items-start gap-3 p-4 border border-[var(--border)] rounded-lg cursor-pointer hover:bg-[var(--muted)] transition-colors">
                 <input
                   type="checkbox"
@@ -314,16 +314,17 @@ export default function OnboardingPage() {
                 />
                 <div className="flex-1">
                   <span className="text-[var(--text)] font-medium">
-                    Kişisel verilerimin bu amaçlarla işlenmesini kabul ediyorum.{' '}
+                    KVKK Aydınlatma Metni&apos;ni okuduğumu ve gerekli bilgilendirmenin
+                    tarafıma yapıldığını onaylıyorum.{' '}
                     <span className="text-red-500">*</span>
                   </span>
                   <div className="mt-2 text-sm text-[var(--sub)]">
-                    <a href="/privacy" target="_blank" className="text-[#ff7b00] hover:underline">
-                      KVKK & GDPR Aydınlatma Metni
+                    <a href="/privacy#kvkk" target="_blank" rel="noopener noreferrer" className="text-[#ff7b00] hover:underline">
+                      KVKK Aydınlatma Metni
                     </a>
                     {' · '}
-                    <a href="/privacy" target="_blank" className="text-[#ff7b00] hover:underline">
-                      Gizlilik Politikası
+                    <a href="/privacy#kullanici-sozlesmesi" target="_blank" rel="noopener noreferrer" className="text-[#ff7b00] hover:underline">
+                      Kullanıcı Sözleşmesi
                     </a>
                   </div>
                 </div>
@@ -377,4 +378,3 @@ export default function OnboardingPage() {
     </div>
   )
 }
-

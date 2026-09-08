@@ -7,7 +7,6 @@ import { ReportsModule } from '../reports/reports.module';
 import { MailModule } from '../mail/mail.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
-import { ScheduleModule } from '@nestjs/schedule';
 import { PostsModule } from '../posts/posts.module';
 
 @Module({
@@ -17,7 +16,6 @@ import { PostsModule } from '../posts/posts.module';
     MailModule,
     JwtModule,
     ConfigModule,
-    ScheduleModule.forRoot(),
     PostsModule, // ColorAnalysisService için
   ],
   controllers: [AdminController],
@@ -25,7 +23,6 @@ import { PostsModule } from '../posts/posts.module';
   exports: [AdminService, AdminGateway],
 })
 export class AdminModule {}
-
 
 
 

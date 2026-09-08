@@ -73,7 +73,7 @@ async function resetPassword() {
 
     // Hash the new password
     console.log(`🔐 Şifre hash'leniyor...`);
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     // Update user password
     await prisma.user.update({
@@ -103,4 +103,3 @@ resetPassword()
     console.error('💥 İşlem başarısız:', error);
     process.exit(1);
   });
-

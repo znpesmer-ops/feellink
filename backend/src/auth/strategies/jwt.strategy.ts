@@ -30,6 +30,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         email: true,
         fullName: true,
         avatar: true,
+        coverImage: true,
         bio: true,
         roles: true,
         plan: true,
@@ -52,6 +53,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Bu hesap silinmiş');
     }
 
+    if (user.accountStatus === 'PENDING_DELETION') {
+      throw new UnauthorizedException('Bu hesap silme sürecinde');
+    }
+
     // 🔒 SUSPENDED: Block suspended users
     if (user.accountStatus === 'SUSPENDED') {
       throw new UnauthorizedException('Bu hesap askıya alınmış');
@@ -64,5 +69,3 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     };
   }
 }
-
-

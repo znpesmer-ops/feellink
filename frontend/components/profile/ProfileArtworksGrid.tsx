@@ -4,7 +4,19 @@ import { useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import { ProfileSortableThreeColumnGrid } from '@/components/profile/ProfileSortableThreeColumnGrid'
-import { Image as ImageIcon, QrCode, Download, Loader2, MoreVertical, Trash2, Heart, MessageCircle, Edit, Bookmark } from 'lucide-react'
+import {
+  Bookmark,
+  Edit,
+  Heart,
+  Image as ImageIcon,
+  Loader2,
+  MoreVertical,
+  Play,
+  PlusCircle,
+  QrCode,
+  Trash2,
+  MessageCircle,
+} from 'lucide-react'
 import api from '@/lib/api'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/lib/store'
@@ -21,6 +33,12 @@ interface ProfileArtworksGridProps {
   enableReorder?: boolean
   /** Sürükleme sonrası yeni sıra (tam artwork nesneleri) — önbellek + PATCH üst bileşende */
   onReorder?: (orderedArtworks: any[]) => void
+  /** Profil sayfasındaki eser yükleme modalını açar. */
+  onCreateArtwork?: () => void
+  /** Filtreli koleksiyon gibi farklı boş durumlarda başlığı özelleştirir. */
+  emptyTitle?: string
+  /** Filtreli koleksiyon gibi farklı boş durumlarda açıklamayı özelleştirir. */
+  emptyDescription?: string
 }
 
 export function ProfileArtworksGrid({
@@ -30,6 +48,9 @@ export function ProfileArtworksGrid({
   showColorPalette = false,
   enableReorder = false,
   onReorder,
+  onCreateArtwork,
+  emptyTitle = 'Henüz eser yok',
+  emptyDescription = 'İlk eser yüklendiğinde bu alan galeri düzeniyle kendini kuracak.',
 }: ProfileArtworksGridProps) {
   const router = useRouter()
   const { user } = useAuthStore()
@@ -43,6 +64,21 @@ export function ProfileArtworksGrid({
   const [editingArtwork, setEditingArtwork] = useState<any | null>(null)
   const [savedArtworks, setSavedArtworks] = useState<Set<string>>(new Set())
   const menuRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+
+  const getArtworkMedia = (artwork: any) => {
+    const media = Array.isArray(artwork?.media) ? artwork.media[0] : null
+    const rawUrl = media?.url || media?.path || media?.fileName || artwork?.imageUrl || artwork?.mediaUrl || artwork?.cover
+    if (!rawUrl) return null
+    return {
+      type: media.type || 'image',
+      url: resolveImageUrl(rawUrl),
+      thumbnailUrl: media?.thumbnailUrl ? resolveImageUrl(media.thumbnailUrl) : undefined,
+    }
+  }
+
+  const goToArtwork = (artworkId: string) => {
+    router.push(`/posts/${artworkId}?from=${encodeURIComponent(`/profile/${username}`)}`)
+  }
 
   // Fetch saved items for current user (to check if artworks are saved)
   const { data: savedItemsData } = useQuery({
@@ -206,53 +242,57 @@ export function ProfileArtworksGrid({
 
   if (!artworks || artworks.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-          <ImageIcon className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+      <div className="relative overflow-hidden rounded-[1.75rem] border border-[#f0d8c8] bg-[#fffaf5] px-6 py-12 text-center shadow-[0_20px_60px_rgba(34,25,16,0.08)] dark:border-white/10 dark:bg-[#111318] dark:shadow-[0_24px_70px_rgba(0,0,0,0.32)]">
+        <div className="absolute left-1/2 top-0 h-32 w-72 -translate-x-1/2 rounded-full bg-[#ff8a1f]/15 blur-3xl dark:bg-[#ff8a1f]/10" aria-hidden />
+        <div className="relative mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/70 bg-white/80 shadow-sm dark:border-white/10 dark:bg-white/[0.06]">
+          <ImageIcon className="h-7 w-7 text-[#c36b1e] dark:text-[#ffb066]" />
         </div>
-        <p className="text-gray-500 dark:text-gray-400 font-medium">
-          Henüz eklenmiş eser bulunmuyor.
+        <h3 className="relative text-base font-semibold text-[#221914] dark:text-white">
+          {emptyTitle}
+        </h3>
+        <p className="relative mx-auto mt-2 max-w-sm text-sm leading-6 text-[#7a6658] dark:text-gray-400">
+          {emptyDescription}
         </p>
+        {isOwner && onCreateArtwork && (
+          <button
+            type="button"
+            onClick={onCreateArtwork}
+            className="relative mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-[#ff7a1a] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(255,122,26,0.28)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#e96e16] focus:outline-none focus:ring-2 focus:ring-[#ffb066] focus:ring-offset-2 focus:ring-offset-[#fffaf5] dark:focus:ring-offset-[#111318]"
+          >
+            <PlusCircle className="h-4 w-4" />
+            Eser yükle
+          </button>
+        )}
       </div>
     )
   }
 
   const renderArtworkCard = (artwork: any, index: number, isDragging: boolean) => {
-    const colorClass =
-      index % 3 === 0
-        ? 'artwork-card--orange'
-        : index % 3 === 1
-          ? 'artwork-card--blue'
-          : 'artwork-card--white'
-    const hoverColorClass =
-      index % 3 === 0
-        ? 'hover-outline-orange'
-        : index % 3 === 1
-          ? 'hover-outline-blue'
-          : 'hover-outline-white'
-    const cardClass = `artwork-card aspect-square relative cursor-pointer group overflow-hidden rounded-xl transition-all duration-300 hover:ring-2 hover:ring-brand-orange hover:ring-offset-2 hover:ring-offset-white dark:hover:ring-offset-gray-950 ${colorClass} ${hoverColorClass}`
+    const media = getArtworkMedia(artwork)
+    const caption = artwork.caption || artwork.title || 'Eser'
+    const cardClass = 'exhibition-artwork-card aspect-square relative cursor-pointer group overflow-hidden rounded-[1.15rem] border border-black/5 bg-[#f7f1eb] shadow-[0_12px_30px_rgba(39,27,18,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_22px_46px_rgba(39,27,18,0.16)] focus-within:ring-2 focus-within:ring-[#ff8a1f]/70 dark:border-white/10 dark:bg-white/[0.04] dark:shadow-[0_18px_44px_rgba(0,0,0,0.34)]'
 
     return (
       <div
-        className={`${cardClass}${isDragging ? ' ring-2 ring-[#ff7b00] opacity-90 z-50' : ''}`}
-        onClick={() =>
-          router.push(`/posts/${artwork.id}?from=${encodeURIComponent(`/profile/${username}`)}`)
-        }
+        className={`${cardClass}${isDragging ? ' z-50 scale-[1.015] ring-2 ring-[#ff8a1f] ring-offset-2 ring-offset-white dark:ring-offset-[#0b0c0f]' : ''}`}
+        style={{ animationDelay: `${Math.min(index, 9) * 45}ms` }}
+        onClick={() => goToArtwork(artwork.id)}
       >
-        <div className="w-full h-full rounded-xl overflow-hidden">
-          {artwork.media && artwork.media.length > 0 ? (
+        <div className="h-full w-full overflow-hidden rounded-[1.15rem]">
+          {media ? (
             <>
-              {artwork.media[0].type === 'video' ? (
+              {media.type === 'video' ? (
                 <video
-                  src={resolveImageUrl(artwork.media[0].url)}
-                  className="w-full h-full object-cover rounded-xl group-hover:scale-105 transition-transform duration-300"
+                  src={media.url}
+                  poster={media.thumbnailUrl}
+                  className="h-full w-full rounded-[1.15rem] object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                   muted
                 />
               ) : (
                 <img
-                  src={resolveImageUrl(artwork.media[0].url)}
-                  alt={artwork.caption || 'Eser'}
-                  className="w-full h-full object-cover rounded-xl group-hover:scale-105 transition-transform duration-300"
+                  src={media.url}
+                  alt={caption}
+                  className="h-full w-full rounded-[1.15rem] object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                   onError={(e) => {
                     ;(e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
                   }}
@@ -260,18 +300,31 @@ export function ProfileArtworksGrid({
               )}
             </>
           ) : (
-            <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center rounded-xl">
-              <ImageIcon className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+            <div className="flex h-full w-full items-center justify-center rounded-[1.15rem] bg-[radial-gradient(circle_at_30%_20%,rgba(255,138,31,0.18),transparent_34%),linear-gradient(135deg,#f6eee8,#ebe4df)] dark:bg-[radial-gradient(circle_at_30%_20%,rgba(255,138,31,0.16),transparent_34%),linear-gradient(135deg,#161a21,#0c0f14)]">
+              <ImageIcon className="h-8 w-8 text-[#b47a50] dark:text-[#c5a17d]" />
             </div>
           )}
         </div>
+
+        <div className="pointer-events-none absolute inset-0 rounded-[1.15rem] bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-65 transition-opacity duration-300 group-hover:opacity-85" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[8] p-3 opacity-0 translate-y-2 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+          <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-white drop-shadow">
+            {caption}
+          </p>
+        </div>
+
+        {media?.type === 'video' && (
+          <div className="absolute right-2 top-2 z-[20] flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-black/45 text-white backdrop-blur-md">
+            <Play className="h-3.5 w-3.5" fill="currentColor" />
+          </div>
+        )}
 
         {isOwner ? (
           <>
             <button
               onClick={(e) => handleDownloadQr(e, artwork.id, artwork)}
               disabled={downloadingQr === artwork.id}
-              className="absolute top-2 left-2 rounded-full bg-[#ff7b00] hover:bg-[#e36f00] text-white p-1.5 shadow-lg z-[115] transition-colors disabled:opacity-50 disabled:cursor-not-allowed pointer-events-auto"
+              className="absolute top-2 left-2 rounded-full border border-white/25 bg-[#ff7a1a] p-1.5 text-white shadow-lg shadow-black/15 transition-all hover:-translate-y-0.5 hover:bg-[#e96e16] disabled:cursor-not-allowed disabled:opacity-50 z-[115] pointer-events-auto"
               title="QR Kod Etiketi İndir"
             >
               {downloadingQr === artwork.id ? (
@@ -291,7 +344,7 @@ export function ProfileArtworksGrid({
                   e.stopPropagation()
                   setMenuOpen(menuOpen === artwork.id ? null : artwork.id)
                 }}
-                className="p-1.5 rounded-full bg-black/60 backdrop-blur-sm text-white hover:bg-black/80 transition-colors pointer-events-auto"
+                className="rounded-full border border-white/20 bg-black/55 p-1.5 text-white shadow-lg backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-black/75 pointer-events-auto"
                 title="Menü"
               >
                 <MoreVertical size={14} strokeWidth={2.5} />
@@ -299,7 +352,7 @@ export function ProfileArtworksGrid({
               {menuOpen === artwork.id && (
                 <div
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute bottom-10 right-0 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden min-w-[120px] z-[120]"
+                  className="absolute bottom-10 right-0 min-w-[128px] overflow-hidden rounded-2xl border border-gray-200/80 bg-white/95 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-[#151820]/95 z-[120]"
                 >
                   <button
                     onClick={(e) => {
@@ -307,7 +360,7 @@ export function ProfileArtworksGrid({
                       setEditingArtwork(artwork)
                       setMenuOpen(null)
                     }}
-                    className="w-full px-4 py-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 text-sm font-medium transition-colors"
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-[#fff3e8] dark:text-gray-300 dark:hover:bg-white/[0.06]"
                   >
                     <Edit size={16} />
                     Düzenle
@@ -315,7 +368,7 @@ export function ProfileArtworksGrid({
                   <button
                     onClick={(e) => handleDeleteClick(e, artwork.id)}
                     disabled={deleteMutation.isPending}
-                    className="w-full px-4 py-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-red-900/20"
                   >
                     <Trash2 size={16} />
                     Sil
@@ -327,7 +380,7 @@ export function ProfileArtworksGrid({
         ) : (
           <button
             onClick={(e) => handleSaveToggle(e, artwork.id)}
-            className="absolute top-2 left-2 rounded-full bg-black/60 backdrop-blur-sm text-white p-1.5 shadow-lg z-[115] hover:bg-black/80 transition-colors"
+            className="absolute top-2 left-2 rounded-full border border-white/20 bg-black/55 p-1.5 text-white shadow-lg backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-black/75 z-[115]"
             title={savedArtworks.has(artwork.id) ? 'Kaydedilenlerden kaldır' : 'Kaydet'}
           >
             <Bookmark
@@ -339,14 +392,14 @@ export function ProfileArtworksGrid({
         )}
 
         {artwork.media && artwork.media.length > 0 && (
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center rounded-xl z-[5] pointer-events-none">
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-2 text-white text-lg font-semibold">
-                <Heart className="w-6 h-6" fill="currentColor" />
+          <div className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center rounded-[1.15rem] bg-black/30 opacity-0 backdrop-blur-[2px] transition-all duration-300 group-hover:opacity-100">
+            <div className="flex items-center gap-5 rounded-full border border-white/20 bg-black/35 px-4 py-2 text-white shadow-xl backdrop-blur-xl">
+              <div className="flex items-center gap-1.5 text-sm font-semibold">
+                <Heart className="h-4 w-4" fill="currentColor" />
                 <span>{artwork._count?.likes || artwork.likeCount || 0}</span>
               </div>
-              <div className="flex items-center gap-2 text-white text-lg font-semibold">
-                <MessageCircle className="w-6 h-6" />
+              <div className="flex items-center gap-1.5 text-sm font-semibold">
+                <MessageCircle className="h-4 w-4" />
                 <span>{artwork._count?.comments || artwork.commentCount || 0}</span>
               </div>
             </div>
@@ -357,16 +410,16 @@ export function ProfileArtworksGrid({
           artwork.colorPalette &&
           Array.isArray(artwork.colorPalette) &&
           artwork.colorPalette.length > 0 && (
-            <div className="absolute bottom-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-[50]">
+            <div className="absolute bottom-2 left-2 z-[50] flex gap-1 rounded-full border border-white/20 bg-black/30 p-1 opacity-0 backdrop-blur-md transition-opacity duration-300 group-hover:opacity-100">
               {artwork.colorPalette.slice(0, 5).map((hex: string, idx: number) => (
                 <div
                   key={idx}
                   style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: 4,
+                    width: 14,
+                    height: 14,
+                    borderRadius: 999,
                     backgroundColor: hex,
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.55)',
                   }}
                   title={hex}
                 />
@@ -385,12 +438,16 @@ export function ProfileArtworksGrid({
       renderItem={(artwork, index, { isDragging }) =>
         renderArtworkCard(artwork, index, isDragging)
       }
+      mobileColumns={2}
+      gridClassName="gap-3 sm:gap-3"
     />
   )
 
   return (
     <>
-      {grid}
+      <div className="space-y-3">
+        {grid}
+      </div>
       {editingArtwork && (
         <EditArtworkModal
           artwork={editingArtwork}
@@ -434,10 +491,3 @@ export function ProfileArtworksGrid({
     </>
   )
 }
-
-
-
-
-
-
-

@@ -16,6 +16,26 @@ export class ChatService {
     private blocksService: BlocksService,
   ) {}
 
+  private readonly presenceOnlineTtlMs = 90_000;
+
+  private buildPresenceUser<T extends { isOnline?: boolean; lastSeen?: Date | null; lastActiveAt?: Date | null }>(
+    user: T,
+    displayFallback?: Date | null,
+  ) {
+    const explicitActivityAt = user.lastActiveAt ?? user.lastSeen ?? null;
+    const displayActivityAt = explicitActivityAt ?? displayFallback ?? null;
+    const isFresh = explicitActivityAt
+      ? Date.now() - new Date(explicitActivityAt).getTime() <= this.presenceOnlineTtlMs
+      : false;
+
+    return {
+      ...user,
+      isOnline: Boolean(user.isOnline && isFresh),
+      lastSeen: displayActivityAt,
+      lastActiveAt: displayActivityAt,
+    };
+  }
+
   async getConversations(userId: string) {
     console.log(`📋 [ChatService] getConversations called for user: ${userId}`);
     
@@ -39,6 +59,7 @@ export class ChatService {
                     fullName: true,
                     isOnline: true,
                     lastSeen: true,
+                    lastActiveAt: true,
                   },
                 },
               },
@@ -108,17 +129,16 @@ export class ChatService {
 
         const participantsWithLastActive = await Promise.all(
           conv.participants.map(async (p) => {
-            const u = p.user as { id: string; username: string; avatar?: string; fullName?: string; isOnline: boolean; lastSeen: Date | null };
+            const u = p.user as { id: string; username: string; avatar?: string; fullName?: string; isOnline: boolean; lastSeen: Date | null; lastActiveAt?: Date | null };
             if (u.id === userId) {
-              return { ...p, user: { ...u, lastActiveAt: u.lastSeen ?? null } };
+              return { ...p, user: this.buildPresenceUser(u) };
             }
             const lastMsg = await this.prisma.message.findFirst({
               where: { conversationId: conv.id, senderId: u.id, isDeleted: false },
               orderBy: { updatedAt: 'desc' },
               select: { updatedAt: true },
             });
-            const lastActiveAt = u.lastSeen ?? lastMsg?.updatedAt ?? conv.updatedAt ?? null;
-            return { ...p, user: { ...u, lastActiveAt } };
+            return { ...p, user: this.buildPresenceUser(u, lastMsg?.updatedAt ?? conv.updatedAt ?? null) };
           }),
         );
 
@@ -244,6 +264,7 @@ export class ChatService {
                 isPrivate: true,
                 isOnline: true,
                 lastSeen: true,
+                lastActiveAt: true,
               },
             },
           },
@@ -262,17 +283,16 @@ export class ChatService {
 
     const participantsWithLastActive = await Promise.all(
       conversation.participants.map(async (p) => {
-        const u = p.user as { id: string; username: string; avatar?: string; fullName?: string; isPrivate?: boolean; isOnline: boolean; lastSeen: Date | null };
+        const u = p.user as { id: string; username: string; avatar?: string; fullName?: string; isPrivate?: boolean; isOnline: boolean; lastSeen: Date | null; lastActiveAt?: Date | null };
         if (u.id === userId) {
-          return { ...p, user: { ...u, lastActiveAt: u.lastSeen ?? null } };
+          return { ...p, user: this.buildPresenceUser(u) };
         }
         const lastMsg = await this.prisma.message.findFirst({
           where: { conversationId, senderId: u.id, isDeleted: false },
           orderBy: { updatedAt: 'desc' },
           select: { updatedAt: true },
         });
-        const lastActiveAt = u.lastSeen ?? lastMsg?.updatedAt ?? conversation.updatedAt ?? null;
-        return { ...p, user: { ...u, lastActiveAt } };
+        return { ...p, user: this.buildPresenceUser(u, lastMsg?.updatedAt ?? conversation.updatedAt ?? null) };
       }),
     );
 
@@ -297,10 +317,12 @@ export class ChatService {
 
     // 🕐 SON GÖRÜLME GÜNCELLEMESİ (mesaj açıldığında)
     try {
+      const now = new Date();
       await this.prisma.user.update({
         where: { id: userId },
         data: {
-          lastSeen: new Date(),
+          lastSeen: now,
+          lastActiveAt: now,
           isOnline: true,
         },
       });
@@ -426,9 +448,10 @@ export class ChatService {
     }
 
     try {
+      const now = new Date();
       await this.prisma.user.update({
         where: { id: senderId },
-        data: { lastSeen: new Date(), isOnline: true },
+        data: { lastSeen: now, lastActiveAt: now, isOnline: true },
       });
     } catch {
       /* ignore */
@@ -583,10 +606,12 @@ export class ChatService {
 
     // 🕐 SON GÖRÜLME GÜNCELLEMESİ
     try {
+      const now = new Date();
       await this.prisma.user.update({
         where: { id: userId },
         data: {
-          lastSeen: new Date(),
+          lastSeen: now,
+          lastActiveAt: now,
           isOnline: true,
         },
       });
@@ -751,6 +776,7 @@ export class ChatService {
               fullName: true,
               isOnline: true,
               lastSeen: true,
+              lastActiveAt: true,
             },
           },
         },
@@ -980,6 +1006,7 @@ export class ChatService {
                   fullName: true,
                   isOnline: true,
                   lastSeen: true,
+                  lastActiveAt: true,
                 },
               },
             },
@@ -1022,6 +1049,7 @@ export class ChatService {
                 fullName: true,
                 isOnline: true,
                 lastSeen: true,
+                lastActiveAt: true,
               },
             },
           },
@@ -1070,21 +1098,37 @@ export class ChatService {
       throw new ForbiddenException('Access denied');
     }
 
-    const updated = await this.prisma.message.updateMany({
-      where: {
-        conversationId,
-        senderId: { not: userId },
-        read: false,
-      },
-      data: {
-        read: true,
-      },
-    });
+    let conversationIdsToMark = [conversationId];
+
+    if (conversation.context === 'DIRECT') {
+      const peer = conversation.participants.find((p) => p.userId !== userId);
+
+      if (peer?.userId) {
+        const directConversations = await this.prisma.conversation.findMany({
+          where: {
+            context: 'DIRECT',
+            AND: [
+              { participants: { some: { userId } } },
+              { participants: { some: { userId: peer.userId } } },
+            ],
+          },
+          select: { id: true },
+        });
+
+        conversationIdsToMark = Array.from(
+          new Set(directConversations.map((directConversation) => directConversation.id)),
+        );
+      }
+    }
 
     // Gönderene anlık "görüldü" bildirimi (REST ile açıldığında da socket ile güncellenir)
-    await this.chatGateway.markMessagesAsRead(conversationId, userId);
+    const updatedCounts = await Promise.all(
+      conversationIdsToMark.map((id) => this.chatGateway.markMessagesAsRead(id, userId)),
+    );
+    const count = updatedCounts.reduce((total, result) => total + (result?.count ?? 0), 0);
+    const unreadCount = await this.getUnreadMessageCount(userId);
 
-    return { success: true };
+    return { success: true, count, unreadCount, conversationIds: conversationIdsToMark };
   }
 
   async deleteConversation(conversationId: string, userId: string) {
@@ -1370,6 +1414,7 @@ export class ChatService {
                 fullName: true,
                 isOnline: true,
                 lastSeen: true,
+                lastActiveAt: true,
               },
             },
           },
@@ -1480,4 +1525,3 @@ export class ChatService {
     return { success: true };
   }
 }
-

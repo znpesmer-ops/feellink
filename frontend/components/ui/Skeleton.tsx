@@ -6,7 +6,7 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ className = '', variant = 'rectangular' }: SkeletonProps) {
-  const baseClasses = 'animate-pulse bg-gray-200 dark:bg-gray-700 rounded'
+  const baseClasses = 'animate-pulse bg-slate-200/75 dark:bg-white/[0.08] rounded'
   
   const variantClasses = {
     text: 'h-4',
@@ -28,30 +28,28 @@ type PostCardSkeletonVariant = 'default' | 'explore'
 export function PostCardSkeleton({ variant = 'default' }: { variant?: PostCardSkeletonVariant }) {
   if (variant === 'explore') {
     return (
-      <div className="w-full h-full min-h-[28rem] sm:min-h-[29rem] flex flex-col bg-white/80 dark:bg-[#1a1a1a]/70 backdrop-blur-md border border-gray-200 dark:border-gray-700/40 rounded-2xl shadow-sm p-4 md:p-5">
-        <Skeleton variant="rectangular" className="w-full h-52 sm:h-56 mb-4 rounded-2xl shrink-0" />
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="min-h-[2.75rem] mb-1 shrink-0">
-            <Skeleton variant="text" className="w-4/5 h-5" />
+      <div className="relative aspect-square w-full overflow-hidden rounded-[1.15rem] border border-black/5 bg-[#f7f1eb] shadow-[0_12px_30px_rgba(39,27,18,0.08)] dark:border-white/10 dark:bg-white/[0.04] dark:shadow-[0_18px_44px_rgba(0,0,0,0.34)]">
+        <Skeleton variant="rectangular" className="h-full w-full rounded-[1.15rem]" />
+        <div className="pointer-events-none absolute inset-0 rounded-[1.15rem] bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 p-3.5">
+          <div className="mb-3 space-y-2">
+            <Skeleton variant="text" className="h-3 w-24 bg-white/20" />
+            <Skeleton variant="text" className="h-4 w-4/5 bg-white/25" />
           </div>
-          <div className="min-h-[2.5rem] mb-2 shrink-0 space-y-1.5">
-            <Skeleton variant="text" className="w-full h-3.5" />
-            <Skeleton variant="text" className="w-5/6 h-3.5" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 rounded-full bg-black/20 p-1.5">
+              <Skeleton variant="circular" className="h-6 w-6 bg-white/25" />
+              <Skeleton variant="text" className="h-3 w-16 bg-white/20" />
+            </div>
+            <Skeleton variant="text" className="h-8 w-16 rounded-full bg-white/20" />
           </div>
-        </div>
-        <div className="mt-auto pt-2 shrink-0 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Skeleton variant="circular" className="w-6 h-6" />
-            <Skeleton variant="text" className="w-20 h-4" />
-          </div>
-          <Skeleton variant="text" className="w-12 h-4" />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="w-full bg-white/80 dark:bg-[#1a1a1a]/70 backdrop-blur-md border border-gray-200 dark:border-gray-700/40 rounded-2xl shadow-sm p-4 md:p-5">
+    <div className="w-full rounded-[24px] border border-slate-200/85 bg-slate-50/78 p-4 shadow-[0_18px_54px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.055] dark:shadow-black/22 md:p-5">
       <Skeleton variant="rectangular" className="w-full aspect-square mb-4 rounded-2xl" />
       <Skeleton variant="text" className="w-3/4 mb-2 h-5" />
       <Skeleton variant="text" className="w-full mb-2 h-4" />

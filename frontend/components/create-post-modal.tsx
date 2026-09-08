@@ -10,6 +10,7 @@ import 'slick-carousel/slick/slick.css'
 import 'slick-carousel/slick/slick-theme.css'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { containsBadWord } from '@/lib/utils/containsBadWord'
+import { put } from '@vercel/blob/client'
 
 interface CreatePostModalProps {
   isOpen: boolean
@@ -17,6 +18,307 @@ interface CreatePostModalProps {
   username: string
   userId?: string // Profile user ID for query invalidation
   postType?: 'post' | 'artwork' // Default: 'post'
+}
+
+const MAX_IMAGE_UPLOAD_WIDTH = 2048
+const IMAGE_COMPRESSION_THRESHOLD = 900 * 1024
+const MAX_CLIENT_UPLOAD_BYTES = 4 * 1024 * 1024
+const MAX_DIRECT_MEDIA_UPLOAD_BYTES = 50 * 1024 * 1024
+const MAX_MULTIPART_FALLBACK_BYTES = 4 * 1024 * 1024
+const BLOB_CLIENT_UPLOAD_TIMEOUT_MS = 55000
+const BLOB_TOKEN_TIMEOUT_MS = 45000
+const POST_CREATE_TIMEOUT_MS = 45000
+const UPLOAD_SESSION_WARMUP_TIMEOUT_MS = 30000
+
+type UploadedPostMedia = {
+  url: string
+  type: 'image' | 'video'
+  order: number
+  thumbnailUrl?: string
+}
+
+type VideoCover = {
+  file: File
+  preview: string
+  source: 'automatic' | 'manual'
+}
+
+const getFileKey = (file: File) => `${file.name}:${file.size}:${file.lastModified}`
+
+function createAutomaticVideoCover(file: File): Promise<VideoCover | null> {
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file)
+    const video = document.createElement('video')
+    let settled = false
+    const timeout = window.setTimeout(() => finish(null), 12000)
+
+    function finish(result: VideoCover | null) {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timeout)
+      video.removeAttribute('src')
+      video.load()
+      URL.revokeObjectURL(objectUrl)
+      resolve(result)
+    }
+
+    const captureFrame = () => {
+      if (!video.videoWidth || !video.videoHeight) {
+        finish(null)
+        return
+      }
+
+      const maxWidth = 1280
+      const scale = Math.min(1, maxWidth / video.videoWidth)
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(video.videoWidth * scale))
+      canvas.height = Math.max(1, Math.round(video.videoHeight * scale))
+      const context = canvas.getContext('2d')
+
+      if (!context) {
+        finish(null)
+        return
+      }
+
+      try {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height)
+      } catch {
+        finish(null)
+        return
+      }
+
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          finish(null)
+          return
+        }
+
+        const baseName = file.name.replace(/\.[^.]+$/, '') || 'video'
+        const coverFile = new File([blob], `${baseName}-kapak.jpg`, { type: 'image/jpeg' })
+        finish({
+          file: coverFile,
+          preview: canvas.toDataURL('image/jpeg', 0.86),
+          source: 'automatic',
+        })
+      }, 'image/jpeg', 0.86)
+    }
+
+    video.preload = 'auto'
+    video.muted = true
+    video.playsInline = true
+    video.onerror = () => finish(null)
+    video.onloadeddata = () => {
+      const duration = Number.isFinite(video.duration) ? video.duration : 0
+      const targetTime = duration > 0.2
+        ? Math.min(2, Math.max(0.1, duration * 0.1), Math.max(0.1, duration - 0.05))
+        : 0
+
+      if (targetTime > 0) {
+        video.onseeked = captureFrame
+        try {
+          video.currentTime = targetTime
+        } catch {
+          captureFrame()
+        }
+      } else {
+        captureFrame()
+      }
+    }
+    video.src = objectUrl
+    video.load()
+  })
+}
+
+function createUserFacingUploadError(message: string): Error & { userMessage: string } {
+  return Object.assign(new Error(message), { userMessage: message })
+}
+
+function withAbortTimeout<T>(run: (signal: AbortSignal) => Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  const controller = new AbortController()
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs)
+  return run(controller.signal).catch((error) => {
+    if (controller.signal.aborted) {
+      throw createUserFacingUploadError(message)
+    }
+    throw error
+  }).finally(() => window.clearTimeout(timer))
+}
+
+function resizeImageFile(file: File, maxWidth: number, quality: number): Promise<File> {
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file)
+    const image = new window.Image()
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      const ratio = image.width > maxWidth ? maxWidth / image.width : 1
+      const width = Math.round(image.width * ratio)
+      const height = Math.round(image.height * ratio)
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        resolve(file)
+        return
+      }
+
+      ctx.drawImage(image, 0, 0, width, height)
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(file)
+            return
+          }
+          const baseName = file.name.replace(/\.[^.]+$/, '') || 'artwork'
+          resolve(new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' }))
+        },
+        'image/jpeg',
+        quality,
+      )
+    }
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      resolve(file)
+    }
+
+    image.src = objectUrl
+  })
+}
+
+async function prepareFileForUpload(file: File): Promise<File> {
+  if (typeof window === 'undefined') {
+    return file
+  }
+
+  if (!file.type.startsWith('image/')) {
+    if (file.size > MAX_DIRECT_MEDIA_UPLOAD_BYTES) {
+      throw createUserFacingUploadError('Bu dosya şu an yükleme sınırını aşıyor. Lütfen 50MB altında bir dosya seçin.')
+    }
+    return file
+  }
+
+  if (file.size < IMAGE_COMPRESSION_THRESHOLD) {
+    return file
+  }
+
+  const attempts = [
+    { width: MAX_IMAGE_UPLOAD_WIDTH, quality: 0.88 },
+    { width: 1800, quality: 0.78 },
+    { width: 1500, quality: 0.7 },
+    { width: 1280, quality: 0.62 },
+  ]
+
+  let smallest = file
+  for (const attempt of attempts) {
+    const compressed = await resizeImageFile(file, attempt.width, attempt.quality)
+    if (compressed.size < smallest.size) {
+      smallest = compressed
+    }
+    if (compressed.size <= MAX_CLIENT_UPLOAD_BYTES) {
+      return compressed
+    }
+  }
+
+  if (smallest.size > MAX_CLIENT_UPLOAD_BYTES) {
+    throw createUserFacingUploadError('Görsel çok büyük kaldı. Lütfen daha küçük veya daha sıkıştırılmış bir görsel seçin.')
+  }
+  return smallest
+}
+
+async function uploadPostMediaFile(
+  file: File,
+  order: number,
+  onProgress?: (progressRatio: number) => void,
+  folder = 'posts',
+): Promise<UploadedPostMedia> {
+  onProgress?.(0.08)
+  const tokenResponse = await api.post('/media/client-upload-token', {
+    fileName: file.name,
+    contentType: file.type || 'application/octet-stream',
+    size: file.size,
+    folder,
+  }, {
+    timeout: BLOB_TOKEN_TIMEOUT_MS,
+  } as any)
+
+  const clientToken =
+    typeof tokenResponse.data?.clientToken === 'string' ? tokenResponse.data.clientToken : ''
+  const pathname =
+    typeof tokenResponse.data?.pathname === 'string' ? tokenResponse.data.pathname : ''
+
+  if (!clientToken || !pathname) {
+    throw createUserFacingUploadError('Yükleme izni alınamadı. Lütfen tekrar deneyin.')
+  }
+
+  onProgress?.(0.35)
+  const uploaded = await withAbortTimeout(
+    (signal) => put(pathname, file, {
+      access: 'public',
+      token: clientToken,
+      contentType: file.type || undefined,
+      multipart: file.size > 8 * 1024 * 1024,
+      abortSignal: signal,
+    }),
+    BLOB_CLIENT_UPLOAD_TIMEOUT_MS,
+    'Görsel yükleme zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.',
+  )
+  onProgress?.(1)
+
+  const uploadedUrl = typeof uploaded?.url === 'string' ? uploaded.url : ''
+
+  if (!uploadedUrl.trim()) {
+    throw createUserFacingUploadError('Dosya yüklendi ama medya URL bilgisi alınamadı.')
+  }
+
+  return {
+    url: uploadedUrl.trim(),
+    type: file.type.startsWith('video/') ? 'video' : 'image',
+    order,
+  }
+}
+
+function shouldFallbackToMultipartUpload(error: any, files: File[]): boolean {
+  const canUseMultipartFallback = files.every(file => file.size <= MAX_MULTIPART_FALLBACK_BYTES)
+  if (!canUseMultipartFallback) return false
+
+  const status = Number(error?.response?.status ?? 0)
+  if ([0, 502, 503, 504].includes(status)) return true
+
+  const code = String(error?.code || '')
+  const message = String(error?.userMessage || error?.message || error?.response?.data?.message || '')
+  return (
+    code === 'ECONNABORTED' ||
+    code === 'ERR_NETWORK' ||
+    /timeout|zaman aşımı|network error|bağlanılamıyor|aborted/i.test(message)
+  )
+}
+
+function appendPostMetadataToFormData(
+  formData: FormData,
+  values: {
+    caption: string
+    title: string
+    artworkCreatedDate: string
+    postType: 'post' | 'artwork'
+    colorPalette: string[]
+  },
+) {
+  if (values.caption.trim()) {
+    formData.append('caption', values.caption.trim())
+  }
+  if (values.title.trim()) {
+    formData.append('title', values.title.trim())
+  }
+  if (values.artworkCreatedDate.trim()) {
+    formData.append('artworkCreatedDate', values.artworkCreatedDate.trim())
+  }
+  formData.append('type', values.postType)
+  if (values.colorPalette.length > 0) {
+    formData.append('colorPalette', JSON.stringify(values.colorPalette))
+  }
 }
 
 export function CreatePostModal({ isOpen, onClose, username, userId, postType = 'post' }: CreatePostModalProps) {
@@ -29,15 +331,48 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
   const [artworkCreatedDate, setArtworkCreatedDate] = useState('') // 🎨 Eserin oluşturulduğu tarih (opsiyonel)
   const [location, setLocation] = useState('')
   const [uploading, setUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState('')
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadStage, setUploadStage] = useState('')
   const [colorPalette, setColorPalette] = useState<string[]>([])
   const [currentSlide, setCurrentSlide] = useState(0)
+  const [videoCovers, setVideoCovers] = useState<Record<string, VideoCover>>({})
+  const [coverTargetIndex, setCoverTargetIndex] = useState<number | null>(null)
+  const [autoCoverFailedKeys, setAutoCoverFailedKeys] = useState<Set<string>>(new Set())
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const coverInputRef = useRef<HTMLInputElement>(null)
+  const automaticCoverPromisesRef = useRef<Partial<Record<string, Promise<VideoCover | null>>>>({})
   const sliderRef = useRef<Slider | null>(null)
 
   // Küfür kontrolü
   const hasBadWord = containsBadWord(caption)
+
+  useEffect(() => {
+    if (!isOpen || !accessToken) return
+
+    void api.get('/auth/me', {
+      timeout: UPLOAD_SESSION_WARMUP_TIMEOUT_MS,
+    } as any).catch(() => {
+      // Sessiz warm-up: asıl submit akışı kendi hata mesajını gösterecek.
+    })
+  }, [isOpen, accessToken])
+
+  const startAutomaticVideoCover = (file: File) => {
+    if (!file.type.startsWith('video/')) return
+
+    const key = getFileKey(file)
+    if (automaticCoverPromisesRef.current[key]) return
+
+    const promise = createAutomaticVideoCover(file).then((cover) => {
+      if (cover) {
+        setVideoCovers((current) => current[key] ? current : { ...current, [key]: cover })
+      } else {
+        setAutoCoverFailedKeys((current) => new Set(current).add(key))
+      }
+      return cover
+    })
+    automaticCoverPromisesRef.current[key] = promise
+  }
 
   const createPostMutation = useMutation({
     mutationFn: async () => {
@@ -46,54 +381,113 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
       
       // Küfür kontrolü
       if (hasBadWord) {
-        setError('Bu içerik Feellink topluluk kurallarına uygun değil.')
-        setUploading(false)
-        return
+        throw createUserFacingUploadError('Bu içerik Feellink topluluk kurallarına uygun değil.')
       }
-      
-      const formData = new FormData()
-      
-      // Backend her zaman 'files' field name'ini bekliyor (FilesInterceptor('files', 10))
-      // Artwork için tek dosya, Post için çoklu dosya - ama field name aynı: 'files'
-      files.forEach((file) => {
-        formData.append('files', file)
-      })
-      
-      if (caption) {
-        formData.append('caption', caption)
+
+      setUploadProgress(8)
+      setUploadStage('Görsel hazırlanıyor')
+      const preparedFiles = await Promise.all(files.map(prepareFileForUpload))
+      setUploadProgress(15)
+
+      const media: UploadedPostMedia[] = []
+      try {
+        for (let index = 0; index < preparedFiles.length; index += 1) {
+          const file = preparedFiles[index]
+          const uploaded = await uploadPostMediaFile(file, index, (fileProgress) => {
+            const combined = 15 + ((index + fileProgress) / preparedFiles.length) * 65
+            const nextProgress = Math.min(80, Math.round(combined))
+            setUploadProgress(nextProgress)
+            if (fileProgress < 0.35) {
+              setUploadStage('Yükleme bağlantısı hazırlanıyor...')
+            } else if (fileProgress < 1) {
+              setUploadStage(`%${nextProgress} Yükleniyor`)
+            } else {
+              setUploadStage(`%${nextProgress} Yüklendi`)
+            }
+          })
+          const originalFile = files[index]
+          const originalFileKey = originalFile ? getFileKey(originalFile) : ''
+          let selectedCover = originalFile ? videoCovers[originalFileKey] : undefined
+          if (!selectedCover && originalFileKey) {
+            selectedCover = (await automaticCoverPromisesRef.current[originalFileKey]) || undefined
+          }
+          if (uploaded.type === 'video' && selectedCover) {
+            setUploadStage('Video kapağı yükleniyor...')
+            const preparedCover = await prepareFileForUpload(selectedCover.file)
+            const uploadedCover = await uploadPostMediaFile(
+              preparedCover,
+              0,
+              undefined,
+              'post-thumbnails',
+            )
+            uploaded.thumbnailUrl = uploadedCover.url
+          }
+          media.push(uploaded)
+          const completedProgress = Math.min(80, Math.round(15 + ((index + 1) / preparedFiles.length) * 65))
+          setUploadProgress(completedProgress)
+          setUploadStage(`%${completedProgress} Yüklendi`)
+        }
+      } catch (uploadError: any) {
+        const includesVideo = preparedFiles.some((preparedFile) => preparedFile.type.startsWith('video/'))
+        if (includesVideo || !shouldFallbackToMultipartUpload(uploadError, preparedFiles)) {
+          throw uploadError
+        }
+
+        setUploadProgress(30)
+        setUploadStage('Yedek yükleme yolu deneniyor...')
+
+        const formData = new FormData()
+        preparedFiles.forEach((file) => {
+          formData.append('files', file)
+        })
+        appendPostMetadataToFormData(formData, {
+          caption,
+          title,
+          artworkCreatedDate,
+          postType,
+          colorPalette,
+        })
+
+        const fallbackResponse = await api.post('/posts/create', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+          timeout: 65000,
+        } as any)
+        setUploadProgress(100)
+        setUploadStage('Tamamlandı')
+        return fallbackResponse.data
       }
-      
-      // 🎨 Eser adı ekle (artwork için)
-      if (title) {
-        formData.append('title', title)
+
+      setUploadProgress(88)
+      setUploadStage('İşleniyor...')
+
+      const payload: Record<string, unknown> = {
+        type: postType,
+        media,
+      }
+
+      if (caption.trim()) {
+        payload.caption = caption.trim()
+      }
+
+      if (title.trim()) {
+        payload.title = title.trim()
       }
 
       if (artworkCreatedDate.trim()) {
-        formData.append('artworkCreatedDate', artworkCreatedDate.trim())
+        payload.artworkCreatedDate = artworkCreatedDate.trim()
       }
-      
-      // Konum alanı kaldırıldı - artık gönderilmiyor
 
-      // Post type ekle
-      formData.append('type', postType)
-
-      // 🎨 Renk paleti ekle
       if (colorPalette.length > 0) {
-        formData.append('colorPalette', JSON.stringify(colorPalette))
+        payload.colorPalette = colorPalette
       }
 
-      setUploadProgress(0)
-      const response = await api.post('/posts/create', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        onUploadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-            const pct = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-            setUploadProgress(pct)
-          }
-        },
-      })
+      const response = await api.post('/posts', payload, {
+        timeout: POST_CREATE_TIMEOUT_MS,
+      } as any)
+      setUploadProgress(100)
+      setUploadStage('Tamamlandı')
       return response.data
     },
     onSuccess: (data) => {
@@ -104,8 +498,14 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
       setTitle('')
       setArtworkCreatedDate('')
       setLocation('')
+      setUploadProgress(0)
+      setUploadStage('')
       setColorPalette([])
       setCurrentSlide(0)
+      setVideoCovers({})
+      setCoverTargetIndex(null)
+      setAutoCoverFailedKeys(new Set())
+      automaticCoverPromisesRef.current = {}
       setError('')
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
@@ -130,6 +530,23 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
           }
         }
       )
+
+      // Yeni eser/gönderi, backend refetch beklenmeden profil gridine düşsün.
+      if (data?.id) {
+        queryClient.setQueriesData(
+          {
+            predicate: (query) => {
+              const key = query.queryKey
+              return Array.isArray(key) && key[0] === 'user-posts'
+            },
+          },
+          (oldData: any) => {
+            const oldItems = Array.isArray(oldData) ? oldData : []
+            const withoutDuplicate = oldItems.filter((item: any) => item?.id !== data.id)
+            return [data, ...withoutDuplicate]
+          },
+        )
+      }
       
       // Invalidate queries to refresh posts (background refresh)
       queryClient.invalidateQueries({ 
@@ -184,11 +601,12 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
       
       console.error('❌ [CreatePost] ========== END ERROR ==========')
 
-      setError(getErrorMessage(error))
+      setError(error?.userMessage || getErrorMessage(error))
     },
     onSettled: () => {
       setUploading(false)
       setUploadProgress(0)
+      setUploadStage('')
     },
   })
 
@@ -222,6 +640,8 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
         const newFiles = [...files, ...selectedFiles].slice(0, 5) // Max 5 files
         setFiles(newFiles)
       }
+
+      selectedFiles.forEach(startAutomaticVideoCover)
       
       // Create previews - Artwork ve Post için ayrı işlem
       if (postType === 'artwork') {
@@ -278,10 +698,25 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
   }
 
   const removeFile = (index: number) => {
+    const removedFile = files[index]
     const newFiles = files.filter((_, i) => i !== index)
     const newPreviews = previews.filter((_, i) => i !== index)
     setFiles(newFiles)
     setPreviews(newPreviews)
+    if (removedFile) {
+      const removedKey = getFileKey(removedFile)
+      delete automaticCoverPromisesRef.current[removedKey]
+      setAutoCoverFailedKeys((current) => {
+        const next = new Set(current)
+        next.delete(removedKey)
+        return next
+      })
+      setVideoCovers((current) => {
+        const next = { ...current }
+        delete next[removedKey]
+        return next
+      })
+    }
     
     // Eğer silinen görsel aktif slide ise, yeni aktif slide'ı ayarla
     if (index === currentSlide && newPreviews.length > 0) {
@@ -305,6 +740,34 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
     } else {
       setColorPalette([])
     }
+  }
+
+  const requestVideoCover = (index: number) => {
+    setCoverTargetIndex(index)
+    coverInputRef.current?.click()
+  }
+
+  const handleVideoCoverChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const coverFile = event.target.files?.[0]
+    const targetFile = coverTargetIndex === null ? null : files[coverTargetIndex]
+    event.target.value = ''
+
+    if (!coverFile || !targetFile || !targetFile.type.startsWith('video/')) return
+
+    const reader = new FileReader()
+    reader.onload = (loadEvent) => {
+      const preview = String(loadEvent.target?.result || '')
+      setVideoCovers((current) => ({
+        ...current,
+        [getFileKey(targetFile)]: { file: coverFile, preview, source: 'manual' },
+      }))
+      setAutoCoverFailedKeys((current) => {
+        const next = new Set(current)
+        next.delete(getFileKey(targetFile))
+        return next
+      })
+    }
+    reader.readAsDataURL(coverFile)
   }
 
   const handleDragEnd = (result: DropResult) => {
@@ -365,8 +828,14 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
     setTitle('')
     setArtworkCreatedDate('')
     setLocation('')
+    setUploadProgress(0)
+    setUploadStage('')
     setColorPalette([])
     setCurrentSlide(0)
+    setVideoCovers({})
+    setCoverTargetIndex(null)
+    setAutoCoverFailedKeys(new Set())
+    automaticCoverPromisesRef.current = {}
     setError('')
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -398,7 +867,9 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[500] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
     >
       <div
         className="bg-[#101014] dark:bg-[#0f0f0f] w-full max-w-[550px] rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
@@ -443,6 +914,7 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
                       {files[0]?.type.startsWith('video/') ? (
                         <video
                           src={previews[0]}
+                          poster={videoCovers[getFileKey(files[0])]?.preview}
                           className="w-full h-full object-contain bg-black rounded-xl"
                           controls
                         />
@@ -491,6 +963,7 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
                               {files[index].type.startsWith('video/') ? (
                                 <video
                                   src={preview}
+                                  poster={videoCovers[getFileKey(files[index])]?.preview}
                                   className="w-full h-full object-contain bg-black rounded-xl"
                                   controls
                                 />
@@ -524,6 +997,7 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
                           {files[0].type.startsWith('video/') ? (
                             <video
                               src={previews[0]}
+                              poster={videoCovers[getFileKey(files[0])]?.preview}
                               className="w-full h-full object-contain bg-black rounded-xl"
                               controls
                             />
@@ -594,11 +1068,19 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
                                         }}
                                       >
                                         {files[index].type.startsWith('video/') ? (
-                                          <video
-                                            src={preview}
-                                            className="w-full h-full object-cover pointer-events-none"
-                                            muted
-                                          />
+                                          videoCovers[getFileKey(files[index])] ? (
+                                            <img
+                                              src={videoCovers[getFileKey(files[index])].preview}
+                                              alt={`Video kapağı ${index + 1}`}
+                                              className="w-full h-full object-cover pointer-events-none"
+                                            />
+                                          ) : (
+                                            <video
+                                              src={preview}
+                                              className="w-full h-full object-cover pointer-events-none"
+                                              muted
+                                            />
+                                          )
                                         ) : (
                                           <img
                                             src={preview}
@@ -648,6 +1130,31 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
                         </span>
                       </button>
                     )}
+
+                    {files.map((file, index) => file.type.startsWith('video/') && (
+                      <div key={`video-cover-${getFileKey(file)}`} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-gray-200">{file.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {videoCovers[getFileKey(file)]?.source === 'manual'
+                              ? 'Seçtiğin kapak fotoğrafı hazır'
+                              : videoCovers[getFileKey(file)]?.source === 'automatic'
+                                ? 'Videodan otomatik kapak oluşturuldu'
+                                : autoCoverFailedKeys.has(getFileKey(file))
+                                  ? 'Otomatik kapak oluşturulamadı; istersen bir görsel seç'
+                                  : 'Videodan otomatik kapak hazırlanıyor...'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => requestVideoCover(index)}
+                          disabled={uploading}
+                          className="shrink-0 rounded-lg border border-[#ff7b00]/50 bg-[#ff7b00]/10 px-3 py-2 text-xs font-semibold text-[#ff9a3c] transition hover:bg-[#ff7b00]/20 disabled:opacity-50"
+                        >
+                          {videoCovers[getFileKey(file)] ? 'Kapağı değiştir' : 'Kapak seç'}
+                        </button>
+                      </div>
+                    ))}
                   </>
                 )}
               </div>
@@ -658,6 +1165,14 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
               multiple={postType !== 'artwork'} // 🎨 Eser için multiple=false, Post için multiple=true
               accept="image/*,video/*"
               onChange={handleFileChange}
+              className="hidden"
+              disabled={uploading}
+            />
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleVideoCoverChange}
               className="hidden"
               disabled={uploading}
             />
@@ -749,13 +1264,9 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
             <button
               type="submit"
               disabled={uploading || files.length === 0 || hasBadWord}
-              className="px-8 py-2 rounded-xl bg-brand-orange text-white font-semibold hover:bg-[#e67a00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[100px]"
+              className="px-8 py-2 rounded-xl bg-brand-orange text-white font-semibold hover:bg-[#e67a00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {uploading
-                ? uploadProgress > 0 && uploadProgress < 100
-                  ? `%${uploadProgress} Yüklendi`
-                  : 'İşleniyor...'
-                : 'Paylaş'}
+              {uploading ? (uploadStage || (uploadProgress > 0 ? `%${uploadProgress} Yüklendi` : 'Hazırlanıyor...')) : 'Paylaş'}
             </button>
           </div>
         </form>
@@ -764,5 +1275,3 @@ export function CreatePostModal({ isOpen, onClose, username, userId, postType = 
     </div>
   )
 }
-
-

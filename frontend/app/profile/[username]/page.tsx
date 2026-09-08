@@ -12,7 +12,7 @@ import { CreatePostModal } from '@/components/create-post-modal'
 import { PostModal } from '@/components/post-modal'
 import UserArticles from '@/components/user-articles'
 import DraftArticles from '@/components/draft-articles'
-import { Plus, Grid, FileText, Calendar, Image as ImageIcon, Heart, MessageCircle, MoreVertical, Trash2, Clock, BarChart3, Lock, Sparkles, Camera } from 'lucide-react'
+import { Plus, Grid, FileText, Calendar, Image as ImageIcon, Heart, MessageCircle, MoreVertical, Trash2, Clock, BarChart3, Lock, Sparkles, Cuboid, Share2 } from 'lucide-react'
 import { FiGrid, FiFileText, FiMessageCircle, FiImage, FiCalendar, FiClock, FiBookmark } from 'react-icons/fi'
 import { initPostsSocket, initCommentsSocket } from '@/lib/socket'
 import { UserBadges } from '@/components/profile/UserBadges'
@@ -23,9 +23,9 @@ import { GC_STANDARD, STALE_SHORT } from '@/lib/query-config'
 import { ProfileArtworksGrid } from '@/components/profile/ProfileArtworksGrid'
 import toast from 'react-hot-toast'
 import { ProfileCommentsList } from '@/components/profile/ProfileCommentsList'
-import { ArtistHighlights } from '@/components/profile/ArtistHighlights'
 import { ProfileAnalysisPanel } from '@/components/profile/ProfileAnalysisPanel'
-import { ArtGallery3D } from '@/components/gallery/ArtGallery3D'
+import { ProfileExhibitionTour } from '@/components/profile/ProfileExhibitionTour'
+import { ProfileArtworkCollections } from '@/components/profile/ProfileArtworkCollections'
 import ZoomModal from '@/components/common/ZoomModal'
 import {
   type ProfileGridSortMode,
@@ -36,6 +36,17 @@ import {
 
 const LS_PROFILE_SORT_POSTS = 'feellink-profile-sort-posts'
 const LS_PROFILE_SORT_ARTWORKS = 'feellink-profile-sort-artworks'
+
+function uniqueProfileIdentifiers(...values: Array<string | null | undefined>) {
+  const seen = new Set<string>()
+  return values
+    .map((value) => (typeof value === 'string' ? value.trim() : ''))
+    .filter((value) => {
+      if (!value || value === 'undefined' || value === 'null' || seen.has(value)) return false
+      seen.add(value)
+      return true
+    })
+}
 
 function readProfileGridSortMode(key: string): ProfileGridSortMode {
   if (typeof window === 'undefined') return 'newest'
@@ -53,6 +64,31 @@ function persistProfileGridSortMode(key: string, mode: ProfileGridSortMode) {
     localStorage.setItem(key, mode)
   } catch {
     /* ignore */
+  }
+}
+
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch {
+    /* fallback below */
+  }
+
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.left = '-9999px'
+    document.body.appendChild(ta)
+    ta.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(ta)
+    return ok
+  } catch {
+    return false
   }
 }
 
@@ -347,8 +383,11 @@ function ProfileContent() {
   const [postType, setPostType] = useState<'post' | 'artwork'>('post')
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
   const [creatingConversation, setCreatingConversation] = useState(false)
-  const [activeTab, setActiveTab] = useState<'posts' | 'articles' | 'comments' | 'artworks' | 'events' | 'drafts' | 'saved' | 'analysis' | 'gallery'>('posts')
-  const [galleryOpen, setGalleryOpen] = useState(false)
+  const [sharingProfile, setSharingProfile] = useState(false)
+  const [profileShareCount, setProfileShareCount] = useState(0)
+  const [selectedArtworkCollectionId, setSelectedArtworkCollectionId] = useState<string | null>(null)
+  const [selectedArtworkCollectionPostIds, setSelectedArtworkCollectionPostIds] = useState<string[]>([])
+  const [activeTab, setActiveTab] = useState<'posts' | 'articles' | 'comments' | 'artworks' | 'events' | 'drafts' | 'saved' | 'analysis' | 'exhibition'>('artworks')
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
   const [postsSortMode, setPostsSortModeState] = useState<ProfileGridSortMode>(() =>
     readProfileGridSortMode(LS_PROFILE_SORT_POSTS),
@@ -369,38 +408,116 @@ function ProfileContent() {
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const menuRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+  const activeProfileIdRef = useRef<string | null>(null)
 
-  // Profil isteği zaman aşımı (sonsuz loading önlenir) — Vercel cold-start için 25s
-  const PROFILE_FETCH_TIMEOUT_MS = 25000
+  const openCreateComposer = (nextPostType: 'post' | 'artwork') => {
+    setPostType(nextPostType)
+    setCreateMenuOpen(false)
+    setShowCreateModal(true)
+  }
+
+  const ownProfileFallback = useMemo(() => {
+    if (!isMe || !currentUser?.id || !currentUser?.username) return null
+    const storedUser = currentUser as any
+    const roles = Array.isArray(storedUser.roles)
+      ? storedUser.roles
+      : storedUser.activeRole
+        ? [storedUser.activeRole]
+        : []
+    const primaryRole = storedUser.role || storedUser.activeRole || roles[0] || null
+
+    return {
+      ...storedUser,
+      id: storedUser.id,
+      username: storedUser.username,
+      email: storedUser.email || '',
+      fullName: storedUser.fullName || storedUser.username,
+      avatar: storedUser.avatar ?? null,
+      coverImage: storedUser.coverImage ?? null,
+      exhibitionName: storedUser.exhibitionName ?? null,
+      bio: storedUser.bio || '',
+      role: primaryRole,
+      roles,
+      badges: Array.isArray(storedUser.badges) ? storedUser.badges : [],
+      isPrivate: Boolean(storedUser.isPrivate),
+      isVerified: Boolean(storedUser.isVerified),
+      isAdmin: Boolean(storedUser.isAdmin),
+      isOwnProfile: true,
+      isFollowing: false,
+      hasRequested: false,
+      canViewPosts: true,
+      followerCount: Number(storedUser.followerCount ?? 0),
+      followingCount: Number(storedUser.followingCount ?? 0),
+      profileShareCount: Number(storedUser.profileShareCount ?? 0),
+      _count: {
+        posts: Number(storedUser._count?.posts ?? 0),
+      },
+      capabilities: capabilities ?? null,
+      profilePostOrder: Array.isArray(storedUser.profilePostOrder) ? storedUser.profilePostOrder : [],
+      profileArtworkOrder: Array.isArray(storedUser.profileArtworkOrder) ? storedUser.profileArtworkOrder : [],
+    }
+  }, [isMe, currentUser, capabilities])
+
+  // Profil isteği zaman aşımı: Vercel cold start + proxy zincirinde 12s yanlış negatif üretebiliyordu.
+  const PROFILE_FETCH_TIMEOUT_MS = 18000
+  const profileQueryKey = useMemo(
+    () => ['profile', username, paramUsername, currentUser?.id] as const,
+    [username, paramUsername, currentUser?.id],
+  )
 
   // Get profile data
   const { data: profile, isLoading, error: profileError } = useQuery({
-    queryKey: ['profile', username, paramUsername, currentUser?.id],
+    queryKey: profileQueryKey,
     queryFn: async () => {
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Profil yüklenemedi. Zaman aşımı. Lütfen sayfayı yenileyin.')), PROFILE_FETCH_TIMEOUT_MS)
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+      const profileRequestConfig = { timeout: PROFILE_FETCH_TIMEOUT_MS } as any
+      const timeoutPromise = new Promise<any>((resolve, reject) =>
+        timeoutId = setTimeout(
+          () => {
+            if (ownProfileFallback) {
+              resolve(ownProfileFallback)
+            } else {
+              reject(new Error('Profil yüklenemedi. Zaman aşımı. Lütfen sayfayı yenileyin.'))
+            }
+          },
+          PROFILE_FETCH_TIMEOUT_MS,
+        )
       )
       const fetchProfile = async () => {
-        // "me" parametresi için önce /users/me endpoint'ini dene
+        // "me" parametresinde store'daki username hazırsa doğrudan profil endpoint'ine git.
+        // Böylece /auth/me veya /users/me soğuk başlangıcı profil ekranını spinner'da bekletmez.
         if (paramUsername === 'me') {
+          if (currentUser?.username) {
+            try {
+              const response = await api.get(`/users/profile/${currentUser.username}`, profileRequestConfig)
+              if (response.data) return response.data
+            } catch (profileErr: any) {
+              const status = profileErr?.response?.status
+              if (status === 401 || status === 403 || status === 404) {
+                throw new Error(profileErr?.response?.data?.message || 'Profil yüklenemedi.')
+              }
+            }
+          }
           try {
-            const meResponse = await api.get('/users/me')
+            const meResponse = await api.get('/users/me', profileRequestConfig)
             const meData = meResponse.data
             if (!meData) throw new Error('Kullanıcı bilgisi alınamadı')
             if (meData?.username) {
-              const profileResponse = await api.get(`/users/profile/${meData.username}`)
+              const profileResponse = await api.get(`/users/profile/${meData.username}`, profileRequestConfig)
               if (profileResponse.data) return profileResponse.data
             }
             throw new Error('Kullanıcı adı bulunamadı')
           } catch (err: any) {
             if (currentUser?.username) {
               try {
-                const response = await api.get(`/users/profile/${currentUser.username}`)
+                const response = await api.get(`/users/profile/${currentUser.username}`, profileRequestConfig)
                 if (response.data) return response.data
               } catch {
+                if (ownProfileFallback) return ownProfileFallback
                 throw new Error('Profil yüklenemedi.')
               }
             }
+            if (ownProfileFallback) return ownProfileFallback
             const status = err?.response?.status
             const isAuthError = status === 401 || status === 403
             const fallbackMessage = isAuthError
@@ -413,25 +530,35 @@ function ProfileContent() {
           throw new Error('Geçersiz kullanıcı adı')
         }
         try {
-          const response = await api.get(`/users/profile/${username}`)
+          const response = await api.get(`/users/profile/${username}`, profileRequestConfig)
           return response.data
         } catch (err: any) {
           throw new Error(err?.response?.data?.message || err?.message || 'Profil yüklenemedi')
         }
       }
-      return Promise.race([fetchProfile(), timeoutPromise])
+      try {
+        return await Promise.race([fetchProfile(), timeoutPromise])
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId)
+      }
     },
     enabled: !!accessToken && (!!username || paramUsername === 'me'),
     retry: (failureCount, error: any) => {
-      if (error?.message?.includes('Geçersiz') || error?.message?.includes('bulunamadı')) return false
-      // Timeout: 1 otomatik retry (cold-start için)
-      if (error?.message?.includes('Zaman aşımı')) return failureCount < 1
+      if (error?.message?.includes('Zaman aşımı') || error?.message?.includes('Geçersiz') || error?.message?.includes('bulunamadı')) {
+        return false
+      }
       return failureCount < 2
     },
-    retryDelay: 1500,
     staleTime: STALE_SHORT,
     gcTime: GC_STANDARD,
+    refetchOnMount: true,
+    placeholderData: () => ownProfileFallback ?? undefined,
   })
+
+  useEffect(() => {
+    if (!profile) return
+    setProfileShareCount(Number(profile.profileShareCount ?? 0))
+  }, [profile?.id, profile?.profileShareCount])
 
   // Helper function to check if user is corporate
   const isCorporateUser = profile?.role?.toUpperCase() === 'CORPORATE'
@@ -478,21 +605,30 @@ function ProfileContent() {
 
   // Tab config: saved sadece kendi profilde; analiz herkeste görünür (içerik erişimi ayrı)
   const profileTabs = [
-    { key: 'posts', label: 'Gönderiler', icon: FiGrid, visible: true },
     { key: 'artworks', label: 'Eserler', icon: FiImage, visible: true },
+    { key: 'posts', label: 'Gönderiler', icon: FiGrid, visible: true },
+    { key: 'exhibition', label: 'Sergi', icon: Cuboid, visible: true },
+    { key: 'analysis', label: 'Analiz', icon: BarChart3, visible: true },
     { key: 'articles', label: 'Yazılar', icon: FiFileText, visible: true },
     { key: 'comments', label: 'Yorumlar', icon: FiMessageCircle, visible: true },
     { key: 'events', label: 'Etkinlikler', icon: FiCalendar, visible: true },
     { key: 'saved', label: 'Kaydedilenler', icon: FiBookmark, visible: isOwnProfile },
-    { key: 'analysis', label: 'Analiz', icon: BarChart3, visible: true },
-    { key: 'gallery', label: 'Sergi', icon: Sparkles, visible: true },
   ].filter((tab) => tab.visible)
 
   const tabs = profileTabs
 
-  // Geçersiz activeTab ise posts'a düş (saved sadece kendi profilde; analysis herkeste)
+  // Her yeni profil eserlerle açılır; profil içinde yapılan sekme seçimi korunur.
   useEffect(() => {
     if (!profile) return
+
+    if (activeProfileIdRef.current !== profile.id) {
+      activeProfileIdRef.current = profile.id
+      setActiveTab('artworks')
+      setSelectedArtworkCollectionId(null)
+      setSelectedArtworkCollectionPostIds([])
+      return
+    }
+
     const allowedKeys = [
       'posts',
       'artworks',
@@ -500,11 +636,11 @@ function ProfileContent() {
       'comments',
       'events',
       'analysis',
-      'gallery',
+      'exhibition',
       ...(isOwnProfile ? ['saved'] : []),
     ]
     if (!allowedKeys.includes(activeTab)) {
-      setActiveTab('posts')
+      setActiveTab('artworks')
     }
   }, [profile?.id, isOwnProfile, activeTab])
   
@@ -524,38 +660,49 @@ function ProfileContent() {
   const { data: userPostsData, isLoading: isLoadingPosts, error: postsError } = useQuery({
     queryKey: ['user-posts', profile?.id],
     queryFn: async () => {
-      if (!profile?.id) return []
-      
-      // Primary endpoint: /posts/user/:userId
-      try {
-        const response = await api.get(`/posts/user/${profile.id}`)
-        const posts = response.data || []
-        
-        // Debug log
-        if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-          console.log('🔍 User Posts Query Debug:', {
-            userId: profile.id,
-            postsCount: posts.length,
-            posts: posts.map((p: any) => ({ id: p.id, type: p.type, hasMedia: !!p.media?.length }))
-          })
-        }
-        
-        return posts
-      } catch (error: any) {
-        // Fallback: Try username-based endpoint if userId fails
-        console.warn('Primary endpoint failed, trying fallback:', error)
+      const identifiers = uniqueProfileIdentifiers(profile?.id, username, isMe ? currentUser?.username : null)
+      if (!identifiers.length) return []
+
+      const requestConfig = { timeout: 24000 } as any
+      let lastError: unknown = null
+
+      for (let index = 0; index < identifiers.length; index += 1) {
+        const identifier = identifiers[index]
         try {
-          const response = await api.get(`/posts/user/${username}`)
-          return response.data || []
-        } catch (fallbackError) {
-          console.error('Both endpoints failed:', fallbackError)
-          return []
+          const response = await api.get(`/posts/user/${encodeURIComponent(identifier)}`, requestConfig)
+          const posts = Array.isArray(response.data) ? response.data : []
+
+          if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+            console.log('🔍 User Posts Query Debug:', {
+              identifier,
+              postsCount: posts.length,
+              posts: posts.map((p: any) => ({ id: p.id, type: p.type, hasMedia: !!p.media?.length })),
+            })
+          }
+
+          if (posts.length > 0 || index === identifiers.length - 1) {
+            return posts
+          }
+        } catch (error: any) {
+          lastError = error
+          if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+            console.warn('Profile posts endpoint failed, trying next identifier:', {
+              identifier,
+              status: error?.response?.status,
+              message: error?.response?.data?.message || error?.message,
+            })
+          }
         }
       }
+
+      throw lastError instanceof Error ? lastError : new Error('Profil gönderileri yüklenemedi.')
     },
     enabled: !!accessToken && !!profile?.id,
     staleTime: STALE_SHORT,
     gcTime: GC_STANDARD,
+    retry: 1,
+    refetchOnMount: true,
+    placeholderData: (previousData) => previousData ?? [],
   })
 
   // Get user events (for corporate users and pro artists)
@@ -601,6 +748,17 @@ function ProfileContent() {
     [profileArtworksBase, artworksSortMode, profileArtworkOrder],
   )
 
+  const visibleProfileArtworks = useMemo(() => {
+    if (!selectedArtworkCollectionId) return sortedProfileArtworks
+    const selectedPostIds = new Set(selectedArtworkCollectionPostIds.map(String))
+    return sortedProfileArtworks.filter((artwork: any) => selectedPostIds.has(String(artwork.id)))
+  }, [selectedArtworkCollectionId, selectedArtworkCollectionPostIds, sortedProfileArtworks])
+
+  const handleArtworkCollectionSelect = useCallback((collectionId: string | null, postIds: string[]) => {
+    setSelectedArtworkCollectionId(collectionId)
+    setSelectedArtworkCollectionPostIds(postIds)
+  }, [])
+
   const patchGridOrderMutation = useMutation({
     mutationFn: async (body: { postOrder?: string[]; artworkOrder?: string[] }) => {
       const { data } = await api.patch('/users/me/profile-grid-order', body)
@@ -615,11 +773,6 @@ function ProfileContent() {
 
   const enablePostsDrag = isOwnProfile && postsSortMode === 'custom'
   const enableArtworksDrag = isOwnProfile && artworksSortMode === 'custom'
-
-  const profileQueryKey = useMemo(
-    () => ['profile', username, paramUsername, currentUser?.id] as const,
-    [username, paramUsername, currentUser?.id],
-  )
 
   const handleProfilePostsReorder = useCallback(
     (items: any[]) => {
@@ -958,10 +1111,59 @@ function ProfileContent() {
       router.push(`/messages?conversation=${response.data.id}`)
     } catch (error: any) {
       console.error('Failed to create conversation:', error)
-      // Hata durumunda da mesajlar sayfasına git
-      router.push('/messages')
+      // Hata durumunda da hedef kullanıcı parametresiyle mesajlar sayfasına git
+      router.push(`/messages?user=${profile.id}`)
     } finally {
       setCreatingConversation(false)
+    }
+  }
+
+  const handleShareProfile = async () => {
+    if (!profile?.username || sharingProfile) return
+
+    const safeUsername = encodeURIComponent(profile.username)
+    const base =
+      (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '')) ||
+      (typeof window !== 'undefined' ? window.location.origin : '')
+    const shareUrl = `${base}/profile/${safeUsername}`
+
+    setSharingProfile(true)
+    try {
+      let completed = false
+
+      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        try {
+          await navigator.share({
+            title: `${profile.username} | Feellink`,
+            text: `${profile.username} profilini Feellink'te keşfet.`,
+            url: shareUrl,
+          })
+          completed = true
+        } catch (error: any) {
+          if (error?.name === 'AbortError') return
+        }
+      }
+
+      if (!completed) {
+        const copied = await copyTextToClipboard(shareUrl)
+        if (!copied) {
+          toast.error('Profil bağlantısı kopyalanamadı')
+          return
+        }
+      }
+
+      const response = await api.post(`/users/profile/${safeUsername}/share`)
+      const nextCount = Number(response.data?.profileShareCount ?? profileShareCount + 1)
+      setProfileShareCount(nextCount)
+      queryClient.setQueryData(profileQueryKey, (old: any) =>
+        old ? { ...old, profileShareCount: nextCount } : old,
+      )
+      toast.success(completed ? 'Profil paylaşıldı' : 'Profil bağlantısı kopyalandı')
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || 'Profil paylaşılamadı'
+      toast.error(typeof message === 'string' ? message : 'Profil paylaşılamadı')
+    } finally {
+      setSharingProfile(false)
     }
   }
 
@@ -1006,19 +1208,18 @@ function ProfileContent() {
   }
 
   // 🔥 KRİTİK: Hata durumunu göster
-  if (profileError) {
+  if (profileError && !profile) {
     const errorMessage = profileError instanceof Error ? profileError.message : 'Bilinmeyen bir hata oluştu'
-    const isTimeout = errorMessage.includes('Zaman aşımı')
     return (
       <div className="text-center py-12">
         <div className="rounded-3xl border border-red-200 bg-red-50 px-6 py-8 text-center text-sm text-red-600 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
           <p className="font-semibold mb-2">Profil yüklenemedi</p>
-          <p className="text-xs mb-4">{isTimeout ? 'Sunucu yanıt vermedi. Lütfen sayfayı yenileyin.' : errorMessage}</p>
+          <p className="text-xs mb-4">{errorMessage}</p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => router.push('/profile/me')}
             className="px-4 py-2 text-xs font-medium bg-brand-orange text-white rounded-xl hover:bg-brand-orange/90 transition"
           >
-            Sayfayı Yenile
+            Profilime Git
           </button>
         </div>
       </div>
@@ -1048,106 +1249,101 @@ function ProfileContent() {
     )
   }
 
+  const profileCoverImage = profile.coverImage ? resolveImageUrl(profile.coverImage) : ''
+  const profileShareButton = (
+    <button
+      type="button"
+      onClick={handleShareProfile}
+      disabled={sharingProfile}
+      title="Profili paylaş"
+      aria-label="Profili paylaş"
+      className="group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/[0.14] bg-white/[0.085] text-white shadow-[0_16px_38px_rgba(3,7,18,0.22)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A00]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070b14] disabled:cursor-wait disabled:opacity-70 md:h-9 md:w-9 md:rounded-full"
+    >
+      <span
+        className="absolute inset-y-0 -left-12 w-12 rotate-12 bg-white/20 opacity-0 blur-md transition-all duration-700 group-hover:left-[120%] group-hover:opacity-100"
+        aria-hidden
+      />
+      <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(255,138,0,0.95),rgba(255,255,255,0.16))] shadow-[0_0_18px_rgba(255,138,0,0.28)] md:h-7 md:w-7">
+        <Share2 size={14} strokeWidth={2.4} />
+      </span>
+    </button>
+  )
+
   return (
     <>
-      <style>{`
-        @keyframes fadeUpCard {
-          from { opacity: 0; transform: translateY(18px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes shimmerSweep {
-          0% { transform: translateX(-150%); }
-          100% { transform: translateX(300%); }
-        }
-        @keyframes ringGradient {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        @keyframes ambientGlow {
-          0%, 100% { opacity: 0; }
-          50% { opacity: 1; }
-        }
-        .profile-card-cinematic { animation: fadeUpCard 0.7s cubic-bezier(0.22,1,0.36,1) both; }
-        .cover-shimmer { animation: shimmerSweep 5s ease-in-out infinite; }
-        .avatar-ring-gradient {
-          background: linear-gradient(135deg, #FF8A00, #ea580c, #a855f7, #3b82f6, #FF8A00);
-          background-size: 300% 300%;
-          animation: ringGradient 5s ease infinite;
-        }
-        .ambient-glow { animation: ambientGlow 4s ease-in-out infinite; }
-      `}</style>
       <div className="max-w-4xl mx-auto py-8 px-4">
-        {/* Profile Header - Cinematic Premium */}
-        <div className="profile-card-cinematic mb-8 relative group/profilecard">
-          {/* Ambient glow layer */}
-          <div className="ambient-glow absolute -inset-1 rounded-3xl bg-gradient-to-br from-[#FF8A00]/15 via-purple-500/8 to-blue-500/10 blur-2xl pointer-events-none" />
-
-          <div className="relative bg-white dark:bg-gray-950 rounded-2xl border border-gray-100/80 dark:border-gray-800/60 shadow-[0_8px_40px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_48px_rgba(0,0,0,0.5),0_2px_12px_rgba(0,0,0,0.3)] overflow-hidden transition-shadow duration-500 group-hover/profilecard:shadow-[0_16px_64px_rgba(0,0,0,0.12),0_4px_16px_rgba(255,138,0,0.06)] dark:group-hover/profilecard:shadow-[0_16px_72px_rgba(0,0,0,0.6),0_4px_20px_rgba(255,138,0,0.08)]">
-
-          {/* Cover Photo */}
-          <div className="relative h-32 md:h-44 overflow-hidden bg-gradient-to-br from-[#fb923c]/40 via-[#ea580c]/25 to-[#7c3aed]/35 dark:from-[#1a0500] dark:via-[#0f0300] dark:to-[#0c0420]">
-            {(profile as any).coverImage && (
+        {/* Profile Header */}
+        <div className="relative mb-8 min-h-[195px] md:min-h-[208px] overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#070b14] shadow-[0_24px_80px_rgba(0,0,0,0.34)] transition-colors">
+          <div className="absolute inset-0">
+            {profileCoverImage ? (
               <img
-                src={resolveImageUrl((profile as any).coverImage)}
-                alt="Kapak fotoğrafı"
-                className="w-full h-full object-cover scale-[1.03] group-hover/profilecard:scale-100 transition-transform duration-[8s] ease-out"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                src={profileCoverImage}
+                alt={`${profile.username} kapak fotoğrafı`}
+                className="h-full w-full object-cover opacity-100 saturate-[1.08] contrast-[1.04]"
+                onError={(e) => {
+                  ;(e.target as HTMLImageElement).style.display = 'none'
+                }}
               />
+            ) : (
+              <div className="h-full w-full bg-[linear-gradient(135deg,#08111f_0%,#111827_48%,#2b170c_100%)]" />
             )}
-            {/* Cinematic gradient overlays */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/5 to-transparent pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/10 via-transparent to-transparent pointer-events-none" />
-            {/* Shimmer sweep */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <div className="cover-shimmer absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/6 to-transparent" />
-            </div>
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,7,18,0.58)_0%,rgba(3,7,18,0.22)_48%,rgba(3,7,18,0.54)_100%)]" />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,138,0,0.06),rgba(3,7,18,0.46))]" />
+          </div>
+          <div className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(255,138,0,0.8),transparent)]" />
+
+          <div className="relative flex flex-col items-start gap-5 p-5 sm:p-6 md:flex-row md:items-start md:gap-8 md:p-8" style={{ textShadow: '0 2px 18px rgba(0,0,0,0.72)' }}>
+          {/* Avatar */}
+          <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0 ring-4 ring-white/[0.12] shadow-[0_16px_40px_rgba(0,0,0,0.36)] backdrop-blur">
+            {profile.avatar ? (
+              (() => {
+                const imageUrl = resolveImageUrl(profile.avatar)
+                console.log('Profile Avatar IMAGE URL:', imageUrl, 'Original:', profile.avatar)
+                return (
+                  <img
+                    src={imageUrl}
+                    alt={profile.username}
+                    className="w-full h-full object-cover cursor-zoom-in transition-transform hover:scale-105"
+                    onClick={() => setZoomImage(imageUrl)}
+                    onError={(e) => {
+                      console.error('Profile Avatar Error:', imageUrl)
+                      ;(e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
+                    }}
+                  />
+                )
+              })()
+            ) : (
+              <span className="text-3xl md:text-4xl text-white/70">
+                {profile.username[0].toUpperCase()}
+              </span>
+            )}
           </div>
 
-          {/* Content below cover */}
-          <div className="px-6 md:px-8 pb-6 md:pb-8">
-
-            {/* Avatar + Buttons row */}
-            <div className="relative z-10 flex items-end justify-between -mt-10 md:-mt-12 mb-4">
-              {/* Avatar with animated gradient ring */}
-              <div className="relative flex-shrink-0">
-                <div className="avatar-ring-gradient absolute -inset-[3px] rounded-full" />
-                <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-full bg-gray-300 ring-[3px] ring-white dark:ring-gray-950 flex items-center justify-center overflow-hidden shadow-[0_4px_20px_rgba(255,138,0,0.25)] dark:shadow-[0_4px_24px_rgba(255,138,0,0.2)]">
-                {profile.avatar ? (
-                  (() => {
-                    const imageUrl = resolveImageUrl(profile.avatar)
-                    return (
-                      <img
-                        src={imageUrl}
-                        alt={profile.username}
-                        className="w-full h-full object-cover cursor-zoom-in transition-transform hover:scale-110 duration-500"
-                        onClick={() => setZoomImage(imageUrl)}
-                        onError={(e) => {
-                          ;(e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
-                        }}
-                      />
-                    )
-                  })()
-                ) : (
-                  <span className="text-3xl md:text-4xl text-gray-500 dark:text-gray-400">
-                    {profile.username[0].toUpperCase()}
-                  </span>
-                )}
+          {/* Profile Info */}
+          <div className="w-full min-w-0 flex-1">
+            <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="flex min-w-0 flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <h1 className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2 text-[2rem] font-light leading-none text-white md:text-2xl">
+                    <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-2">
+                      {profile.username}
+                      <FeellinkRoleBadge roles={profile.roles} />
+                    </span>
+                  </h1>
                 </div>
+                <UserBadges badges={profile.badges} />
               </div>
-
-              {/* Buttons */}
-              <div className="flex items-center gap-3 pb-1">
+              {/* Sağ Buton Grubu - Profili Düzenle + Yeni Gönderi */}
               {profile.isOwnProfile && (
-                <div className="flex items-center gap-3">
+                <div className="grid w-full grid-cols-[52px_minmax(0,1fr)_52px] items-center gap-3 md:w-auto md:flex md:items-center">
                   {/* ➕ Yeni Gönderi/Eser - Açılır Menü */}
                   <div className="relative">
                     <button
+                      type="button"
                       onClick={() => setCreateMenuOpen(!createMenuOpen)}
-                      className="flex items-center justify-center w-9 h-9 rounded-full
-                                 bg-[#FF8A00] text-white shadow-sm hover:bg-[#e67a00]
-                                 transition-all duration-200 hover:scale-105 active:scale-95"
+                      className="flex h-12 w-full items-center justify-center rounded-2xl bg-[#FF8A00] text-white shadow-[0_16px_34px_rgba(255,138,0,0.26)] transition-all duration-200 hover:scale-[1.03] hover:bg-[#e67a00] active:scale-95 md:h-9 md:w-9 md:rounded-full md:shadow-[0_12px_28px_rgba(255,138,0,0.24)]"
                       title="Yeni İçerik"
+                      aria-label="Yeni içerik"
                     >
                       <Plus size={18} strokeWidth={2.5} />
                     </button>
@@ -1157,16 +1353,19 @@ function ProfileContent() {
                       <>
                         {/* Backdrop - menüyü kapatmak için */}
                         <div
-                          className="fixed inset-0 z-10"
+                          className="fixed inset-0 z-[70]"
                           onClick={() => setCreateMenuOpen(false)}
                         />
                         {/* Menü */}
-                        <div className="absolute right-0 mt-2 bg-white dark:bg-[#1a1a1a] shadow-lg rounded-xl z-20 w-48 border border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <div
+                          className="absolute left-0 z-[80] mt-2 w-52 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_22px_60px_rgba(0,0,0,0.22)] dark:border-gray-700 dark:bg-[#1a1a1a] md:left-auto md:right-0"
+                          onClick={(event) => event.stopPropagation()}
+                        >
                           <button
-                            onClick={() => {
-                              setPostType('post')
-                              setShowCreateModal(true)
-                              setCreateMenuOpen(false)
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              openCreateComposer('post')
                             }}
                             className="block w-full text-left px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                           >
@@ -1178,10 +1377,10 @@ function ProfileContent() {
                           {/* Eser yükleme butonu sadece eser oluşturma yetkisi olan kullanıcılar için */}
                           {capabilities?.permissions.canCreateArtworks && (
                             <button
-                              onClick={() => {
-                                setPostType('artwork')
-                                setShowCreateModal(true)
-                                setCreateMenuOpen(false)
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                openCreateComposer('artwork')
                               }}
                               className="block w-full text-left px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border-t border-gray-200 dark:border-gray-700"
                             >
@@ -1198,28 +1397,30 @@ function ProfileContent() {
 
                   {/* Profili Düzenle Butonu */}
                   <button
+                    type="button"
                     onClick={() => router.push('/profile/edit')}
-                    className="px-4 py-2 text-sm font-medium bg-[#FF8A00] text-white rounded-lg
-                               shadow-sm hover:bg-[#e67a00] transition"
+                    className="flex h-12 min-w-0 items-center justify-center rounded-2xl bg-[#FF8A00] px-4 text-sm font-semibold text-white shadow-[0_16px_34px_rgba(255,138,0,0.24)] transition hover:bg-[#e67a00] md:h-auto md:rounded-lg md:py-2 md:shadow-[0_12px_28px_rgba(255,138,0,0.20)]"
                   >
                     Profili Düzenle
                   </button>
+                  {profileShareButton}
                 </div>
               )}
-
-              {/* Follow / Message buttons for non-own profile */}
+            </div>
+            
+            <div className="mb-4 flex flex-wrap items-center gap-3">
               {!profile.isOwnProfile && (
                 <>
                   <button
                     onClick={handleFollow}
                     disabled={followMutation.isPending}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                      profile.isFollowing
-                        ? 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
-                        : profile.hasRequested
-                        ? 'bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200'
-                        : 'bg-brand-orange text-white hover:bg-brand-orange/90'
-                    }`}
+	                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+	                      profile.isFollowing
+	                        ? 'border border-white/20 bg-white/[0.08] text-white hover:bg-white/[0.14]'
+	                        : profile.hasRequested
+	                        ? 'bg-white/[0.12] text-white hover:bg-white/[0.18]'
+	                        : 'bg-brand-orange text-white hover:bg-brand-orange/90'
+	                    }`}
                   >
                     {followMutation.isPending
                       ? '...'
@@ -1231,74 +1432,57 @@ function ProfileContent() {
                       ? 'Takip İsteği Gönder'
                       : 'Takip Et'}
                   </button>
-                  <button
-                    onClick={handleMessage}
-                    disabled={creatingConversation}
-                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-gray-900 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
+	                  <button
+	                    onClick={handleMessage}
+	                    disabled={creatingConversation}
+	                    className="px-4 py-2 border border-white/20 rounded-xl text-sm font-medium hover:bg-white/[0.12] transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed"
+	                  >
                     {creatingConversation ? '...' : 'Mesaj'}
                   </button>
+                  {profileShareButton}
                 </>
               )}
-              </div>
-            </div>
-
-            {/* Username + Badges */}
-            <div className="mb-3">
-              <div className="flex items-center gap-2 mb-1">
-                <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 flex flex-wrap items-center gap-x-1 gap-y-2 tracking-tight">
-                  <span className="inline-flex items-center gap-0">
-                    {profile.username}
-                    <FeellinkRoleBadge roles={profile.roles} />
-                  </span>
-                </h1>
-              </div>
-              <UserBadges badges={profile.badges} />
             </div>
 
             {/* Stats */}
             <div className="flex space-x-6 mb-4">
               <button
                 onClick={() => setShowFollowers(true)}
-                className="cursor-pointer group/stat transition-transform hover:scale-105 active:scale-95"
+                className="cursor-pointer"
               >
-                <span className="font-bold text-gray-900 dark:text-gray-100 group-hover/stat:text-[#FF8A00] transition-colors">{profile._count.posts}</span>{' '}
-                <span className="text-gray-500 dark:text-gray-400 text-sm">posts</span>
+	                <span className="font-semibold text-white">{profile._count.posts}</span>{' '}
+	                <span className="text-white/[0.58]">posts</span>
               </button>
               <button
                 onClick={() => setShowFollowers(true)}
-                className="cursor-pointer group/stat transition-transform hover:scale-105 active:scale-95"
+                className="cursor-pointer"
               >
-                <span className="font-bold text-gray-900 dark:text-gray-100 group-hover/stat:text-[#FF8A00] transition-colors">{profile.followerCount ?? 0}</span>{' '}
-                <span className="text-gray-500 dark:text-gray-400 text-sm">takipçi</span>
+	                <span className="font-semibold text-white">{profile.followerCount ?? 0}</span>{' '}
+	                <span className="text-white/[0.58]">takipçi</span>
               </button>
               <button
                 onClick={() => setShowFollowing(true)}
-                className="cursor-pointer group/stat transition-transform hover:scale-105 active:scale-95"
+                className="cursor-pointer"
               >
-                <span className="font-bold text-gray-900 dark:text-gray-100 group-hover/stat:text-[#FF8A00] transition-colors">{profile.followingCount ?? 0}</span>{' '}
-                <span className="text-gray-500 dark:text-gray-400 text-sm">takip</span>
+	                <span className="font-semibold text-white">{profile.followingCount ?? 0}</span>{' '}
+	                <span className="text-white/[0.58]">takip</span>
               </button>
             </div>
 
             {/* Bio */}
             <div>
-              <p className="font-semibold text-gray-900 dark:text-gray-100">{profile.fullName || profile.username}</p>
-              {profile.bio && <p className="mt-1 text-gray-700 dark:text-gray-300 leading-relaxed">{profile.bio}</p>}
+              {profile.bio && <p className="mt-1 text-white/[0.82]">{profile.bio}</p>}
               {/* Role Label - Sadece whitelist'teki etiket; raw role asla basılmaz */}
               {(() => {
                 const roleLabel = profile.role ? ROLE_METADATA[normalizeRole(profile.role)]?.label : null
                 return roleLabel ? (
-                  <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{roleLabel}</p>
+	                  <p className="mt-1 text-sm text-white/[0.58]">{roleLabel}</p>
                 ) : null
               })()}
             </div>
           </div>
-          </div>{/* closes inner card bg-white div */}
-        </div>{/* closes outer profile-card-cinematic wrapper */}
-
-        {/* Öne Çıkan Temalar - Tüm kullanıcılarda görünür */}
-        <ArtistHighlights username={username} userId={profile?.id} isOwnProfile={profile.isOwnProfile} />
+          </div>
+        </div>
 
         {/* Sekme Butonları — z-30 modalların (z-50) altında, içerik panellerinin (z-0) üstünde; overflow-x + pb tooltip kırpmasın */}
         <div className="relative z-30 mb-6 border-b border-gray-200 dark:border-gray-700">
@@ -1361,66 +1545,7 @@ function ProfileContent() {
 
         {/* Sekme içerikleri — z-0 ile sekme şeridinin altında kalır (tooltip çakışması olmaz) */}
         <div className="relative z-0">
-        {activeTab === 'gallery' ? (
-          <div className="rounded-2xl overflow-hidden" style={{ background:'linear-gradient(160deg,#0d1018,#080b12)', border:'1px solid rgba(201,165,80,0.1)' }}>
-            <div className="pointer-events-none" style={{ height:3, background:'linear-gradient(90deg,transparent,rgba(201,165,80,0.2),transparent)' }} />
-            <div className="flex flex-col items-center justify-center py-16 px-6 gap-6 relative">
-              <div className="absolute inset-0 pointer-events-none" style={{ background:'radial-gradient(ellipse 70% 50% at 50% 40%, rgba(201,165,80,0.04), transparent 70%)' }} />
-              <p style={{ color:'rgba(201,165,80,0.35)', fontSize:10, letterSpacing:'0.38em', textTransform:'uppercase', fontFamily:'Georgia,serif' }}>
-                Sanal Sergi
-              </p>
-              <div className="text-center">
-                <h2 style={{ color:'rgba(255,255,255,0.75)', fontSize:22, fontFamily:'Georgia,serif', fontWeight:400 }}>
-                  {username} sergisi
-                </h2>
-                {profileArtworksBase.filter((a: any) => a.media?.length > 0 && a.media[0]?.url).length > 0 && (
-                  <p style={{ color:'rgba(201,165,80,0.3)', fontSize:11, marginTop:6, letterSpacing:'0.1em' }}>
-                    {profileArtworksBase.filter((a: any) => a.media?.length > 0 && a.media[0]?.url).length} eser sergileniyor
-                  </p>
-                )}
-              </div>
-              {profileArtworksBase.filter((a: any) => a.media?.length > 0 && a.media[0]?.url).length > 0 ? (
-                <button
-                  onClick={() => setGalleryOpen(true)}
-                  style={{
-                    padding:'13px 44px',
-                    background:'linear-gradient(135deg,rgba(201,165,80,0.18),rgba(201,165,80,0.08))',
-                    border:'1px solid rgba(201,165,80,0.4)',
-                    borderRadius:3, color:'rgba(201,165,80,0.9)',
-                    fontSize:11, letterSpacing:'0.32em', textTransform:'uppercase',
-                    fontFamily:'Georgia,serif', cursor:'pointer',
-                    boxShadow:'0 0 30px rgba(201,165,80,0.08)', transition:'all .25s',
-                  }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background='linear-gradient(135deg,rgba(201,165,80,0.28),rgba(201,165,80,0.15))'; (e.currentTarget as HTMLButtonElement).style.borderColor='rgba(201,165,80,0.7)' }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background='linear-gradient(135deg,rgba(201,165,80,0.18),rgba(201,165,80,0.08))'; (e.currentTarget as HTMLButtonElement).style.borderColor='rgba(201,165,80,0.4)' }}
-                >
-                  Sergiye Gir
-                </button>
-              ) : (
-                <div className="text-center">
-                  <p style={{ color:'rgba(255,255,255,0.25)', fontSize:13 }}>Henüz eser yüklenmemiş</p>
-                  {isMe && canShowProfileArtworks && (
-                    <button
-                      onClick={() => setShowCreateModal(true)}
-                      style={{ marginTop:16, padding:'10px 28px', background:'rgba(201,165,80,0.12)', border:'1px solid rgba(201,165,80,0.3)', borderRadius:3, color:'rgba(201,165,80,0.7)', fontSize:11, letterSpacing:'0.2em', cursor:'pointer' }}
-                    >
-                      + Eser Yükle
-                    </button>
-                  )}
-                </div>
-              )}
-              {isMe && canShowProfileArtworks && profileArtworksBase.filter((a: any) => a.media?.length > 0 && a.media[0]?.url).length > 0 && (
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  style={{ color:'rgba(201,165,80,0.3)', fontSize:10, letterSpacing:'0.2em', background:'none', border:'none', cursor:'pointer', textTransform:'uppercase' }}
-                >
-                  + Yeni Eser Ekle
-                </button>
-              )}
-            </div>
-            <div className="pointer-events-none" style={{ height:3, background:'linear-gradient(90deg,transparent,rgba(201,165,80,0.1),transparent)' }} />
-          </div>
-        ) : activeTab === 'articles' ? (
+        {activeTab === 'articles' ? (
           <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-100 dark:border-gray-900 shadow-sm transition-colors">
             <UserArticles authorId={profile.id} />
           </div>
@@ -1429,37 +1554,73 @@ function ProfileContent() {
             <ProfileCommentsList username={username} userId={profile.id} />
           </div>
         ) : activeTab === 'artworks' && canShowProfileArtworks ? (
-          <div className="bg-white dark:bg-gray-950 rounded-2xl p-4 md:p-6 border border-gray-100 dark:border-gray-900 shadow-sm transition-colors">
-            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="inline-flex rounded-xl border border-gray-200 dark:border-gray-700 p-0.5 bg-gray-50/80 dark:bg-gray-900/50">
+          <div className="space-y-5">
+            <div className="relative overflow-hidden rounded-[1.6rem] border border-[#ead7c8] bg-[#fffaf5] p-4 shadow-[0_18px_54px_rgba(42,28,18,0.08)] dark:border-white/10 dark:bg-[#101318] dark:shadow-[0_22px_70px_rgba(0,0,0,0.30)]">
+              <div className="absolute -left-12 top-0 h-24 w-36 rounded-full bg-[#ff8a1f]/12 blur-2xl dark:bg-[#ff8a1f]/10" aria-hidden />
+              <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/60 bg-white/75 text-[#c36b1e] shadow-sm dark:border-white/10 dark:bg-white/[0.06] dark:text-[#ffb066]">
+                    <Sparkles className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-base font-semibold text-[#241a14] dark:text-white">Eserler</p>
+                    <p className="mt-0.5 text-xs text-[#7a6658] dark:text-gray-400">
+                      {sortedProfileArtworks.length > 0
+                        ? `${sortedProfileArtworks.length} eser yayında`
+                        : 'Henüz eser yok'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="inline-flex w-full rounded-2xl border border-[#ead7c8] bg-white/70 p-1 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.05] sm:w-auto">
                 {(['newest', 'oldest', 'custom'] as const).map((m) => (
                   <button
                     key={m}
                     type="button"
                     onClick={() => setArtworksSortMode(m)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                    className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all sm:flex-none ${
                       artworksSortMode === m
-                        ? 'bg-white dark:bg-gray-800 text-[#ff7b00] shadow-sm'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                        ? 'bg-[#ff7a1a] text-white shadow-[0_10px_24px_rgba(255,122,26,0.22)]'
+                        : 'text-[#7a6658] hover:bg-white hover:text-[#241a14] dark:text-gray-400 dark:hover:bg-white/[0.07] dark:hover:text-white'
                     }`}
                   >
                     {m === 'newest' ? 'En Yeni' : m === 'oldest' ? 'En Eski' : 'Serbest Dizim'}
                   </button>
                 ))}
+                </div>
               </div>
+
               {isOwnProfile && artworksSortMode === 'custom' && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 sm:text-right">
-                  Kartları sürükleyip bırakarak sıralayabilirsin.
+                <p className="relative mt-3 rounded-2xl border border-[#ead7c8] bg-white/[0.58] px-3 py-2 text-xs text-[#7a6658] dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-400 sm:text-right">
+                  {selectedArtworkCollectionId
+                    ? 'Seçkili görünümde ana galeri sırası korunur.'
+                    : 'Kartları sürükleyip bırakarak sıralayabilirsin.'}
                 </p>
               )}
             </div>
+
+            <ProfileArtworkCollections
+              username={username}
+              userId={profile?.id}
+              isOwner={isOwnProfile}
+              artworks={sortedProfileArtworks}
+              selectedCollectionId={selectedArtworkCollectionId}
+              onSelectionChange={handleArtworkCollectionSelect}
+            />
+
             <ProfileArtworksGrid
               username={username}
-              artworks={sortedProfileArtworks}
+              artworks={visibleProfileArtworks}
               userId={profile?.id}
-              showColorPalette={false}
-              enableReorder={enableArtworksDrag}
+              showColorPalette
+              enableReorder={enableArtworksDrag && !selectedArtworkCollectionId}
               onReorder={handleArtworksReorder}
+              emptyTitle={selectedArtworkCollectionId ? 'Bu koleksiyonda eser yok' : undefined}
+              emptyDescription={selectedArtworkCollectionId ? 'Bu seçkide henüz eser bulunmuyor.' : undefined}
+              onCreateArtwork={() => {
+                setPostType('artwork')
+                setShowCreateModal(true)
+              }}
             />
           </div>
         ) : activeTab === 'artworks' && !canShowProfileArtworks ? (
@@ -1579,6 +1740,31 @@ function ProfileContent() {
               </p>
             </div>
           )
+        ) : activeTab === 'exhibition' ? (
+          !profile.canViewPosts && profile.isPrivate && !profile.isOwnProfile ? (
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-8 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/60">
+                <Lock size={22} className="text-gray-400 dark:text-gray-500" />
+              </div>
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                Sergi gizli
+              </h3>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                Bu hesabın sergisini görmek için takip isteği gönderebilirsiniz.
+              </p>
+            </div>
+          ) : (
+            <ProfileExhibitionTour
+              username={username}
+              exhibitionName={profile.exhibitionName}
+              artworks={sortedProfileArtworks}
+              isOwnProfile={isOwnProfile}
+              onCreateArtwork={() => {
+                setPostType('artwork')
+                setShowCreateModal(true)
+              }}
+            />
+          )
         ) : !profile.canViewPosts && profile.isPrivate && !profile.isOwnProfile ? (
           <div className="text-center py-12 border border-gray-100 dark:border-gray-900 rounded-2xl bg-white dark:bg-gray-950 transition-colors shadow-sm">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
@@ -1656,6 +1842,7 @@ function ProfileContent() {
                           {post.media[0].type === 'video' ? (
                             <video
                               src={resolveImageUrl(post.media[0].url)}
+                              poster={post.media[0].thumbnailUrl ? resolveImageUrl(post.media[0].thumbnailUrl) : undefined}
                               className="w-full h-full object-cover rounded-xl group-hover:scale-105 transition-transform duration-300"
                               muted
                             />
@@ -1930,13 +2117,6 @@ function ProfileContent() {
       {zoomImage && (
         <ZoomModal src={zoomImage} onClose={() => setZoomImage(null)} />
       )}
-
-      {/* 3D Sergi Turu */}
-      <ArtGallery3D
-        artworks={profileArtworksBase}
-        isOpen={galleryOpen}
-        onClose={() => setGalleryOpen(false)}
-      />
     </>
   )
 }
@@ -1950,4 +2130,3 @@ export default function ProfilePage() {
     </AuthGuard>
   )
 }
-

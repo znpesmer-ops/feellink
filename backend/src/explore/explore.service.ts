@@ -84,8 +84,8 @@ export class ExploreService {
     console.log('🔍 [EXPLORE] getExplorePosts called:', { userId, limit, cursor });
     
     // ✅ BASİT MANTIK: HERKESİN POSTLARINI GÖSTER!
-    // Sadece isDeleted: false olan postlar
-    // Kendi postlarını hariç tut (userId varsa)
+    // Sadece isDeleted: false olan postlar. Kendi postlarını da dahil ediyoruz;
+    // küçük veri setlerinde keşfet boş kalmasın.
     
     const where: any = {
       isDeleted: false, // 🗑️ Sadece silinmemiş postları göster
@@ -96,11 +96,6 @@ export class ExploreService {
       where.id = { lt: cursor };
     }
     
-    // Kendi postlarını hariç tut (userId varsa)
-    if (userId) {
-      where.userId = { not: userId };
-    }
-
     console.log('🔍 [EXPLORE] BASİT Query where:', JSON.stringify(where, null, 2));
     
     const posts = await this.prisma.post.findMany({
@@ -129,6 +124,7 @@ export class ExploreService {
               select: {
                 username: true,
                 fullName: true,
+                avatar: true,
               },
             },
           },
@@ -220,6 +216,8 @@ export class ExploreService {
                 createdAt: c.createdAt,
                 user: {
                   username: c.user.username || c.user.fullName || 'Kullanıcı',
+                  fullName: c.user.fullName || null,
+                  avatar: this.transformAvatarUrl(c.user.avatar || null),
                 },
               }))
           : [],
@@ -340,4 +338,3 @@ export class ExploreService {
     };
   }
 }
-

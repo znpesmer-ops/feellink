@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Line, Bar } from "react-chartjs-2";
+import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -16,7 +16,24 @@ import {
   Legend,
   Filler,
 } from "chart.js";
-import { Eye, MessageCircle, Users, Loader2, TrendingUp, Ticket, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Activity,
+  Award,
+  BarChart3,
+  Bookmark,
+  CalendarDays,
+  ChevronDown,
+  ChevronUp,
+  Compass,
+  Eye,
+  Loader2,
+  MessageCircle,
+  Palette,
+  Sparkles,
+  Ticket,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import api from "@/lib/api";
 // RightSidebar artık sadece ana sayfada görünüyor, burada gerek yok
 import { useAuthStore } from "@/lib/store";
@@ -155,6 +172,113 @@ function BlurGuard({ isPro, children }: BlurGuardProps) {
   );
 }
 
+const analyticsPanelClass =
+  "relative overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/92 p-5 shadow-[0_22px_70px_rgba(15,23,42,0.08)] backdrop-blur-2xl dark:border-white/10 dark:bg-[#111824]/84 dark:shadow-black/24 sm:p-6";
+
+const analyticsSubPanelClass =
+  "rounded-2xl border border-slate-200/80 bg-slate-50/85 p-4 text-slate-800 transition hover:border-orange-300/45 hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-slate-200 dark:hover:border-orange-300/30 dark:hover:bg-white/[0.07]";
+
+function AnalyticsCard({
+  title,
+  subtitle,
+  icon: Icon,
+  children,
+  accent = "orange",
+  className = "",
+}: {
+  title: string;
+  subtitle?: string;
+  icon: typeof TrendingUp;
+  children: React.ReactNode;
+  accent?: "orange" | "blue" | "green";
+  className?: string;
+}) {
+  const accentClass =
+    accent === "blue"
+      ? "border-blue-300/30 bg-blue-500/10 text-blue-600 dark:text-blue-200"
+      : accent === "green"
+      ? "border-emerald-300/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-200"
+      : "border-orange-300/30 bg-orange-500/10 text-orange-600 dark:text-orange-200";
+
+  return (
+    <section className={`${analyticsPanelClass} ${className}`}>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(249,115,22,0.12),transparent_34%),radial-gradient(circle_at_94%_12%,rgba(59,130,246,0.10),transparent_30%)] dark:bg-[radial-gradient(circle_at_12%_0%,rgba(249,115,22,0.18),transparent_34%),radial-gradient(circle_at_94%_12%,rgba(59,130,246,0.14),transparent_30%)]" />
+      <div className="relative">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${accentClass}`}>
+                <Icon className="h-5 w-5" />
+              </span>
+              <h3 className="text-base font-black text-slate-950 dark:text-white">{title}</h3>
+            </div>
+            {subtitle && (
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">{subtitle}</p>
+            )}
+          </div>
+        </div>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  icon: Icon,
+  tone = "orange",
+}: {
+  label: string;
+  value: string | number;
+  icon: typeof TrendingUp;
+  tone?: "orange" | "blue" | "green" | "slate";
+}) {
+  const toneClass =
+    tone === "blue"
+      ? "from-blue-500/18 to-sky-400/5 text-blue-600 dark:text-blue-200"
+      : tone === "green"
+      ? "from-emerald-500/16 to-teal-400/5 text-emerald-600 dark:text-emerald-200"
+      : tone === "slate"
+      ? "from-slate-500/12 to-slate-400/5 text-slate-700 dark:text-slate-200"
+      : "from-orange-500/18 to-amber-400/5 text-orange-600 dark:text-orange-200";
+
+  return (
+    <div className="relative overflow-hidden rounded-[24px] border border-slate-200/80 bg-white/86 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.07)] dark:border-white/10 dark:bg-white/[0.055]">
+      <div className={`absolute inset-0 bg-gradient-to-br ${toneClass}`} />
+      <div className="relative flex items-center justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{label}</p>
+          <p className="mt-2 text-2xl font-black text-slate-950 dark:text-white">{value}</p>
+        </div>
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-current/15 bg-white/65 dark:bg-slate-950/35">
+          <Icon className="h-5 w-5" />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: typeof TrendingUp;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[24px] border border-dashed border-slate-300/80 bg-slate-50/60 px-6 py-10 text-center dark:border-white/12 dark:bg-white/[0.035]">
+      <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-orange-300/25 bg-orange-500/10 text-orange-600 dark:text-orange-200">
+        <Icon className="h-6 w-6" />
+      </span>
+      <p className="mt-4 text-sm font-black text-slate-900 dark:text-white">{title}</p>
+      <p className="mt-2 max-w-sm text-sm leading-6 text-slate-600 dark:text-slate-400">{description}</p>
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
   const router = useRouter();
   const { user, capabilities, accessToken } = useAuthStore();
@@ -173,6 +297,7 @@ export default function AnalyticsPage() {
   const [sourceDistribution, setSourceDistribution] = useState<any>(null);
   const [comparison, setComparison] = useState<any>(null);
   const [lowEngagement, setLowEngagement] = useState<any>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const resolveAvatarUrl = (avatar?: string | null) => {
     if (!avatar || avatar.trim() === "") {
@@ -255,6 +380,26 @@ export default function AnalyticsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    const syncTheme = () => {
+      if (typeof window !== "undefined") {
+        setIsDarkMode(document.documentElement.classList.contains("dark"));
+      }
+    };
+
+    syncTheme();
+
+    if (typeof window === "undefined") return;
+
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   // Debug: Log user role
   useEffect(() => {
     if (isHydrated && user && capabilities) {
@@ -300,7 +445,7 @@ export default function AnalyticsPage() {
         const [visitsRes, wordsRes, usersRes, eventsRes, colorPaletteRes, topPerformingRes, saveAnalyticsRes, sourceRes, comparisonRes, lowEngagementRes] = await Promise.all([
           api.get(`/analytics/visits?range=${dateRange}`).catch(handle401),
           api.get("/analytics/words").catch(handle401),
-          api.get("/analytics/top-users").catch(handle401),
+          api.get("/analytics/top-users?range=7d").catch(handle401),
           api.get("/analytics/event-stats").catch(handle401),
           api.get("/analytics/color-palette").catch(() => ({ data: [] })), // Renk paleti yoksa boş array
           api.get(`/analytics/top-performing?range=${dateRange}`).catch(() => ({ data: null })),
@@ -433,18 +578,20 @@ export default function AnalyticsPage() {
     const socket = initSocket(accessToken);
 
     // Ziyaretçi güncelleme event'ini dinle
-    const handler = (visitorsData: TopUser[] | { users?: TopUser[] }) => {
-      // 🔒 GÜVENLİ ARRAY NORMALİZASYONU
-      const safeVisitorsData = Array.isArray(visitorsData)
-        ? visitorsData
-        : visitorsData?.users ?? [];
-      
-      // 🚫 Yedek güvenlik katmanı: Kendini listeye dahil etme
-      const filteredVisitors = safeVisitorsData.filter(
-        (v: TopUser) => v.username !== user?.username
-      );
-      setTopUsers(filteredVisitors);
-      console.log('🏆 Visitor list updated:', filteredVisitors);
+    const handler = async () => {
+      try {
+        const response = await api.get('/analytics/top-users?range=7d');
+        const visitorsData = response?.data;
+        const safeVisitorsData = Array.isArray(visitorsData)
+          ? visitorsData
+          : visitorsData?.users ?? [];
+        const filteredVisitors = safeVisitorsData.filter(
+          (v: TopUser) => v.username !== user?.username
+        );
+        setTopUsers(filteredVisitors);
+      } catch {
+        // İlk yüklenen güvenilir listeyi koru.
+      }
     };
 
     socket.on(`visitor:update:${user.id}`, handler);
@@ -532,8 +679,7 @@ export default function AnalyticsPage() {
     );
   }
 
-  // Dark mode detection
-  const isDark = typeof window !== "undefined" && document.documentElement.classList.contains("dark");
+  const isDark = isDarkMode;
 
   // Chart color constants - Feellink corporate colors
   const chartColorPrimary = "#1E88E5"; // Mavi - ana renk
@@ -561,19 +707,6 @@ export default function AnalyticsPage() {
         pointBorderWidth: 2,
         pointRadius: 4,
         pointHoverRadius: 6,
-      },
-    ],
-  };
-
-  const wordsChartData = {
-    labels: words.slice(0, 15).map((w) => w.word),
-    datasets: [
-      {
-        label: "Kullanım Sayısı",
-        data: words.slice(0, 15).map((w) => w.count),
-        backgroundColor: chartColorPrimary, // Mavi bar
-        borderRadius: 8,
-        borderSkipped: false,
       },
     ],
   };
@@ -648,604 +781,513 @@ export default function AnalyticsPage() {
     },
   };
 
+  const periodLabel =
+    dateRange === "today" ? "Bugün" : dateRange === "7d" ? "Son 7 gün" : "Son 30 gün";
+
+  const totalInteractions = finalSafeVisits.reduce((sum, visit) => sum + (Number(visit.count) || 0), 0);
+  const peakInteraction = finalSafeVisits.reduce(
+    (max, visit) => Math.max(max, Number(visit.count) || 0),
+    0
+  );
+  const totalTickets = eventStats.reduce((sum, event) => sum + (Number(event.ticketCount) || 0), 0);
+  const totalComments = eventStats.reduce((sum, event) => sum + (Number(event.commentCount) || 0), 0);
+  const activeVisitorsCount = Array.isArray(topUsers) ? topUsers.length : 0;
+  const totalSaves = saveAnalytics?.totalSaves ?? 0;
+
   return (
-    <div className="w-full px-6 py-4">
-      {/* 🔥 KRİTİK: Geniş container - tam ekran genişliği */}
-      <div className="max-w-7xl mx-auto">
-        {/* Başlık */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-3xl font-bold text-[#FF8A00] flex items-center gap-3">
-              <TrendingUp className="w-8 h-8" />
-              Analizlerim
-            </h1>
-            {/* Zaman Kırılımı Toggle */}
-            <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-              {(['today', '7d', '30d'] as const).map((range) => (
+    <div className="w-full px-4 py-6 text-slate-900 dark:text-slate-100 sm:px-6">
+      <div className="mx-auto max-w-[1180px]">
+        <section className="relative overflow-hidden rounded-[34px] border border-slate-200/80 bg-white/94 p-6 shadow-[0_28px_90px_rgba(15,23,42,0.10)] backdrop-blur-2xl dark:border-white/10 dark:bg-[#101723]/88 dark:shadow-black/30 sm:p-8">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_8%_0%,rgba(249,115,22,0.18),transparent_34%),radial-gradient(circle_at_86%_14%,rgba(59,130,246,0.13),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.78),transparent_44%)] dark:bg-[radial-gradient(circle_at_8%_0%,rgba(249,115,22,0.22),transparent_34%),radial-gradient(circle_at_86%_14%,rgba(59,130,246,0.17),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.07),transparent_44%)]" />
+          <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-orange-300/65 to-transparent" />
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-orange-300/30 bg-orange-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">
+                <Sparkles className="h-3.5 w-3.5" />
+                İçerik performans laboratuvarı
+              </div>
+              <h1 className="mt-4 flex items-center gap-3 text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl">
+                <TrendingUp className="h-9 w-9 text-brand-orange" />
+                Analizlerim
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+                İçeriklerin etkileşimini, renk hafızasını, ziyaretçi hareketini ve kaydedilme etkisini tek ekranda takip et.
+              </p>
+            </div>
+
+            <div className="flex w-full items-center rounded-[22px] border border-slate-200/80 bg-slate-50/80 p-1 shadow-inner shadow-white/60 dark:border-white/10 dark:bg-white/[0.055] dark:shadow-black/20 sm:w-auto">
+              {(["today", "7d", "30d"] as const).map((range) => (
                 <button
                   key={range}
                   onClick={() => setDateRange(range)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  className={`h-10 flex-1 rounded-[18px] px-4 text-sm font-black transition sm:flex-none ${
                     dateRange === range
-                      ? 'bg-[#FF8A00] text-white'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                      ? "bg-brand-orange text-white shadow-lg shadow-orange-500/22"
+                      : "text-slate-600 hover:bg-white hover:text-slate-950 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
                   }`}
                 >
-                  {range === 'today' ? 'Bugün' : range === '7d' ? '7g' : '30g'}
+                  {range === "today" ? "Bugün" : range === "7d" ? "7g" : "30g"}
                 </button>
               ))}
             </div>
           </div>
-          <p className="text-gray-500 dark:text-gray-400">
-            İçeriğinizin performansını ve etkileşimlerini takip edin
-          </p>
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-            Ayrıntılı grafikler, renk analizi, etkinlik katılım istatistikleri ve en
-            çok etkileşim aldığınız içerikler.
-          </p>
+        </section>
+
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+          <MetricCard label="Etkileşim" value={totalInteractions} icon={Activity} tone="blue" />
+          <MetricCard label="Zirve Nokta" value={peakInteraction} icon={BarChart3} tone="orange" />
+          <MetricCard label="7 Günlük Ziyaretçi" value={activeVisitorsCount} icon={Users} tone="green" />
+          <MetricCard label="Kaydedilme" value={totalSaves} icon={Bookmark} tone="slate" />
+          <MetricCard label="Bilet" value={totalTickets} icon={Ticket} tone="blue" />
+          <MetricCard label="Yorum" value={totalComments} icon={MessageCircle} tone="orange" />
         </div>
 
-        {/* ---- ANALİZ KARTLARI GRID ---- */}
-        {/* 🔥 KRİTİK: Responsive 3 kolonlu grid - ferah görünüm */}
         <BlurGuard isPro={pro}>
-          <div className="w-full mt-10 grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-8">
-          {/* Etkileşim Trendi */}
-          <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/40 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-[#FF8A00] font-semibold">
-                Etkileşim Trendi
-                {dateRange === 'today' && ' (Bugün)'}
-                {dateRange === '7d' && ' (Son 7 Gün)'}
-                {dateRange === '30d' && ' (Son 30 Gün)'}
-              </h3>
-            </div>
-            <div className="h-[300px]">
-              <Line data={visitsChartData} options={lineChartOptions} />
-            </div>
-            {comparison && (
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {comparison.likes.change > 0 ? '↑' : comparison.likes.change < 0 ? '↓' : '→'} 
-                  {' '}Beğeni: {comparison.likes.change > 0 ? '+' : ''}{comparison.likes.change}% (geçen döneme göre)
-                </p>
+          <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <AnalyticsCard
+              title="Etkileşim Trendi"
+              subtitle={`${periodLabel} boyunca gelen etkileşimlerin yumuşak hareketi.`}
+              icon={Activity}
+              accent="blue"
+              className="lg:col-span-2"
+            >
+              <div className="h-[320px] rounded-[24px] border border-slate-200/80 bg-slate-50/70 p-3 dark:border-white/10 dark:bg-slate-950/25">
+                <Line data={visitsChartData} options={lineChartOptions} />
               </div>
-            )}
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 italic">
-              {dateRange === 'today' 
-                ? 'Günlük etkileşimleriniz saatlik olarak gösterilmektedir.'
-                : 'Bu tür içerikler daha çok etkileşim alıyor.'}
-            </p>
-          </div>
-
-          {/* En Çok Kullanılan Kelimeler */}
-          <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/40 shadow-sm">
-            <h3 className="text-[#FF8A00] font-semibold mb-4">En Çok Kullanılan Kelimeler</h3>
-            <KeywordsChart data={words} />
-          </div>
-
-          {/* En Aktif Ziyaretçiler */}
-          <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-[#1E88E5] shadow-sm">
-            <h3 className="text-[#FF8A00] font-semibold mb-4">En Aktif Ziyaretçiler</h3>
-            <div className="space-y-3">
-              {!Array.isArray(topUsers) || topUsers.length === 0 ? (
-                <p className="text-center text-gray-500 dark:text-gray-400 py-8">
-                  Henüz aktif ziyaretçi bulunmuyor
-                </p>
-              ) : (
-                topUsers.map((u, index) => (
-                  <Link
-                    key={u.username}
-                    href={`/profile/${u.username}`}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-[#1E88E5] hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer hover:opacity-90"
-                  >
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#FF8A00]/10 dark:bg-[#FF8A00]/20 text-[#FF8A00] font-bold text-sm">
-                      {index + 1}
-                    </div>
-                    <img
-                      src={resolveAvatarUrl(u.avatar)}
-                      alt={u.username}
-                      className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = DEFAULT_ANALYTICS_AVATAR;
-                      }}
-                    />
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900 dark:text-gray-100">
-                        {u.fullName || u.username}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        @{u.username}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-[#1E88E5]">{u.activityCount}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        etkileşim
-                      </p>
-                    </div>
-                  </Link>
-                ))
+              {comparison && (
+                <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-3 dark:border-white/10 dark:bg-white/[0.045]">
+                  <p className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                    {comparison.likes.change > 0 ? "Yükseliş" : comparison.likes.change < 0 ? "Düşüş" : "Denge"}:
+                    {" "}Beğeni {comparison.likes.change > 0 ? "+" : ""}{comparison.likes.change}% önceki döneme göre.
+                  </p>
+                </div>
               )}
-            </div>
-          </div>
+            </AnalyticsCard>
 
-          {/* Etkinlik Katılım Analizi - Kısa Özet */}
-          {eventStats.length > 0 && (
-            <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/40 shadow-sm">
-              <h3 className="text-[#FF8A00] font-semibold mb-4">Etkinlik Katılım Analizi</h3>
-              <div className="space-y-4">
-                {eventStats.slice(0, 3).map((event) => (
-                  <div
-                    key={event.id}
-                    className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border-t-4 border-[#1E88E5] border-l border-r border-b border-gray-200 dark:border-gray-700/40"
-                  >
-                    <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                      {event.title}
-                    </h4>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">
-                        <span className="font-bold text-[#1E88E5]">{event.ticketCount}</span> / {event.totalCapacity} bilet
-                      </span>
-                      <span className="text-gray-600 dark:text-gray-400">
-                        <span className="font-semibold">{event.commentCount}</span> yorum
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+            <AnalyticsCard
+              title="Kelime Haritası"
+              subtitle="Paylaşımlarında öne çıkan kavramların yoğunluk çizgisi."
+              icon={BarChart3}
+            >
+              <KeywordsChart data={words} />
+            </AnalyticsCard>
 
-          {/* Renk Eşleşmeleri - Sadece artwork'e sahip kullanıcılar için */}
-          {user?.id && (
-            <ColorMatchesCard userId={user.id} />
-          )}
-
-          {/* Sana En Yakın Renklerle Eşleşen Kişiler */}
-          <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/40 shadow-sm">
-            <h3 className="text-[#FF8A00] font-semibold mb-4">Sana En Yakın Renklerle Eşleşen Kişiler</h3>
-
-            {isLoadingColorMatches ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-[#FF8A00]" />
-              </div>
-            ) : colorMatchesError ? (
-              <p className="text-sm opacity-60 text-gray-400 dark:text-gray-500">
-                Renk eşleşmeleri yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.
-              </p>
-            ) : !colorMatches || colorMatches.length === 0 ? (
-              <p className="text-sm opacity-60 text-gray-400 dark:text-gray-500">
-                Yeterli renk verisi bulunamadı.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {Array.isArray(colorMatches) && colorMatches.length > 0 ? colorMatches.map((match: any) => (
-                  <div
-                    key={match.userId}
-                    className="flex items-center justify-between bg-gray-50 dark:bg-[#161616] p-3 rounded-lg border border-gray-200 dark:border-[#222] hover:bg-gray-100 dark:hover:bg-[#1a1a1a] transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={resolveAvatarUrl(match.avatar)}
-                        alt={match.username}
-                        className="w-10 h-10 rounded-full border border-gray-300 dark:border-[#333] object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = DEFAULT_ANALYTICS_AVATAR;
-                        }}
-                      />
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-gray-100">
-                          @{match.username}
+            <AnalyticsCard
+              title="Son 7 Gün Profil Ziyaretçileri"
+              subtitle="Profilini son 7 günde ziyaret eden hesaplar."
+              icon={Users}
+              accent="blue"
+            >
+              <div className="space-y-3">
+                {!Array.isArray(topUsers) || topUsers.length === 0 ? (
+                  <EmptyState
+                    icon={Users}
+                    title="Son 7 günde ziyaretçi yok"
+                    description="Yeni profil ziyaretleri burada görünecek."
+                  />
+                ) : (
+                  topUsers.map((visitor, index) => (
+                    <Link
+                      key={visitor.username}
+                      href={`/profile/${visitor.username}`}
+                      className={analyticsSubPanelClass}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-500/10 text-sm font-black text-orange-700 dark:text-orange-200">
+                          {index + 1}
                         </div>
-                        {match.commonColors && match.commonColors.length > 0 && (
-                          <div className="flex gap-1 mt-1">
-                            {match.commonColors.slice(0, 3).map((color: string, idx: number) => (
-                              <div
-                                key={idx}
-                                className="w-4 h-4 rounded border border-gray-300 dark:border-gray-600"
-                                style={{ backgroundColor: color }}
-                                title={color}
-                              />
-                            ))}
-                          </div>
-                        )}
+                        <img
+                          src={resolveAvatarUrl(visitor.avatar)}
+                          alt={visitor.username}
+                          className="h-11 w-11 rounded-2xl border border-slate-200 object-cover dark:border-white/10"
+                          onError={(event) => {
+                            (event.target as HTMLImageElement).src = DEFAULT_ANALYTICS_AVATAR;
+                          }}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-black text-slate-950 dark:text-white">
+                            {visitor.fullName || visitor.username}
+                          </p>
+                          <p className="truncate text-xs text-slate-500 dark:text-slate-400">@{visitor.username}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-black text-blue-600 dark:text-blue-300">{visitor.activityCount}</p>
+                          <p className="text-[11px] font-bold text-slate-500 dark:text-slate-500">ziyaret</p>
+                        </div>
+                      </div>
+                    </Link>
+                  ))
+                )}
+              </div>
+            </AnalyticsCard>
+
+            <AnalyticsCard
+              title="Etkinlik Özeti"
+              subtitle="Bilet satışları ve yorum yoğunluğu için hızlı kontrol."
+              icon={CalendarDays}
+              accent="green"
+            >
+              {eventStats.length > 0 ? (
+                <div className="space-y-3">
+                  {eventStats.slice(0, 3).map((event) => (
+                    <div key={event.id} className={analyticsSubPanelClass}>
+                      <h4 className="truncate text-sm font-black text-slate-950 dark:text-white">{event.title}</h4>
+                      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Bilet</p>
+                          <p className="font-black text-blue-600 dark:text-blue-300">{event.ticketCount} / {event.totalCapacity}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Yorum</p>
+                          <p className="font-black text-orange-600 dark:text-orange-200">{event.commentCount}</p>
+                        </div>
                       </div>
                     </div>
-
-                    <div className="text-[#1E88E5] font-semibold text-sm">
-                      %{match.similarity}
-                    </div>
-                  </div>
-                )) : (
-                  <p className="text-center text-gray-500 dark:text-gray-400 py-4">
-                    Henüz renk eşleşmesi bulunmuyor
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Top Performing Content */}
-          {topPerforming && (
-            <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/40 shadow-sm">
-              <h3 className="text-[#FF8A00] font-semibold mb-4">Bu Dönemin Öne Çıkanları</h3>
-              <div className="space-y-4">
-                {topPerforming.mostViewed && (
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/40">
-                    {topPerforming.mostViewed.thumbnail && (
-                      <img
-                        src={topPerforming.mostViewed.thumbnail}
-                        alt={topPerforming.mostViewed.title}
-                        className="w-16 h-16 rounded-lg object-cover"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">
-                        {topPerforming.mostViewed.title}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        ↑ En çok görüntülenen
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {topPerforming.mostCommented && (
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/40">
-                    {topPerforming.mostCommented.thumbnail && (
-                      <img
-                        src={topPerforming.mostCommented.thumbnail}
-                        alt={topPerforming.mostCommented.title}
-                        className="w-16 h-16 rounded-lg object-cover"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">
-                        {topPerforming.mostCommented.title}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        ↑ En çok yorum alan
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {topPerforming.mostSaved && (
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/40">
-                    {topPerforming.mostSaved.thumbnail && (
-                      <img
-                        src={topPerforming.mostSaved.thumbnail}
-                        alt={topPerforming.mostSaved.title}
-                        className="w-16 h-16 rounded-lg object-cover"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">
-                        {topPerforming.mostSaved.title}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        ↑ En çok kaydedilen
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <p className="mt-4 text-xs text-gray-500 dark:text-gray-400 italic">
-                Yorum alan içerikler daha uzun süre öne çıkıyor.
-              </p>
-            </div>
-          )}
-
-          {/* Kaydedilme Analizi */}
-          {saveAnalytics && (
-            <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/40 shadow-sm">
-              <h3 className="text-[#FF8A00] font-semibold mb-4">Kaydedilme Etkisi</h3>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-2xl font-bold text-[#1E88E5]">{saveAnalytics.totalSaves}</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Toplam Kaydedilme</p>
+                  ))}
                 </div>
-                <div>
-                  <p className="text-2xl font-bold text-[#FF8A00]">%{saveAnalytics.saveRate}</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Kaydetme Oranı</p>
+              ) : (
+                <EmptyState
+                  icon={Ticket}
+                  title="Etkinlik verisi bekleniyor"
+                  description="Etkinlik ve bilet hareketi başladığında burada net bir özet oluşacak."
+                />
+              )}
+            </AnalyticsCard>
+
+            {user?.id && <ColorMatchesCard userId={user.id} />}
+
+            <AnalyticsCard
+              title="Renk Yakınlıkları"
+              subtitle="Paletine en yakın kullanıcılar ve ortak renk ipuçları."
+              icon={Palette}
+            >
+              {isLoadingColorMatches ? (
+                <div className="flex min-h-[220px] items-center justify-center">
+                  <Loader2 className="h-7 w-7 animate-spin text-brand-orange" />
+                </div>
+              ) : colorMatchesError ? (
+                <EmptyState
+                  icon={Palette}
+                  title="Renk eşleşmeleri yüklenemedi"
+                  description="Bu bölüm daha sonra yeniden denenebilir; diğer analizler etkilenmez."
+                />
+              ) : !colorMatches || colorMatches.length === 0 ? (
+                <EmptyState
+                  icon={Palette}
+                  title="Yeterli renk verisi yok"
+                  description="Renk paleti oluşan eserler arttıkça benzer profiller burada görünecek."
+                />
+              ) : (
+                <div className="space-y-3">
+                  {Array.isArray(colorMatches) && colorMatches.map((match: any) => (
+                    <div key={match.userId} className={analyticsSubPanelClass}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <img
+                            src={resolveAvatarUrl(match.avatar)}
+                            alt={match.username}
+                            className="h-11 w-11 rounded-2xl border border-slate-200 object-cover dark:border-white/10"
+                            onError={(event) => {
+                              (event.target as HTMLImageElement).src = DEFAULT_ANALYTICS_AVATAR;
+                            }}
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black text-slate-950 dark:text-white">@{match.username}</p>
+                            {match.commonColors && match.commonColors.length > 0 && (
+                              <div className="mt-2 flex gap-1">
+                                {match.commonColors.slice(0, 4).map((color: string, index: number) => (
+                                  <span
+                                    key={`${color}-${index}`}
+                                    className="h-4 w-4 rounded-full border border-white shadow-sm"
+                                    style={{ backgroundColor: color }}
+                                    title={color}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <p className="shrink-0 text-sm font-black text-blue-600 dark:text-blue-300">%{match.similarity}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </AnalyticsCard>
+
+            {topPerforming && (
+              <AnalyticsCard
+                title="Bu Dönemin Öne Çıkanları"
+                subtitle="En çok iz bırakan içeriklerini hızlıca gör."
+                icon={Award}
+              >
+                <div className="space-y-3">
+                  {[
+                    { item: topPerforming.mostViewed, label: "En çok görüntülenen", icon: Eye },
+                    { item: topPerforming.mostCommented, label: "En çok yorum alan", icon: MessageCircle },
+                    { item: topPerforming.mostSaved, label: "En çok kaydedilen", icon: Bookmark },
+                  ].map(({ item, label, icon: ItemIcon }) => item && (
+                    <div key={label} className={analyticsSubPanelClass}>
+                      <div className="flex items-center gap-3">
+                        {item.thumbnail ? (
+                          <img src={item.thumbnail} alt={item.title} className="h-16 w-16 rounded-2xl object-cover" />
+                        ) : (
+                          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-200">
+                            <ItemIcon className="h-5 w-5" />
+                          </span>
+                        )}
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-black text-slate-950 dark:text-white">{item.title}</p>
+                          <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">{label}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </AnalyticsCard>
+            )}
+
+            {saveAnalytics && (
+              <AnalyticsCard
+                title="Kaydedilme Etkisi"
+                subtitle="İçeriklerinin uzun vadeli etkisini gösterir."
+                icon={Bookmark}
+                accent="blue"
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  <div className={analyticsSubPanelClass}>
+                    <p className="text-3xl font-black text-blue-600 dark:text-blue-300">{saveAnalytics.totalSaves}</p>
+                    <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Toplam kaydedilme</p>
+                  </div>
+                  <div className={analyticsSubPanelClass}>
+                    <p className="text-3xl font-black text-orange-600 dark:text-orange-200">%{saveAnalytics.saveRate}</p>
+                    <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Kaydetme oranı</p>
+                  </div>
                 </div>
                 {saveAnalytics.mostSaved && (
-                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
-                      En Çok Kaydedilen
-                    </p>
-                    <div className="flex items-center gap-3">
+                  <div className={`mt-3 ${analyticsSubPanelClass}`}>
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">En çok kaydedilen</p>
+                    <div className="mt-3 flex items-center gap-3">
                       {saveAnalytics.mostSaved.thumbnail && (
-                        <img
-                          src={saveAnalytics.mostSaved.thumbnail}
-                          alt={saveAnalytics.mostSaved.title}
-                          className="w-12 h-12 rounded-lg object-cover"
-                        />
+                        <img src={saveAnalytics.mostSaved.thumbnail} alt={saveAnalytics.mostSaved.title} className="h-12 w-12 rounded-2xl object-cover" />
                       )}
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {saveAnalytics.mostSaved.title}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {saveAnalytics.mostSaved.saves} kaydetme
-                        </p>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-slate-950 dark:text-white">{saveAnalytics.mostSaved.title}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{saveAnalytics.mostSaved.saves} kaydetme</p>
                       </div>
                     </div>
                   </div>
                 )}
+              </AnalyticsCard>
+            )}
+
+            {sourceDistribution && (
+              <AnalyticsCard
+                title="Keşfet Kaynak Dağılımı"
+                subtitle="Kitleye hangi kapıdan ulaştığını gösterir."
+                icon={Compass}
+                accent="green"
+              >
+                <div className="space-y-4">
+                  {[
+                    { key: "explore", label: "Keşfet", color: "bg-blue-500" },
+                    { key: "profile", label: "Profil", color: "bg-brand-orange" },
+                    { key: "home", label: "Ana Sayfa", color: "bg-slate-500" },
+                  ].map((source) => {
+                    const value = Number(sourceDistribution?.[source.key] ?? 0);
+                    return (
+                      <div key={source.key}>
+                        <div className="mb-1 flex items-center justify-between text-sm">
+                          <span className="font-bold text-slate-700 dark:text-slate-300">{source.label}</span>
+                          <span className="font-black text-slate-950 dark:text-white">%{value}</span>
+                        </div>
+                        <div className="h-2.5 rounded-full bg-slate-200 dark:bg-white/10">
+                          <div className={`h-2.5 rounded-full ${source.color}`} style={{ width: `${Math.min(100, value)}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </AnalyticsCard>
+            )}
+
+            {lowEngagement && lowEngagement.hasWarning && (
+              <div className="lg:col-span-2 rounded-[24px] border border-amber-300/30 bg-amber-50/90 p-4 text-sm font-bold text-amber-900 dark:bg-amber-500/10 dark:text-amber-100">
+                Son 14 günde daha az etkileşim alan {lowEngagement.count} içerik var. Küçük bir başlık ya da görsel yenileme iyi çalışabilir.
               </div>
-              <p className="mt-4 text-xs text-gray-500 dark:text-gray-400 italic">
-                Kaydedilen içerikler uzun vadeli etki gösterir.
-              </p>
-            </div>
-          )}
+            )}
 
-          {/* Keşfet Kaynak Dağılımı */}
-          {sourceDistribution && (
-            <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/40 shadow-sm">
-              <h3 className="text-[#FF8A00] font-semibold mb-4">Keşfet Kaynak Dağılımı</h3>
-              <div className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Keşfet</span>
-                    <span className="text-sm font-semibold text-[#1E88E5]">%{sourceDistribution.explore}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div
-                      className="bg-[#1E88E5] h-2 rounded-full"
-                      style={{ width: `${sourceDistribution.explore}%` }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Profil</span>
-                    <span className="text-sm font-semibold text-[#FF8A00]">%{sourceDistribution.profile}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div
-                      className="bg-[#FF8A00] h-2 rounded-full"
-                      style={{ width: `${sourceDistribution.profile}%` }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Ana Sayfa</span>
-                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">%{sourceDistribution.home}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div
-                      className="bg-gray-400 dark:bg-gray-500 h-2 rounded-full"
-                      style={{ width: `${sourceDistribution.home}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-              <p className="mt-4 text-xs text-gray-500 dark:text-gray-400 italic">
-                Keşfette görünürlük artıyor.
-              </p>
-            </div>
-          )}
+            {(() => {
+              const colorCount: Record<string, number> = {};
+              const postsWithColors = (posts || []).filter((post: any) => post.colorPalette && Array.isArray(post.colorPalette) && post.colorPalette.length > 0);
 
-          {/* Pasif Uyarı Sistemi */}
-          {lowEngagement && lowEngagement.hasWarning && (
-            <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border border-gray-300 dark:border-gray-600">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                ⚠️ Bazı içerikler son 14 günde daha az etkileşim alıyor ({lowEngagement.count} içerik).
-              </p>
-            </div>
-          )}
-
-          {/* 🎨 Renk Analizi Kartı — TOP COLORS CLOUD */}
-          {(() => {
-            // Tüm gönderilerden renkleri topla ve say
-            const colorCount: Record<string, number> = {};
-            const postsWithColors = (posts || []).filter((p: any) => p.colorPalette && Array.isArray(p.colorPalette) && p.colorPalette.length > 0);
-            
-            postsWithColors.forEach((p: any) => {
-              if (p.colorPalette && Array.isArray(p.colorPalette)) {
-                p.colorPalette.forEach((hex: string) => {
-                  if (hex && typeof hex === 'string') {
+              postsWithColors.forEach((post: any) => {
+                post.colorPalette.forEach((hex: string) => {
+                  if (hex && typeof hex === "string") {
                     colorCount[hex] = (colorCount[hex] || 0) + 1;
                   }
                 });
+              });
+
+              if (Object.keys(colorCount).length === 0 && colorPalette.length > 0) {
+                colorPalette.forEach((item) => {
+                  if (item.hex) {
+                    colorCount[item.hex] = (colorCount[item.hex] || 0) + (item.frequency || 1);
+                  }
+                });
               }
-            });
 
-            // En çok kullanılan renkleri sırala
-            const totalColorUsages = Object.values(colorCount).reduce((sum, count) => sum + count, 0);
-            const topColors = Object.entries(colorCount)
-              .map(([color, count]) => ({
-                color,
-                count,
-                percent: totalColorUsages > 0 ? (count / totalColorUsages) * 100 : 0,
-              }))
-              .sort((a, b) => b.count - a.count)
-              .slice(0, 12); // En çok kullanılan 12 renk
+              const totalColorUsages = Object.values(colorCount).reduce((sum, count) => sum + count, 0);
+              const topColors = Object.entries(colorCount)
+                .map(([color, count]) => ({
+                  color,
+                  count,
+                  percent: totalColorUsages > 0 ? (count / totalColorUsages) * 100 : 0,
+                }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 12);
 
-            return (
-              <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-[#1E88E5]/40 shadow-sm">
-                <h3 className="text-[#FF8A00] font-semibold mb-4">Renk Analizi</h3>
-
-                {topColors.length > 0 ? (
-                  <div className="flex flex-wrap gap-4">
-                    {topColors.map((c, i) => (
-                      <div key={i} className="flex flex-col items-center gap-1">
-                        <div
-                          style={{
-                            backgroundColor: c.color,
-                            width: 50,
-                            height: 50,
-                            borderRadius: 8,
-                            border: "2px solid rgba(255,255,255,0.2)",
-                            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                          }}
-                          title={c.color}
-                          className="transition-transform hover:scale-110 cursor-pointer"
-                        />
-                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 mt-1">
-                          {Math.round(c.percent)}%
-                        </span>
-                        <span className="text-xs opacity-60 text-gray-500 dark:text-gray-400 font-mono">
-                          {c.color}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-400 dark:text-gray-500 text-sm">Henüz renk analizi yapılmış eser bulunmuyor.</p>
-                )}
-              </div>
-            );
-          })()}
-          </div>
-
-          {/* 🎟️ Etkinlik Katılım Analizi - Accordion Yapısı */}
-          {/* 🔥 KRİTİK: Tam genişlik - grid dışında */}
-          <div className="bg-white dark:bg-[#1a1a1a]/70 border border-gray-200 dark:border-gray-700/40 rounded-2xl shadow-sm p-6 mt-6 w-full">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-[#FF8A00]/10 dark:bg-[#FF8A00]/20 rounded-lg">
-              <Ticket className="w-5 h-5 text-[#FF8A00]" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                Etkinlik Katılım Analizi
-              </h2>
-              <div className="h-[2px] w-20 bg-[#1E88E5] rounded-full mb-2" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Etkinliklerinizin bilet satışları ve yorum istatistikleri
-              </p>
-            </div>
-          </div>
-
-          {Array.isArray(eventStats) && eventStats.length > 0 ? (
-            <div className="space-y-3">
-              {eventStats.map((event) => (
-                <div
-                  key={event.id}
-                  className="border-t-4 border-[#1E88E5] border-l border-r border-b border-gray-200 dark:border-gray-700/40 rounded-xl overflow-hidden transition-all hover:border-[#FF8A00]/30"
+              return (
+                <AnalyticsCard
+                  title="Renk Analizi"
+                  subtitle="Eserlerinde tekrar eden paletleri ve ağırlıklarını gösterir."
+                  icon={Palette}
+                  accent="blue"
                 >
-                  {/* Accordion Header - Tıklanabilir */}
-                  <div
-                    onClick={() => setOpenEvent(openEvent === event.id ? null : event.id)}
-                    className="flex items-center justify-between p-4 cursor-pointer bg-gray-50 dark:bg-gray-800/30 hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-base text-gray-900 dark:text-gray-100 mb-1">
-                        {event.title}
-                      </h3>
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">
-                          <span className="font-bold text-[#1E88E5]">{event.ticketCount}</span> / {event.totalCapacity} bilet satıldı
-                        </span>
-                        <span className="text-gray-600 dark:text-gray-400">
-                          <span className="font-semibold">{event.commentCount}</span> yorum
-                        </span>
-                      </div>
-                    </div>
-                    <div className="ml-4">
-                      {openEvent === event.id ? (
-                        <ChevronUp className="w-5 h-5 text-[#FF8A00] transition-transform" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400 dark:text-gray-500 transition-transform" />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Accordion Content - Açılır Kısım */}
-                  <div
-                    className={`transition-all duration-500 ease-in-out overflow-hidden ${
-                      openEvent === event.id
-                        ? "max-h-[2000px] opacity-100"
-                        : "max-h-0 opacity-0"
-                    }`}
-                  >
-                    <div className="p-4 bg-white dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700/40">
-                      {/* Son alınan biletler */}
-                      {event.recentTickets.length > 0 && (
-                        <div className="mb-6">
-                          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wide">
-                            Son Alınan 5 Bilet
-                          </p>
-                          <div className="space-y-2">
-                            {event.recentTickets.map((ticket, i) => (
-                              <div
-                                key={i}
-                                className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700/40 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                              >
-                                <div className="flex items-center gap-3">
-                                  {ticket.avatar ? (
-                                    <img
-                                      src={resolveAvatarUrl(ticket.avatar)}
-                                      alt={ticket.username}
-                                      className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-gray-700"
-                                      onError={(e) => {
-                                        (e.target as HTMLImageElement).src = DEFAULT_ANALYTICS_AVATAR;
-                                      }}
-                                    />
-                                  ) : (
-                                    <div className="w-8 h-8 rounded-full bg-[#ff7b00]/10 dark:bg-[#ff7b00]/20 flex items-center justify-center text-[#ff7b00] font-bold text-xs">
-                                      {ticket.username.charAt(0).toUpperCase()}
-                                    </div>
-                                  )}
-                                  <span className="text-[#ff7b00] font-medium">
-                                    {ticket.fullName || ticket.username}
-                                  </span>
-                                </div>
-                                <span className="text-gray-500 dark:text-gray-400 text-xs">
-                                  {new Date(ticket.createdAt).toLocaleTimeString("tr-TR", {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                    day: "2-digit",
-                                    month: "short",
-                                  })}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
+                  {topColors.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                      {topColors.map((colorItem) => (
+                        <div key={colorItem.color} className="rounded-2xl border border-slate-200/80 bg-white/70 p-2 dark:border-white/10 dark:bg-white/[0.045]">
+                          <div
+                            className="h-14 rounded-xl shadow-inner"
+                            style={{ backgroundColor: colorItem.color }}
+                            title={colorItem.color}
+                          />
+                          <p className="mt-2 text-xs font-black text-slate-900 dark:text-white">{Math.round(colorItem.percent)}%</p>
+                          <p className="font-mono text-[10px] text-slate-500 dark:text-slate-500">{colorItem.color}</p>
                         </div>
-                      )}
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState
+                      icon={Palette}
+                      title="Renk analizi için veri yok"
+                      description="Renk paleti çıkarılan eserlerin arttıkça bu alan kendini dolduracak."
+                    />
+                  )}
+                </AnalyticsCard>
+              );
+            })()}
+          </div>
 
-                      {event.recentTickets.length === 0 && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 italic mb-6">
-                          Henüz bu etkinlik için bilet satışı gerçekleşmemiş.
-                        </p>
-                      )}
+          <AnalyticsCard
+            title="Etkinlik Katılım Analizi"
+            subtitle="Bilet hareketleri, son katılımcılar ve canlı satış grafikleri."
+            icon={Ticket}
+            className="mt-6"
+          >
+            {Array.isArray(eventStats) && eventStats.length > 0 ? (
+              <div className="space-y-3">
+                {eventStats.map((event) => (
+                  <div
+                    key={event.id}
+                    className="overflow-hidden rounded-[24px] border border-slate-200/80 bg-white/72 dark:border-white/10 dark:bg-white/[0.045]"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setOpenEvent(openEvent === event.id ? null : event.id)}
+                      className="flex w-full items-center justify-between gap-4 p-4 text-left transition hover:bg-slate-50 dark:hover:bg-white/[0.04]"
+                    >
+                      <div className="min-w-0">
+                        <h3 className="truncate text-base font-black text-slate-950 dark:text-white">{event.title}</h3>
+                        <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+                          <span className="font-bold text-slate-600 dark:text-slate-400">
+                            <span className="text-blue-600 dark:text-blue-300">{event.ticketCount}</span> / {event.totalCapacity} bilet
+                          </span>
+                          <span className="inline-flex items-center gap-1 font-bold text-slate-600 dark:text-slate-400">
+                            <MessageCircle className="h-4 w-4" />
+                            {event.commentCount} yorum
+                          </span>
+                        </div>
+                      </div>
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-brand-orange dark:border-white/10 dark:bg-slate-950/35">
+                        {openEvent === event.id ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                      </span>
+                    </button>
 
-                      {/* 🎨 Canlı Bilet Satış Grafiği */}
-                      <div className="mt-6">
+                    <div className={`overflow-hidden transition-all duration-500 ease-in-out ${openEvent === event.id ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}>
+                      <div className="border-t border-slate-200/80 p-4 dark:border-white/10">
+                        {event.recentTickets.length > 0 ? (
+                          <div>
+                            <p className="mb-3 text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Son alınan biletler</p>
+                            <div className="space-y-2">
+                              {event.recentTickets.map((ticket, index) => (
+                                <div key={`${ticket.username}-${index}`} className={analyticsSubPanelClass}>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="flex min-w-0 items-center gap-3">
+                                      {ticket.avatar ? (
+                                        <img
+                                          src={resolveAvatarUrl(ticket.avatar)}
+                                          alt={ticket.username}
+                                          className="h-9 w-9 rounded-2xl object-cover"
+                                          onError={(event) => {
+                                            (event.target as HTMLImageElement).src = DEFAULT_ANALYTICS_AVATAR;
+                                          }}
+                                        />
+                                      ) : (
+                                        <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-orange-500/10 text-xs font-black text-orange-700 dark:text-orange-200">
+                                          {ticket.username.charAt(0).toUpperCase()}
+                                        </span>
+                                      )}
+                                      <span className="truncate text-sm font-black text-slate-950 dark:text-white">{ticket.fullName || ticket.username}</span>
+                                    </div>
+                                    <span className="shrink-0 text-xs font-bold text-slate-500 dark:text-slate-400">
+                                      {new Date(ticket.createdAt).toLocaleTimeString("tr-TR", {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                        day: "2-digit",
+                                        month: "short",
+                                      })}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm font-bold text-slate-600 dark:text-slate-400">
+                            Henüz bu etkinlik için bilet satışı gerçekleşmemiş.
+                          </p>
+                        )}
+
                         <TicketChart eventId={event.id} initialTicketCount={event.ticketCount} />
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <Ticket className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-500 dark:text-gray-400">
-                Henüz etkinlik oluşturulmamış veya bilet satışı gerçekleşmemiş.
-              </p>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={Ticket}
+                title="Etkinlik analizi henüz boş"
+                description="Etkinlik oluşturulduğunda bilet satışları ve katılımcı hareketleri burada takip edilecek."
+              />
+            )}
+          </AnalyticsCard>
+
+          {Array.isArray(eventStats) && eventStats.length > 0 && (
+            <div className="mt-6">
+              <TopEventsChart
+                events={eventStats.map((event) => ({
+                  id: event.id,
+                  title: event.title,
+                  ticketCount: event.ticketCount,
+                }))}
+              />
             </div>
           )}
-        </div>
-
-        {/* 🎯 Top 5 En Çok Katılım Alan Etkinlikler Grafiği */}
-        {/* 🔥 KRİTİK: Tam genişlik - grid dışında */}
-        {Array.isArray(eventStats) && eventStats.length > 0 && (
-          <div className="w-full mt-6">
-            <TopEventsChart
-              events={eventStats.map((e) => ({
-                id: e.id,
-                title: e.title,
-                ticketCount: e.ticketCount,
-              }))}
-            />
-          </div>
-        )}
         </BlurGuard>
       </div>
     </div>
   );
 }
-

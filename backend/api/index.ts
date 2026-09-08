@@ -32,6 +32,29 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from '../src/app.module';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+const ALLOWED_WEB_ORIGINS = new Set([
+  'https://feellink.io',
+  'https://www.feellink.io',
+  'https://feellink.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:3001',
+]);
+
+function getAllowedWebOrigin(value?: string): string | null {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    const normalized = parsed.origin;
+    if (ALLOWED_WEB_ORIGINS.has(normalized)) return normalized;
+    if (/^feellink(?:-[a-z0-9-]+)*\.vercel\.app$/.test(parsed.hostname.toLowerCase())) {
+      return normalized;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 let cachedServer: any = null;
 
 async function bootstrapServer() {
@@ -51,6 +74,8 @@ async function bootstrapServer() {
       logger: ['error', 'warn', 'log'],
     });
 
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
     const logger = new Logger('Bootstrap');
 
     app.use(cookieParser());
@@ -66,14 +91,6 @@ async function bootstrapServer() {
     app.use(urlencoded({ limit: '50mb', extended: true }));
 
     // ✅ CORS configuration - feellink.io için explicit support
-    const allowedOrigins = [
-      'https://feellink.io',
-      'https://www.feellink.io',
-      'https://feellink.vercel.app',
-      'http://localhost:3000',
-      'http://localhost:3001',
-    ];
-
     app.enableCors({
       origin: (origin, callback) => {
         // ✅ Origin header yoksa (Postman, curl, etc.) izin ver
@@ -83,13 +100,7 @@ async function bootstrapServer() {
         }
         
         // ✅ Allowed origins listesinde varsa izin ver
-        if (allowedOrigins.some(allowed => origin.startsWith(allowed))) {
-          callback(null, true);
-          return;
-        }
-        
-        // ✅ Vercel preview deployments için wildcard
-        if (origin.includes('vercel.app')) {
+        if (getAllowedWebOrigin(origin)) {
           callback(null, true);
           return;
         }
@@ -163,18 +174,12 @@ async function bootstrapServer() {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // ✅ MANUEL CORS HEADERS (Vercel serverless için kritik)
-    const origin = req.headers.origin || req.headers.referer;
-    const allowedOrigins = [
-      'https://feellink.io',
-      'https://www.feellink.io',
-      'https://feellink.vercel.app',
-      'http://localhost:3000',
-      'http://localhost:3001',
-    ];
+    const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
+    const allowedOrigin = getAllowedWebOrigin(origin);
 
     // Origin kontrolü ve header set etme
-    if (origin && (allowedOrigins.some(allowed => origin.startsWith(allowed)) || origin.includes('vercel.app'))) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
+    if (allowedOrigin) {
+      res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');

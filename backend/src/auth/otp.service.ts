@@ -3,9 +3,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { createHash, randomInt } from 'crypto';
 import { OtpPurpose } from '@prisma/client';
 
-const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
+const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_ATTEMPTS = 5;
-const RESEND_COOLDOWN_SECONDS = 60;
+const RESEND_COOLDOWN_SECONDS = 15;
 
 export interface CreateOtpResult {
   code: string;

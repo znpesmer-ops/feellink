@@ -64,12 +64,13 @@ export default function TopEventsChart({ events }: TopEventsChartProps) {
 
   if (sortedEvents.length === 0) {
     return (
-      <div className="bg-white dark:bg-[#1a1a1a]/70 border border-gray-200 dark:border-gray-700/40 rounded-2xl shadow-sm p-6 mt-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+      <div className="relative overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/92 p-6 shadow-[0_22px_70px_rgba(15,23,42,0.08)] backdrop-blur-2xl dark:border-white/10 dark:bg-[#111824]/84">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(249,115,22,0.12),transparent_34%),radial-gradient(circle_at_94%_12%,rgba(59,130,246,0.10),transparent_30%)] dark:bg-[radial-gradient(circle_at_12%_0%,rgba(249,115,22,0.18),transparent_34%),radial-gradient(circle_at_94%_12%,rgba(59,130,246,0.14),transparent_30%)]" />
+        <h3 className="relative text-base font-black text-slate-950 dark:text-white mb-2">
           En Çok Katılım Alan Etkinlikler
         </h3>
-        <div className="h-[2px] w-20 bg-[#ff7b00] rounded-full mb-4" />
-        <p className="text-gray-500 dark:text-gray-400 text-sm">
+        <div className="relative h-[2px] w-20 bg-[#ff7b00] rounded-full mb-4" />
+        <p className="relative text-slate-600 dark:text-slate-400 text-sm">
           Henüz etkinlik verisi bulunmuyor.
         </p>
       </div>
@@ -171,15 +172,16 @@ export default function TopEventsChart({ events }: TopEventsChartProps) {
   };
 
   return (
-    <div className="bg-white dark:bg-[#1a1a1a]/70 border border-gray-200 dark:border-gray-700/40 rounded-2xl shadow-sm p-6 mt-6">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+    <div className="relative overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/92 p-6 shadow-[0_22px_70px_rgba(15,23,42,0.08)] backdrop-blur-2xl dark:border-white/10 dark:bg-[#111824]/84">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(249,115,22,0.12),transparent_34%),radial-gradient(circle_at_94%_12%,rgba(59,130,246,0.10),transparent_30%)] dark:bg-[radial-gradient(circle_at_12%_0%,rgba(249,115,22,0.18),transparent_34%),radial-gradient(circle_at_94%_12%,rgba(59,130,246,0.14),transparent_30%)]" />
+      <h3 className="relative text-base font-black text-slate-950 dark:text-white mb-2">
         En Çok Katılım Alan Etkinlikler
       </h3>
-      <div className="h-[2px] w-20 bg-[#ff7b00] rounded-full mb-6" />
-      <div className="h-64">
+      <div className="relative h-[2px] w-20 bg-[#ff7b00] rounded-full mb-6" />
+      <div className="relative h-64 rounded-[24px] border border-slate-200/80 bg-slate-50/70 p-3 dark:border-white/10 dark:bg-slate-950/25">
         <Bar ref={chartRef} data={data} options={options as any} />
       </div>
-      <p className="text-xs text-gray-500 dark:text-gray-400 mt-4 text-center">
+      <p className="relative text-xs text-slate-500 dark:text-slate-400 mt-4 text-center">
         Top {sortedEvents.length} etkinlik — toplam {sortedEvents.reduce((sum, e) => sum + e.ticketCount, 0)} bilet satışı
       </p>
     </div>

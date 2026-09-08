@@ -7,7 +7,23 @@ import Link from 'next/link'
 import api, { getApiErrorKind } from '@/lib/api'
 import { isAxiosError } from 'axios'
 import { useAuthStore } from '@/lib/store'
-import { Heart, MessageCircle, Bookmark, X, Send, Trash2, CornerUpRight, Pin, PinIcon, FolderPlus, MoreVertical } from 'lucide-react'
+import {
+  Heart,
+  MessageCircle,
+  Bookmark,
+  X,
+  Send,
+  Trash2,
+  CornerUpRight,
+  Pin,
+  PinIcon,
+  FolderPlus,
+  MoreVertical,
+  Sparkles,
+  Flag,
+  Image as ImageIcon,
+  CalendarDays,
+} from 'lucide-react'
 import MentionInput from './MentionInput'
 import { useRouter, usePathname } from 'next/navigation'
 import { initCommentsSocket } from '@/lib/socket'
@@ -90,6 +106,7 @@ interface Post {
     url: string
     type: string
     order: number
+    thumbnailUrl?: string | null
   }>
   comments: Comment[]
   _count: {
@@ -839,14 +856,14 @@ export function PostModal({
   }
 
   const publicViewOuter =
-    'relative z-[1] w-full max-w-[935px] mx-auto flex justify-center px-0 sm:px-2'
+    'relative z-[1] mx-auto flex w-full max-w-[1180px] justify-center px-0 sm:px-3'
   const modalViewOuter =
-    'fixed inset-0 bg-black/60 dark:bg-black/80 flex items-center justify-center z-[200] p-4'
+    'fixed inset-0 z-[200] flex items-center justify-center bg-[radial-gradient(circle_at_50%_48%,rgba(255,138,31,0.10),transparent_25%),rgba(0,0,0,0.86)] p-3 backdrop-blur-[10px] sm:p-5'
 
   const cardShellPublic =
-    'rounded-sm border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-gray-900 shadow-sm w-full max-w-5xl overflow-hidden'
+    'w-full max-w-6xl rounded-[2rem] border border-[#ead7c8]/70 bg-[#fffaf5] shadow-[0_32px_100px_rgba(36,24,15,0.14)] dark:border-white/10 dark:bg-[#0b0e14] dark:shadow-[0_40px_120px_rgba(0,0,0,0.50)]'
   const cardShellModal =
-    'rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900'
+    'w-full max-w-6xl rounded-[2rem] border border-white/10 bg-[#0b0e14] shadow-[0_42px_130px_rgba(0,0,0,0.68)] ring-1 ring-[#ff8a1f]/10'
 
   if (isError) {
     const kind = getApiErrorKind(postQueryError)
@@ -904,6 +921,10 @@ export function PostModal({
     post.type === 'artwork' && post.artworkCreatedDate
       ? formatArtworkCreatedDateDisplay(post.artworkCreatedDate)
       : ''
+  const isArtwork = post.type === 'artwork'
+  const postKindLabel = isArtwork ? 'Feellink eser vitrini' : 'Feellink gönderi'
+  const authorName = post.user.fullName || post.user.username
+  const commentCount = post._count?.comments || post.comments?.length || 0
 
   // Slider settings
   const sliderSettings = {
@@ -926,22 +947,37 @@ export function PostModal({
       <div
         className={`${
           publicShare ? cardShellPublic : cardShellModal
-        } max-h-[90vh] overflow-y-auto flex flex-col md:flex-row animate-in fade-in slide-in-from-bottom-4 duration-300 transition-colors`}
+        } relative flex max-h-[92vh] flex-col overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300 transition-colors md:flex-row md:overflow-hidden`}
         style={{ height: 'auto' }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Left side - Media - Sabit yükseklik */}
-        <div className="md:w-3/5 bg-black dark:bg-gray-950 flex items-center justify-center h-[520px] md:h-[600px] min-h-full relative w-full overflow-hidden [&_.slick-slider]:pointer-events-auto flex-shrink-0">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(255,138,31,0.12),transparent_28%),radial-gradient(circle_at_85%_100%,rgba(64,90,255,0.10),transparent_30%)]" aria-hidden />
+
+        {/* Left side - Media */}
+        <div className="relative flex h-[42vh] min-h-[280px] w-full flex-shrink-0 items-center justify-center overflow-hidden bg-[#05070c] md:h-[720px] md:min-h-[430px] md:w-[63%] [&_.slick-slider]:pointer-events-auto">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,138,31,0.06),transparent_42%),radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.04),transparent_32%)]" aria-hidden />
+          <div className="pointer-events-none absolute inset-x-8 top-5 z-10 flex items-center justify-between">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70 backdrop-blur-xl">
+              <Sparkles className="h-3.5 w-3.5 text-[#ff9a3c]" />
+              {postKindLabel}
+            </span>
+            {hasMultipleMedia && (
+              <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1.5 text-xs font-semibold text-white/70 backdrop-blur-xl">
+                {currentSlide + 1} / {mediaArray.length}
+              </span>
+            )}
+          </div>
           {mediaArray.length > 0 ? (
             hasMultipleMedia ? (
               /* Çoklu görsel - Slider */
               <Slider ref={sliderRef} {...sliderSettings} className="w-full h-full">
                 {mediaArray.map((media, index) => (
-                  <div key={media.id || index} className="relative w-full h-full flex items-center justify-center pointer-events-auto">
+                  <div key={media.id || index} className="relative flex h-full w-full items-center justify-center p-4 pointer-events-auto md:p-8">
                     {media.type === 'video' ? (
                       <video
                         src={resolveImageUrl(media.url)}
-                        className="w-full h-full max-h-[90vh] object-contain"
+                        poster={media.thumbnailUrl ? resolveImageUrl(media.thumbnailUrl) : undefined}
+                        className="h-full max-h-[82vh] w-full rounded-[1.35rem] object-contain shadow-[0_26px_80px_rgba(0,0,0,0.42)]"
                         controls
                         autoPlay={index === 0}
                         onError={(e) => {
@@ -952,7 +988,7 @@ export function PostModal({
                       <img
                         src={resolveImageUrl(media.url)}
                         alt={post.caption || `Post ${index + 1}`}
-                        className="w-full h-full max-h-[90vh] object-contain"
+                        className="h-full max-h-[82vh] w-full rounded-[1.35rem] object-contain shadow-[0_26px_80px_rgba(0,0,0,0.42)]"
                         onError={(e) => {
                           console.error('PostModal Media Error:', resolveImageUrl(media.url))
                           ;(e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
@@ -964,11 +1000,12 @@ export function PostModal({
               </Slider>
             ) : (
               /* Tek görsel - Slider yok */
-              <div className="w-full h-full flex items-center justify-center">
+              <div className="flex h-full w-full items-center justify-center p-4 md:p-8">
                 {mediaArray[0].type === 'video' ? (
                   <video
                     src={resolveImageUrl(mediaArray[0].url)}
-                    className="w-full h-full object-contain max-h-full"
+                    poster={mediaArray[0].thumbnailUrl ? resolveImageUrl(mediaArray[0].thumbnailUrl) : undefined}
+                    className="h-full max-h-full w-full rounded-[1.35rem] object-contain shadow-[0_26px_80px_rgba(0,0,0,0.42)]"
                     controls
                     autoPlay
                     onError={(e) => {
@@ -979,7 +1016,7 @@ export function PostModal({
                   <img
                     src={resolveImageUrl(mediaArray[0].url)}
                     alt={post.caption || 'Post'}
-                    className="w-full h-full object-contain max-h-full"
+                    className="h-full max-h-full w-full rounded-[1.35rem] object-contain shadow-[0_26px_80px_rgba(0,0,0,0.42)]"
                     onError={(e) => {
                       console.error('PostModal Media Error:', resolveImageUrl(mediaArray[0].url))
                       ;(e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
@@ -989,12 +1026,17 @@ export function PostModal({
               </div>
             )
           ) : (
-            <div className="text-gray-400">No media available</div>
+            <div className="relative flex flex-col items-center gap-3 text-white/60">
+              <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06]">
+                <ImageIcon className="h-7 w-7 text-[#ff9a3c]" />
+              </span>
+              <span className="text-sm font-medium">Medya bulunamadı</span>
+            </div>
           )}
           
           {/* Thumbnail önizlemeleri - Çoklu görsel varsa göster */}
           {hasMultipleMedia && (
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 justify-center overflow-x-auto pb-2 z-20">
+            <div className="absolute bottom-5 left-1/2 z-20 flex max-w-[84%] -translate-x-1/2 gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-black/25 p-2 backdrop-blur-xl">
               {mediaArray.map((media, index) => (
                 <button
                   key={media.id || index}
@@ -1004,18 +1046,26 @@ export function PostModal({
                       sliderRef.current.slickGoTo(index)
                     }
                   }}
-                  className={`flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-colors pointer-events-auto ${
+                  className={`h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl border transition-all pointer-events-auto ${
                     currentSlide === index
-                      ? 'border-white ring-2 ring-brand-orange/50'
-                      : 'border-white/50 hover:border-white/80 opacity-70 hover:opacity-100'
+                      ? 'border-[#ff8a1f] opacity-100 shadow-[0_0_18px_rgba(255,138,31,0.34)]'
+                      : 'border-white/20 opacity-60 hover:border-white/50 hover:opacity-100'
                   }`}
                 >
                   {media.type === 'video' ? (
-                    <video
-                      src={resolveImageUrl(media.url)}
-                      className="w-full h-full object-cover"
-                      muted
-                    />
+                    media.thumbnailUrl ? (
+                      <img
+                        src={resolveImageUrl(media.thumbnailUrl)}
+                        alt={`Video kapağı ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <video
+                        src={resolveImageUrl(media.url)}
+                        className="w-full h-full object-cover"
+                        muted
+                      />
+                    )
                   ) : (
                     <img
                       src={resolveImageUrl(media.url)}
@@ -1030,11 +1080,11 @@ export function PostModal({
         </div>
 
         {/* Right side - Details */}
-        <div className="md:w-2/5 flex flex-col h-[520px] md:h-[600px] max-h-[90vh]">
-          {/* Header - Instagram Style: User + Caption */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-start gap-3 flex-shrink-0">
+        <div className="relative flex h-[440px] max-h-[60vh] flex-col border-t border-white/10 bg-[linear-gradient(180deg,rgba(20,25,35,0.98),rgba(10,13,20,0.98))] md:h-[720px] md:max-h-[90vh] md:w-[37%] md:border-l md:border-t-0">
+          {/* Header */}
+          <div className="flex flex-shrink-0 items-start gap-3 border-b border-white/10 bg-white/[0.035] p-4 backdrop-blur-xl">
             <div
-              className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer"
+              className="flex h-11 w-11 flex-shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] shadow-[0_12px_30px_rgba(0,0,0,0.26)] ring-2 ring-[#ff8a1f]/20"
               onClick={() => {
                 if (isReadOnly) {
                   promptGuestLogin('Profili görmek için giriş yapın.')
@@ -1048,63 +1098,71 @@ export function PostModal({
                 <img
                   src={resolveImageUrl(post.user.avatar)}
                   alt={post.user.username}
-                  className="w-full h-full object-cover"
+                  className="h-full w-full object-cover"
                   onError={(e) => {
                     console.error('PostModal Post User Avatar Error:', resolveImageUrl(post.user.avatar))
                     ;(e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
                   }}
                 />
               ) : (
-                <span className="text-gray-500 dark:text-gray-300 text-sm">
+                <span className="text-sm font-semibold text-white/75">
                   {post.user.username[0].toUpperCase()}
                 </span>
               )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  <span className="text-black dark:text-white font-semibold text-sm">
-                    {post.user.fullName || post.user.username}
-                  </span>
-                  <FeellinkRoleBadge roles={(post.user as any).roles} />
+                <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-sm font-semibold text-white">
+                      {authorName}
+                    </span>
+                    <FeellinkRoleBadge roles={(post.user as any).roles} />
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-medium text-white/40">
+                    <span>@{post.user.username}</span>
+                    <span className="h-1 w-1 rounded-full bg-[#ff8a1f]/70" />
+                    <span>{new Date(post.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {!isReadOnly && user?.id !== post.user.id && (
                     <button
+                      type="button"
                       onClick={() => setShowReportModal({ contentType: 'post', contentId: post.id })}
-                      className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/60 transition hover:border-[#ff8a1f]/30 hover:bg-[#ff8a1f]/10 hover:text-[#ff9a3c]"
                       title="Raporla"
                     >
-                      <span className="text-sm">🚩</span>
+                      <Flag className="h-4 w-4" />
                     </button>
                   )}
                   <button
+                    type="button"
                     onClick={onClose}
-                    className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/60 transition hover:bg-white/[0.10] hover:text-white"
+                    aria-label="Kapat"
                   >
-                    <X size={20} className="text-gray-600 dark:text-gray-400" />
+                    <X size={18} />
                   </button>
                 </div>
               </div>
               {post.caption && (
-                <p className="text-black dark:text-white text-sm mt-[2px] leading-snug whitespace-pre-wrap break-words">
+                <p className="mt-3 whitespace-pre-wrap break-words rounded-2xl border border-white/[0.08] bg-white/[0.035] px-3 py-2.5 text-sm leading-relaxed text-white/80">
                   {post.caption}
                 </p>
               )}
               {artworkCreatedDateLabel ? (
-                <p className="text-gray-600 dark:text-gray-400 text-xs mt-2 leading-snug">
-                  <span className="font-medium text-gray-700 dark:text-gray-300">
-                    Eserin Oluşturulduğu Tarih:{' '}
-                  </span>
+                <p className="mt-2 inline-flex items-center gap-2 rounded-full border border-[#ff8a1f]/20 bg-[#ff8a1f]/10 px-3 py-1.5 text-xs font-medium text-[#ffb066]">
+                  <CalendarDays className="h-3.5 w-3.5" />
                   {artworkCreatedDateLabel}
                 </p>
               ) : null}
             </div>
           </div>
 
-          {/* Action buttons - Instagram Style: Like count next to icon */}
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-4 text-gray-700 dark:text-gray-400">
+          {/* Action buttons */}
+          <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#0d1119]/[0.92] px-4 py-3">
+            <div className="flex min-w-0 items-center gap-2 text-white/70">
               <button
                 type="button"
                 onClick={
@@ -1113,35 +1171,42 @@ export function PostModal({
                     : handleLike
                 }
                 disabled={likeMutation.isPending && !isReadOnly}
-                className={`relative flex items-center gap-1 hover:text-brand-orange transition-colors ${isReadOnly ? 'opacity-70' : ''}`}
+                className={`group relative inline-flex h-10 items-center gap-2 overflow-hidden rounded-full border px-3 text-sm font-semibold transition-all ${
+                  post.isLiked
+                    ? 'border-[#ff8a1f]/[0.55] bg-[#ff8a1f]/[0.16] text-[#ffb066] shadow-[0_0_22px_rgba(255,138,31,0.16)]'
+                    : 'border-white/10 bg-white/[0.045] text-white/70 hover:border-[#ff8a1f]/[0.35] hover:bg-[#ff8a1f]/10 hover:text-[#ffb066]'
+                } ${isReadOnly ? 'opacity-70' : ''}`}
               >
+                <span className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_38%)]" aria-hidden />
                 <Heart
-                  size={24}
+                  size={18}
                   className={`transition-all duration-300 ${
-                    animateLike ? 'scale-125' : 'scale-100'
+                    animateLike ? 'scale-125 rotate-[-8deg]' : 'scale-100'
                   } ${
                     post.isLiked
-                      ? 'fill-brand-orange text-brand-orange'
-                      : 'text-gray-700 dark:text-gray-300'
+                      ? 'fill-[#ff8a1f] text-[#ff8a1f]'
+                      : 'text-current'
                   }`}
                 />
                 {(animateLike || pingAnimating) && (
-                  <span className="absolute inset-0 animate-ping bg-brand-orange/40 rounded-full"></span>
+                  <>
+                    <span className="absolute inset-0 rounded-full bg-[#ff8a1f]/25 animate-ping" />
+                    <span className="pointer-events-none absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.9),rgba(255,138,31,0.32)_30%,transparent_65%)] opacity-80" />
+                  </>
                 )}
-                {post._count.likes > 0 && (
-                  <span className="text-sm font-medium">{post._count.likes}</span>
-                )}
+                <span className="relative">{post._count.likes || 0}</span>
               </button>
               <button
                 type="button"
-                className="hover:text-brand-orange transition-colors"
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 text-sm font-semibold text-white/70 transition hover:border-[#ff8a1f]/[0.35] hover:bg-[#ff8a1f]/10 hover:text-[#ffb066]"
                 onClick={
                   isReadOnly
                     ? () => promptGuestLogin('Yorum yapmak için giriş yapın.')
                     : undefined
                 }
               >
-                <MessageCircle size={24} className="text-gray-700 dark:text-gray-300" />
+                <MessageCircle size={18} />
+                <span>{commentCount}</span>
               </button>
               {!isReadOnly && (
                 <SharePostTrigger
@@ -1149,7 +1214,7 @@ export function PostModal({
                   shareTitle={post.title?.trim() || undefined}
                   shareCaption={post.caption || undefined}
                   stopPropagation={false}
-                  className="hover:text-brand-orange transition-colors flex items-center justify-center"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-white/70 transition hover:border-[#ff8a1f]/[0.35] hover:bg-[#ff8a1f]/10 hover:text-[#ffb066] [&_svg]:text-current"
                 />
               )}
             </div>
@@ -1161,14 +1226,19 @@ export function PostModal({
                     ? () => promptGuestLogin('Kaydetmek için giriş yapın.')
                     : handleSave
                 }
-                className={`hover:text-brand-orange transition-colors ${isReadOnly ? 'opacity-70' : ''}`}
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${
+                  post.isSaved
+                    ? 'border-[#ff8a1f]/50 bg-[#ff8a1f]/[0.15] text-[#ffb066]'
+                    : 'border-white/10 bg-white/[0.045] text-white/70 hover:border-[#ff8a1f]/[0.35] hover:bg-[#ff8a1f]/10 hover:text-[#ffb066]'
+                } ${isReadOnly ? 'opacity-70' : ''}`}
+                title={post.isSaved ? 'Kaydedildi' : 'Kaydet'}
               >
                 <Bookmark
-                  size={24}
+                  size={18}
                   className={`transition-all duration-200 ${
                     post.isSaved
-                      ? 'fill-brand-orange text-brand-orange scale-110'
-                      : 'text-gray-700 dark:text-gray-300 scale-100'
+                      ? 'fill-current scale-110'
+                      : 'scale-100'
                   }`}
                 />
               </button>
@@ -1176,18 +1246,18 @@ export function PostModal({
                 <button
                   type="button"
                   onClick={() => setShowAddToCollectionModal(true)}
-                  className="hover:text-brand-orange transition-colors"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-white/70 transition hover:border-[#ff8a1f]/[0.35] hover:bg-[#ff8a1f]/10 hover:text-[#ffb066]"
                   title="Koleksiyona Ekle"
                 >
-                  <FolderPlus size={24} className="text-gray-700 dark:text-gray-300" />
+                  <FolderPlus size={18} />
                 </button>
               )}
             </div>
           </div>
 
 
-          {/* Comments Section - Instagram Style - Scroll */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 comments-scroll pr-2 min-h-0">
+          {/* Comments Section */}
+          <div className="comments-scroll min-h-0 flex-1 space-y-3 overflow-y-auto bg-[linear-gradient(180deg,rgba(255,255,255,0.025),rgba(255,255,255,0.01))] p-4 pr-2">
             {/* ✅ SABİTLENEN YORUM ALANI - Özel Banner */}
             {(() => {
               const pinnedComment = post.comments?.find((c: any) => c.isPinned);
@@ -1205,21 +1275,21 @@ export function PostModal({
               return (
                 <div 
                   id={`comment-${pinnedComment.id}`}
-                  className={`flex items-start gap-2 mb-4 px-4 py-3 rounded-xl bg-brand-orange/5 dark:bg-brand-orange/10 border border-brand-orange/30 dark:border-brand-orange/40 ${isHighlighted ? 'ring-2 ring-brand-orange ring-opacity-50' : ''}`}
+                  className={`mb-4 flex items-start gap-3 rounded-2xl border border-[#ff8a1f]/30 bg-[#ff8a1f]/10 px-4 py-3 shadow-[0_14px_34px_rgba(255,138,31,0.08)] ${isHighlighted ? 'ring-2 ring-brand-orange ring-opacity-50' : ''}`}
                 >
-                  <div className="mt-0.5 flex-shrink-0">
-                    <Pin className="w-4 h-4 text-brand-orange fill-brand-orange/80" />
+                  <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[#ff8a1f]/25 bg-[#ff8a1f]/[0.12]">
+                    <Pin className="h-4 w-4 fill-[#ff8a1f]/80 text-[#ff8a1f]" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-semibold text-brand-orange">
+                      <span className="text-xs font-semibold text-[#ffb066]">
                         Sabitlenen yorum
                       </span>
-                      <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                      <span className="text-[10px] text-white/40">
                         @{pinnedComment.user.username}
                       </span>
                     </div>
-                    <p className="text-sm text-black dark:text-white mt-1 line-clamp-2 leading-relaxed">
+                    <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-white/80">
                       {pinnedComment.content}
                     </p>
                   </div>
@@ -1239,7 +1309,7 @@ export function PostModal({
                         <button
                           type="button"
                           onClick={() => handlePinComment(pinnedComment.id, true)}
-                          className="text-xs font-medium text-brand-orange hover:underline whitespace-nowrap"
+                      className="whitespace-nowrap text-xs font-medium text-[#ffb066] hover:underline"
                         >
                           Sabitlemeyi kaldır
                         </button>
@@ -1248,7 +1318,7 @@ export function PostModal({
                         <button
                           type="button"
                           onClick={() => handleDeleteComment(pinnedComment.id)}
-                          className="text-xs font-medium text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 whitespace-nowrap"
+                      className="whitespace-nowrap text-xs font-medium text-red-300 hover:text-red-200"
                         >
                           {isPinnedCommentOwner ? 'Sil' : 'Yorumu Sil'}
                         </button>
@@ -1278,11 +1348,11 @@ export function PostModal({
                       <div 
                         key={comment.id}
                         id={`comment-${comment.id}`}
-                        className={isHighlighted ? 'ring-2 ring-brand-orange ring-opacity-50 rounded-lg p-2 -m-2 transition-all' : ''}
+                        className={isHighlighted ? 'ring-2 ring-brand-orange ring-opacity-50 rounded-2xl p-1 -m-1 transition-all' : ''}
                       >
                       {/* Ana yorum */}
                       <div
-                        className="flex gap-2 items-start group relative"
+                        className="group relative flex items-start gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-3 transition hover:border-white/[0.14] hover:bg-white/[0.055]"
                         onContextMenu={(e) => {
                           e.preventDefault()
                           // Sadece gönderi sahibi pin yapabilir
@@ -1307,19 +1377,19 @@ export function PostModal({
                               ? () => toast('Profili görmek için giriş yapın.', { duration: 2800 })
                               : undefined
                           }
-                          className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden flex-shrink-0 hover:opacity-80 transition cursor-pointer"
+                          className="flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.06] transition hover:opacity-80"
                         >
                           {comment.user.avatar ? (
                             <img
                               src={resolveImageUrl(comment.user.avatar)}
                               alt={comment.user.username}
-                              className="w-full h-full object-cover"
+                              className="h-full w-full object-cover"
                               onError={(e) => {
                                 ;(e.target as HTMLImageElement).src = '/images/avatar-placeholder.png'
                               }}
                             />
                           ) : (
-                            <span className="text-gray-500 dark:text-gray-300 text-xs">
+                            <span className="text-xs font-semibold text-white/60">
                               {comment.user.username[0].toUpperCase()}
                             </span>
                           )}
@@ -1339,7 +1409,7 @@ export function PostModal({
                                   ? () => toast('Profili görmek için giriş yapın.', { duration: 2800 })
                                   : undefined
                               }
-                              className="text-sm text-black dark:text-white font-semibold hover:opacity-80 transition cursor-pointer inline-block"
+                              className="inline-block cursor-pointer text-sm font-semibold text-white transition hover:opacity-80"
                             >
                               {comment.user.username}
                             </Link>
@@ -1357,7 +1427,7 @@ export function PostModal({
                                   <textarea
                                     value={editedContent}
                                     onChange={(e) => setEditedContent(e.target.value)}
-                                    className="w-full bg-transparent border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-black dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-brand-orange/50"
+                                    className="w-full resize-none rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-brand-orange/50"
                                     rows={3}
                                     autoFocus
                                   />
@@ -1365,21 +1435,21 @@ export function PostModal({
                                     <button
                                       onClick={() => handleSaveEdit(comment.id)}
                                       disabled={updateCommentMutation.isPending || !editedContent.trim()}
-                                      className="px-3 py-1 text-xs font-medium bg-brand-orange text-white rounded-lg hover:bg-brand-orange/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                      className="rounded-full bg-brand-orange px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-brand-orange/90 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                       Kaydet
                                     </button>
                                     <button
                                       onClick={handleCancelEdit}
                                       disabled={updateCommentMutation.isPending}
-                                      className="px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                                      className="px-3 py-1 text-xs font-medium text-white/40 transition-colors hover:text-white/75"
                                     >
                                       İptal
                                     </button>
                                   </div>
                                 </div>
                               ) : (
-                                <span className="text-sm text-black dark:text-white block leading-relaxed">
+                                <span className="block text-sm leading-relaxed text-white/80">
                                   {comment.content}
                                 </span>
                               )}
@@ -1389,7 +1459,7 @@ export function PostModal({
                           {/* Alt satır - tarih, (düzenlendi) ve yanıtla */}
                           {!isEditing && (
                             <div className="flex items-center gap-3 mt-1">
-                              <p className="text-xs text-[#444] dark:text-gray-400">
+                              <p className="text-xs text-white/40">
                                 {new Date(comment.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                                 {isEdited && (
                                   <span className="ml-1 opacity-60">(düzenlendi)</span>
@@ -1405,7 +1475,7 @@ export function PostModal({
                                       input?.focus()
                                     }, 100)
                                   }}
-                                  className="text-xs text-brand-orange hover:underline font-medium transition-colors"
+                                  className="text-xs font-medium text-[#ffb066] transition-colors hover:underline"
                                 >
                                   Yanıtla
                                 </button>
@@ -1416,7 +1486,7 @@ export function PostModal({
 
                         {/* Kalp + 3 Nokta Menü - Sağ üst köşede, yan yana */}
                         {!isEditing && (
-                          <div className="absolute top-3 right-3 flex items-center gap-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="absolute right-3 top-3 z-10 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
                             {/* Beğeni butonu */}
                             <div className="flex-shrink-0">
                               <CommentLikeButton
@@ -1439,25 +1509,25 @@ export function PostModal({
                                     e.stopPropagation()
                                     setCommentMenuOpen(commentMenuOpen === comment.id ? null : comment.id)
                                   }}
-                                  className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+                                  className="rounded-full border border-white/10 bg-black/25 p-1.5 text-white/60 transition-all hover:bg-white/10 hover:text-white"
                                 >
-                                  <MoreVertical size={16} className="text-gray-600 dark:text-gray-400" />
+                                  <MoreVertical size={16} />
                                 </button>
 
                                 {/* Menü Dropdown */}
                                 {commentMenuOpen === comment.id && (
-                                  <div className="absolute top-8 right-0 z-50 bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 min-w-[160px] animate-in fade-in zoom-in-95 duration-150">
+                                  <div className="absolute right-0 top-8 z-50 min-w-[160px] animate-in rounded-2xl border border-white/10 bg-[#121722] shadow-xl duration-150 fade-in zoom-in-95">
                                     {isCommentOwner && (
                                       <>
                                         <button
                                           onClick={() => handleEditComment(comment)}
-                                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-t-lg transition-colors"
+                                          className="w-full rounded-t-2xl px-4 py-2.5 text-left text-sm text-white/80 transition-colors hover:bg-white/[0.06]"
                                         >
                                           Düzenle
                                         </button>
                                         <button
                                           onClick={() => handleDeleteComment(comment.id)}
-                                          className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                          className="w-full px-4 py-2.5 text-left text-sm text-red-300 transition-colors hover:bg-red-500/10"
                                         >
                                           Sil
                                         </button>
@@ -1466,7 +1536,7 @@ export function PostModal({
                                     {!isCommentOwner && isPostOwner && (
                                       <button
                                         onClick={() => handleDeleteComment(comment.id)}
-                                        className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                        className="w-full px-4 py-2.5 text-left text-sm text-red-300 transition-colors hover:bg-red-500/10"
                                       >
                                         Yorumu Sil
                                       </button>
@@ -1477,7 +1547,7 @@ export function PostModal({
                                           setShowReportModal({ contentType: 'comment', contentId: comment.id })
                                           setCommentMenuOpen(null)
                                         }}
-                                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-b-lg transition-colors"
+                                        className="w-full rounded-b-2xl px-4 py-2.5 text-left text-sm text-white/80 transition-colors hover:bg-white/[0.06]"
                                       >
                                         🚩 Raporla
                                       </button>
@@ -1491,10 +1561,10 @@ export function PostModal({
                               <button
                                 type="button"
                                 onClick={() => setShowReportModal({ contentType: 'comment', contentId: comment.id })}
-                                className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+                                className="rounded-full border border-white/10 bg-black/25 p-1.5 text-white/60 transition-all hover:bg-white/10 hover:text-white"
                                 title="Raporla"
                               >
-                                <span className="text-xs">🚩</span>
+                                <Flag className="h-3.5 w-3.5" />
                               </button>
                             )}
                           </div>
@@ -1503,7 +1573,7 @@ export function PostModal({
                       {/* Context Menu - Sadece gönderi sahibine göster */}
                       {contextMenu?.commentId === comment.id && !isReadOnly && user?.id === post.user.id && contextMenu && (
                         <div
-                          className="fixed z-50 bg-gray-900 dark:bg-[#1a1a1a] text-gray-200 text-sm rounded-lg shadow-xl border border-gray-700 dark:border-gray-600 animate-in fade-in zoom-in-95 duration-150"
+                          className="fixed z-50 animate-in rounded-2xl border border-white/10 bg-[#121722]/95 text-sm text-white/80 shadow-[0_24px_70px_rgba(0,0,0,0.42)] backdrop-blur-xl duration-150 fade-in zoom-in-95"
                           style={{
                             top: `${contextMenu.y - 80}px`,
                             left: `${contextMenu.x - 180}px`,
@@ -1513,16 +1583,16 @@ export function PostModal({
                         >
                           <button
                             onClick={() => handlePinComment(comment.id, comment.isPinned || false)}
-                            className="w-full text-left px-4 py-2.5 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-t-lg flex items-center gap-2 transition-colors"
+                            className="flex w-full items-center gap-2 rounded-t-2xl px-4 py-2.5 text-left transition-colors hover:bg-white/[0.06]"
                           >
-                            <Pin size={14} className={comment.isPinned ? 'text-brand-orange fill-brand-orange' : 'text-gray-400'} />
-                            <span className={comment.isPinned ? 'text-brand-orange' : ''}>
+                            <Pin size={14} className={comment.isPinned ? 'fill-[#ff8a1f] text-[#ff8a1f]' : 'text-white/40'} />
+                            <span className={comment.isPinned ? 'text-[#ffb066]' : ''}>
                               {comment.isPinned ? 'Sabitlemeyi Kaldır' : 'Yorumu Sabitle'}
                             </span>
                           </button>
                           <button
                             onClick={() => setContextMenu(null)}
-                            className="w-full text-left px-4 py-2.5 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-b-lg text-gray-400 hover:text-gray-200 transition-colors"
+                            className="w-full rounded-b-2xl px-4 py-2.5 text-left text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white/80"
                           >
                             İptal
                           </button>
@@ -1537,7 +1607,7 @@ export function PostModal({
 
                     {/* Yanıtlar (Replies) */}
                     {comment.replies && comment.replies.length > 0 && (
-                      <div className="ml-10 mt-2 space-y-2">
+                      <div className="ml-10 mt-2 space-y-2 border-l border-white/[0.08] pl-3">
                         {comment.replies.map((reply: any) => {
                           const isReplyHighlighted = highlightCommentId === reply.id
                           return (
@@ -1546,8 +1616,8 @@ export function PostModal({
                               id={`comment-${reply.id}`}
                               className={isReplyHighlighted ? 'ring-2 ring-brand-orange ring-opacity-50 rounded-lg p-2 -m-2 transition-all' : ''}
                             >
-                            <div className="flex gap-2">
-                              <CornerUpRight size={12} className="text-gray-400 dark:text-gray-500 mt-1 flex-shrink-0" />
+                            <div className="flex gap-2 rounded-2xl border border-white/[0.07] bg-black/[0.15] px-3 py-2">
+                              <CornerUpRight size={12} className="mt-1 flex-shrink-0 text-[#ffb066]/70" />
                               <Link
                                 href={
                                   isReadOnly
@@ -1559,7 +1629,7 @@ export function PostModal({
                                     ? () => toast('Profili görmek için giriş yapın.', { duration: 2800 })
                                     : undefined
                                 }
-                                className="w-7 h-7 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden flex-shrink-0 hover:opacity-80 transition cursor-pointer"
+                                className="flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.055] transition hover:opacity-80"
                               >
                                 {reply.user.avatar ? (
                                   <img
@@ -1572,13 +1642,13 @@ export function PostModal({
                                     }}
                                   />
                                 ) : (
-                                  <span className="text-gray-500 dark:text-gray-300 text-xs">
+                                  <span className="text-xs font-semibold text-white/60">
                                     {reply.user.username[0].toUpperCase()}
                                   </span>
                                 )}
                               </Link>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm text-black dark:text-white flex items-center gap-1 leading-relaxed">
+                                <p className="flex items-center gap-1 text-sm leading-relaxed text-white/80">
                                   <Link
                                     href={
                                       isReadOnly
@@ -1590,7 +1660,7 @@ export function PostModal({
                                         ? () => toast('Profili görmek için giriş yapın.', { duration: 2800 })
                                         : undefined
                                     }
-                                    className="font-semibold hover:opacity-80 transition cursor-pointer"
+                                    className="cursor-pointer font-semibold text-white transition hover:opacity-80"
                                   >
                                     {reply.user.username}
                                   </Link>
@@ -1598,9 +1668,9 @@ export function PostModal({
                                     roles={(reply.user as any).roles}
                                     className="!ml-0 !text-[10px] !px-1.5 !py-0"
                                   />
-                                  <span>{reply.content}</span>
+                                  <span className="text-white/70">{reply.content}</span>
                                 </p>
-                                <p className="text-xs text-[#444] dark:text-gray-400 mt-0.5">
+                                <p className="mt-0.5 text-xs text-white/40">
                                   {new Date(reply.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                                 </p>
                               </div>
@@ -1633,28 +1703,35 @@ export function PostModal({
                 })()}
               </>
             ) : (
-              <p className="text-center text-gray-500 dark:text-gray-400 text-sm mt-10">Henüz yorum yok.</p>
+              <div className="mt-10 flex flex-col items-center text-center">
+                <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.035] text-[#ffb066] shadow-[0_14px_35px_rgba(0,0,0,0.18)]">
+                  <MessageCircle className="h-5 w-5" />
+                </span>
+                <p className="mt-3 text-sm font-semibold text-white/60">Henüz yorum yok</p>
+                <p className="mt-1 max-w-[240px] text-xs leading-relaxed text-white/40">
+                  İlk yorum bu vitrinin etrafında küçük bir sohbet başlatabilir.
+                </p>
+              </div>
             )}
           </div>
 
           {/* Comment Input */}
-          <div className="border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+          <div className="flex-shrink-0 border-t border-white/10 bg-[#0b0f17]/[0.96]">
             {isReadOnly ? (
-              <div className="px-4 py-3.5 text-center border-t border-neutral-200 dark:border-neutral-800 bg-[#fafafa] dark:bg-neutral-900/50">
-                <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-2.5">
+              <div className="px-4 py-4 text-center">
+                <p className="mb-2.5 text-xs text-white/40">
                   Beğenmek veya yorum yapmak için Feellink&apos;te oturum açın.
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-3 text-sm">
                   <Link
                     href={loginHrefWithFrom}
-                    className="font-semibold text-brand-orange hover:opacity-90"
+                    className="rounded-full bg-[#ff8a1f] px-4 py-2 font-semibold text-white shadow-[0_10px_24px_rgba(255,138,31,0.25)] transition hover:bg-[#ff9a3c]"
                   >
                     Giriş yap
                   </Link>
-                  <span className="text-neutral-300 dark:text-neutral-600">·</span>
                   <Link
                     href={`/register?from=${encodeURIComponent(guestReturnPath)}`}
-                    className="font-semibold text-neutral-800 dark:text-neutral-200 hover:opacity-90"
+                    className="rounded-full border border-white/10 px-4 py-2 font-semibold text-white/70 transition hover:bg-white/[0.06] hover:text-white"
                   >
                     Hesap oluştur
                   </Link>
@@ -1663,42 +1740,42 @@ export function PostModal({
             ) : (
               <>
                 {replyingTo && (
-                  <div className="px-4 pt-3 pb-2 flex items-center gap-2">
-                    <span className="text-xs text-brand-orange bg-brand-blue/10 dark:bg-brand-blue/20 px-2 py-1 rounded-lg font-medium">
+                  <div className="flex items-center gap-2 px-4 pb-1 pt-3">
+                    <span className="rounded-full border border-[#ff8a1f]/25 bg-[#ff8a1f]/10 px-3 py-1 text-xs font-medium text-[#ffb066]">
                       Yanıt veriliyor...
                     </span>
                     <button
                       type="button"
                       onClick={() => setReplyingTo(null)}
-                      className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                      className="flex h-6 w-6 items-center justify-center rounded-full text-xs text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white"
                     >
                       ✕
                     </button>
                   </div>
                 )}
                 <form onSubmit={handleComment} className="px-4 py-3">
-                  <div className="flex items-center">
+                  <div className="flex items-center rounded-full border border-white/10 bg-white/[0.055] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus-within:border-[#ff8a1f]/40 focus-within:bg-white/[0.075]">
                     <MentionInput
                       value={commentText}
                       setValue={setCommentText}
                       placeholder={replyingTo ? 'Yanıt yaz...' : 'Yorum ekle...'}
                       disabled={isPostingComment}
-                      className="flex-1 bg-transparent text-gray-300 dark:text-gray-300 text-sm outline-none"
+                      className="flex-1 bg-transparent text-sm text-white/80 outline-none placeholder:text-white/40"
                     />
                     <button
                       type="submit"
                       disabled={!commentText.trim() || isPostingComment || hasBadWord}
-                      className="ml-2 bg-brand-orange hover:bg-brand-orange/90 text-white rounded-full p-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="ml-2 flex h-9 w-9 items-center justify-center rounded-full bg-[#ff8a1f] text-white shadow-[0_10px_22px_rgba(255,138,31,0.24)] transition-all hover:bg-[#ff9a3c] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {isPostingComment ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
                       ) : (
                         <Send size={16} />
                       )}
                     </button>
                   </div>
                   {hasBadWord && (
-                    <p className="text-xs text-orange-500 mt-1 px-1">
+                    <p className="mt-2 px-3 text-xs text-[#ffb066]">
                       Bu yorum Feellink topluluk kurallarına uygun değil.
                     </p>
                   )}
@@ -1721,24 +1798,27 @@ export function PostModal({
       {/* Delete Comment Confirmation Modal */}
       {showDeleteConfirm && (
         <div
-          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"
         >
           <div
-            className="bg-white dark:bg-[#0f172a] rounded-xl w-[360px] max-w-[90vw] p-6 shadow-xl border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in-95 duration-200"
+            className="w-[360px] max-w-[90vw] animate-in rounded-3xl border border-white/10 bg-[#111722]/95 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.5)] duration-200 fade-in zoom-in-95"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-black dark:text-white text-base font-semibold mb-2">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl border border-red-400/20 bg-red-500/10 text-red-300">
+              <Trash2 className="h-5 w-5" />
+            </div>
+            <h3 className="mb-2 text-base font-semibold text-white">
               Yorumu sil?
             </h3>
 
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+            <p className="mb-6 text-sm leading-relaxed text-white/50">
               Bu yorumu sildiğinizde geri alınamaz.
             </p>
 
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(null)}
-                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white transition-colors"
+                className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-white/60 transition-colors hover:bg-white/[0.06] hover:text-white"
               >
                 İptal
               </button>
@@ -1746,7 +1826,7 @@ export function PostModal({
               <button
                 onClick={confirmDelete}
                 disabled={deleteCommentMutation.isPending}
-                className="px-4 py-2 text-sm rounded-lg bg-red-500 hover:bg-red-600 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {deleteCommentMutation.isPending ? 'Siliniyor...' : 'Sil'}
               </button>
@@ -1767,4 +1847,3 @@ export function PostModal({
     </div>
   )
 }
-

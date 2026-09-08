@@ -25,6 +25,7 @@ export class HealthController {
       process.env.SNTP_PASS ||
       process.env.MAIL_PASS
     );
+    const resendConfigured = !!process.env.RESEND_API_KEY;
     const smtpHost =
       process.env.SMTP_HOST ||
       process.env.SNTP_HOST ||
@@ -34,15 +35,16 @@ export class HealthController {
       process.env.FRONTEND_URL || process.env.APP_URL || '(not set)';
     const explicitlyDev = process.env.MAIL_MODE?.toLowerCase() === 'dev';
     const willSend =
-      (hasUser && hasPass && !explicitlyDev) as boolean;
+      ((hasUser && hasPass) || resendConfigured) && !explicitlyDev;
     return {
       mailMode,
       smtpConfigured: hasUser && hasPass,
+      resendConfigured,
       smtpHost,
       resetLinkBase,
       willActuallySendMails: willSend,
       envNamesNote:
-        'SMTP_*, SNTP_* veya MAIL_* kullanılır. Reset link: FRONTEND_URL veya APP_URL.',
+        'RESEND_API_KEY varsa önce Resend kullanılır; yoksa SMTP_*, SNTP_* veya MAIL_* kullanılır. Reset link: FRONTEND_URL veya APP_URL.',
       hint: willSend
         ? 'Env görünüyor. Mail gitmiyorsa Vercel loglarında "SMTP bağlantısı başarılı" veya EAUTH/535 hata mesajını kontrol et.'
         : !hasUser || !hasPass
@@ -51,7 +53,6 @@ export class HealthController {
     };
   }
 }
-
 
 
 

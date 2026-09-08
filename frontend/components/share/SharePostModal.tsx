@@ -62,9 +62,7 @@ export function SharePostModal({ open, onClose, postId, shareTitle, shareCaption
     setLoading(true)
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const response = await api.get('/search/users', {
-          params: { q: query.trim(), limit: 20 },
-        })
+        const response = await api.get(`/users/search?q=${encodeURIComponent(query.trim())}`)
         setResults(response.data || [])
       } catch {
         setResults([])

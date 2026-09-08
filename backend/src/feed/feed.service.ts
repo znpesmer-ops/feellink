@@ -56,8 +56,8 @@ export class FeedService {
     if (!baseUrl) {
       const backendPort = this.configService.get('PORT') || '3002';
       const endpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
-      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1'
-        ? '127.0.0.1'
+      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1' 
+        ? '192.168.1.38' 
         : endpoint;
       const cleanPath = url.startsWith('/') ? url : `/${url}`;
       return `http://${resolvedEndpoint}:${backendPort}${cleanPath}`;
@@ -90,8 +90,8 @@ export class FeedService {
     if (!baseUrl) {
       const backendPort = this.configService.get('PORT') || '3002';
       const endpoint = this.configService.get('MINIO_ENDPOINT') || 'localhost';
-      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1'
-        ? '127.0.0.1'
+      const resolvedEndpoint = endpoint === 'localhost' || endpoint === '127.0.0.1' 
+        ? '192.168.1.38' 
         : endpoint;
       const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
       return `http://${resolvedEndpoint}:${backendPort}${cleanPath}`;
@@ -152,8 +152,8 @@ export class FeedService {
     // Get ALL posts (not just from followed users!)
     const posts = await this.prisma.post.findMany({
       where: {
-        isDeleted: false,
-        userId: { not: userId },
+        isDeleted: false, // 🗑️ Sadece silinmemiş postlar
+        userId: { not: userId }, // Kendi postlarını hariç tut
       },
       include: {
         user: {
@@ -171,13 +171,7 @@ export class FeedService {
           take: 6,
           orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
           include: {
-            user: { select: { username: true, fullName: true } },
-          },
-        },
-        _count: {
-          select: {
-            likes: true,
-            comments: { where: { parentId: null } },
+            user: { select: { username: true, fullName: true, avatar: true } },
           },
         },
       },
@@ -185,7 +179,23 @@ export class FeedService {
       take: limit,
     });
 
-    const postsWithCounts = posts;
+    // 🔥 MongoDB: Manuel count ile beğeni ve yorum sayılarını hesapla
+    const postsWithCounts = await Promise.all(
+      posts.map(async (post) => {
+        const [likeCount, commentCount] = await Promise.all([
+          this.prisma.like.count({ where: { postId: post.id } }),
+          this.prisma.comment.count({ where: { postId: post.id, parentId: null } }),
+        ]);
+        
+        return {
+          ...post,
+          _count: {
+            likes: likeCount,
+            comments: commentCount,
+          },
+        };
+      }),
+    );
 
     // Cache the post IDs (if Redis is available)
     const isRedisAvailable = this.redis && (this.redis.status === 'ready' || this.redis.status === 'connect');
@@ -217,6 +227,22 @@ export class FeedService {
       const pinnedComment = pinned
         ? { user: pinned.user?.username || pinned.user?.fullName || 'Kullanıcı', text: pinned.content }
         : null;
+      const recentComments = post.comments
+        ? post.comments
+            .filter((c: any) => !c.isPinned)
+            .slice(0, 5)
+            .map((c: any) => ({
+              id: c.id,
+              content: c.content,
+              isPinned: c.isPinned,
+              createdAt: c.createdAt,
+              user: {
+                username: c.user?.username || c.user?.fullName || 'Kullanıcı',
+                fullName: c.user?.fullName || null,
+                avatar: this.transformAvatarUrl(c.user?.avatar || null),
+              },
+            }))
+        : [];
       return {
         ...post,
         isLiked: likedPostIds.has(post.id),
@@ -229,8 +255,8 @@ export class FeedService {
           avatar: this.transformAvatarUrl(post.user.avatar),
         },
         pinnedComment,
+        recentComments,
       };
     });
   }
 }
-

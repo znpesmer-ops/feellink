@@ -1,14 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { UsersService } from './users.service';
+import { isVercelServerlessRuntime } from '../common/runtime';
 
 @Injectable()
 export class UsersScheduler {
+  private readonly backgroundJobsDisabled = isVercelServerlessRuntime();
+
   constructor(private usersService: UsersService) {}
 
   /** 15 gün dolan PENDING_DELETION hesaplarını kalıcı siler (günde bir çalışır). */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async purgeScheduledDeletions() {
+    if (this.backgroundJobsDisabled) return;
     try {
       const purged = await this.usersService.purgeScheduledDeletions();
       if (purged > 0) {

@@ -23,6 +23,8 @@ interface User {
   followerCount: number
   followingCount: number
   isOnline: boolean
+  lastSeen?: string | null
+  lastActiveAt?: string | null
   createdAt: string
   dateOfBirth?: string | null
   country?: string | null
@@ -60,6 +62,68 @@ function genderLabel(g?: string | null): string {
   return '-'
 }
 
+const registrationDateFormatter = new Intl.DateTimeFormat('tr-TR', {
+  timeZone: 'Europe/Istanbul',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+})
+
+const registrationTimeFormatter = new Intl.DateTimeFormat('tr-TR', {
+  timeZone: 'Europe/Istanbul',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+})
+
+function formatRegistrationDateTime(value?: string | null) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return {
+    date: registrationDateFormatter.format(date),
+    time: registrationTimeFormatter.format(date),
+  }
+}
+
+const ONLINE_TTL_MS = 2 * 60 * 1000
+
+function formatRelativeActivity(date: Date, nowMs: number) {
+  const seconds = Math.max(0, Math.floor((nowMs - date.getTime()) / 1000))
+  if (seconds < 60) return 'Az önce'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes} dakika önce`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} saat önce`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days} gün önce`
+  return registrationDateFormatter.format(date)
+}
+
+function getUserActivity(user: User, nowMs: number) {
+  const recordedValue = user.lastActiveAt || user.lastSeen
+  const recordedDate = recordedValue ? new Date(recordedValue) : null
+  const hasRecordedActivity = Boolean(recordedDate && !Number.isNaN(recordedDate.getTime()))
+  const activityDate = hasRecordedActivity ? recordedDate! : new Date(user.createdAt)
+
+  if (Number.isNaN(activityDate.getTime())) return null
+
+  const isOnline = Boolean(
+    hasRecordedActivity &&
+    user.isOnline &&
+    nowMs - activityDate.getTime() <= ONLINE_TTL_MS,
+  )
+
+  return {
+    date: registrationDateFormatter.format(activityDate),
+    time: registrationTimeFormatter.format(activityDate),
+    relative: isOnline ? 'Şu anda çevrimiçi' : formatRelativeActivity(activityDate, nowMs),
+    isOnline,
+    isRegistrationFallback: !hasRecordedActivity,
+  }
+}
+
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -81,9 +145,22 @@ export default function AdminUsersPage() {
   const [ageMin, setAgeMin] = useState<string>('')
   const [ageMax, setAgeMax] = useState<string>('')
   const [showFilters, setShowFilters] = useState(false)
+  const [activityNow, setActivityNow] = useState(() => Date.now())
 
   useEffect(() => {
     fetchUsers()
+  }, [page, searchQuery, cityFilter, genderFilter, ageMin, ageMax])
+
+  useEffect(() => {
+    const clock = window.setInterval(() => setActivityNow(Date.now()), 30_000)
+    const refresh = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void fetchUsers(true)
+    }, 60_000)
+
+    return () => {
+      window.clearInterval(clock)
+      window.clearInterval(refresh)
+    }
   }, [page, searchQuery, cityFilter, genderFilter, ageMin, ageMax])
 
   const fetchUsers = async (silent = false) => {
@@ -378,7 +455,7 @@ export default function AdminUsersPage() {
 
       <div className="rounded-2xl border border-gray-200 dark:border-gray-700/40 shadow-sm dark:bg-[#111] bg-white overflow-hidden w-full">
         <div className="overflow-x-auto pr-2">
-          <table className="w-full min-w-[1600px]">
+          <table className="w-full min-w-[1810px]">
             <thead className="bg-gray-50 dark:bg-[#0d0d0d] border-b border-gray-200 dark:border-gray-700">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[180px]">
@@ -411,8 +488,11 @@ export default function AdminUsersPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[100px]">
                   Takipçi
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[120px]">
-                  Tarih
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[150px]">
+                  Kayıt Tarihi / Saati
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[210px]">
+                  Son Doğrulanmış Aktivite
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[150px]">
                   Sözleşme Onayı
@@ -423,7 +503,10 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {users.map((user: any) => (
+              {users.map((user: any) => {
+                const registrationDateTime = formatRegistrationDateTime(user.createdAt)
+                const activity = getUserActivity(user, activityNow)
+                return (
                 <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-[#0d0d0d]">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
@@ -581,8 +664,42 @@ export default function AdminUsersPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2 text-sm dark:text-gray-400 text-gray-600">
                       <Calendar size={14} className="text-gray-400" />
-                      {new Date(user.createdAt).toLocaleDateString('tr-TR')}
+                      {registrationDateTime ? (
+                        <div className="flex flex-col">
+                          <span>{registrationDateTime.date}</span>
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                            {registrationDateTime.time} TR
+                          </span>
+                        </div>
+                      ) : (
+                        <span>-</span>
+                      )}
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {activity ? (
+                      <div className="flex items-start gap-2">
+                        <span
+                          className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${activity.isOnline ? 'bg-green-500 shadow-[0_0_0_3px_rgba(34,197,94,0.14)]' : 'bg-gray-400 dark:bg-gray-600'}`}
+                          aria-hidden="true"
+                        />
+                        <div className="flex flex-col">
+                          <span className={`text-sm font-medium ${activity.isOnline ? 'text-green-600 dark:text-green-400' : 'text-gray-800 dark:text-gray-200'}`}>
+                            {activity.relative}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {activity.date} · {activity.time} TR
+                          </span>
+                          {activity.isRegistrationFallback && (
+                            <span className="mt-1 max-w-[190px] whitespace-normal text-[10px] leading-4 text-amber-600 dark:text-amber-400" title="Bu kullanıcı için kayıt tarihinden sonra güvenilir bir aktivite kaydı bulunmuyor.">
+                              Kayıt anı · sonraki aktivite kaydı yok
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-400">Kayıt bulunmuyor</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {user.termsAcceptedAt ? (
@@ -651,7 +768,8 @@ export default function AdminUsersPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
