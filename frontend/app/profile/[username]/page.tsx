@@ -1612,7 +1612,6 @@ function ProfileContent() {
               username={username}
               artworks={visibleProfileArtworks}
               userId={profile?.id}
-              showColorPalette
               enableReorder={enableArtworksDrag && !selectedArtworkCollectionId}
               onReorder={handleArtworksReorder}
               emptyTitle={selectedArtworkCollectionId ? 'Bu koleksiyonda eser yok' : undefined}

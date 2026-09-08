@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsOptional, IsString, IsIn, IsDateString } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsOptional, IsString, IsIn, IsDateString } from 'class-validator';
 
 export class CreatePostDto {
   @ApiProperty({ required: false, description: 'Post caption with hashtags' })
@@ -19,6 +19,7 @@ export class CreatePostDto {
     example: [{ url: 'http://...', type: 'image', order: 0 }]
   })
   @IsArray()
+  @ArrayMaxSize(5, { message: 'Bir gönderiye en fazla 5 görsel veya video eklenebilir' })
   @IsOptional()
   media?: Array<{ url: string; type: string; order: number }>;
 
@@ -55,7 +56,6 @@ export class CreatePostDto {
   @IsDateString()
   artworkCreatedDate?: string;
 }
-
 
 
 

@@ -22,7 +22,7 @@ export class PostsController {
 
   @Post('create')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FilesInterceptor('files', 10))
+  @UseInterceptors(FilesInterceptor('files', 5))
   @ApiOperation({ summary: 'Create post with file upload' })
   @ApiResponse({ status: 201, description: 'Post created successfully' })
   async createPost(
@@ -41,6 +41,10 @@ export class PostsController {
       if (!files || files.length === 0) {
         console.error('❌ [POST /posts/create] No files uploaded');
         throw new BadRequestException('En az bir dosya gereklidir');
+      }
+
+      if (files.length > 5) {
+        throw new BadRequestException('Bir gönderiye en fazla 5 görsel veya video eklenebilir');
       }
 
       if (!user?.id) {

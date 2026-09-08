@@ -428,6 +428,10 @@ export class PostsService {
         throw new BadRequestException('At least one media file is required');
       }
 
+      if (dto.media.length > 5) {
+        throw new BadRequestException('Bir gönderiye en fazla 5 görsel veya video eklenebilir');
+      }
+
       // Küfür kontrolü
       if (dto.caption && containsBadWord(dto.caption)) {
         throw new BadRequestException('Bu içerik topluluk kurallarına uygun değil.');
