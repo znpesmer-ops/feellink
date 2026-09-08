@@ -5,7 +5,6 @@ import { useState, useEffect, useRef } from 'react'
 import { resolveImageUrl } from '@/lib/resolveImageUrl'
 import { ProfileSortableThreeColumnGrid } from '@/components/profile/ProfileSortableThreeColumnGrid'
 import {
-  Bookmark,
   Edit,
   Heart,
   Image as ImageIcon,
@@ -20,7 +19,7 @@ import {
 import api from '@/lib/api'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/lib/store'
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { EditArtworkModal } from './EditArtworkModal'
 
 interface ProfileArtworksGridProps {
@@ -62,7 +61,6 @@ export function ProfileArtworksGrid({
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [editingArtwork, setEditingArtwork] = useState<any | null>(null)
-  const [savedArtworks, setSavedArtworks] = useState<Set<string>>(new Set())
   const menuRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
 
   const getArtworkMedia = (artwork: any) => {
@@ -78,73 +76,6 @@ export function ProfileArtworksGrid({
 
   const goToArtwork = (artworkId: string) => {
     router.push(`/posts/${artworkId}?from=${encodeURIComponent(`/profile/${username}`)}`)
-  }
-
-  // Fetch saved items for current user (to check if artworks are saved)
-  const { data: savedItemsData } = useQuery({
-    queryKey: ['saved', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return []
-      const response = await api.get(`/users/${user.id}/saved`)
-      return response.data || []
-    },
-    enabled: !!user?.id && !isOwner, // Only fetch if not owner (owner doesn't need to see save button on own artworks)
-  })
-
-  // Update saved artworks set when data changes (filter only artworks)
-  useEffect(() => {
-    if (savedItemsData) {
-      const artworkIds = savedItemsData
-        .filter((item: any) => item.type === 'artwork')
-        .map((item: any) => item.id)
-      setSavedArtworks(new Set(artworkIds))
-    }
-  }, [savedItemsData])
-
-  // Save/Unsave mutation
-  const saveMutation = useMutation({
-    mutationFn: async ({ postId, isSaved }: { postId: string; isSaved: boolean }) => {
-      console.log('🔍 Save mutation called:', { postId, isSaved })
-      if (isSaved) {
-        const response = await api.delete(`/posts/${postId}/save-artwork`)
-        console.log('✅ Unsave response:', response.data)
-        return response.data
-      } else {
-        const response = await api.post(`/posts/${postId}/save-artwork`)
-        console.log('✅ Save response:', response.data)
-        return response.data
-      }
-    },
-    onSuccess: async (_, { postId, isSaved }) => {
-      // Optimistic UI update
-      setSavedArtworks(prev => {
-        const newSet = new Set(prev)
-        if (isSaved) {
-          newSet.delete(postId)
-        } else {
-          newSet.add(postId)
-        }
-        return newSet
-      })
-      toast.success(isSaved ? 'Eser kaydedilenlerden kaldırıldı' : 'Eser kaydedildi')
-      
-      // 🔥 KRİTİK: Query'leri invalidate et VE explicit refetch yap
-      queryClient.invalidateQueries({ queryKey: ['saved', user?.id] })
-      queryClient.invalidateQueries({ queryKey: ['saved-artworks', user?.id] })
-      
-      // Explicit refetch to ensure UI updates immediately
-      await queryClient.refetchQueries({ queryKey: ['saved', user?.id] })
-      await queryClient.refetchQueries({ queryKey: ['saved-artworks', user?.id] })
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'İşlem sırasında bir hata oluştu')
-    },
-  })
-
-  const handleSaveToggle = (e: React.MouseEvent, artworkId: string) => {
-    e.stopPropagation()
-    const isSaved = savedArtworks.has(artworkId)
-    saveMutation.mutate({ postId: artworkId, isSaved })
   }
 
   const handleDownloadQr = async (e: React.MouseEvent, artworkId: string, artwork: any) => {
@@ -270,6 +201,8 @@ export function ProfileArtworksGrid({
   const renderArtworkCard = (artwork: any, index: number, isDragging: boolean) => {
     const media = getArtworkMedia(artwork)
     const caption = artwork.caption || artwork.title || 'Eser'
+    const likeCount = artwork._count?.likes || artwork.likeCount || 0
+    const commentCount = artwork._count?.comments || artwork.commentCount || 0
     const cardClass = 'exhibition-artwork-card aspect-square relative cursor-pointer group overflow-hidden rounded-[1.15rem] border border-black/5 bg-[#f7f1eb] shadow-[0_12px_30px_rgba(39,27,18,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_22px_46px_rgba(39,27,18,0.16)] focus-within:ring-2 focus-within:ring-[#ff8a1f]/70 dark:border-white/10 dark:bg-white/[0.04] dark:shadow-[0_18px_44px_rgba(0,0,0,0.34)]'
 
     return (
@@ -319,7 +252,7 @@ export function ProfileArtworksGrid({
           </div>
         )}
 
-        {isOwner ? (
+        {isOwner && (
           <>
             <button
               onClick={(e) => handleDownloadQr(e, artwork.id, artwork)}
@@ -377,31 +310,26 @@ export function ProfileArtworksGrid({
               )}
             </div>
           </>
-        ) : (
-          <button
-            onClick={(e) => handleSaveToggle(e, artwork.id)}
-            className="absolute top-2 left-2 rounded-full border border-white/20 bg-black/55 p-1.5 text-white shadow-lg backdrop-blur-md transition-all hover:-translate-y-0.5 hover:bg-black/75 z-[115]"
-            title={savedArtworks.has(artwork.id) ? 'Kaydedilenlerden kaldır' : 'Kaydet'}
-          >
-            <Bookmark
-              size={14}
-              strokeWidth={2.5}
-              fill={savedArtworks.has(artwork.id) ? 'currentColor' : 'none'}
-            />
-          </button>
         )}
 
-        {artwork.media && artwork.media.length > 0 && (
-          <div className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center rounded-[1.15rem] bg-black/30 opacity-0 backdrop-blur-[2px] transition-all duration-300 group-hover:opacity-100">
-            <div className="flex items-center gap-5 rounded-full border border-white/20 bg-black/35 px-4 py-2 text-white shadow-xl backdrop-blur-xl">
-              <div className="flex items-center gap-1.5 text-sm font-semibold">
-                <Heart className="h-4 w-4" fill="currentColor" />
-                <span>{artwork._count?.likes || artwork.likeCount || 0}</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-sm font-semibold">
-                <MessageCircle className="h-4 w-4" />
-                <span>{artwork._count?.comments || artwork.commentCount || 0}</span>
-              </div>
+        {artwork.media && artwork.media.length > 0 && (likeCount > 0 || commentCount > 0) && (
+          <div className="pointer-events-none absolute inset-0 z-[15] flex items-center justify-center">
+            <div
+              className="flex items-center gap-3 rounded-full border border-white/30 bg-black/20 px-3 py-1.5 text-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] backdrop-blur-lg transition-colors duration-300 group-hover:border-white/40 group-hover:bg-black/30"
+              aria-label={`${likeCount} beğeni, ${commentCount} yorum`}
+            >
+              {likeCount > 0 && (
+                <div className="flex items-center gap-1.5 text-xs font-semibold">
+                  <Heart className="h-3.5 w-3.5" fill="currentColor" />
+                  <span>{likeCount}</span>
+                </div>
+              )}
+              {commentCount > 0 && (
+                <div className="flex items-center gap-1.5 text-xs font-semibold">
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  <span>{commentCount}</span>
+                </div>
+              )}
             </div>
           </div>
         )}
