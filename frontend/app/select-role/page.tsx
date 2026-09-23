@@ -1,24 +1,23 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
+  ArrowRight,
   Palette,
   Building2,
   KeyRound,
   Brush,
-  CheckCircle,
   Sparkles,
   Check,
-  Plus,
   Moon,
   Sun,
 } from 'lucide-react'
 import api from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { useTheme } from '@/lib/theme-context'
-import { AppLogo } from '@/components/common/AppLogo'
 import type { CapabilitySummary, SidebarVisibility } from '@/types/capabilities'
 
 type PlanKey = 'free' | 'pro'
@@ -306,263 +305,173 @@ export default function SelectRolePage() {
     }
   }
 
-  // 🎯 Ek Paket UI bileşenleri izole edildi (görünmez, kod korunuyor)
-  // const hasExtraPackages = Boolean(activeRole?.allowedExtras?.length)
-  const hasExtraPackages = false // UI seviyesinde gizlendi, geri alınabilir
-  const gridColsClass = hasExtraPackages ? 'lg:grid-cols-3' : 'lg:grid-cols-2'
-
   return (
-    <main className="relative min-h-screen flex flex-col items-center justify-start px-4 py-8 bg-gradient-to-b from-white via-blue-50/30 to-white dark:from-[#0a0a0a] dark:via-[#141414] dark:to-[#0a0a0a] transition-all duration-500">
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top,_rgba(30,136,229,0.06),_transparent_60%)] dark:bg-[radial-gradient(circle_at_top,_rgba(30,136,229,0.08),_transparent_65%)]" />
+    <main className="relative min-h-screen overflow-hidden bg-[#070910] px-4 py-6 text-white sm:px-6 lg:px-8">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-28 -top-40 h-[34rem] w-[34rem] rounded-full bg-[#5415ff]/25 blur-[120px]" />
+        <div className="absolute -right-24 top-0 h-[32rem] w-[32rem] rounded-full bg-[#ff7518]/20 blur-[120px]" />
+        <div className="absolute bottom-[-18rem] left-1/3 h-[36rem] w-[36rem] rounded-full bg-[#d92f87]/15 blur-[140px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_42%)]" />
+      </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 15 }}
+        initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-        className="relative z-10 mt-10 w-full max-w-5xl text-center space-y-8"
+        transition={{ duration: 0.55, ease: 'easeOut' }}
+        className="relative z-10 mx-auto w-full max-w-6xl"
       >
-        {/* Header: Logo + Theme Toggle */}
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="w-full flex items-center justify-between mb-10"
-        >
-          <div className="flex-1" />
-          <div className="flex-1 flex justify-center">
-            <AppLogo
-              className="h-20 w-auto object-contain"
-              width={280}
-              height={80}
+        <div className="flex items-center justify-between">
+          <div className="w-10" />
+          <div className="relative flex h-16 items-center justify-center sm:h-20">
+            <span className="absolute h-16 w-44 rounded-full bg-[#ff6b2c]/20 blur-2xl" />
+            <Image
+              src="/logo/feellink-login-pill-transparent.png"
+              alt="Feellink"
+              width={260}
+              height={96}
+              className="relative h-12 w-auto object-contain sm:h-14"
+              priority
+              unoptimized
             />
           </div>
-          <div className="flex-1 flex justify-end">
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              aria-label="Toggle theme"
-            >
-              {theme === 'dark' ? (
-                <Sun className="h-5 w-5" />
-              ) : (
-                <Moon className="h-5 w-5" />
-              )}
-            </button>
-          </div>
-        </motion.div>
-
-        <div className="space-y-4">
-          <p className="mx-auto max-w-2xl text-sm text-gray-600 dark:text-gray-300 md:text-base">
-            Dijital sanat dünyasında rolünü seç. Kombinasyonlarını özgürce oluştur ve yaratıcı deneyimini genişlet.
-          </p>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/[0.06] text-white/70 backdrop-blur-xl transition hover:border-white/20 hover:bg-white/10 hover:text-white"
+            aria-label="Temayı değiştir"
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
         </div>
 
-        <div className="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-          {ROLE_CONFIG.map((role: any) => {
+        <section className="mx-auto mt-5 max-w-3xl text-center sm:mt-7">
+          <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-orange-300/15 bg-orange-400/[0.08] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-200">
+            <Sparkles className="h-3.5 w-3.5" />
+            Sana özel bir başlangıç
+          </div>
+          <h1 className="text-balance text-3xl font-semibold tracking-[-0.035em] text-white sm:text-4xl">
+            Feellink deneyimini sana göre şekillendirelim
+          </h1>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-white/55 sm:text-base">
+            Seni en iyi anlatan rolü seç. Bu seçim yalnızca deneyimini kişiselleştirir ve daha sonra değiştirilebilir.
+          </p>
+        </section>
+
+        <section className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {ROLE_CONFIG.map((role: any, index: number) => {
             const Icon = role.icon
             const isActive = role.id === selectedRoleId
             return (
               <motion.button
                 key={role.id}
-                layout
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.98 }}
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.08 + index * 0.05 }}
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.985 }}
                 onClick={() => handleRoleSelect(role.id)}
-                className={`group relative overflow-hidden rounded-2xl border px-6 py-7 text-left transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-500 ${
+                aria-pressed={isActive}
+                className={`group relative min-h-[168px] overflow-hidden rounded-[24px] border p-5 text-left backdrop-blur-2xl transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 ${
                   isActive
-                    ? 'border-orange-400 bg-gradient-to-b from-blue-50/60 to-white shadow-lg shadow-orange-500/20 dark:border-orange-400/70 dark:from-orange-500/20 dark:to-orange-500/5 dark:bg-orange-500/10'
-                    : 'border-gray-200 bg-white shadow-sm hover:border-blue-300/50 hover:shadow-lg hover:shadow-blue-500/5 dark:border-white/10 dark:bg-neutral-900/70'
+                    ? 'border-orange-300/45 bg-gradient-to-br from-orange-500/30 via-[#ca4a2f]/20 to-violet-600/20 shadow-[0_22px_70px_rgba(255,103,31,0.22)]'
+                    : 'border-white/[0.09] bg-white/[0.055] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] hover:border-white/20 hover:bg-white/[0.085]'
                 }`}
               >
-                <span className="absolute inset-0 opacity-0 transition group-hover:opacity-100">
-                  <span className="absolute inset-x-0 -top-20 h-40 bg-gradient-to-b from-orange-200/40 to-transparent blur-3xl" />
-                </span>
-
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`rounded-xl p-3 text-lg transition-colors ${
-                      isActive
-                        ? 'bg-orange-500 text-white'
-                        : 'bg-orange-100 text-orange-500 dark:bg-orange-500/15 dark:text-orange-200'
-                    }`}
-                  >
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <p className="text-base font-semibold text-gray-900 dark:text-gray-100 tracking-tight">{role.title}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-200 line-clamp-2">
-                      {role.description.split('.')[0]}.
-                    </p>
-                  </div>
+                <span className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.07] to-transparent opacity-0 transition group-hover:opacity-100" />
+                <div className="relative flex items-start justify-between gap-3">
+                  <span className={`grid h-11 w-11 place-items-center rounded-2xl border transition ${
+                    isActive
+                      ? 'border-orange-200/30 bg-orange-400 text-white shadow-[0_10px_30px_rgba(255,122,0,0.32)]'
+                      : 'border-white/10 bg-white/[0.07] text-orange-300'
+                  }`}>
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  {isActive && (
+                    <span className="grid h-7 w-7 place-items-center rounded-full border border-white/20 bg-white/15">
+                      <Check className="h-4 w-4 text-white" />
+                    </span>
+                  )}
                 </div>
-
-                {isActive && (
-                  <CheckCircle className="absolute right-5 top-5 h-5 w-5 text-orange-500" />
-                )}
-
-                <div className="mt-4 flex items-center gap-2 text-xs font-medium text-orange-500 dark:text-orange-400">
-                  {isActive ? 'Rol seçildi' : 'Detayları görmek için seç'}
+                <div className="relative mt-5">
+                  <h2 className="text-base font-semibold tracking-tight text-white">{role.title}</h2>
+                  <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-white/50">
+                    {role.description}
+                  </p>
                 </div>
               </motion.button>
             )
           })}
-        </div>
+        </section>
 
-        <div className="mx-auto mt-10 w-full max-w-4xl">
-          <AnimatePresence mode="wait">
-            {activeRole && (
-              <motion.div
-                key={activeRole.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="rounded-3xl border border-white/30 bg-white/85 backdrop-blur-md p-6 shadow-xl dark:border-white/10 dark:bg-neutral-800/90 dark:backdrop-blur-md"
-              >
-                <div className="flex flex-col gap-3 text-center">
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 tracking-tight">{activeRole.subtitle}</h2>
-                  <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
-                    {activeRole.description}
-                  </p>
+        <AnimatePresence mode="wait">
+          {activeRole ? (
+            <motion.section
+              key={activeRole.id}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.28 }}
+              className="relative mt-5 overflow-hidden rounded-[28px] border border-white/10 bg-[#11131c]/80 p-5 shadow-[0_28px_90px_rgba(0,0,0,0.34)] backdrop-blur-2xl sm:p-7"
+            >
+              <div className="pointer-events-none absolute right-[-8rem] top-[-10rem] h-80 w-80 rounded-full bg-orange-500/15 blur-[100px]" />
+              <div className="relative grid gap-7 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10">
+                <div className="text-left">
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-300">Seçtiğin rol</span>
+                  <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">{activeRole.title}</h2>
+                  <p className="mt-3 text-sm leading-6 text-white/60">{activeRole.description}</p>
+
+                  <div className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.045] p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40">Kimler için?</p>
+                    <p className="mt-2 text-sm leading-6 text-white/70">{activeRole.targetAudience}</p>
+                  </div>
                 </div>
 
-                {/* Features List */}
-                <div className="mt-6 space-y-3">
-                  <h3 className="text-sm font-medium text-gray-800 dark:text-gray-100 mb-3 tracking-tight">Özellikler</h3>
-                  <ul className="space-y-2.5 text-sm text-gray-700 dark:text-gray-200">
-                    {activeRole.features.map((feature: any, index: any) => (
-                      <li key={index} className="leading-relaxed font-normal">
+                <div className="text-left">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">Deneyiminde neler var?</p>
+                  <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                    {activeRole.features.map((feature: string) => (
+                      <li key={feature} className="flex min-h-[58px] items-start gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.04] px-3.5 py-3 text-sm leading-5 text-white/70">
+                        <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-orange-400/15 text-orange-300">
+                          <Check className="h-3 w-3" />
+                        </span>
                         {feature}
                       </li>
                     ))}
                   </ul>
                 </div>
+              </div>
 
-                {/* Target Audience */}
-                <div className="mt-6 pt-6 border-t border-gray-300 dark:border-white/10">
-                  <h4 className="text-xs font-medium text-gray-800 dark:text-gray-100 mb-1.5">Kimler için uygun?</h4>
-                  <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed font-normal">
-                    {activeRole.targetAudience}
-                  </p>
+              {mutationError && (
+                <div className="relative mt-5 rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-100">
+                  {mutationError}
                 </div>
+              )}
 
-                {/* Info Note */}
-                <div className="mt-6 pt-6 border-t border-gray-300 dark:border-white/10">
-                  <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed italic">
-                    Seçtiğin rol, Feellink deneyimini kişiselleştirir. Tüm özelliklere erişimin vardır; rolün yalnızca kullanım odağını belirler.
-                  </p>
-                </div>
-
-                <div className={`mt-6 grid grid-cols-1 gap-8 ${gridColsClass}`}>
-                  {hasExtraPackages &&
-                    activeRole.allowedExtras!.map((extraId) => {
-                      const extra = EXTRA_PACKAGES[extraId]
-                      const isActiveExtra = selectedExtra === extraId
-                      const partnerRole = ROLE_CONFIG.find((role: any) => role.id === extraId)?.title ?? ''
-
-                      return (
-                        <motion.div
-                          key={extraId}
-                          layout
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.99 }}
-                          onClick={() => handleExtraToggle(extraId)}
-                          className={`relative rounded-2xl border border-dashed border-blue-300 bg-white/80 backdrop-blur-md p-6 text-left transition-all duration-300 hover:shadow-md dark:border-white/10 dark:bg-neutral-800/90 dark:backdrop-blur-md ${
-                            isActiveExtra ? 'ring-2 ring-orange-500/40 border-orange-500/40 shadow-orange-500/20 dark:ring-orange-500/40 dark:border-orange-500/40 dark:shadow-orange-500/20' : ''
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className={`text-xs font-semibold uppercase tracking-wide ${
-                              isActiveExtra 
-                                ? 'text-orange-600 dark:text-orange-400' 
-                                : 'text-blue-600 dark:text-blue-400'
-                            }`}>
-                              Ek Paket
-                            </span>
-                          </div>
-                          <h5 className={`mt-4 text-lg font-semibold tracking-tight ${
-                            isActiveExtra
-                              ? 'text-orange-600 dark:text-orange-400'
-                              : 'text-gray-900 dark:text-gray-100'
-                          }`}>
-                            {extra.label.replace(' Ekleyin', '')}
-                          </h5>
-                          <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">
-                            {partnerRole} modüllerini panonuza ekleyin. {extra.cta}
-                          </p>
-
-                          <ul className="mt-4 space-y-2 text-sm text-gray-700 dark:text-gray-200">
-                            {extra.features.map((feature: any) => (
-                              <li key={feature} className="flex items-center gap-2">
-                                <span className={`inline-flex h-1.5 w-1.5 rounded-full mt-0.5 ${
-                                  isActiveExtra ? 'bg-orange-500 dark:bg-orange-400' : 'bg-blue-500'
-                                }`} />
-                                <span className="text-sm font-normal">{feature}</span>
-                              </li>
-                            ))}
-                          </ul>
-
-                          <button
-                            onClick={(event: any) => {
-                              event.stopPropagation()
-                              handleExtraToggle(extraId)
-                            }}
-                            className={`mt-6 w-full rounded-lg py-2 text-sm font-medium transition ${
-                              isActiveExtra
-                                ? 'bg-orange-500 text-white hover:bg-orange-600 dark:hover:bg-orange-600'
-                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/40'
-                            }`}
-                          >
-                            {isActiveExtra ? 'Paketi Kaldır' : `+ ${partnerRole} Paketini Aktifleştir`}
-                          </button>
-
-                          {isActiveExtra && (
-                            <span className="absolute right-4 top-4 rounded-full bg-orange-500 px-2 py-1 text-xs font-semibold text-white shadow-md">
-                              Aktif Paket
-                            </span>
-                          )}
-                        </motion.div>
-                      )
-                    })}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <div className="mx-auto mt-10 w-full max-w-3xl">
-          <AnimatePresence>
-            {activeRole && (
-              <motion.div
-                key={`${activeRole.id}-${selectedExtra ?? 'solo'}`}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                className="flex w-full flex-col gap-6 rounded-3xl border border-white/30 bg-white/85 p-6 text-center shadow-xl backdrop-blur-md dark:border-white/10 dark:bg-neutral-800/90 dark:backdrop-blur-md"
-              >
-                {mutationError && (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-700/60 dark:bg-red-900/20 dark:text-red-200">
-                    {mutationError}
-                  </div>
-                )}
+              <div className="relative mt-6 flex flex-col gap-4 border-t border-white/[0.08] pt-5 sm:flex-row sm:items-center sm:justify-between">
+                <p className="max-w-xl text-left text-xs leading-5 text-white/40">
+                  Rolün kullanım odağını belirler; Feellink içindeki yaratıcı alanları keşfetmeye devam edebilirsin.
+                </p>
                 <button
+                  type="button"
                   onClick={handleConfirm}
-                  disabled={!activeRole || isProcessing}
-                  className={`inline-flex items-center justify-center gap-2 rounded-xl px-8 py-3 font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-500 ${
-                    activeRole && !isProcessing
-                      ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30 hover:from-orange-500/90 hover:to-orange-600/90'
-                      : 'cursor-not-allowed bg-gray-300 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
-                  }`}
+                  disabled={isProcessing}
+                  className="inline-flex min-w-[240px] items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#ff681f] via-[#ff7f20] to-[#ff9e3d] px-6 py-3.5 text-sm font-bold text-white shadow-[0_16px_42px_rgba(255,105,31,0.3)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_50px_rgba(255,105,31,0.38)] disabled:cursor-not-allowed disabled:opacity-55"
                 >
-                  {isProcessing
-                    ? 'Rol atanıyor...'
-                    : activeRole
-                      ? 'Rolü Onayla ve Devam Et'
-                      : 'Lütfen bir rol seçin'}
+                  {isProcessing ? 'Rol atanıyor...' : 'Bu rolle devam et'}
+                  {!isProcessing && <ArrowRight className="h-4 w-4" />}
                 </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+              </div>
+            </motion.section>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="mt-5 rounded-[24px] border border-dashed border-white/10 bg-white/[0.025] px-5 py-6 text-center text-sm text-white/40"
+            >
+              Devam etmek için yukarıdaki rollerden birini seç.
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </main>
   )
