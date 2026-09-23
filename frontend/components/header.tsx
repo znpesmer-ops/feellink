@@ -37,20 +37,10 @@ const getGreetingHandle = (user?: HeaderUser | null) => {
   const fullName = cleanDisplayValue(user?.fullName)
   const emailHandle = cleanDisplayValue(user?.email?.split('@')[0])
   const fullNameParts = fullName.split(' ').filter(Boolean)
-  const surname = fullNameParts.length > 1 ? fullNameParts[fullNameParts.length - 1] : ''
 
-  if (
-    username &&
-    emailHandle &&
-    surname &&
-    username.toLocaleLowerCase('tr-TR') === surname.toLocaleLowerCase('tr-TR')
-  ) {
-    return emailHandle
-  }
-
+  if (fullNameParts[0]) return fullNameParts[0]
   if (username) return username
   if (emailHandle) return emailHandle
-  if (fullNameParts[0]) return fullNameParts[0]
   return 'kullanıcı'
 }
 

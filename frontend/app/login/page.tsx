@@ -55,6 +55,11 @@ const normalizeDisplayName = (value?: string) => {
   return normalized || undefined
 }
 
+const getWelcomeName = (user?: { fullName?: string | null; username?: string | null }) => {
+  const firstName = user?.fullName?.replace(/\s+/g, ' ').trim().split(' ')[0]
+  return firstName || user?.username?.trim() || 'Feellink kullanıcısı'
+}
+
 const loginSchema = z.object({
   emailOrUsername: z.string().min(1, 'E-posta veya kullanıcı adı gerekli'),
   password: z.string().min(6, 'Şifre en az 6 karakter olmalıdır'),
@@ -222,6 +227,11 @@ function LoginPageInner() {
       setAuth(loggedUser, newAccessToken, newRefreshToken, caps ?? null, sidebar ?? null)
       if (reactivated) {
         toast.success('Hesabınız yeniden aktif hale getirildi.')
+      } else {
+        toast.success(`Hoş geldin, ${getWelcomeName(loggedUser)}`, {
+          icon: '✨',
+          duration: 3500,
+        })
       }
       handlePostAuthNavigation(loggedUser, caps ?? undefined, needsRoleSelection)
     } catch (err: any) {
@@ -274,7 +284,10 @@ function LoginPageInner() {
         return
       }
       setAuth(loggedUser, newAccessToken, newRefreshToken, caps ?? null, sidebar ?? null)
-      toast.success('Hesabınız geri yüklendi.')
+      toast.success(`Hoş geldin, ${getWelcomeName(loggedUser)}. Hesabınız geri yüklendi.`, {
+        icon: '✨',
+        duration: 4000,
+      })
       setShowRestoreScreen(false)
       setRestoreCredentials(null)
       handlePostAuthNavigation(loggedUser, caps ?? undefined, needsRoleSelection)
